@@ -30,7 +30,7 @@ public final class BeatmapBackdrop implements AutoCloseable {
 
     public void draw(UiView view, float delta) {
         fade = Math.min(1, fade + Math.max(0, delta) / 0.25f);
-        view.background(texture, 0.42f * fade);
+        view.background(texture, 0.75f * fade);
     }
 
     @Override public void close() {

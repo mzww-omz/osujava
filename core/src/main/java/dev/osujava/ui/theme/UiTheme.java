@@ -13,7 +13,7 @@ public final class UiTheme {
     public static final Color TEXT = new Color(1f, 0.97f, 0.99f, 1f);
     public static final Color MUTED = new Color(0.75f, 0.71f, 0.79f, 1f);
     public static final Color DISABLED = new Color(0.37f, 0.34f, 0.40f, 1f);
-    public static final Color VEIL = new Color(0.035f, 0.028f, 0.055f, 0.68f);
+    public static final Color VEIL = new Color(0.035f, 0.028f, 0.055f, 0.58f);
     public static final Color ORBIT = new Color(0.28f, 0.13f, 0.25f, 0.10f);
     public static final Color LOGO_INNER = new Color(0.65f, 0.16f, 0.39f, 1f);
     public static final Color SUCCESS = new Color(0.48f, 0.86f, 0.66f, 1f);

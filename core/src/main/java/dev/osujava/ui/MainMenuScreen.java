@@ -60,6 +60,8 @@ public final class MainMenuScreen extends ScreenAdapter {
             if (play.hit(x, y) || (x - centerX) * (x - centerX) + (y - centerY) * (y - centerY) <= radius * radius) { openSongs(); return; }
             if (exit.hit(x, y)) { outgoing.request(Gdx.app::exit); return; }
         }
+        boolean logoHover = (layout.pointerX(Gdx.input.getX()) - centerX) * (layout.pointerX(Gdx.input.getX()) - centerX)
+                + (layout.pointerY(Gdx.input.getY()) - centerY) * (layout.pointerY(Gdx.input.getY()) - centerY) <= radius * radius;
         view.clear();
         view.beginShapes();
         for (int i = 0; i < 6; i++) {
@@ -68,7 +70,9 @@ public final class MainMenuScreen extends ScreenAdapter {
                     55 + i * 17, UiTheme.ORBIT);
         }
         view.circle(centerX, centerY, radius + 15 + (float) Math.sin(elapsed * 1.5f) * 3, UiTheme.SURFACE_RAISED);
-        view.circle(centerX, centerY, radius, UiTheme.ACCENT);
+        view.circle(centerX, centerY, radius, logoHover
+                ? Gdx.input.isButtonPressed(Input.Buttons.LEFT) ? UiTheme.ACCENT_PRESSED : UiTheme.ACCENT_HOVER
+                : UiTheme.ACCENT);
         view.circle(centerX, centerY, radius - 10, UiTheme.LOGO_INNER);
         play.drawShape(view, layout, delta);
         options.drawShape(view, layout, delta);
