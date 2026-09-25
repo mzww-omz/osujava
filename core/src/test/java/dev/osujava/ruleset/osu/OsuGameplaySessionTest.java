@@ -175,6 +175,40 @@ class OsuGameplaySessionTest {
         assertTrue(afterLastTick.completed());
     }
 
+    @Test
+    void processesConsecutiveSlidersAndRemovesThemAfterTheirEndWindow() {
+        ManualClock clock = new ManualClock();
+        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(
+                sliderObject(100, 100, 1000, 100, 1),
+                sliderObject(300, 100, 1600, 100, 1))), clock,
+                new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+
+        clock.set(1000);
+        session.click(100, 100);
+        clock.set(1358);
+        session.pointerMoved(200, 100);
+        session.update();
+
+        clock.set(1508);
+        GameplayState betweenSliders = session.update();
+        assertTrue(betweenSliders.sliders().stream().noneMatch(slider -> slider.startTimeMs() == 1000));
+        assertTrue(betweenSliders.sliders().stream().anyMatch(slider -> slider.startTimeMs() == 1600));
+        assertFalse(betweenSliders.completed());
+
+        clock.set(1600);
+        session.click(300, 100);
+        clock.set(1958);
+        session.pointerMoved(400, 100);
+        GameplayState secondFinished = session.update();
+        assertTrue(secondFinished.completed());
+        assertEquals(1, secondFinished.score().accuracy(), 1e-6);
+
+        clock.set(2108);
+        GameplayState cleanedUp = session.update();
+        assertTrue(cleanedUp.sliders().isEmpty());
+        assertTrue(cleanedUp.completed());
+    }
+
     private BeatmapDifficulty difficulty(List<HitObject> objects) {
         return new BeatmapDifficulty("Song", "Artist", "Creator", "Normal", 0, "", "",
                 new DifficultySettings(5, 5, 5, 5, 1.4, 1), List.of(), objects, null, null);

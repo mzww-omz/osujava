@@ -6,10 +6,15 @@ import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.math.Vector2;
 import dev.osujava.gameplay.GameplaySession;
 
+import java.util.HashSet;
+import java.util.Set;
+
 public final class GameplayInputProcessor extends InputAdapter {
     private final GameplaySession session;
     private final Runnable onBack;
     private PlayfieldViewport viewport;
+    private final Set<Integer> heldMouseButtons = new HashSet<>();
+    private final Set<Integer> heldHitKeys = new HashSet<>();
 
     public GameplayInputProcessor(GameplaySession session, Runnable onBack) {
         this.session = session;
@@ -22,18 +27,16 @@ public final class GameplayInputProcessor extends InputAdapter {
 
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-        if (button != Input.Buttons.LEFT || viewport == null) return false;
-        float x = screenX;
-        float y = Gdx.graphics.getHeight() - screenY;
-        if (!viewport.containsScreenPoint(x, y)) return false;
-        session.click(viewport.toOsuX(x), viewport.toOsuY(y));
+        if (!isHitButton(button)) return false;
+        if (heldMouseButtons.add(button)) pressAt(screenX, screenY);
         return true;
     }
 
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
-        if (button != Input.Buttons.LEFT) return false;
-        session.pointerReleased();
+        if (!isHitButton(button)) return false;
+        heldMouseButtons.remove(button);
+        releaseIfIdle();
         return true;
     }
 
@@ -55,6 +58,15 @@ public final class GameplayInputProcessor extends InputAdapter {
         session.pointerMoved(osuPosition.x, osuPosition.y);
     }
 
+    private void pressAt(int screenX, int screenY) {
+        if (viewport == null) return;
+        float x = screenX;
+        float y = Gdx.graphics.getHeight() - screenY;
+        Vector2 osuPosition = toOsuPosition(screenX, screenY);
+        if (viewport.containsScreenPoint(x, y)) session.click(osuPosition.x, osuPosition.y);
+        else session.pointerMoved(osuPosition.x, osuPosition.y);
+    }
+
     private Vector2 toOsuPosition(int screenX, int screenY) {
         float x = screenX;
         float y = Gdx.graphics.getHeight() - screenY;
@@ -68,6 +80,30 @@ public final class GameplayInputProcessor extends InputAdapter {
             onBack.run();
             return true;
         }
+        if (isHitKey(keycode)) {
+            if (heldHitKeys.add(keycode)) pressAt(Gdx.input.getX(), Gdx.input.getY());
+            return true;
+        }
         return false;
+    }
+
+    @Override
+    public boolean keyUp(int keycode) {
+        if (!isHitKey(keycode)) return false;
+        heldHitKeys.remove(keycode);
+        releaseIfIdle();
+        return true;
+    }
+
+    private void releaseIfIdle() {
+        if (heldMouseButtons.isEmpty() && heldHitKeys.isEmpty()) session.pointerReleased();
+    }
+
+    private boolean isHitButton(int button) {
+        return button == Input.Buttons.LEFT || button == Input.Buttons.RIGHT;
+    }
+
+    private boolean isHitKey(int keycode) {
+        return keycode == Input.Keys.Z || keycode == Input.Keys.X;
     }
 }
