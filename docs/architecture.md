@@ -31,7 +31,8 @@ Ruleset (OsuRuleset)
     ▼
 GameplaySession ◄──── GameClock (Music position or local elapsed clock)
     │
-    ├── click input → judgement → ScoreTracker → GameplayState
+    ├── click / cursor hold → osu! judgement → ScoreTracker → GameplayState
+    ├── SliderPath + SliderTiming → tick / repeat / tail events
     │
     ▼
 GameplayRenderer ── renders immutable GameplayState
@@ -46,11 +47,11 @@ Import and gameplay have no archive dependency in common. The importer owns extr
 
 ### core
 
-- beatmap: immutable records for sets, difficulties, timing points, hit objects, and difficulty settings.
+- beatmap: immutable records for sets, difficulties, timing points, hit objects, difficulty settings, and parsed Slider path data.
 - beatmap.parse: parses General, Metadata, Difficulty, Events, TimingPoints, and HitObjects. The integer mode is retained even when the mode is not playable.
 - library: safely imports .osz and standalone .osu files into local beatmap storage. BeatmapLibrary exposes the in-memory repository; BeatmapLibraryStorage is its persistence boundary, implemented by PropertiesBeatmapLibraryStorage.
 - gameplay: one GameClock interface, audio/elapsed implementations, judgement windows, score state, and the session contract.
-- ruleset: ruleset selection boundary. OsuRuleset currently judges HitCircles and ignores Slider/Spinner gameplay.
+- ruleset: ruleset selection boundary. OsuRuleset judges HitCircles and basic Slider head/tracking/repeat/tail events; Spinner gameplay remains unsupported.
 - ui: screens, input mapping, playfield viewport, and renderers. GameplayRenderer consumes state snapshots and does not update score or hit state.
 
 ### lwjgl3
@@ -77,10 +78,10 @@ On its first load, the index storage also scans unindexed UUID-named folders lef
 
 GameClock is the only source of gameplay time. With audio, MusicGameClock samples libGDX's music position. If the audio file is absent or cannot be decoded, ElapsedGameClock provides a local fallback timeline. OsuGameplaySession reads the clock, expires misses, resolves pointer clicks, and creates a GameplayState snapshot.
 
-The playfield uses osu!'s 512×384 coordinate space fitted into the window. Input converts screen coordinates back into that space. Rendering reads the same immutable snapshot and never changes hit status or score.
+The playfield uses osu!'s 512×384 coordinate space fitted into the window. Input converts screen coordinates back into that space. Rendering reads the same immutable snapshot and never changes hit status or score. SliderPath calculates the curve and its distance-adjusted position independently of the renderer. SliderTiming derives velocity from the active redline and inherited timing point, then maps GameClock time to alternating span progress. Slider head, tick, repeat, and tail states are judged in OsuGameplaySession and contribute to ScoreTracker.
 
-Judgement windows use Overall Difficulty; approach circle timing uses Approach Rate. Score and accuracy are calculated by ScoreTracker. Unit tests inject a controllable GameClock instead of reading wall-clock time.
+Judgement windows use Overall Difficulty; approach circle timing uses Approach Rate. Score and accuracy are calculated by ScoreTracker. Slider nested events currently use an equal-weight hit/miss contribution in this local score model. Unit tests inject a controllable GameClock instead of reading wall-clock time.
 
 ## Extending rulesets
 
-Add another Ruleset implementation that declares which imported mode it supports and creates its own GameplaySession. Keep mode parsing in the shared importer/model, and keep each ruleset's hit-object interpretation and judgement rules within that implementation. The current OsuRuleset is intentionally limited to HitCircles.
+Add another Ruleset implementation that declares which imported mode it supports and creates its own GameplaySession. Keep mode parsing in the shared importer/model, and keep each ruleset's hit-object interpretation and judgement rules within that implementation. OsuRuleset owns Slider timing, path traversal, and judgement alongside HitCircle judgement.

@@ -27,12 +27,12 @@ macOSではlauncherがGLFWの非同期起動設定を使います。
 1. Main MenuでPlayを選びます。
 2. Song SelectのImport .osz / .osuから譜面を選びます。
 3. Beatmap SetとDifficultyを選択してPlayを押します。
-4. HitCircleの位置を曲に合わせてクリックします。
+4. HitCircleはタイミングに合わせてクリックします。Sliderは頭をクリックしてから、終わりまで押したままボールを追います。
 5. 曲が終わるとResultsを表示します。
 
 終了はウィンドウの閉じるボタン、macOSのCmd+Q、Windows / LinuxのCtrl+Qで行えます。
 
-Song Selectでは、1つの.oszに入った複数Difficultyを1つのBeatmap Setとして表示します。taiko / catch / maniaのmode情報も保持して表示しますが、Gameplay対応はosu!standardのHitCircleだけです。Slider、Spinner、Mods、Replay、Skin、Editor、オンライン機能は未実装です。
+Song Selectでは、1つの.oszに入った複数Difficultyを1つのBeatmap Setとして表示します。taiko / catch / maniaのmode情報も保持して表示しますが、Gameplay対応はosu!standardのHitCircleと基本的なSliderです。Spinner、Mods、Replay、Skin、Editor、オンライン機能は未実装です。
 
 Importしたファイルはユーザーのホームディレクトリ下の.osujava/libraryへ展開・コピーします。Library indexも同じ場所へ保存され、アプリ起動時に読み込みます。Importした譜面は再起動後もSong Selectに表示され、そのままGameplayを開始できます。同一beatmap setをもう一度Importすると、既存のローカルデータとindex entryを更新します。保存方式とset識別方法は[docs/architecture.md](docs/architecture.md)を参照してください。
 
