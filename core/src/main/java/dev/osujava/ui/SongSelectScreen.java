@@ -5,348 +5,316 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.graphics.g2d.SpriteBatch;
-import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
-import com.badlogic.gdx.utils.GdxRuntimeException;
+import com.badlogic.gdx.utils.Align;
 import dev.osujava.OsuJavaGame;
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapSet;
 import dev.osujava.library.BeatmapImportException;
-import dev.osujava.library.LibraryStorageException;
 import dev.osujava.library.ImportResult;
+import dev.osujava.ui.theme.BeatmapBackdrop;
+import dev.osujava.ui.theme.UiButton;
+import dev.osujava.ui.theme.UiLayout;
+import dev.osujava.ui.theme.UiNavigation;
+import dev.osujava.ui.theme.UiTheme;
+import dev.osujava.ui.theme.UiTransition;
+import dev.osujava.ui.theme.UiView;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
 
 public final class SongSelectScreen extends ScreenAdapter {
-    private static final Color BACKGROUND = new Color(0.055f, 0.05f, 0.09f, 1);
-    private static final Color PANEL = new Color(0.12f, 0.105f, 0.17f, 0.94f);
-    private static final Color PANEL_SELECTED = new Color(0.24f, 0.16f, 0.27f, 0.97f);
-    private static final Color ACCENT = new Color(0.97f, 0.32f, 0.59f, 1);
     private final OsuJavaGame game;
-    private int selectedSetIndex;
-    private int selectedDifficultyIndex;
-    private String status = "Import an .osz or .osu file to build your local library.";
-    private Texture backdrop;
-    private float importX, importY, importW, importH;
-    private float backX, backY, backW, backH;
-    private float playX, playY, playW, playH;
-    private float leftX, leftY, leftW, panelH, rightX, rightW, rowTop, rowHeight;
+    private final UiView view;
+    private final UiTransition entrance = new UiTransition();
+    private final UiNavigation outgoing = new UiNavigation();
+    private final BeatmapBackdrop backdrop = new BeatmapBackdrop();
+    private final UiButton back = new UiButton("BACK", false);
+    private final UiButton importButton = new UiButton("IMPORT BEATMAP", false);
+    private final UiButton play = new UiButton("PLAY SELECTED", true);
+    private List<BeatmapSet> sets;
+    private int selectedSetIndex, selectedDifficultyIndex;
+    private boolean importing, closed;
+    private String toast = "";
+    private Color toastColor = UiTheme.TEXT;
+    private float toastSeconds;
+    private float listX, listW, listTop, listBottom, heroX, heroW;
 
     public SongSelectScreen(OsuJavaGame game) {
         this.game = game;
+        view = new UiView(game);
+        sets = game.library().all();
     }
 
-    @Override
-    public void show() {
-        reloadBackdrop();
+    @Override public void show() {
+        backdrop.select(selectedSet(), selectedDifficulty());
         Gdx.input.setInputProcessor(new InputAdapter() {
-            @Override
-            public boolean keyDown(int keycode) {
-                if (AppShortcuts.handleQuit(keycode)) return true;
-                if (keycode == Input.Keys.ESCAPE) {
-                    game.navigate(new MainMenuScreen(game));
-                    return true;
-                }
-                if (keycode == Input.Keys.I) {
-                    openImport();
-                    return true;
-                }
-                if (keycode == Input.Keys.ENTER || keycode == Input.Keys.SPACE) {
-                    playSelected();
-                    return true;
-                }
-                if (keycode == Input.Keys.UP) {
-                    selectSet(Math.max(0, selectedSetIndex - 1));
-                    return true;
-                }
-                if (keycode == Input.Keys.DOWN) {
-                    selectSet(Math.min(sets().size() - 1, selectedSetIndex + 1));
-                    return true;
-                }
-                if (keycode == Input.Keys.LEFT || keycode == Input.Keys.RIGHT) {
+            @Override public boolean keyDown(int key) {
+                if (AppShortcuts.handleQuit(key)) return true;
+                if (key == Input.Keys.ESCAPE) { goBack(); return true; }
+                if (key == Input.Keys.I) { requestImport(); return true; }
+                if (key == Input.Keys.ENTER || key == Input.Keys.SPACE) { playSelected(); return true; }
+                if (key == Input.Keys.UP) { selectSet(selectedSetIndex - 1); return true; }
+                if (key == Input.Keys.DOWN) { selectSet(selectedSetIndex + 1); return true; }
+                if (key == Input.Keys.LEFT || key == Input.Keys.RIGHT) {
                     BeatmapSet set = selectedSet();
-                    if (set != null) {
-                        int direction = keycode == Input.Keys.RIGHT ? 1 : -1;
-                        selectedDifficultyIndex = Math.max(0, Math.min(set.difficulties().size() - 1,
-                                selectedDifficultyIndex + direction));
-                    }
+                    if (set != null) selectDifficulty(selectedDifficultyIndex + (key == Input.Keys.RIGHT ? 1 : -1));
                     return true;
                 }
                 return false;
             }
-
-            @Override
-            public boolean scrolled(float amountX, float amountY) {
-                if (sets().isEmpty()) return false;
-                selectSet(Math.max(0, Math.min(sets().size() - 1, selectedSetIndex + (int) Math.signum(amountY))));
+            @Override public boolean scrolled(float amountX, float amountY) {
+                if (sets.isEmpty()) return false;
+                selectSet(selectedSetIndex + (int) Math.signum(amountY));
                 return true;
             }
         });
     }
 
-    @Override
-    public void render(float delta) {
-        int width = Gdx.graphics.getWidth();
-        int height = Gdx.graphics.getHeight();
-        calculateLayout(width, height);
+    @Override public void render(float delta) {
+        if (outgoing.advance(delta)) return;
+        UiLayout layout = view.prepare();
+        calculateLayout(layout);
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
-            handleMouseClick(Gdx.input.getX(), height - Gdx.input.getY());
-            if (game.getScreen() != this) return;
+            float x = layout.pointerX(Gdx.input.getX()), y = layout.pointerY(Gdx.input.getY());
+            if (back.hit(x, y)) { goBack(); return; }
+            if (importButton.hit(x, y)) { requestImport(); }
+            else if (play.hit(x, y)) { playSelected(); if (game.getScreen() != this) return; }
+            else handleRowClick(x, y);
         }
-        Gdx.gl.glClearColor(BACKGROUND.r, BACKGROUND.g, BACKGROUND.b, 1);
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        view.clear();
+        backdrop.draw(view, delta);
+        view.beginShapes();
+        view.box(0, 0, layout.width(), layout.height(), 0, UiTheme.VEIL);
+        view.box(0, layout.height() - 88, layout.width(), 88, 0, UiTheme.SURFACE);
+        view.box(0, 0, layout.width(), 78, 0, UiTheme.SURFACE);
+        view.box(heroX, 108, heroW, layout.height() - 220, UiTheme.RADIUS, UiTheme.SURFACE);
+        view.box(listX, listBottom - 10, listW, listTop - listBottom + 42, UiTheme.RADIUS, UiTheme.SURFACE);
+        drawRowsShape(layout, delta);
+        back.drawShape(view, layout, delta);
+        importButton.drawShape(view, layout, delta);
+        play.drawShape(view, layout, delta);
+        if (toastSeconds > 0) view.box(heroX + 12, 90, Math.min(heroW - 24, 460), 48, UiTheme.RADIUS, UiTheme.SURFACE_RAISED);
+        view.endShapes();
+        view.beginText();
+        view.text("SONG SELECT", layout.contentX() + 4, layout.height() - 29, 330, UiTheme.HEADING, UiTheme.TEXT);
+        view.text(sets.size() + " LOCAL SETS", listX, layout.height() - 38, listW - 12, UiTheme.META, UiTheme.MUTED, Align.right);
+        drawHeroText(layout);
+        drawRowsText(layout);
+        back.drawText(view); importButton.drawText(view); play.drawText(view);
+        if (toastSeconds > 0) view.text(toast, heroX + 26, 120, Math.min(heroW - 52, 432), UiTheme.META, toastColor);
+        view.endText();
+        toastSeconds = Math.max(0, toastSeconds - Math.max(0, delta));
+        view.fade(entrance, delta);
+        view.cover(outgoing.opacity());
+    }
 
-        if (backdrop != null) {
-            game.batch().setColor(1, 1, 1, 0.22f);
-            game.batch().begin();
-            game.batch().draw(backdrop, 0, 0, width, height);
-            game.batch().end();
-            game.batch().setColor(Color.WHITE);
-        }
+    @Override public void dispose() { closed = true; backdrop.close(); }
 
-        ShapeRenderer shapes = game.shapes();
-        shapes.begin(ShapeRenderer.ShapeType.Filled);
-        shapes.setColor(0.045f, 0.04f, 0.07f, backdrop == null ? 1 : 0.80f);
-        shapes.rect(0, 0, width, height);
-        shapes.setColor(PANEL);
-        shapes.rect(leftX, leftY, leftW, panelH);
-        shapes.rect(rightX, leftY, rightW, panelH);
-        drawButton(shapes, importX, importY, importW, importH, ACCENT);
-        drawButton(shapes, backX, backY, backW, backH, new Color(0.25f, 0.22f, 0.31f, 1));
+    private void calculateLayout(UiLayout layout) {
+        float contentX = layout.contentX(), contentW = layout.contentWidth();
+        heroX = contentX;
+        heroW = Math.max(375, contentW * 0.43f);
+        listX = heroX + heroW + 16;
+        listW = contentX + contentW - listX;
+        listTop = layout.height() - 119;
+        listBottom = 112;
+        back.bounds(contentX, 15, 104, 49);
+        importButton.bounds(contentX + 116, 15, 182, 49);
+        play.bounds(contentX + contentW - 213, 14, 213, 51);
         BeatmapDifficulty difficulty = selectedDifficulty();
-        Color playColor = difficulty != null && game.osuRuleset().supportsMode(difficulty.mode())
-                ? ACCENT : new Color(0.32f, 0.29f, 0.36f, 1);
-        drawButton(shapes, playX, playY, playW, playH, playColor);
-        BeatmapSet current = selectedSet();
-        if (current != null) {
-            for (int i = 0; i < current.difficulties().size(); i++) {
-                float y = rowTop - (i + 1) * rowHeight;
-                if (y < leftY + 8) break;
-                shapes.setColor(i == selectedDifficultyIndex ? PANEL_SELECTED : new Color(0.09f, 0.08f, 0.13f, 0.82f));
-                shapes.rect(rightX + 10, y, rightW - 20, rowHeight - 5);
-                if (i == selectedDifficultyIndex) {
-                    shapes.setColor(ACCENT);
-                    shapes.rect(rightX + 10, y, 4, rowHeight - 5);
-                }
-            }
-        }
-        List<BeatmapSet> sets = sets();
-        for (int i = 0; i < sets.size(); i++) {
-            float y = rowTop - (i + 1) * rowHeight;
-            if (y < leftY + 8) break;
-            shapes.setColor(i == selectedSetIndex ? PANEL_SELECTED : new Color(0.09f, 0.08f, 0.13f, 0.82f));
-            shapes.rect(leftX + 10, y, leftW - 20, rowHeight - 5);
-            if (i == selectedSetIndex) {
-                shapes.setColor(ACCENT);
-                shapes.rect(leftX + 10, y, 4, rowHeight - 5);
-            }
-        }
-        shapes.end();
-
-        SpriteBatch batch = game.batch();
-        batch.begin();
-        game.font().setColor(Color.WHITE);
-        game.font().getData().setScale(1.15f);
-        game.font().draw(batch, "Import .osz / .osu", importX + 16, importY + 29);
-        game.font().draw(batch, "Back", backX + 22, backY + 29);
-        game.font().getData().setScale(1.7f);
-        game.font().draw(batch, "Play", playX + playW / 2 - 31, playY + playH / 2 + 9);
-        game.font().getData().setScale(1.35f);
-        game.font().draw(batch, "SONG SELECT", backX + backW + 28, height - 40);
-        game.font().setColor(new Color(0.78f, 0.76f, 0.84f, 1));
-        game.font().getData().setScale(0.85f);
-        game.font().draw(batch, "BEATMAP SETS", leftX + 15, rowTop + 15);
-        game.font().draw(batch, "DIFFICULTIES", rightX + 15, rowTop + 15);
-        drawSetRows(batch, sets);
-        drawDifficultyRows(batch, current);
-        game.font().setColor(new Color(0.83f, 0.80f, 0.88f, 1));
-        game.font().getData().setScale(0.85f);
-        game.font().draw(batch, status, leftX, 38);
-        game.font().setColor(Color.WHITE);
-        game.font().getData().setScale(1f);
-        batch.end();
+        play.enabled(difficulty != null && game.osuRuleset().supportsMode(difficulty.mode()));
+        importButton.enabled(!importing);
     }
 
-    @Override
-    public void dispose() {
-        if (backdrop != null) backdrop.dispose();
-    }
-
-    private void calculateLayout(int width, int height) {
-        leftX = 28;
-        leftY = 88;
-        leftW = Math.max(300, width * 0.41f);
-        rightX = leftX + leftW + 16;
-        rightW = width - rightX - 28;
-        panelH = Math.max(220, height - 190);
-        rowHeight = Math.max(54, Math.min(66, panelH / 8));
-        rowTop = leftY + panelH - 55;
-        importX = 28;
-        importY = height - 68;
-        importW = 190;
-        importH = 44;
-        backX = importX + importW + 14;
-        backY = importY;
-        backW = 100;
-        backH = importH;
-        playW = 220;
-        playH = 54;
-        playX = width - playW - 28;
-        playY = 20;
-    }
-
-    private void handleMouseClick(float x, float y) {
-        if (contains(x, y, importX, importY, importW, importH)) {
-            openImport();
-        } else if (contains(x, y, backX, backY, backW, backH)) {
-            game.navigate(new MainMenuScreen(game));
-        } else if (contains(x, y, playX, playY, playW, playH)) {
-            playSelected();
-        } else if (x >= leftX && x <= leftX + leftW && y <= rowTop && y >= leftY) {
-            int index = (int) ((rowTop - y) / rowHeight);
-            if (index < sets().size()) selectSet(index);
-        } else if (x >= rightX && x <= rightX + rightW && y <= rowTop && y >= leftY) {
-            BeatmapSet set = selectedSet();
-            int index = (int) ((rowTop - y) / rowHeight);
-            if (set != null && index < set.difficulties().size()) selectedDifficultyIndex = index;
-        }
-    }
-
-    private void drawSetRows(SpriteBatch batch, List<BeatmapSet> sets) {
-        if (sets.isEmpty()) {
-            game.font().setColor(Color.WHITE);
-            game.font().getData().setScale(1f);
-            game.font().draw(batch, "No beatmaps imported yet.", leftX + 18, rowTop - 42);
-            game.font().setColor(new Color(0.78f, 0.76f, 0.84f, 1));
-            game.font().getData().setScale(0.82f);
-            game.font().draw(batch, "Choose an .osz or single .osu file above.", leftX + 18, rowTop - 66);
-            return;
-        }
-        for (int i = 0; i < sets.size(); i++) {
-            float y = rowTop - i * rowHeight - 21;
-            if (y < leftY + 14) break;
-            BeatmapSet set = sets.get(i);
-            game.font().setColor(Color.WHITE);
-            game.font().getData().setScale(1.0f);
-            game.font().draw(batch, set.title(), leftX + 24, y);
-            game.font().setColor(new Color(0.75f, 0.72f, 0.81f, 1));
-            game.font().getData().setScale(0.78f);
-            game.font().draw(batch, set.artist() + "  ·  " + set.difficulties().size() + " difficulties", leftX + 24, y - 21);
-        }
-    }
-
-    private void drawDifficultyRows(SpriteBatch batch, BeatmapSet set) {
-        if (set == null) return;
-        for (int i = 0; i < set.difficulties().size(); i++) {
-            float y = rowTop - i * rowHeight - 23;
-            if (y < leftY + 14) break;
-            BeatmapDifficulty difficulty = set.difficulties().get(i);
-            game.font().setColor(Color.WHITE);
-            game.font().getData().setScale(1.0f);
-            game.font().draw(batch, difficulty.version(), rightX + 27, y);
-            game.font().setColor(new Color(0.75f, 0.72f, 0.81f, 1));
-            game.font().getData().setScale(0.78f);
-            String mode = difficulty.mode() == 0 ? "osu!standard" : "mode " + difficulty.mode() + " (imported)";
-            game.font().draw(batch, mode + "  ·  OD " + difficulty.settings().overallDifficulty(), rightX + 27, y - 20);
-        }
-    }
-
-    private void openImport() {
-        game.fileChooser().chooseFile(path -> Gdx.app.postRunnable(() -> importFile(path)));
-    }
-
-    void requestImport() {
-        openImport();
-    }
-
-    private void importFile(Path path) {
-        try {
-            ImportResult result = game.importer().importFile(path);
-            game.library().add(result.beatmapSet());
-            selectedSetIndex = setIndex(result.beatmapSet().id());
-            selectedDifficultyIndex = 0;
-            reloadBackdrop();
-            status = "Imported " + result.beatmapSet().title() + " · " + result.beatmapSet().difficulties().size() + " difficulties";
-            if (!result.warnings().isEmpty()) status += " · " + result.warnings().getFirst();
-        } catch (BeatmapImportException e) {
-            status = "Import failed: " + e.getMessage();
-        } catch (LibraryStorageException e) {
-            status = "Could not save the local library: " + e.getMessage();
-        }
-    }
-
-    private void playSelected() {
+    private int visibleStart() { return Math.max(0, selectedSetIndex - 3); }
+    private float rowHeight(int index) { return index == selectedSetIndex ? 70 : 59; }
+    private int diffStart() {
         BeatmapSet set = selectedSet();
-        BeatmapDifficulty difficulty = selectedDifficulty();
-        if (set == null || difficulty == null) {
-            status = "Import a beatmap before starting.";
+        if (set == null) return 0;
+        return Math.max(0, selectedDifficultyIndex - 3);
+    }
+
+    private void drawRowsShape(UiLayout layout, float delta) {
+        float y = listTop;
+        for (int i = visibleStart(); i < sets.size(); i++) {
+            float h = rowHeight(i);
+            y -= h;
+            if (y < listBottom + 8) break;
+            boolean selected = i == selectedSetIndex;
+            boolean hover = rowHit(layout, listX + 8, y, listW - 16, h - 5);
+            view.box(listX + (selected ? 2 : 10), y, listW - (selected ? 12 : 20), h - 5,
+                    UiTheme.RADIUS, selected ? UiTheme.SURFACE_RAISED : hover ? UiTheme.SURFACE_RAISED : UiTheme.SURFACE);
+            if (selected) {
+                view.box(listX + 2, y + 5, 5, h - 15, 2, UiTheme.ACCENT);
+                BeatmapSet set = sets.get(i);
+                int start = diffStart();
+                for (int j = start; j < set.difficulties().size(); j++) {
+                    y -= 44;
+                    if (y < listBottom + 8) break;
+                    boolean active = j == selectedDifficultyIndex;
+                    boolean diffHover = rowHit(layout, listX + 30, y, listW - 44, 39);
+                    view.box(listX + 30, y, listW - 44, 39, 7,
+                            active ? UiTheme.ACCENT : diffHover ? UiTheme.SURFACE_RAISED : UiTheme.SURFACE);
+                }
+                y -= 8;
+            }
+        }
+    }
+
+    private void drawRowsText(UiLayout layout) {
+        float y = listTop;
+        if (sets.isEmpty()) {
+            view.text("YOUR LIBRARY IS EMPTY", listX + 28, y - 44, listW - 56, UiTheme.TITLE, UiTheme.TEXT);
+            view.text("Import an .osz or .osu file to begin.", listX + 28, y - 77, listW - 56, UiTheme.BODY, UiTheme.MUTED);
             return;
         }
-        if (!game.osuRuleset().supportsMode(difficulty.mode())) {
-            status = "Mode " + difficulty.mode() + " is imported, but only osu!standard is playable yet.";
+        for (int i = visibleStart(); i < sets.size(); i++) {
+            float h = rowHeight(i);
+            y -= h;
+            if (y < listBottom + 8) break;
+            BeatmapSet set = sets.get(i);
+            boolean selected = i == selectedSetIndex;
+            float x = listX + (selected ? 22 : 27);
+            view.text(set.title(), x, y + h - 18, listW - 57, selected ? UiTheme.TITLE : UiTheme.BODY, UiTheme.TEXT);
+            view.text(set.artist() + "  /  " + set.creator(), x, y + 18, listW - 57, UiTheme.META, UiTheme.MUTED);
+            if (selected) {
+                int start = diffStart();
+                for (int j = start; j < set.difficulties().size(); j++) {
+                    y -= 44;
+                    if (y < listBottom + 8) break;
+                    BeatmapDifficulty diff = set.difficulties().get(j);
+                    Color color = j == selectedDifficultyIndex ? UiTheme.TEXT : UiTheme.MUTED;
+                    view.text(">  " + diff.version(), listX + 43, y + 25, listW - 170, UiTheme.BODY, color);
+                    view.text(modeName(diff.mode()), listX + listW - 122, y + 24, 100, UiTheme.META, color, Align.right);
+                }
+                y -= 8;
+            }
+        }
+    }
+
+    private void drawHeroText(UiLayout layout) {
+        BeatmapSet set = selectedSet();
+        if (set == null) {
+            view.text("READY WHEN YOU ARE", heroX + 28, layout.height() - 164, heroW - 56, UiTheme.HEADING, UiTheme.TEXT);
+            view.text("Build a local library to play.", heroX + 28, layout.height() - 205, heroW - 56, UiTheme.BODY, UiTheme.MUTED);
             return;
         }
-        game.navigate(new GameplayScreen(game, set, difficulty));
+        BeatmapDifficulty diff = selectedDifficulty();
+        float top = layout.height() - 151;
+        view.text("NOW SELECTED", heroX + 30, top, heroW - 60, UiTheme.META, UiTheme.ACCENT);
+        view.text(set.title(), heroX + 28, top - 45, heroW - 56, UiTheme.HEADING, UiTheme.TEXT);
+        view.text(set.artist(), heroX + 30, top - 78, heroW - 60, UiTheme.TITLE, UiTheme.TEXT);
+        view.text("mapped by " + set.creator(), heroX + 30, top - 105, heroW - 60, UiTheme.META, UiTheme.MUTED);
+        if (diff != null) {
+            view.text("DIFFICULTY", heroX + 30, top - 169, heroW - 60, UiTheme.META, UiTheme.MUTED);
+            view.text(diff.version(), heroX + 30, top - 205, heroW - 60, UiTheme.TITLE, UiTheme.TEXT);
+            view.text(modeName(diff.mode()).toUpperCase(Locale.ROOT) + "    /    OD " + diff.settings().overallDifficulty(),
+                    heroX + 30, top - 239, heroW - 60, UiTheme.META, UiTheme.MUTED);
+            if (!game.osuRuleset().supportsMode(diff.mode()))
+                view.text("This mode is imported but cannot be played yet.", heroX + 30, top - 273,
+                        heroW - 60, UiTheme.META, UiTheme.ERROR);
+        }
+        view.text(set.difficulties().size() + " DIFFICULTIES IN THIS SET", heroX + 30, 158, heroW - 60, UiTheme.META, UiTheme.MUTED);
+    }
+
+    private boolean rowHit(UiLayout layout, float x, float y, float w, float h) {
+        float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
+        return px >= x && px <= x + w && py >= y && py <= y + h;
+    }
+
+    private void handleRowClick(float x, float py) {
+        if (x < listX || x > listX + listW) return;
+        float y = listTop;
+        for (int i = visibleStart(); i < sets.size(); i++) {
+            float h = rowHeight(i);
+            y -= h;
+            if (y < listBottom + 8) break;
+            if (py >= y && py <= y + h - 5) { selectSet(i); return; }
+            if (i == selectedSetIndex) {
+                BeatmapSet set = sets.get(i);
+                for (int j = diffStart(); j < set.difficulties().size(); j++) {
+                    y -= 44;
+                    if (y < listBottom + 8) break;
+                    if (py >= y && py <= y + 39) { selectDifficulty(j); return; }
+                }
+                y -= 8;
+            }
+        }
     }
 
     private void selectSet(int index) {
-        if (sets().isEmpty()) return;
-        int next = Math.max(0, Math.min(sets().size() - 1, index));
-        if (next != selectedSetIndex) {
-            selectedSetIndex = next;
-            selectedDifficultyIndex = 0;
-            reloadBackdrop();
-        }
+        if (sets.isEmpty()) return;
+        int next = Math.max(0, Math.min(sets.size() - 1, index));
+        if (next == selectedSetIndex) return;
+        selectedSetIndex = next;
+        selectedDifficultyIndex = 0;
+        backdrop.select(selectedSet(), selectedDifficulty());
     }
-
-    private List<BeatmapSet> sets() {
-        return game.library().all();
+    private void selectDifficulty(int index) {
+        BeatmapSet set = selectedSet();
+        if (set == null) return;
+        selectedDifficultyIndex = Math.max(0, Math.min(set.difficulties().size() - 1, index));
+        backdrop.select(set, selectedDifficulty());
     }
-
-    private int setIndex(String id) {
-        List<BeatmapSet> sets = sets();
-        for (int i = 0; i < sets.size(); i++) {
-            if (sets.get(i).id().equals(id)) return i;
-        }
-        return 0;
-    }
-
-    private BeatmapSet selectedSet() {
-        List<BeatmapSet> sets = sets();
-        return selectedSetIndex >= 0 && selectedSetIndex < sets.size() ? sets.get(selectedSetIndex) : null;
-    }
-
+    private BeatmapSet selectedSet() { return selectedSetIndex < sets.size() ? sets.get(selectedSetIndex) : null; }
     private BeatmapDifficulty selectedDifficulty() {
         BeatmapSet set = selectedSet();
-        if (set == null || selectedDifficultyIndex < 0 || selectedDifficultyIndex >= set.difficulties().size()) return null;
-        return set.difficulties().get(selectedDifficultyIndex);
+        return set == null ? null : set.difficulties().get(selectedDifficultyIndex);
     }
-
-    private void reloadBackdrop() {
-        if (backdrop != null) {
-            backdrop.dispose();
-            backdrop = null;
+    private String modeName(int mode) { return mode == 0 ? "osu!standard" : "mode " + mode; }
+    private void goBack() { outgoing.request(() -> game.navigate(new MainMenuScreen(game))); }
+    private void playSelected() {
+        BeatmapSet set = selectedSet(); BeatmapDifficulty difficulty = selectedDifficulty();
+        if (set == null) { showToast("Import a beatmap to play.", UiTheme.MUTED); return; }
+        if (!game.osuRuleset().supportsMode(difficulty.mode())) {
+            showToast("Only osu!standard is playable right now.", UiTheme.ERROR); return;
         }
-        BeatmapSet set = selectedSet();
-        if (set == null || set.backgroundPath() == null || !Files.isRegularFile(set.backgroundPath())) return;
-        try {
-            backdrop = new Texture(Gdx.files.absolute(set.backgroundPath().toString()));
-            backdrop.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-        } catch (GdxRuntimeException ignored) {
-            status = "The imported background image could not be loaded.";
-        }
+        outgoing.request(() -> game.navigate(new GameplayScreen(game, set, difficulty)));
     }
 
-    private void drawButton(ShapeRenderer shapes, float x, float y, float width, float height, Color color) {
-        shapes.setColor(color);
-        shapes.rect(x, y, width, height);
+    public void requestImport() {
+        if (importing || outgoing.pending()) return;
+        showToast("Choose an .osz or .osu file...", UiTheme.TEXT);
+        game.fileChooser().chooseFile(path -> Gdx.app.postRunnable(() -> startImport(path)));
     }
-
-    private boolean contains(float x, float y, float rectX, float rectY, float rectW, float rectH) {
-        return x >= rectX && x <= rectX + rectW && y >= rectY && y <= rectY + rectH;
+    private void startImport(Path path) {
+        if (closed || importing) return;
+        importing = true;
+        showToast("Importing " + path.getFileName() + "...", UiTheme.TEXT);
+        Thread worker = new Thread(() -> {
+            ImportResult result = null;
+            String error = null;
+            boolean duplicate = false;
+            try {
+                result = game.importer().importFile(path);
+                for (BeatmapSet existing : game.library().all()) {
+                    if (existing.id().equals(result.beatmapSet().id())) { duplicate = true; break; }
+                }
+                game.library().add(result.beatmapSet());
+            } catch (BeatmapImportException | RuntimeException e) {
+                error = e.getMessage() == null ? "Unknown import error" : e.getMessage();
+            }
+            ImportResult finished = result;
+            String failure = error;
+            boolean existing = duplicate;
+            Gdx.app.postRunnable(() -> {
+                importing = false;
+                if (closed) return;
+                if (failure != null) { showToast("Import failed: " + failure, UiTheme.ERROR); return; }
+                sets = game.library().all();
+                for (int i = 0; i < sets.size(); i++)
+                    if (sets.get(i).id().equals(finished.beatmapSet().id())) { selectedSetIndex = i; break; }
+                selectedDifficultyIndex = 0;
+                backdrop.select(selectedSet(), selectedDifficulty());
+                String message = existing ? "Already imported: " : "Imported: ";
+                message += finished.beatmapSet().title();
+                if (!finished.warnings().isEmpty()) message += " (some difficulties skipped)";
+                showToast(message, UiTheme.SUCCESS);
+            });
+        }, "osujava-import");
+        worker.setDaemon(true);
+        worker.start();
     }
+    private void showToast(String message, Color color) { toast = message; toastColor = color; toastSeconds = 4; }
 }
