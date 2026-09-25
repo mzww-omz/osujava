@@ -68,6 +68,21 @@ class SliderTimingTest {
         assertEquals(timing.endTimeMs() - 36, SliderEventGenerator.tailJudgementStartTime(timing), 1e-6);
     }
 
+    @Test
+    void zeroDistancePathDoesNotCreateImpossibleRepeatSpans() {
+        HitObject object = new HitObject(0, 0, 1000, HitObject.Type.SLIDER, 2, 0,
+                new SliderData(List.of(new SliderData.Segment(SliderData.CurveType.LINEAR, 0,
+                        List.of(new BeatmapPoint(0, 0), new BeatmapPoint(0, 0)))), 4, 0));
+        BeatmapDifficulty difficulty = new BeatmapDifficulty("Song", "Artist", "Mapper", "Normal", 0,
+                "", "", new DifficultySettings(5, 5, 5, 5, 1.4, 1), List.of(), List.of(object), null, null);
+        SliderPath path = new SliderPath(0, 0, object.sliderData());
+        SliderTiming timing = SliderTiming.calculate(difficulty, object, path);
+
+        assertEquals(0, path.distance(), 1e-6);
+        assertEquals(1, timing.spanCount());
+        assertEquals(1000, timing.endTimeMs(), 1e-6);
+    }
+
     private SliderTiming timing(double pathLength, int slides, List<TimingPoint> timingPoints) {
         HitObject object = new HitObject(0, 0, 1000, HitObject.Type.SLIDER, 2, 0,
                 new SliderData(List.of(new SliderData.Segment(SliderData.CurveType.LINEAR, 0,

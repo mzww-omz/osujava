@@ -236,8 +236,8 @@ public final class SliderPath {
         appendDistinct(result, source.getFirst());
         double actual = 0;
         for (int i = 1; i < source.size(); i++) actual += distance(source.get(i - 1), source.get(i));
-        if (expected == 0) return result;
-        if (Math.abs(actual - expected) < 1e-7) {
+        // osu!lazer treats an encoded length of zero as no expected-distance constraint.
+        if (expected <= 0 || Math.abs(actual - expected) < 1e-7) {
             appendPoints(result, source.subList(1, source.size()));
             return result;
         }

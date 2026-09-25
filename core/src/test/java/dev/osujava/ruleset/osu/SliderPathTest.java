@@ -43,12 +43,35 @@ class SliderPathTest {
     }
 
     @Test
+    void treatsZeroPixelLengthAsNoExpectedDistanceConstraint() {
+        SliderPath path = path(SliderData.CurveType.LINEAR, 0, 0,
+                List.of(new BeatmapPoint(0, 0), new BeatmapPoint(100, 0)), 0);
+
+        assertEquals(100, path.distance(), 1e-6);
+        assertEquals(100, path.positionAt(1).x(), 1e-6);
+    }
+
+    @Test
     void followsPerfectCurveThroughItsMiddleControlPoint() {
         SliderPath path = path(SliderData.CurveType.PERFECT, 0, 0,
                 List.of(new BeatmapPoint(0, 0), new BeatmapPoint(50, 50), new BeatmapPoint(100, 0)), 100);
 
         assertTrue(path.positionAt(0.5).y() > 20);
         assertEquals(100, path.distance(), 1e-5);
+    }
+
+    @Test
+    void catmullAndDegreeSpecificBSplineProduceCurvedSamples() {
+        List<BeatmapPoint> controls = List.of(new BeatmapPoint(0, 0), new BeatmapPoint(40, 70),
+                new BeatmapPoint(80, 0), new BeatmapPoint(120, 60));
+        SliderPath catmull = path(SliderData.CurveType.CATMULL, 0, 0, controls, 200);
+        SliderPath bSpline = new SliderPath(0, 0, new SliderData(List.of(new SliderData.Segment(
+                SliderData.CurveType.BSPLINE, 2, controls)), 0, 200));
+
+        assertTrue(catmull.sampledPoints().size() > controls.size());
+        assertTrue(bSpline.sampledPoints().size() > controls.size());
+        assertEquals(0, catmull.positionAt(0).x(), 1e-6);
+        assertEquals(0, bSpline.positionAt(0).x(), 1e-6);
     }
 
     private SliderPath path(SliderData.CurveType type, double startX, double startY,

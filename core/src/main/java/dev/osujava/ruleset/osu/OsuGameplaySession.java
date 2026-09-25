@@ -167,7 +167,7 @@ public final class OsuGameplaySession implements GameplaySession {
 
     private void processSliderEvents(long now) {
         for (SliderRuntime slider : sliders) {
-            slider.tracking = slider.headHit && isTrackingAt(slider, now);
+            slider.tracking = slider.headHit && updateTrackingAt(slider, now);
             if (!slider.headJudged && now <= slider.object.timeMs() + windows.hit50Ms()) continue;
             for (int index = 0; index < slider.events.size(); index++) {
                 if (slider.eventJudged[index]) continue;
@@ -175,7 +175,7 @@ public final class OsuGameplaySession implements GameplaySession {
                 double dueAt = event.type() == SliderEvent.Type.TAIL
                         ? SliderEventGenerator.tailJudgementStartTime(slider.timing) : event.timeMs();
                 if (now < dueAt) continue;
-                boolean hit = slider.headHit && isTrackingAt(slider, now);
+                boolean hit = slider.headHit && slider.tracking;
                 slider.eventJudged[index] = true;
                 slider.eventHit[index] = hit;
                 score.record(hit ? Judgement.HIT300 : Judgement.MISS);
@@ -183,11 +183,12 @@ public final class OsuGameplaySession implements GameplaySession {
         }
     }
 
-    private boolean isTrackingAt(SliderRuntime slider, long now) {
+    private boolean updateTrackingAt(SliderRuntime slider, long now) {
         if (!primaryPressed || now < slider.object.timeMs()
                 || now > slider.timing.endTimeMs() + windows.hit50Ms()) return false;
         BeatmapPoint ball = slider.path.positionAt(slider.timing.progressAt(now));
-        return withinRadius(cursorX, cursorY, ball.x(), ball.y(), circleRadius * SLIDER_FOLLOW_AREA);
+        double radius = slider.tracking ? circleRadius * SLIDER_FOLLOW_AREA : circleRadius;
+        return withinRadius(cursorX, cursorY, ball.x(), ball.y(), radius);
     }
 
     private GameplayState createState(long now) {

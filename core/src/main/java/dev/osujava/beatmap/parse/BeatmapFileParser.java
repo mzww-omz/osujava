@@ -135,11 +135,11 @@ public final class BeatmapFileParser {
     }
 
     private SliderData parseSliderData(String[] fields, double startX, double startY) {
-        if (fields.length < 8) throw new IllegalArgumentException("Slider is missing path or length fields");
+        if (fields.length < 7) throw new IllegalArgumentException("Slider is missing path or repeat fields");
 
         int slides = Integer.parseInt(fields[6].trim());
-        if (slides < 1) throw new IllegalArgumentException("Slider slides must be positive");
-        double pixelLength = Double.parseDouble(fields[7].trim());
+        if (slides < 1 || slides > 9000) throw new IllegalArgumentException("Slider slides are outside the supported range");
+        double pixelLength = fields.length > 7 ? Double.parseDouble(fields[7].trim()) : 0;
 
         List<SliderData.Segment> segments = new ArrayList<>();
         List<BeatmapPoint> points = new ArrayList<>();

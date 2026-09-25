@@ -54,7 +54,8 @@ public final class SliderTiming {
         double tickRate = difficulty.settings().sliderTickRate();
         double tickDistance = tickRate > 0 && Double.isFinite(tickRate)
                 ? velocity * beatLength / tickRate : Double.POSITIVE_INFINITY;
-        return new SliderTiming(object.timeMs(), object.sliderData().spanCount(), spanDuration, velocity,
+        int spanCount = path.distance() <= 1e-7 ? 1 : object.sliderData().spanCount();
+        return new SliderTiming(object.timeMs(), spanCount, spanDuration, velocity,
                 tickDistance, ticksEnabled && Double.isFinite(tickDistance) && tickDistance > 0);
     }
 
