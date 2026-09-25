@@ -9,19 +9,24 @@ import dev.osujava.beatmap.parse.BeatmapParseException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Properties;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStorage {
     private static final int SCHEMA_VERSION = 1;
     private static final int MAX_DIFFICULTIES = 512;
     private static final int MAX_ASSETS = 100_000;
+    private static final String LEGACY_MIGRATION_MARKER = ".legacy-recovery-complete";
 
     private final Path libraryRoot;
     private final Path indexDirectory;
@@ -39,13 +44,16 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
 
     @Override
     public List<BeatmapSet> load() throws IOException {
-        if (!Files.isDirectory(indexDirectory)) return List.of();
         List<Path> entries;
-        try (var paths = Files.list(indexDirectory)) {
-            entries = paths.filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().endsWith(".properties"))
-                    .sorted(Comparator.comparing(path -> path.getFileName().toString()))
-                    .toList();
+        if (Files.isDirectory(indexDirectory)) {
+            try (var paths = Files.list(indexDirectory)) {
+                entries = paths.filter(Files::isRegularFile)
+                        .filter(path -> path.getFileName().toString().endsWith(".properties"))
+                        .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+                        .toList();
+            }
+        } else {
+            entries = List.of();
         }
 
         List<BeatmapSet> sets = new ArrayList<>();
@@ -57,7 +65,113 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
                 System.err.println("Skipping damaged beatmap library entry " + entry.getFileName() + ": " + safeMessage(e));
             }
         }
+        recoverLegacySets(sets);
         return List.copyOf(sets);
+    }
+
+    private void recoverLegacySets(List<BeatmapSet> sets) {
+        if (Files.exists(indexDirectory.resolve(LEGACY_MIGRATION_MARKER))) return;
+        Set<String> knownIds = new HashSet<>();
+        sets.forEach(set -> knownIds.add(set.id()));
+        List<Path> directories;
+        try {
+            if (!Files.isDirectory(libraryRoot)) directories = List.of();
+            else try (var children = Files.list(libraryRoot)) {
+                directories = children.filter(Files::isDirectory)
+                        .filter(path -> !Files.isSymbolicLink(path))
+                        .filter(path -> path.getFileName().toString().matches(
+                                "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"))
+                        .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+                        .toList();
+            }
+        } catch (IOException e) {
+            System.err.println("Could not scan old local beatmap folders: " + safeMessage(e));
+            return;
+        }
+
+        boolean complete = true;
+        for (Path directory : directories) {
+            try {
+                BeatmapSet recovered = recoverLegacyDirectory(directory);
+                if (recovered == null || knownIds.contains(recovered.id())) continue;
+                save(recovered);
+                sets.add(recovered);
+                knownIds.add(recovered.id());
+            } catch (IOException | RuntimeException e) {
+                complete = false;
+                System.err.println("Could not recover old beatmap folder " + directory.getFileName()
+                        + ": " + safeMessage(e));
+            }
+        }
+        if (complete) {
+            try {
+                Files.createDirectories(indexDirectory);
+                Files.writeString(indexDirectory.resolve(LEGACY_MIGRATION_MARKER), "1\n", StandardCharsets.UTF_8,
+                        StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            } catch (IOException e) {
+                System.err.println("Could not save old beatmap recovery marker: " + safeMessage(e));
+            }
+        }
+    }
+
+    private BeatmapSet recoverLegacyDirectory(Path directory) throws IOException {
+        List<Path> osuFiles;
+        try (var paths = Files.walk(directory)) {
+            osuFiles = paths.filter(path -> !Files.isSymbolicLink(path))
+                    .filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().toLowerCase(java.util.Locale.ROOT).endsWith(".osu"))
+                    .sorted(Comparator.comparing(path -> directory.relativize(path).toString()))
+                    .limit(MAX_DIFFICULTIES + 1L)
+                    .toList();
+        }
+        if (osuFiles.isEmpty() || osuFiles.size() > MAX_DIFFICULTIES) return null;
+
+        List<LegacyDifficulty> parsed = new ArrayList<>();
+        for (Path osuFile : osuFiles) {
+            try {
+                BeatmapFile file = parser.parse(osuFile);
+                parsed.add(new LegacyDifficulty(file, osuFile,
+                        resolveLegacyAsset(directory, osuFile.getParent(), file.difficulty().audioFilename()),
+                        resolveLegacyAsset(directory, osuFile.getParent(), file.difficulty().backgroundFilename())));
+            } catch (BeatmapParseException | IOException e) {
+                System.err.println("Skipping old .osu file " + directory.relativize(osuFile)
+                        + ": " + safeMessage(e));
+            }
+        }
+        if (parsed.isEmpty()) return null;
+
+        List<BeatmapDifficulty> difficulties = parsed.stream()
+                .map(item -> item.file().difficulty().withAssets(item.audioPath(), item.backgroundPath(), item.osuPath()))
+                .toList();
+        List<Path> assets;
+        try (var paths = Files.walk(directory)) {
+            assets = paths.filter(path -> !Files.isSymbolicLink(path))
+                    .filter(Files::isRegularFile)
+                    .sorted()
+                    .toList();
+        }
+        BeatmapFile first = parsed.getFirst().file();
+        Path audio = difficulties.stream().map(BeatmapDifficulty::audioPath).filter(path -> path != null).findFirst().orElse(null);
+        Path background = difficulties.stream().map(BeatmapDifficulty::backgroundPath).filter(path -> path != null).findFirst().orElse(null);
+        return new BeatmapSet(BeatmapSetIdentity.from(parsed.stream().map(LegacyDifficulty::file).toList()),
+                first.displayTitle(), first.displayArtist(), first.creator(), audio, background, difficulties, assets);
+    }
+
+    private Path resolveLegacyAsset(Path storageRoot, Path relativeBase, String reference) {
+        if (reference == null || reference.isBlank() || reference.indexOf('\0') >= 0) return null;
+        String portable = reference.replace('\\', '/');
+        if (portable.startsWith("/") || portable.matches("^[A-Za-z]:.*")) return null;
+        try {
+            Path relative = Path.of(portable).normalize();
+            if (relative.isAbsolute() || relative.getNameCount() == 0 || relative.startsWith("..")) return null;
+            Path candidate = relativeBase.resolve(relative).normalize();
+            if (!candidate.startsWith(storageRoot) || !Files.isRegularFile(candidate)) return null;
+            Path realRoot = storageRoot.toRealPath();
+            if (!candidate.toRealPath().startsWith(realRoot)) return null;
+            return candidate;
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
     }
 
     @Override
@@ -251,5 +365,8 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
     private String safeMessage(Throwable error) {
         String message = error.getMessage();
         return message == null || message.isBlank() ? error.getClass().getSimpleName() : message;
+    }
+
+    private record LegacyDifficulty(BeatmapFile file, Path osuPath, Path audioPath, Path backgroundPath) {
     }
 }

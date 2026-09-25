@@ -14,13 +14,9 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -206,31 +202,7 @@ public final class BeatmapArchiveImporter {
     }
 
     private String stableSetId(List<ParsedEntry> parsed) {
-        int beatmapSetId = parsed.stream().map(item -> item.file().beatmapSetId())
-                .filter(value -> value > 0).findFirst().orElse(-1);
-        if (beatmapSetId > 0) return "osu-set-" + beatmapSetId;
-
-        BeatmapFile first = parsed.getFirst().file();
-        List<String> difficulties = parsed.stream()
-                .map(item -> item.file().difficulty().mode() + ":" + normalizeIdentity(item.file().difficulty().version()))
-                .sorted()
-                .toList();
-        String identity = String.join("\n", List.of(
-                normalizeIdentity(first.displayTitle()),
-                normalizeIdentity(first.displayArtist()),
-                normalizeIdentity(first.creator()),
-                String.join("\n", difficulties)));
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(identity.getBytes(StandardCharsets.UTF_8));
-            return "local-" + HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is not available", e);
-        }
-    }
-
-    private String normalizeIdentity(String value) {
-        return Normalizer.normalize(value == null ? "" : value.trim(), Normalizer.Form.NFC)
-                .replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+        return BeatmapSetIdentity.from(parsed.stream().map(ParsedEntry::file).toList());
     }
 
     private void replaceStorage(Path staging, Path destination, String id) throws IOException {

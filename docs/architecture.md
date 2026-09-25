@@ -71,6 +71,8 @@ The importer uses a positive osu! `BeatmapSetID` as the stable set id. When a ch
 
 `BeatmapLibrary` loads the index during app startup and saves after each imported set. Each set entry is read independently; a damaged entry or difficulty is skipped so the rest of the library remains usable. Stored paths must remain inside local beatmap storage. Missing audio/background files resolve to null and Gameplay uses its existing local-timer fallback; a missing or unparsable `.osu` file causes that difficulty to be skipped. Index writes use a temporary file and atomic replacement where supported.
 
+On its first load, the index storage also scans unindexed UUID-named folders left by the earlier importer, rebuilds their set metadata from the stored `.osu` files, and writes index entries without moving the assets. This one-time recovery keeps beatmaps imported before persistent indexing available after upgrading.
+
 ## Clock and gameplay
 
 GameClock is the only source of gameplay time. With audio, MusicGameClock samples libGDX's music position. If the audio file is absent or cannot be decoded, ElapsedGameClock provides a local fallback timeline. OsuGameplaySession reads the clock, expires misses, resolves pointer clicks, and creates a GameplayState snapshot.

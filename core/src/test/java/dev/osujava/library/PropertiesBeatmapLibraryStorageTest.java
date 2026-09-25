@@ -98,6 +98,25 @@ class PropertiesBeatmapLibraryStorageTest {
         assertTrue(Files.exists(libraryRoot.resolve("index").resolve(imported.id() + ".properties")));
     }
 
+    @Test
+    void indexesBeatmapsLeftInLegacyUuidStorageOnFirstLoad() throws Exception {
+        Path libraryRoot = tempDir.resolve("library");
+        BeatmapSet imported = importFixture(libraryRoot);
+        Path legacyDirectory = libraryRoot.resolve("4e0ca041-f300-4449-a433-2a63e32a3efc");
+        Files.move(imported.difficulties().getFirst().beatmapPath().getParent(), legacyDirectory);
+        PropertiesBeatmapLibraryStorage storage = new PropertiesBeatmapLibraryStorage(libraryRoot);
+
+        List<BeatmapSet> recovered = storage.load();
+        List<BeatmapSet> loadedAgain = storage.load();
+
+        assertEquals(1, recovered.size());
+        assertEquals(imported.id(), recovered.getFirst().id());
+        assertEquals(2, recovered.getFirst().difficulties().size());
+        assertTrue(recovered.getFirst().difficulties().getFirst().beatmapPath().startsWith(legacyDirectory));
+        assertEquals(1, loadedAgain.size());
+        assertEquals(imported.id(), loadedAgain.getFirst().id());
+    }
+
     private BeatmapSet importFixture(Path libraryRoot) throws Exception {
         return new BeatmapArchiveImporter(libraryRoot).importFile(writeFixtureArchive()).beatmapSet();
     }
