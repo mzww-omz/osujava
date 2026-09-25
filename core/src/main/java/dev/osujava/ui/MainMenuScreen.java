@@ -4,24 +4,36 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.ScreenAdapter;
+import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.Align;
 import dev.osujava.OsuJavaGame;
-import dev.osujava.ui.theme.UiButton;
 import dev.osujava.ui.theme.UiLayout;
 import dev.osujava.ui.theme.UiNavigation;
 import dev.osujava.ui.theme.UiTheme;
 import dev.osujava.ui.theme.UiTransition;
 import dev.osujava.ui.theme.UiView;
 
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+
 public final class MainMenuScreen extends ScreenAdapter {
+    private static final Color TOP = new Color(.045f, .034f, .065f, .83f);
+    private static final Color FOOT = new Color(.045f, .034f, .065f, .84f);
+    private static final Color STRIP = new Color(.37f, .31f, .71f, .93f);
+    private static final Color STRIP_HOVER = new Color(.52f, .43f, .86f, .98f);
+    private static final Color STRIP_DISABLED = new Color(.30f, .27f, .43f, .8f);
+    private static final Color BG = new Color(.075f, .052f, .10f, 1f);
+    private static final Color GLOW = new Color(.23f, .13f, .25f, .10f);
+    private static final DateTimeFormatter CLOCK_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
+
     private final OsuJavaGame game;
     private final UiView view;
+    private final OsuCookie cookie = new OsuCookie();
     private final UiTransition entrance = new UiTransition();
     private final UiNavigation outgoing = new UiNavigation();
-    private final UiButton play = new UiButton("PLAY", true);
-    private final UiButton options = new UiButton("OPTIONS", false);
-    private final UiButton exit = new UiButton("EXIT", false);
-    private float elapsed;
+    private float seconds;
+    private float cx, cy, radius, stripX, stripW, stripH, stripGap, stripBottom;
+    private float reveal;
 
     public MainMenuScreen(OsuJavaGame game) { this.game = game; view = new UiView(game); }
 
@@ -29,13 +41,7 @@ public final class MainMenuScreen extends ScreenAdapter {
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override public boolean keyDown(int key) {
                 if (AppShortcuts.handleQuit(key)) return true;
-                if (key == Input.Keys.ENTER || key == Input.Keys.SPACE) { openSongs(); return true; }
-                if (key == Input.Keys.I) {
-                    SongSelectScreen songs = new SongSelectScreen(game);
-                    game.navigate(songs);
-                    songs.requestImport();
-                    return true;
-                }
+                if (key == Input.Keys.P || key == Input.Keys.ENTER || key == Input.Keys.SPACE) { openSongs(); return true; }
                 if (key == Input.Keys.ESCAPE) { Gdx.app.exit(); return true; }
                 return false;
             }
@@ -45,51 +51,88 @@ public final class MainMenuScreen extends ScreenAdapter {
     @Override public void render(float delta) {
         if (outgoing.advance(delta)) return;
         UiLayout layout = view.prepare();
-        elapsed += Math.min(delta, 0.05f);
-        float centerX = layout.width() * 0.45f;
-        float centerY = layout.height() * 0.53f;
-        float radius = Math.min(layout.height() * 0.25f, layout.width() * 0.19f);
-        float menuX = Math.min(layout.width() - 255, centerX + radius + 34);
-        float menuY = centerY - 98;
-        play.bounds(menuX, menuY + 108, 190, 58);
-        options.bounds(menuX, menuY + 46, 190, 50);
-        options.enabled(false);
-        exit.bounds(menuX, menuY - 10, 190, 46);
+        seconds += Math.min(delta, .05f);
+        reveal = Math.min(1f, reveal + Math.max(0, delta) / .22f);
+        calculateLayout(layout);
+        float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
+        boolean onCookie = cookie.hit(px, py);
+        int hoveredStrip = stripAt(px, py);
+        boolean pressed = Gdx.input.isButtonPressed(Input.Buttons.LEFT);
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
-            float x = layout.pointerX(Gdx.input.getX()), y = layout.pointerY(Gdx.input.getY());
-            if (play.hit(x, y) || (x - centerX) * (x - centerX) + (y - centerY) * (y - centerY) <= radius * radius) { openSongs(); return; }
-            if (exit.hit(x, y)) { outgoing.request(Gdx.app::exit); return; }
+            if (onCookie || hoveredStrip == 0) { openSongs(); return; }
+            if (hoveredStrip == 2) { outgoing.request(Gdx.app::exit); return; }
         }
-        boolean logoHover = (layout.pointerX(Gdx.input.getX()) - centerX) * (layout.pointerX(Gdx.input.getX()) - centerX)
-                + (layout.pointerY(Gdx.input.getY()) - centerY) * (layout.pointerY(Gdx.input.getY()) - centerY) <= radius * radius;
+
         view.clear();
         view.beginShapes();
-        for (int i = 0; i < 6; i++) {
-            float drift = (float) Math.sin(elapsed * 0.25f + i * 1.3f) * 15;
-            view.circle(layout.width() * (0.12f + i * 0.17f), layout.height() * (0.18f + (i % 3) * 0.34f) + drift,
-                    55 + i * 17, UiTheme.ORBIT);
-        }
-        view.circle(centerX, centerY, radius + 15 + (float) Math.sin(elapsed * 1.5f) * 3, UiTheme.SURFACE_RAISED);
-        view.circle(centerX, centerY, radius, logoHover
-                ? Gdx.input.isButtonPressed(Input.Buttons.LEFT) ? UiTheme.ACCENT_PRESSED : UiTheme.ACCENT_HOVER
-                : UiTheme.ACCENT);
-        view.circle(centerX, centerY, radius - 10, UiTheme.LOGO_INNER);
-        play.drawShape(view, layout, delta);
-        options.drawShape(view, layout, delta);
-        exit.drawShape(view, layout, delta);
-        view.box(0, 0, layout.width(), 42, 0, UiTheme.SURFACE);
+        drawBackground(layout);
+        drawStrips(hoveredStrip);
+        cookie.drawShape(view, seconds, onCookie, pressed && onCookie);
+        view.box(0, layout.height() - 64, layout.width(), 64, 0, TOP);
+        view.box(0, 0, layout.width(), 52, 0, FOOT);
         view.endShapes();
         view.beginText();
-        view.text("osu!java", centerX - radius, centerY + 24, radius * 2, 3.0f, UiTheme.TEXT, Align.center);
-        view.text("LOCAL RHYTHM GAME", centerX - radius, centerY - 18, radius * 2, UiTheme.META, UiTheme.TEXT, Align.center);
-        play.drawText(view); options.drawText(view); exit.drawText(view);
-        view.text("PLAY YOUR LOCAL BEATMAPS", menuX, menuY + 196, 260, UiTheme.META, UiTheme.MUTED);
-        view.text("OPTIONS COMING LATER", menuX, menuY + 30, 210, 0.68f, UiTheme.MUTED);
-        view.text("LOCAL LIBRARY  /  NO ACCOUNT REQUIRED", UiTheme.PAD, 26, layout.width() - 2 * UiTheme.PAD,
-                UiTheme.META, UiTheme.MUTED);
+        cookie.drawText(view);
+        String[] labels = {"Play", "Options", "Exit"};
+        for (int i = 0; i < labels.length; i++) {
+            float y = stripBottom + (2 - i) * (stripH + stripGap);
+            view.text(labels[i], stripX + radius * .58f, y + stripH * .67f,
+                    stripW - radius * .8f, 2.0f, i == 1 ? UiTheme.MUTED : UiTheme.TEXT);
+            if (i == 1) view.text("unavailable", stripX + stripW - 136, y + 18, 108, .72f, UiTheme.MUTED, Align.right);
+        }
+        int count = game.library().all().stream().mapToInt(set -> set.difficulties().size()).sum();
+        view.text("osu!java", 22, layout.height() - 25, 210, 1.35f, UiTheme.TEXT);
+        view.text(count + " local difficulties", 238, layout.height() - 23, 270, UiTheme.META, UiTheme.TEXT);
+        view.text("LOCAL  /  " + LocalTime.now().format(CLOCK_FORMAT), layout.width() - 255,
+                layout.height() - 23, 230, UiTheme.META, UiTheme.TEXT, Align.right);
+        view.text("Play local beatmaps  ·  P / Enter", 28, 20, layout.width() - 56, UiTheme.META, UiTheme.MUTED);
         view.endText();
         view.fade(entrance, delta);
         view.cover(outgoing.opacity());
+    }
+
+    private void calculateLayout(UiLayout layout) {
+        radius = Math.min(layout.height() * .285f, layout.width() * .215f);
+        cx = Math.max(radius + 26, layout.width() * .35f);
+        cy = layout.height() * .52f;
+        cookie.bounds(cx, cy, radius);
+        stripX = cx + radius * .20f;
+        stripW = Math.min(layout.width() - stripX - 38, radius * 2.30f);
+        stripH = Math.max(55, Math.min(72, layout.height() * .09f));
+        stripGap = 9;
+        stripBottom = cy - (stripH * 3 + stripGap * 2) / 2;
+    }
+
+    private int stripAt(float x, float y) {
+        if (x < cx + radius * .65f || x > stripX + stripW) return -1;
+        for (int i = 0; i < 3; i++) {
+            float rowY = stripBottom + (2 - i) * (stripH + stripGap);
+            if (y >= rowY && y <= rowY + stripH) return i;
+        }
+        return -1;
+    }
+
+    private void drawBackground(UiLayout layout) {
+        view.box(0, 0, layout.width(), layout.height(), 0, BG);
+        for (int i = 0; i < 12; i++) {
+            float x = layout.width() * (.07f + i * .089f);
+            float y = layout.height() * (.24f + (i % 4) * .15f);
+            view.circle(x, y, 48 + i % 3 * 22, UiTheme.ORBIT);
+        }
+        view.circle(cx, cy, radius + 105, GLOW);
+    }
+
+    private void drawStrips(int hovered) {
+        float easing = 1 - (1 - reveal) * (1 - reveal);
+        for (int i = 0; i < 3; i++) {
+            float y = stripBottom + (2 - i) * (stripH + stripGap);
+            float slide = (1 - easing) * (stripW + 35 + i * 30);
+            float lift = hovered == i && i != 1 ? 8 : 0;
+            float left = stripX - slide;
+            float right = stripX + stripW - slide + lift;
+            view.quad(left, y, right - 18, y, right, y + stripH, left, y + stripH,
+                    i == 1 ? STRIP_DISABLED : hovered == i ? STRIP_HOVER : STRIP);
+        }
     }
 
     private void openSongs() { outgoing.request(() -> game.navigate(new SongSelectScreen(game))); }

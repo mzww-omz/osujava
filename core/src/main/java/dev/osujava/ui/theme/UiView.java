@@ -71,6 +71,14 @@ public final class UiView {
         game.shapes().circle(x, y, radius, 64);
     }
 
+    public void quad(float x1, float y1, float x2, float y2, float x3, float y3,
+                     float x4, float y4, Color color) {
+        ShapeRenderer s = game.shapes();
+        s.setColor(color);
+        s.triangle(x1, y1, x2, y2, x3, y3);
+        s.triangle(x1, y1, x3, y3, x4, y4);
+    }
+
     public void beginText() { game.batch().begin(); }
     public void endText() {
         game.batch().end();
