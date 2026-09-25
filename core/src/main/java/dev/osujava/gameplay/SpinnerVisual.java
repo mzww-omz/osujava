@@ -13,5 +13,14 @@ public record SpinnerVisual(
         long startTimeMs,
         double endTimeMs,
         boolean tracking,
-        Judgement judgement) {
+        Judgement judgement,
+        long preemptMs) {
+
+    public SpinnerVisual(double centerX, double centerY, double radius, double progress,
+                         double rotationDegrees, double totalRotationDegrees, int completedSpins,
+                         int requiredSpins, long startTimeMs, double endTimeMs,
+                         boolean tracking, Judgement judgement) {
+        this(centerX, centerY, radius, progress, rotationDegrees, totalRotationDegrees, completedSpins,
+                requiredSpins, startTimeMs, endTimeMs, tracking, judgement, 600);
+    }
 }
