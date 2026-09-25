@@ -2,8 +2,10 @@ package dev.osujava.beatmap.parse;
 
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapFile;
+import dev.osujava.beatmap.BeatmapPoint;
 import dev.osujava.beatmap.DifficultySettings;
 import dev.osujava.beatmap.HitObject;
+import dev.osujava.beatmap.SliderData;
 import dev.osujava.beatmap.TimingPoint;
 
 import java.io.IOException;
@@ -117,16 +119,90 @@ public final class BeatmapFileParser {
             String[] fields = line.split(",", -1);
             if (fields.length < 5) continue;
             try {
+                double x = Double.parseDouble(fields[0].trim());
+                double y = Double.parseDouble(fields[1].trim());
                 int rawType = Integer.parseInt(fields[3].trim());
-                objects.add(new HitObject(Double.parseDouble(fields[0].trim()), Double.parseDouble(fields[1].trim()),
-                        Long.parseLong(fields[2].trim()), HitObject.typeFromBits(rawType), rawType,
-                        Integer.parseInt(fields[4].trim())));
-            } catch (NumberFormatException ignored) {
+                HitObject.Type type = HitObject.typeFromBits(rawType);
+                SliderData slider = type == HitObject.Type.SLIDER ? parseSliderData(fields, x, y) : null;
+                objects.add(new HitObject(x, y, Long.parseLong(fields[2].trim()), type, rawType,
+                        Integer.parseInt(fields[4].trim()), slider));
+            } catch (IllegalArgumentException ignored) {
                 // Invalid objects are skipped so one damaged line does not discard a whole set.
             }
         }
         objects.sort(Comparator.comparingLong(HitObject::timeMs));
         return objects;
+    }
+
+    private SliderData parseSliderData(String[] fields, double startX, double startY) {
+        if (fields.length < 8) throw new IllegalArgumentException("Slider is missing path or length fields");
+
+        int slides = Integer.parseInt(fields[6].trim());
+        if (slides < 1) throw new IllegalArgumentException("Slider slides must be positive");
+        double pixelLength = Double.parseDouble(fields[7].trim());
+
+        List<SliderData.Segment> segments = new ArrayList<>();
+        List<BeatmapPoint> points = new ArrayList<>();
+        SliderData.CurveType curveType = SliderData.CurveType.CATMULL;
+        int degree = 0;
+        boolean hasType = false;
+        String[] pathFields = fields[5].trim().split("\\|", -1);
+        for (String pathField : pathFields) {
+            String token = pathField.trim();
+            if (token.isEmpty()) throw new IllegalArgumentException("Slider path contains an empty point");
+            if (Character.isLetter(token.charAt(0))) {
+                if (hasType) {
+                    segments.add(new SliderData.Segment(curveType, degree, points));
+                    BeatmapPoint previousEnd = points.getLast();
+                    points = new ArrayList<>();
+                    points.add(previousEnd);
+                } else {
+                    points.add(new BeatmapPoint(startX, startY));
+                }
+                ParsedCurve parsedType = parseCurveType(token);
+                curveType = parsedType.curveType();
+                degree = parsedType.degree();
+                hasType = true;
+            } else {
+                String[] coordinates = token.split(":", -1);
+                if (coordinates.length != 2) throw new IllegalArgumentException("Invalid slider control point");
+                double pointX = Double.parseDouble(coordinates[0].trim());
+                double pointY = Double.parseDouble(coordinates[1].trim());
+                if (!Double.isFinite(pointX) || !Double.isFinite(pointY)) {
+                    throw new IllegalArgumentException("Slider control point must be finite");
+                }
+                if (!hasType) {
+                    // Old encoders always emit a curve letter, but treating an omitted one as Catmull
+                    // matches lazer's legacy parser fallback and keeps the line recoverable.
+                    points.add(new BeatmapPoint(startX, startY));
+                    hasType = true;
+                }
+                points.add(new BeatmapPoint(pointX, pointY));
+            }
+        }
+        if (!hasType) throw new IllegalArgumentException("Slider path has no curve type");
+        segments.add(new SliderData.Segment(curveType, degree, points));
+        return new SliderData(segments, slides - 1, pixelLength);
+    }
+
+    private ParsedCurve parseCurveType(String token) {
+        return switch (Character.toUpperCase(token.charAt(0))) {
+            case 'B' -> {
+                if (token.length() > 1) {
+                    int parsedDegree = Integer.parseInt(token.substring(1));
+                    if (parsedDegree <= 0) throw new IllegalArgumentException("B-spline degree must be positive");
+                    yield new ParsedCurve(SliderData.CurveType.BSPLINE, parsedDegree);
+                }
+                yield new ParsedCurve(SliderData.CurveType.BEZIER, 0);
+            }
+            case 'L' -> new ParsedCurve(SliderData.CurveType.LINEAR, 0);
+            case 'P' -> new ParsedCurve(SliderData.CurveType.PERFECT, 0);
+            case 'C' -> new ParsedCurve(SliderData.CurveType.CATMULL, 0);
+            default -> new ParsedCurve(SliderData.CurveType.CATMULL, 0);
+        };
+    }
+
+    private record ParsedCurve(SliderData.CurveType curveType, int degree) {
     }
 
     private String findBackground(List<String> lines) {

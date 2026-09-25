@@ -2,6 +2,7 @@ package dev.osujava.beatmap.parse;
 
 import dev.osujava.beatmap.BeatmapFile;
 import dev.osujava.beatmap.HitObject;
+import dev.osujava.beatmap.SliderData;
 import dev.osujava.beatmap.TimingPoint;
 import org.junit.jupiter.api.Test;
 
@@ -40,7 +41,7 @@ class BeatmapFileParserTest {
                 1000,500,4,1,0,80,1,0
                 [HitObjects]
                 64,96,1500,1,0
-                128,192,2000,2,2,300,2,0,0
+                128,192,2000,2,2,B|200:192|300:256,3,280,0|0|0,0:0|0:0|0:0,0:0:0:0:
                 256,192,2500,8,0,3000
                 """, "test.osu");
 
@@ -62,6 +63,14 @@ class BeatmapFileParserTest {
         assertEquals(HitObject.Type.CIRCLE, file.difficulty().hitObjects().getFirst().type());
         assertEquals(64, file.difficulty().hitObjects().getFirst().x());
         assertEquals(HitObject.Type.SLIDER, file.difficulty().hitObjects().get(1).type());
+        HitObject slider = file.difficulty().hitObjects().get(1);
+        assertEquals(128, slider.x());
+        assertEquals(192, slider.y());
+        assertEquals(2000, slider.timeMs());
+        assertEquals(SliderData.CurveType.BEZIER, slider.sliderData().curveType());
+        assertEquals(3, slider.sliderData().controlPoints().size());
+        assertEquals(2, slider.sliderData().repeatCount());
+        assertEquals(280, slider.sliderData().pixelLength());
         assertEquals(HitObject.Type.SPINNER, file.difficulty().hitObjects().get(2).type());
     }
 

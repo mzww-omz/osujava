@@ -6,7 +6,12 @@ public record HitObject(
         long timeMs,
         Type type,
         int rawType,
-        int hitSound) {
+        int hitSound,
+        SliderData sliderData) {
+
+    public HitObject(double x, double y, long timeMs, Type type, int rawType, int hitSound) {
+        this(x, y, timeMs, type, rawType, hitSound, null);
+    }
 
     public enum Type {
         CIRCLE,
