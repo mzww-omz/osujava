@@ -219,7 +219,8 @@ public final class OsuGameplaySession implements GameplaySession {
                 Judgement judgement = hit ? Judgement.HIT300 : Judgement.MISS;
                 score.record(judgement);
                 if (event.type() == SliderEvent.Type.TAIL) {
-                    recordVisualJudgement(slider.object, judgement, event.timeMs());
+                    BeatmapPoint tail = slider.path.positionAt(event.pathProgress());
+                    recordVisualJudgement(tail.x(), tail.y(), circleRadius, judgement, now);
                 }
             }
         }
@@ -324,8 +325,11 @@ public final class OsuGameplaySession implements GameplaySession {
     }
 
     private void recordVisualJudgement(HitObject object, Judgement judgement, double timeMs) {
-        judgementVisuals.add(new JudgementVisual(object.x(), object.y(), circleRadius,
-                judgement, (long) Math.round(timeMs)));
+        recordVisualJudgement(object.x(), object.y(), circleRadius, judgement, timeMs);
+    }
+
+    private void recordVisualJudgement(double x, double y, double radius, Judgement judgement, double timeMs) {
+        judgementVisuals.add(new JudgementVisual(x, y, radius, judgement, (long) Math.round(timeMs)));
     }
 
     private Map<HitObject, Integer> comboNumbers(List<HitObject> hitObjects) {
