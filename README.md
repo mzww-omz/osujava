@@ -6,7 +6,9 @@ Java 21、libGDX、LWJGL3で作る完全ローカルのリズムゲームです�
 
 ## 起動
 
-必要なものはJava 21のJDKです。Gradleはwrapperを同梱しています。
+必要なものはJava 21のJDKです。Gradleはwrapperを同梱しています。Gradle daemonは[`gradle/gradle-daemon-jvm.properties`](gradle/gradle-daemon-jvm.properties)でJava 21を選び、各moduleのcompile/testもJava 21 toolchainを使います。システム既定のJavaが27など新しい版でも、`JAVA_HOME`を毎回切り替える必要はありません。
+
+この設定がない状態では、Gradle 8.14.3に含まれるGroovyがJava 27のclass file version 71を解析できず、build scriptのsemantic analysisで失敗します。daemonをJava 21で動かすことで回避します。Gradleや依存ライブラリの更新は必要ありません。
 
 macOS / Linux:
 
@@ -27,7 +29,7 @@ macOSではlauncherがGLFWの非同期起動設定を使います。
 1. Main MenuでPlayを選びます。
 2. Song SelectのImport .osz / .osuから譜面を選びます。
 3. Beatmap SetとDifficultyを選択してPlayを押します。
-4. HitCircleはタイミングに合わせてクリックします。Sliderは頭をクリックしてから、終わりまで押したままボールを追います。
+4. HitCircleはタイミングに合わせてクリックします。左/右クリックまたはZ/Xキーで操作できます。Sliderは頭を押してから、押したままカーソルでボールを追います。
 5. 曲が終わるとResultsを表示します。
 
 終了はウィンドウの閉じるボタン、macOSのCmd+Q、Windows / LinuxのCtrl+Qで行えます。
@@ -40,6 +42,12 @@ Importしたファイルはユーザーのホームディレクトリ下の.osuj
 
 ~~~sh
 ./gradlew test
+~~~
+
+buildは次のコマンドで実行します。
+
+~~~sh
+./gradlew build
 ~~~
 
 parser、archiveのパス検証、複数DifficultyのImport、アセット関連付け、Library indexの保存・再読込・破損entryのスキップ、Rulesetの判定、Score/accuracy、Playfield座標変換をJUnit 5で確認します。

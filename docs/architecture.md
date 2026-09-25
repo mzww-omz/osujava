@@ -82,6 +82,16 @@ The playfield uses osu!'s 512×384 coordinate space fitted into the window. Inpu
 
 Judgement windows use Overall Difficulty; approach circle timing uses Approach Rate. Score and accuracy are calculated by ScoreTracker. Slider nested events currently use an equal-weight hit/miss contribution in this local score model. Unit tests inject a controllable GameClock instead of reading wall-clock time.
 
+### Slider compatibility and scoring limits
+
+SliderTiming follows the lazer osu! formula for base scoring distance, slider multiplier, active redline, inherited velocity (clamped to 0.1–10x), and tick spacing. Repeat progress reverses on alternating spans. Tick generation omits points within 10 ms of a span end, and the visible tail judgement keeps lazer's 36 ms leniency. The tail waits for earlier generated ticks and repeats to be processed before it is scored. The legacy last tick is not generated because lazer retains it for internal compatibility uses rather than regular osu! gameplay scoring.
+
+SliderPath is intentionally a sampled piecewise-linear approximation. Bezier curves use adaptive subdivision with 0.35 px flatness; Catmull and B-spline paths use 50 samples per segment/span; perfect curves use roughly 2 px spacing along the arc. Lazer's PathApproximator uses different tessellation and legacy-version edge cases, so tight curves and unusual duplicate control points can differ slightly. Current tests cover each curve type and expected distance, but do not assert point-for-point equality with lazer.
+
+Scoring is also deliberately simpler than lazer. The slider head uses the ordinary timing judgement, while each tick, repeat, and tail is recorded as either one `HIT300` or one `MISS`. ScoreTracker therefore gives every nested event the same maximum score and accuracy weight. Lazer keeps object-specific judgement results (for example, slider ticks and end nodes use large-tick results) and applies ruleset scoring, combo, and health rules to those results. The local score, accuracy, and combo are not expected to match lazer. A future scoring change belongs in the osu! session's event-to-judgement mapping and ScoreTracker's typed/weighted judgement model; it should not add state changes to the renderer.
+
+Input routes left click, right click, and Z/X keyboard presses through the same session click path. Holding any one of them enables tracking, and tracking stops when all are released. Lazer can restrict which key sustains a slider immediately after its head is hit; osujava does not yet model that key-specific transition.
+
 ## Extending rulesets
 
 Add another Ruleset implementation that declares which imported mode it supports and creates its own GameplaySession. Keep mode parsing in the shared importer/model, and keep each ruleset's hit-object interpretation and judgement rules within that implementation. OsuRuleset owns Slider timing, path traversal, and judgement alongside HitCircle judgement.
