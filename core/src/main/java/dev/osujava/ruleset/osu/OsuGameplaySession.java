@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/** osu!standard gameplay rules for circles and legacy Sliders. */
+/** osu!standard gameplay rules for HitCircles, Sliders, and Spinners. */
 public final class OsuGameplaySession implements GameplaySession {
     private static final double SLIDER_FOLLOW_AREA = 2.4;
     private static final double SPINNER_ACTIVE_RADIUS = 160;

@@ -5,7 +5,7 @@ public record SpinnerRequirements(int spinsRequired, int maximumBonusSpins) {
     private static final double[] CLEAR_RPM = {90, 150, 225};
     private static final double[] COMPLETE_RPM = {250, 380, 430};
     private static final int BONUS_SPINS_GAP = 2;
-    private static final double DURATION_ERROR_SECONDS = 0.0001;
+    private static final double REQUIREMENT_ROUNDING_EPSILON = 0.0001;
 
     public SpinnerRequirements {
         if (spinsRequired < 0 || maximumBonusSpins < 0) {
@@ -16,9 +16,9 @@ public record SpinnerRequirements(int spinsRequired, int maximumBonusSpins) {
     public static SpinnerRequirements calculate(double durationMs, double overallDifficulty) {
         double seconds = Math.max(0, durationMs) / 1000;
         int required = (int) (difficultyRange(overallDifficulty, CLEAR_RPM) / 60 * seconds
-                + DURATION_ERROR_SECONDS);
+                + REQUIREMENT_ROUNDING_EPSILON);
         int maximumBonus = Math.max(0, (int) (difficultyRange(overallDifficulty, COMPLETE_RPM) / 60 * seconds
-                + DURATION_ERROR_SECONDS) - required - BONUS_SPINS_GAP);
+                + REQUIREMENT_ROUNDING_EPSILON) - required - BONUS_SPINS_GAP);
         return new SpinnerRequirements(required, maximumBonus);
     }
 
