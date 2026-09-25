@@ -100,6 +100,8 @@ public final class SongSelectScreen extends ScreenAdapter {
                 if (key == Input.Keys.ENTER || key == Input.Keys.SPACE) { playSelected(); return true; }
                 if (key == Input.Keys.UP) { advance(-1); return true; }
                 if (key == Input.Keys.DOWN) { advance(1); return true; }
+                if (key == Input.Keys.PAGE_UP) { advanceSet(-1); return true; }
+                if (key == Input.Keys.PAGE_DOWN) { advanceSet(1); return true; }
                 if (key == Input.Keys.LEFT || key == Input.Keys.RIGHT) {
                     selectDifficulty(selectedDifficultyIndex + (key == Input.Keys.RIGHT ? 1 : -1));
                     return true;
@@ -195,7 +197,9 @@ public final class SongSelectScreen extends ScreenAdapter {
             BeatmapSet set = sets.get(i);
             if (!matches(set, query)) continue;
             if (i == selectedSetIndex) {
-                for (int j = 0; j < set.difficulties().size(); j++) {
+                int first = Math.max(0, selectedDifficultyIndex - 2);
+                int last = Math.min(set.difficulties().size(), selectedDifficultyIndex + 3);
+                for (int j = first; j < last; j++) {
                     if (j == selectedDifficultyIndex) selectedEntry = entries.size();
                     entries.add(new int[]{i, j});
                 }
@@ -234,7 +238,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 ? hover ? SIBLING_HOVER : SIBLING : hover ? OTHER_HOVER : OTHER;
         float x = row.x() - (hover && !row.selected() ? 7 : 0), y = row.y();
         view.quad(x, y, x + row.width() - 9, y, x + row.width(), y + row.height(), x + 11, y + row.height(), color);
-        view.box(x + 8, y + 5, 96, row.height() - 10, 0, THUMB_FALLBACK);
+        view.box(x + 9, y + 4, 82, row.height() - 8, 0, THUMB_FALLBACK);
     }
 
     private void drawThumbnails() {
@@ -243,7 +247,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : set.difficulties().get(0);
             Path path = diff.backgroundPath() != null ? diff.backgroundPath() : set.backgroundPath();
             Texture texture = thumbnails.get(path);
-            view.image(texture, row.x() + 8, row.y() + 5, 96, row.height() - 10);
+            view.image(texture, row.x() + 9, row.y() + 4, 82, row.height() - 8);
         }
     }
 
@@ -262,12 +266,14 @@ public final class SongSelectScreen extends ScreenAdapter {
         BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : null;
         Color primary = row.selected() ? DARK_TEXT : UiTheme.TEXT;
         Color secondary = row.selected() ? DARK_TEXT : UiTheme.MUTED;
-        float x = row.x() + 115, w = Math.max(60, row.width() - 132);
+        float x = row.x() + 104, w = Math.max(60, row.width() - 122);
         view.textSmooth(set.artist() + " - " + set.title(), x, row.y() + 48, w, .94f, primary);
         view.textSmooth(diff == null ? set.creator() + "  ·  " + set.difficulties().size() + " difficulties"
                         : "[" + diff.version() + "]  mapped by " + set.creator(),
                 x, row.y() + 27, w, .73f, secondary);
-        if (diff != null) view.textSmooth(modeName(diff.mode()), x, row.y() + 11, w, .72f, secondary);
+        if (diff != null) view.textSmooth(modeName(diff.mode()) + (row.selected()
+                        ? "  ·  " + (row.difficultyIndex() + 1) + "/" + set.difficulties().size() : ""),
+                x, row.y() + 11, w, .72f, secondary);
     }
 
     private void drawMetadata(UiLayout layout) {
@@ -333,6 +339,11 @@ public final class SongSelectScreen extends ScreenAdapter {
             if (direction < 0) selectDifficulty(sets.get(i).difficulties().size() - 1);
             return;
         }
+    }
+    private void advanceSet(int direction) {
+        String query = search.toLowerCase(Locale.ROOT).strip();
+        for (int i = selectedSetIndex + direction; i >= 0 && i < sets.size(); i += direction)
+            if (matches(sets.get(i), query)) { selectSet(i); return; }
     }
     private boolean matches(BeatmapSet set, String query) {
         if (query.isEmpty()) return true;
