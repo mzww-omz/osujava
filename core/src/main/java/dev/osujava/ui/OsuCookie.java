@@ -8,7 +8,7 @@ import dev.osujava.ui.theme.UiView;
 final class OsuCookie {
     private static final Color HALO = new Color(1f, .59f, .79f, .13f);
     private static final Color RING = new Color(1f, .97f, 1f, 1f);
-    private static final Color INNER = new Color(.78f, .28f, .53f, 1f);
+    private static final Color INNER = new Color(.82f, .35f, .57f, 1f);
     private static final Color HOVER = new Color(.91f, .38f, .63f, 1f);
     private static final Color PRESSED = new Color(.68f, .19f, .43f, 1f);
     private static final Color SHEEN = new Color(1f, 1f, 1f, .045f);
@@ -32,7 +32,7 @@ final class OsuCookie {
     }
 
     void drawText(UiView view) {
-        view.textSmooth("osu!", x - radius, y - radius * .12f, radius * 2, radius / 43f,
+        view.textSmooth("osu!", x - radius, y - radius * .13f, radius * 2, radius / 23f,
                 Color.WHITE, Align.center);
     }
 }

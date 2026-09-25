@@ -20,12 +20,12 @@ import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 
 public final class MainMenuScreen extends ScreenAdapter {
-    private static final Color TOP = new Color(.045f, .034f, .065f, .83f);
-    private static final Color FOOT = new Color(.045f, .034f, .065f, .84f);
-    private static final Color STRIP = new Color(.37f, .31f, .71f, .93f);
+    private static final Color TOP = new Color(.045f, .034f, .065f, .76f);
+    private static final Color FOOT = new Color(.045f, .034f, .065f, .74f);
+    private static final Color STRIP = new Color(.37f, .31f, .71f, .84f);
     private static final Color STRIP_HOVER = new Color(.52f, .43f, .86f, .98f);
     private static final Color STRIP_DISABLED = new Color(.30f, .27f, .43f, .8f);
-    private static final Color BG = new Color(.075f, .052f, .10f, .81f);
+    private static final Color BG = new Color(.075f, .052f, .10f, .76f);
     private static final Color GLOW = new Color(.23f, .13f, .25f, .10f);
     private static final DateTimeFormatter CLOCK_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -38,6 +38,17 @@ public final class MainMenuScreen extends ScreenAdapter {
     private float seconds;
     private float cx, cy, radius, stripX, stripW, stripH, stripGap, stripBottom;
     private float reveal;
+    private String ambientTitle = "";
+
+    private static final class Metrics {
+        static final float COOKIE_X = .36f;
+        static final float COOKIE_Y = .50f;
+        static final float COOKIE_RADIUS_H = .285f;
+        static final float STRIP_HEIGHT_H = .096f;
+        static final float STRIP_GAP = 5;
+        static final float TOP_HEIGHT = 35;
+        static final float FOOT_HEIGHT = 31;
+    }
 
     public MainMenuScreen(OsuJavaGame game) { this.game = game; view = new UiView(game); }
 
@@ -47,6 +58,7 @@ public final class MainMenuScreen extends ScreenAdapter {
                     .min(Comparator.comparing(BeatmapSet::title, String.CASE_INSENSITIVE_ORDER))
                     .orElseThrow();
             ambientArtwork.select(set, set.difficulties().get(0));
+            ambientTitle = set.artist() + " - " + set.title();
         }
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override public boolean keyDown(int key) {
@@ -79,39 +91,41 @@ public final class MainMenuScreen extends ScreenAdapter {
         drawBackground(layout);
         drawStrips(hoveredStrip);
         cookie.drawShape(view, seconds, onCookie, pressed && onCookie);
-        view.box(0, layout.height() - 64, layout.width(), 64, 0, TOP);
-        view.box(0, 0, layout.width(), 52, 0, FOOT);
+        view.box(0, layout.height() - Metrics.TOP_HEIGHT, layout.width(), Metrics.TOP_HEIGHT, 0, TOP);
+        view.box(0, 0, layout.width(), Metrics.FOOT_HEIGHT, 0, FOOT);
         view.endShapes();
         view.beginText();
         cookie.drawText(view);
         String[] labels = {"Play", "Options", "Exit"};
         for (int i = 0; i < labels.length; i++) {
             float y = stripBottom + (2 - i) * (stripH + stripGap);
-            float labelX = cx + radius + 26;
+            float labelX = cx + radius + 17;
             view.textSmooth(labels[i], labelX, y + stripH * .66f,
-                    Math.max(60, stripX + stripW - labelX - 18), 1.72f,
+                    Math.max(60, stripX + stripW - labelX - 18), 1.48f,
                     i == 1 ? UiTheme.MUTED : UiTheme.TEXT);
         }
         int count = game.library().all().stream().mapToInt(set -> set.difficulties().size()).sum();
-        view.textSmooth("osu!java", 22, layout.height() - 25, 210, 1.35f, UiTheme.TEXT);
-        view.textSmooth(count + " local difficulties", 238, layout.height() - 23, 270, UiTheme.META, UiTheme.TEXT);
-        view.textSmooth("LOCAL  /  " + LocalTime.now().format(CLOCK_FORMAT), layout.width() - 255,
-                layout.height() - 23, 230, UiTheme.META, UiTheme.TEXT, Align.right);
-        view.textSmooth("Play local beatmaps  ·  P / Enter", 28, 20, layout.width() - 56, UiTheme.META, UiTheme.MUTED);
+        view.textSmooth("osu!java", 15, layout.height() - 11, 160, 1.03f, UiTheme.TEXT);
+        view.textSmooth(count + " local difficulties", 170, layout.height() - 11, 230, .74f, UiTheme.TEXT);
+        view.textSmooth(ambientTitle, layout.width() * .56f, layout.height() - 11,
+                layout.width() * .23f, .72f, UiTheme.MUTED, Align.right);
+        view.textSmooth("LOCAL  /  " + LocalTime.now().format(CLOCK_FORMAT), layout.width() - 208,
+                layout.height() - 11, 195, .74f, UiTheme.TEXT, Align.right);
+        view.textSmooth("Play local beatmaps  ·  P / Enter", 15, 10, layout.width() - 30, .72f, UiTheme.MUTED);
         view.endText();
         view.fade(entrance, delta);
         view.cover(outgoing.opacity());
     }
 
     private void calculateLayout(UiLayout layout) {
-        radius = Math.min(layout.height() * .285f, layout.width() * .215f);
-        cx = Math.max(radius + 26, layout.width() * .35f);
-        cy = layout.height() * .52f;
+        radius = Math.min(layout.height() * Metrics.COOKIE_RADIUS_H, layout.width() * .215f);
+        cx = Math.max(radius + 26, layout.width() * Metrics.COOKIE_X);
+        cy = layout.height() * Metrics.COOKIE_Y;
         cookie.bounds(cx, cy, radius);
         stripX = cx + radius * .20f;
-        stripW = Math.min(layout.width() - stripX - 38, radius * 2.30f);
-        stripH = Math.max(55, Math.min(72, layout.height() * .09f));
-        stripGap = 9;
+        stripW = Math.min(layout.width() - stripX - 38, radius * 2.15f);
+        stripH = Math.max(55, Math.min(72, layout.height() * Metrics.STRIP_HEIGHT_H));
+        stripGap = Metrics.STRIP_GAP;
         stripBottom = cy - (stripH * 3 + stripGap * 2) / 2;
     }
 
