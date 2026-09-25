@@ -1,34 +1,84 @@
 package dev.osujava;
 
 import com.badlogic.gdx.Game;
+import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import dev.osujava.library.BeatmapArchiveImporter;
+import dev.osujava.library.BeatmapLibrary;
+import dev.osujava.ruleset.osu.OsuRuleset;
+import dev.osujava.ui.BeatmapFileChooser;
 import dev.osujava.ui.MainMenuScreen;
 
+import java.nio.file.Path;
+
 public class OsuJavaGame extends Game {
+    private final BeatmapFileChooser fileChooser;
     private SpriteBatch batch;
+    private ShapeRenderer shapes;
     private BitmapFont font;
+    private BeatmapLibrary library;
+    private BeatmapArchiveImporter importer;
+    private OsuRuleset osuRuleset;
+
+    public OsuJavaGame(BeatmapFileChooser fileChooser) {
+        this.fileChooser = fileChooser;
+    }
 
     @Override
     public void create() {
         batch = new SpriteBatch();
+        shapes = new ShapeRenderer();
         font = new BitmapFont();
-        setScreen(new MainMenuScreen(this));
+        library = new BeatmapLibrary();
+        Path libraryRoot = Path.of(System.getProperty("user.home", "."), ".osujava", "library");
+        importer = new BeatmapArchiveImporter(libraryRoot);
+        osuRuleset = new OsuRuleset();
+        navigate(new MainMenuScreen(this));
+    }
+
+    public void navigate(Screen next) {
+        Screen previous = getScreen();
+        super.setScreen(next);
+        if (previous != null && previous != next) previous.dispose();
     }
 
     public SpriteBatch batch() {
         return batch;
     }
 
+    public ShapeRenderer shapes() {
+        return shapes;
+    }
+
     public BitmapFont font() {
         return font;
     }
 
+    public BeatmapLibrary library() {
+        return library;
+    }
+
+    public BeatmapArchiveImporter importer() {
+        return importer;
+    }
+
+    public BeatmapFileChooser fileChooser() {
+        return fileChooser;
+    }
+
+    public OsuRuleset osuRuleset() {
+        return osuRuleset;
+    }
+
     @Override
     public void dispose() {
+        Screen current = getScreen();
         super.dispose();
+        if (current != null) current.dispose();
         batch.dispose();
+        shapes.dispose();
         font.dispose();
     }
 }
-
