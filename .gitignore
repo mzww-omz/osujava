@@ -5,5 +5,4 @@
 .DS_Store
 local.properties
 run/
-library/
-
+/library/
