@@ -4,101 +4,89 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.ScreenAdapter;
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.utils.Align;
 import dev.osujava.OsuJavaGame;
+import dev.osujava.ui.theme.UiButton;
+import dev.osujava.ui.theme.UiLayout;
+import dev.osujava.ui.theme.UiNavigation;
+import dev.osujava.ui.theme.UiTheme;
+import dev.osujava.ui.theme.UiTransition;
+import dev.osujava.ui.theme.UiView;
 
 public final class MainMenuScreen extends ScreenAdapter {
-    private static final Color BACKGROUND = new Color(0.075f, 0.067f, 0.12f, 1f);
-    private static final Color PANEL = new Color(0.18f, 0.14f, 0.25f, 1f);
-    private static final Color ACCENT = new Color(0.94f, 0.29f, 0.55f, 1f);
     private final OsuJavaGame game;
-    private float playX;
-    private float playY;
-    private float playW;
-    private float playH;
+    private final UiView view;
+    private final UiTransition entrance = new UiTransition();
+    private final UiNavigation outgoing = new UiNavigation();
+    private final UiButton play = new UiButton("PLAY", true);
+    private final UiButton options = new UiButton("OPTIONS", false);
+    private final UiButton exit = new UiButton("EXIT", false);
+    private float elapsed;
 
-    public MainMenuScreen(OsuJavaGame game) {
-        this.game = game;
-    }
+    public MainMenuScreen(OsuJavaGame game) { this.game = game; view = new UiView(game); }
 
-    @Override
-    public void show() {
+    @Override public void show() {
         Gdx.input.setInputProcessor(new InputAdapter() {
-            @Override
-            public boolean keyDown(int keycode) {
-                if (AppShortcuts.handleQuit(keycode)) return true;
-                if (keycode == Input.Keys.ENTER || keycode == Input.Keys.SPACE) {
-                    game.navigate(new SongSelectScreen(game));
+            @Override public boolean keyDown(int key) {
+                if (AppShortcuts.handleQuit(key)) return true;
+                if (key == Input.Keys.ENTER || key == Input.Keys.SPACE) { openSongs(); return true; }
+                if (key == Input.Keys.I) {
+                    SongSelectScreen songs = new SongSelectScreen(game);
+                    game.navigate(songs);
+                    songs.requestImport();
                     return true;
                 }
-                if (keycode == Input.Keys.I) {
-                    SongSelectScreen songSelect = new SongSelectScreen(game);
-                    game.navigate(songSelect);
-                    songSelect.requestImport();
-                    return true;
-                }
-                if (keycode == Input.Keys.ESCAPE) {
-                    Gdx.app.exit();
-                    return true;
-                }
+                if (key == Input.Keys.ESCAPE) { Gdx.app.exit(); return true; }
                 return false;
             }
         });
     }
 
-    @Override
-    public void render(float delta) {
-        int width = Gdx.graphics.getWidth();
-        int height = Gdx.graphics.getHeight();
-        Gdx.gl.glClearColor(BACKGROUND.r, BACKGROUND.g, BACKGROUND.b, 1);
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-
-        float panelW = Math.min(520, width * 0.76f);
-        float panelH = Math.min(420, height * 0.76f);
-        float panelX = (width - panelW) / 2;
-        float panelY = (height - panelH) / 2;
-        playW = Math.min(310, panelW - 70);
-        playH = 72;
-        playX = width / 2f - playW / 2;
-        playY = panelY + 86;
-
-        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)
-                && contains(Gdx.input.getX(), height - Gdx.input.getY(), playX, playY, playW, playH)) {
-            game.navigate(new SongSelectScreen(game));
-            return;
+    @Override public void render(float delta) {
+        if (outgoing.advance(delta)) return;
+        UiLayout layout = view.prepare();
+        elapsed += Math.min(delta, 0.05f);
+        float centerX = layout.width() * 0.45f;
+        float centerY = layout.height() * 0.53f;
+        float radius = Math.min(layout.height() * 0.25f, layout.width() * 0.19f);
+        float menuX = Math.min(layout.width() - 255, centerX + radius + 34);
+        float menuY = centerY - 98;
+        play.bounds(menuX, menuY + 108, 190, 58);
+        options.bounds(menuX, menuY + 46, 190, 50);
+        options.enabled(false);
+        exit.bounds(menuX, menuY - 10, 190, 46);
+        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+            float x = layout.pointerX(Gdx.input.getX()), y = layout.pointerY(Gdx.input.getY());
+            if (play.hit(x, y) || (x - centerX) * (x - centerX) + (y - centerY) * (y - centerY) <= radius * radius) { openSongs(); return; }
+            if (exit.hit(x, y)) { outgoing.request(Gdx.app::exit); return; }
         }
-
-        game.shapes().begin(com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType.Filled);
-        game.shapes().setColor(new Color(0.14f, 0.12f, 0.21f, 1));
-        game.shapes().rect(0, height * 0.83f, width, height * 0.17f);
-        game.shapes().setColor(PANEL);
-        game.shapes().rect(panelX, panelY, panelW, panelH);
-        game.shapes().setColor(ACCENT);
-        game.shapes().rect(panelX, panelY + panelH - 6, panelW, 6);
-        game.shapes().rect(playX, playY, playW, playH);
-        game.shapes().end();
-
-        game.batch().begin();
-        game.font().setColor(Color.WHITE);
-        game.font().getData().setScale(3.1f);
-        game.font().draw(game.batch(), "osu!java", panelX + 42, panelY + panelH - 74);
-        game.font().getData().setScale(1.1f);
-        game.font().setColor(new Color(0.78f, 0.76f, 0.84f, 1));
-        game.font().draw(game.batch(), "LOCAL RHYTHM GAME", panelX + 46, panelY + panelH - 112);
-        game.font().setColor(Color.WHITE);
-        game.font().getData().setScale(1.8f);
-        game.font().draw(game.batch(), "Play", playX + playW / 2 - 31, playY + 47);
-        game.font().getData().setScale(0.9f);
-        game.font().setColor(new Color(0.72f, 0.69f, 0.79f, 1));
-        game.font().draw(game.batch(), "Import beatmaps from your computer", panelX + 45, panelY + 48);
-        game.font().draw(game.batch(), "Press I to import directly", panelX + 45, panelY + 28);
-        game.font().setColor(Color.WHITE);
-        game.font().getData().setScale(1f);
-        game.batch().end();
+        view.clear();
+        view.beginShapes();
+        for (int i = 0; i < 6; i++) {
+            float drift = (float) Math.sin(elapsed * 0.25f + i * 1.3f) * 15;
+            view.circle(layout.width() * (0.12f + i * 0.17f), layout.height() * (0.18f + (i % 3) * 0.34f) + drift,
+                    55 + i * 17, UiTheme.ORBIT);
+        }
+        view.circle(centerX, centerY, radius + 15 + (float) Math.sin(elapsed * 1.5f) * 3, UiTheme.SURFACE_RAISED);
+        view.circle(centerX, centerY, radius, UiTheme.ACCENT);
+        view.circle(centerX, centerY, radius - 10, UiTheme.LOGO_INNER);
+        play.drawShape(view, layout, delta);
+        options.drawShape(view, layout, delta);
+        exit.drawShape(view, layout, delta);
+        view.box(0, 0, layout.width(), 42, 0, UiTheme.SURFACE);
+        view.endShapes();
+        view.beginText();
+        view.text("osu!java", centerX - radius, centerY + 24, radius * 2, 3.0f, UiTheme.TEXT, Align.center);
+        view.text("LOCAL RHYTHM GAME", centerX - radius, centerY - 18, radius * 2, UiTheme.META, UiTheme.TEXT, Align.center);
+        play.drawText(view); options.drawText(view); exit.drawText(view);
+        view.text("PLAY YOUR LOCAL BEATMAPS", menuX, menuY + 196, 260, UiTheme.META, UiTheme.MUTED);
+        view.text("OPTIONS COMING LATER", menuX, menuY + 30, 210, 0.68f, UiTheme.MUTED);
+        view.text("LOCAL LIBRARY  /  NO ACCOUNT REQUIRED", UiTheme.PAD, 26, layout.width() - 2 * UiTheme.PAD,
+                UiTheme.META, UiTheme.MUTED);
+        view.endText();
+        view.fade(entrance, delta);
+        view.cover(outgoing.opacity());
     }
 
-    private boolean contains(float x, float y, float rectX, float rectY, float rectW, float rectH) {
-        return x >= rectX && x <= rectX + rectW && y >= rectY && y <= rectY + rectH;
-    }
+    private void openSongs() { outgoing.request(() -> game.navigate(new SongSelectScreen(game))); }
 }
