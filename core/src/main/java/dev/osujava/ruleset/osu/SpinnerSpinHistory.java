@@ -5,6 +5,7 @@ import java.util.Deque;
 
 /** Counts spins like lazer: direction changes undo progress before they can add more spins. */
 public final class SpinnerSpinHistory {
+    private static final double SPIN_COMPLETION_EPSILON = 1e-6;
     private final Deque<CompletedSpin> completedSpins = new ArrayDeque<>();
     private double totalAccumulatedRotation;
     private double rotationAtLastCompletion;
@@ -25,7 +26,7 @@ public final class SpinnerSpinHistory {
         totalAccumulatedRotation += deltaDegrees;
         if (currentTimeMs >= lastReportTime) {
             currentSpinMaxRotation = Math.max(currentSpinMaxRotation, Math.abs(currentSpinRotation()));
-            while (currentSpinMaxRotation >= 360) {
+            while (currentSpinMaxRotation >= 360 - SPIN_COMPLETION_EPSILON) {
                 int direction = (int) Math.signum(currentSpinRotation());
                 completedSpins.push(new CompletedSpin(currentTimeMs, direction));
                 rotationAtLastCompletion += direction * 360;

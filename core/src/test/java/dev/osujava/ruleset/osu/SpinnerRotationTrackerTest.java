@@ -63,6 +63,18 @@ class SpinnerRotationTrackerTest {
         assertEquals(0, history.completedSpins());
     }
 
+    @Test
+    void coordinatePrecisionDoesNotLoseACompletedTurn() {
+        SpinnerRotationTracker tracker = trackerAtAngle(0, 0);
+        for (int step = 1; step <= 28; step++) {
+            double angle = Math.toRadians(step * 90.0);
+            tracker.moveCursor(CENTER_X + Math.cos(angle) * RADIUS,
+                    CENTER_Y + Math.sin(angle) * RADIUS, step * 10, true);
+        }
+
+        assertEquals(7, tracker.completedSpins());
+    }
+
     private SpinnerRotationTracker trackerAtAngle(double angleDegrees, double timeMs) {
         SpinnerRotationTracker tracker = new SpinnerRotationTracker(CENTER_X, CENTER_Y);
         tracker.moveCursor(pointX(angleDegrees), pointY(angleDegrees), timeMs, false);
