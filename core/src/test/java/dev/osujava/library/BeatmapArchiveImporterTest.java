@@ -69,6 +69,22 @@ class BeatmapArchiveImporterTest {
     }
 
     @Test
+    void resolvesAssetsRelativeToOsuFilesInsideArchiveSubdirectories() throws Exception {
+        Path archive = tempDir.resolve("nested.osz");
+        writeZip(archive, List.of(
+                entry("Charts/Hard.osu", beatmap("Nested", 0, "song.ogg", "art/bg.png")),
+                entry("Charts/song.ogg", "audio"),
+                entry("Charts/art/bg.png", "background")));
+
+        BeatmapSet set = new BeatmapArchiveImporter(tempDir.resolve("library")).importFile(archive).beatmapSet();
+
+        assertTrue(set.audioPath().toString().contains("Charts"));
+        assertTrue(set.backgroundPath().toString().contains("Charts"));
+        assertTrue(Files.exists(set.audioPath()));
+        assertTrue(Files.exists(set.backgroundPath()));
+    }
+
+    @Test
     void rejectsZipSlipPathsAndRemovesStagingFiles() throws Exception {
         Path archive = tempDir.resolve("unsafe.osz");
         writeZip(archive, List.of(entry("../outside.osu", beatmap("Bad", 0, "", ""))));

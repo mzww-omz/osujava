@@ -168,8 +168,8 @@ public final class BeatmapArchiveImporter {
             try {
                 BeatmapFile beatmap = parser.parse(osuFile);
                 parsed.add(new ParsedEntry(beatmap,
-                        safeExistingAsset(staging, beatmap.difficulty().audioFilename()),
-                        safeExistingAsset(staging, beatmap.difficulty().backgroundFilename())));
+                        safeExistingAsset(staging, osuFile.getParent(), beatmap.difficulty().audioFilename()),
+                        safeExistingAsset(staging, osuFile.getParent(), beatmap.difficulty().backgroundFilename())));
             } catch (IOException | BeatmapParseException e) {
                 warnings.add("Skipped " + staging.relativize(osuFile) + ": " + safeMessage(e));
             }
@@ -205,11 +205,12 @@ public final class BeatmapArchiveImporter {
         return new ImportResult(set, warnings);
     }
 
-    private Path safeExistingAsset(Path root, String reference) {
+    private Path safeExistingAsset(Path storageRoot, Path relativeBase, String reference) {
         Path relative = safeAssetReference(reference);
         if (relative == null) return null;
-        Path candidate = root.resolve(relative).normalize();
-        return candidate.startsWith(root) && Files.isRegularFile(candidate) ? relative : null;
+        Path candidate = relativeBase.resolve(relative).normalize();
+        return candidate.startsWith(storageRoot) && Files.isRegularFile(candidate)
+                ? storageRoot.relativize(candidate) : null;
     }
 
     private Path safeAssetReference(String reference) {
@@ -218,10 +219,7 @@ public final class BeatmapArchiveImporter {
         if (portable.startsWith("/") || portable.matches("^[A-Za-z]:.*")) return null;
         try {
             Path relative = Path.of(portable).normalize();
-            if (relative.isAbsolute() || relative.startsWith("..")) return null;
-            for (Path component : Path.of(portable)) {
-                if (component.toString().equals("..")) return null;
-            }
+            if (relative.isAbsolute()) return null;
             return relative;
         } catch (RuntimeException e) {
             return null;
