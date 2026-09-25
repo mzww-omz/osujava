@@ -3,6 +3,7 @@ package dev.osujava.beatmap.parse;
 import dev.osujava.beatmap.BeatmapFile;
 import dev.osujava.beatmap.HitObject;
 import dev.osujava.beatmap.SliderData;
+import dev.osujava.beatmap.SpinnerData;
 import dev.osujava.beatmap.TimingPoint;
 import org.junit.jupiter.api.Test;
 
@@ -75,6 +76,11 @@ class BeatmapFileParserTest {
         assertEquals(2, slider.sliderData().repeatCount());
         assertEquals(280, slider.sliderData().pixelLength());
         assertEquals(HitObject.Type.SPINNER, file.difficulty().hitObjects().get(2).type());
+        HitObject spinner = file.difficulty().hitObjects().get(2);
+        assertEquals(2500, spinner.timeMs());
+        assertEquals(3000, spinner.endTimeMs());
+        assertEquals(500, spinner.durationMs());
+        assertEquals(new SpinnerData(3000), spinner.spinnerData());
     }
 
     @Test
@@ -139,6 +145,25 @@ class BeatmapFileParserTest {
                 """, "missing-length.osu");
 
         assertEquals(0, file.difficulty().hitObjects().getFirst().sliderData().pixelLength());
+    }
+
+    @Test
+    void parsesSpinnerEndTimeAndUsesPlayfieldCenter() throws Exception {
+        BeatmapFile file = parser.parse("""
+                osu file format v14
+                [HitObjects]
+                80,120,1234,12,0,2234.5
+                200,200,3000,8,0
+                """, "spinner.osu");
+
+        HitObject spinner = file.difficulty().hitObjects().getFirst();
+        assertEquals(HitObject.Type.SPINNER, spinner.type());
+        assertEquals(256, spinner.x());
+        assertEquals(192, spinner.y());
+        assertEquals(1234, spinner.timeMs());
+        assertEquals(2234.5, spinner.endTimeMs());
+        assertEquals(1000.5, spinner.durationMs());
+        assertEquals(1, file.difficulty().hitObjects().size(), "A spinner without an end time is skipped");
     }
 
     @Test
