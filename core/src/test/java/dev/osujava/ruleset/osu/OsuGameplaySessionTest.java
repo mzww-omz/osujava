@@ -135,6 +135,46 @@ class OsuGameplaySessionTest {
         assertEquals(0.5, state.score().accuracy(), 1e-6);
     }
 
+    @Test
+    void sliderTailWaitsForLastTickAtTheEndLeniencyBoundary() {
+        ManualClock clock = new ManualClock();
+        HitObject slider = sliderObject(100, 100, 1000, 100, 1);
+        BeatmapDifficulty denseTicks = new BeatmapDifficulty("Song", "Artist", "Creator", "Normal", 0,
+                "", "", new DifficultySettings(5, 5, 5, 5, 1.4, 50),
+                List.of(new dev.osujava.beatmap.TimingPoint(0, 500, 4, 0, 0, 100, true, 0)),
+                List.of(slider), null, null);
+        OsuGameplaySession session = new OsuGameplaySession(denseTicks, clock,
+                new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+        SliderPath path = new SliderPath(slider.x(), slider.y(), slider.sliderData());
+        SliderTiming timing = SliderTiming.calculate(denseTicks, slider, path);
+        List<SliderEvent> events = SliderEventGenerator.generate(timing, path);
+        double tailStart = SliderEventGenerator.tailJudgementStartTime(timing);
+
+        clock.set(1000);
+        session.click(100, 100);
+        clock.set((long) Math.ceil(tailStart));
+        double progress = timing.progressAt(clock.nowMs());
+        BeatmapPoint initialBall = path.positionAt(progress);
+        session.pointerMoved(initialBall.x(), initialBall.y());
+        GameplayState atLeniencyStart = session.update();
+        long ticksDueAtLeniencyStart = events.stream()
+                .filter(event -> event.type() == SliderEvent.Type.TICK && event.timeMs() <= clock.nowMs())
+                .count();
+
+        assertEquals(1 + ticksDueAtLeniencyStart, atLeniencyStart.score().count300(),
+                "The tail must wait while an earlier tick is still pending");
+
+        clock.set((long) Math.ceil(timing.endTimeMs() - 17));
+        progress = timing.progressAt(clock.nowMs());
+        BeatmapPoint ball = path.positionAt(progress);
+        session.pointerMoved(ball.x(), ball.y());
+        GameplayState afterLastTick = session.update();
+
+        assertEquals(1 + events.stream().filter(event -> event.type() == SliderEvent.Type.TICK).count() + 1,
+                afterLastTick.score().count300());
+        assertTrue(afterLastTick.completed());
+    }
+
     private BeatmapDifficulty difficulty(List<HitObject> objects) {
         return new BeatmapDifficulty("Song", "Artist", "Creator", "Normal", 0, "", "",
                 new DifficultySettings(5, 5, 5, 5, 1.4, 1), List.of(), objects, null, null);

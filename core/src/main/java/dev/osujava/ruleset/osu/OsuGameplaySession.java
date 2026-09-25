@@ -175,12 +175,20 @@ public final class OsuGameplaySession implements GameplaySession {
                 double dueAt = event.type() == SliderEvent.Type.TAIL
                         ? SliderEventGenerator.tailJudgementStartTime(slider.timing) : event.timeMs();
                 if (now < dueAt) continue;
+                if (event.type() == SliderEvent.Type.TAIL && hasPendingEarlierEvent(slider, index)) continue;
                 boolean hit = slider.headHit && slider.tracking;
                 slider.eventJudged[index] = true;
                 slider.eventHit[index] = hit;
                 score.record(hit ? Judgement.HIT300 : Judgement.MISS);
             }
         }
+    }
+
+    private boolean hasPendingEarlierEvent(SliderRuntime slider, int eventIndex) {
+        for (int index = 0; index < eventIndex; index++) {
+            if (!slider.eventJudged[index]) return true;
+        }
+        return false;
     }
 
     private boolean updateTrackingAt(SliderRuntime slider, long now) {
