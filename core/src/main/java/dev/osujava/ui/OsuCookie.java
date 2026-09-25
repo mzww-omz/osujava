@@ -23,7 +23,7 @@ final class OsuCookie {
 
     void drawShape(UiView view, float seconds, boolean hovered, boolean pressed) {
         // The app has no menu music player yet. A 60 BPM fallback keeps the cookie alive.
-        float beat = (float) Math.pow(Math.max(0, Math.sin(seconds * Math.PI)), 5);
+        float beat = (float) Math.pow(Math.max(0, Math.sin(seconds * Math.PI * 2)), 5);
         float r = radius + beat * 3 + (hovered ? 5 : 0) - (pressed ? 5 : 0);
         view.circle(x, y, r + 20, HALO);
         view.circle(x, y, r + 8, RING);

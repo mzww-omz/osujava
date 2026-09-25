@@ -7,6 +7,8 @@ import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.Align;
 import dev.osujava.OsuJavaGame;
+import dev.osujava.beatmap.BeatmapSet;
+import dev.osujava.ui.theme.BeatmapBackdrop;
 import dev.osujava.ui.theme.UiLayout;
 import dev.osujava.ui.theme.UiNavigation;
 import dev.osujava.ui.theme.UiTheme;
@@ -15,6 +17,7 @@ import dev.osujava.ui.theme.UiView;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 
 public final class MainMenuScreen extends ScreenAdapter {
     private static final Color TOP = new Color(.045f, .034f, .065f, .83f);
@@ -22,13 +25,14 @@ public final class MainMenuScreen extends ScreenAdapter {
     private static final Color STRIP = new Color(.37f, .31f, .71f, .93f);
     private static final Color STRIP_HOVER = new Color(.52f, .43f, .86f, .98f);
     private static final Color STRIP_DISABLED = new Color(.30f, .27f, .43f, .8f);
-    private static final Color BG = new Color(.075f, .052f, .10f, 1f);
+    private static final Color BG = new Color(.075f, .052f, .10f, .81f);
     private static final Color GLOW = new Color(.23f, .13f, .25f, .10f);
     private static final DateTimeFormatter CLOCK_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
 
     private final OsuJavaGame game;
     private final UiView view;
     private final OsuCookie cookie = new OsuCookie();
+    private final BeatmapBackdrop ambientArtwork = new BeatmapBackdrop();
     private final UiTransition entrance = new UiTransition();
     private final UiNavigation outgoing = new UiNavigation();
     private float seconds;
@@ -38,6 +42,12 @@ public final class MainMenuScreen extends ScreenAdapter {
     public MainMenuScreen(OsuJavaGame game) { this.game = game; view = new UiView(game); }
 
     @Override public void show() {
+        if (!game.library().all().isEmpty()) {
+            BeatmapSet set = game.library().all().stream()
+                    .min(Comparator.comparing(BeatmapSet::title, String.CASE_INSENSITIVE_ORDER))
+                    .orElseThrow();
+            ambientArtwork.select(set, set.difficulties().get(0));
+        }
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override public boolean keyDown(int key) {
                 if (AppShortcuts.handleQuit(key)) return true;
@@ -64,6 +74,7 @@ public final class MainMenuScreen extends ScreenAdapter {
         }
 
         view.clear();
+        ambientArtwork.draw(view, delta);
         view.beginShapes();
         drawBackground(layout);
         drawStrips(hoveredStrip);
@@ -137,4 +148,6 @@ public final class MainMenuScreen extends ScreenAdapter {
     }
 
     private void openSongs() { outgoing.request(() -> game.navigate(new SongSelectScreen(game))); }
+
+    @Override public void dispose() { ambientArtwork.close(); }
 }
