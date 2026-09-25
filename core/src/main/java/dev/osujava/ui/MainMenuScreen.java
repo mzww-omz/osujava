@@ -26,7 +26,7 @@ public final class MainMenuScreen extends ScreenAdapter {
     public void show() {
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override
-            public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+            public boolean touchDown(int screenX, int screenY, int pointer, int button) {
                 if (button == Input.Buttons.LEFT && contains(screenX, Gdx.graphics.getHeight() - screenY,
                         playX, playY, playW, playH)) {
                     game.navigate(new SongSelectScreen(game));
@@ -37,6 +37,7 @@ public final class MainMenuScreen extends ScreenAdapter {
 
             @Override
             public boolean keyDown(int keycode) {
+                if (AppShortcuts.handleQuit(keycode)) return true;
                 if (keycode == Input.Keys.ENTER || keycode == Input.Keys.SPACE) {
                     game.navigate(new SongSelectScreen(game));
                     return true;

@@ -20,7 +20,7 @@ public final class GameplayInputProcessor extends InputAdapter {
     }
 
     @Override
-    public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+    public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         if (button != Input.Buttons.LEFT || viewport == null) return false;
         float x = screenX;
         float y = Gdx.graphics.getHeight() - screenY;
@@ -31,6 +31,7 @@ public final class GameplayInputProcessor extends InputAdapter {
 
     @Override
     public boolean keyDown(int keycode) {
+        if (AppShortcuts.handleQuit(keycode)) return true;
         if (keycode == Input.Keys.ESCAPE) {
             onBack.run();
             return true;

@@ -30,6 +30,8 @@ macOSではlauncherがGLFWの非同期起動設定を使います。
 4. HitCircleの位置を曲に合わせてクリックします。
 5. 曲が終わるとResultsを表示します。
 
+終了はウィンドウの閉じるボタン、macOSのCmd+Q、Windows / LinuxのCtrl+Qで行えます。
+
 Song Selectでは、1つの.oszに入った複数Difficultyを1つのBeatmap Setとして表示します。taiko / catch / maniaのmode情報も保持して表示しますが、Gameplay対応はosu!standardのHitCircleだけです。Slider、Spinner、Mods、Replay、Skin、Editor、オンライン機能は未実装です。
 
 Importしたファイルはユーザーのホームディレクトリ下の.osujava/libraryへ展開・コピーします。現時点でLibraryの一覧はメモリ上にあり、アプリ再起動後は譜面をもう一度Importしてください。
