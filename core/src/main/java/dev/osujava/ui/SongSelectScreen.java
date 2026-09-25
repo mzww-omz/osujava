@@ -247,7 +247,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : set.difficulties().get(0);
             Path path = diff.backgroundPath() != null ? diff.backgroundPath() : set.backgroundPath();
             Texture texture = thumbnails.get(path);
-            view.image(texture, row.x() + 9, row.y() + 4, 82, row.height() - 8);
+            view.imageCover(texture, row.x() + 9, row.y() + 4, 82, row.height() - 8);
         }
     }
 
