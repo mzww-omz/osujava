@@ -15,6 +15,7 @@ import dev.osujava.beatmap.HitObject;
 import dev.osujava.gameplay.ElapsedGameClock;
 import dev.osujava.gameplay.GameClock;
 import dev.osujava.gameplay.GameplaySession;
+import dev.osujava.gameplay.GameplayRunMode;
 import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.MusicGameClock;
 import dev.osujava.ruleset.osu.SliderPath;
@@ -29,6 +30,7 @@ public final class GameplayScreen extends ScreenAdapter {
     private final BeatmapDifficulty difficulty;
     private final GameClock clock;
     private final GameplaySession session;
+    private final GameplayRunMode runMode;
     private final GameplayRenderer renderer;
     private final GameplayInputProcessor input;
     private final Music music;
@@ -40,10 +42,15 @@ public final class GameplayScreen extends ScreenAdapter {
     private final Matrix4 pixelProjection = new Matrix4();
 
     public GameplayScreen(OsuJavaGame game, BeatmapSet set, BeatmapDifficulty difficulty) {
+        this(game, set, difficulty, GameplayRunMode.MANUAL);
+    }
+
+    public GameplayScreen(OsuJavaGame game, BeatmapSet set, BeatmapDifficulty difficulty, GameplayRunMode runMode) {
         this.game = game;
         this.transitionView = new UiView(game);
         this.set = set;
         this.difficulty = difficulty;
+        this.runMode = runMode;
         this.renderer = new GameplayRenderer(game);
         long lastObjectEnd = 0;
         for (HitObject object : difficulty.hitObjects()) {
@@ -101,7 +108,7 @@ public final class GameplayScreen extends ScreenAdapter {
         GameplayState state = session.update();
         if (clock.finished()) {
             session.finish();
-            game.navigate(new ResultsScreen(game, set, difficulty, session.state().score()));
+            game.navigate(new ResultsScreen(game, set, difficulty, session.state().score(), runMode));
             return;
         }
         renderer.render(set, difficulty, state, viewport, background, notice);
