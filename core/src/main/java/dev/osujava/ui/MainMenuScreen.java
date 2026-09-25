@@ -76,16 +76,17 @@ public final class MainMenuScreen extends ScreenAdapter {
         String[] labels = {"Play", "Options", "Exit"};
         for (int i = 0; i < labels.length; i++) {
             float y = stripBottom + (2 - i) * (stripH + stripGap);
-            view.text(labels[i], stripX + radius * .58f, y + stripH * .67f,
-                    stripW - radius * .8f, 2.0f, i == 1 ? UiTheme.MUTED : UiTheme.TEXT);
-            if (i == 1) view.text("unavailable", stripX + stripW - 136, y + 18, 108, .72f, UiTheme.MUTED, Align.right);
+            float labelX = cx + radius + 26;
+            view.textSmooth(labels[i], labelX, y + stripH * .66f,
+                    Math.max(60, stripX + stripW - labelX - 18), 1.72f,
+                    i == 1 ? UiTheme.MUTED : UiTheme.TEXT);
         }
         int count = game.library().all().stream().mapToInt(set -> set.difficulties().size()).sum();
-        view.text("osu!java", 22, layout.height() - 25, 210, 1.35f, UiTheme.TEXT);
-        view.text(count + " local difficulties", 238, layout.height() - 23, 270, UiTheme.META, UiTheme.TEXT);
-        view.text("LOCAL  /  " + LocalTime.now().format(CLOCK_FORMAT), layout.width() - 255,
+        view.textSmooth("osu!java", 22, layout.height() - 25, 210, 1.35f, UiTheme.TEXT);
+        view.textSmooth(count + " local difficulties", 238, layout.height() - 23, 270, UiTheme.META, UiTheme.TEXT);
+        view.textSmooth("LOCAL  /  " + LocalTime.now().format(CLOCK_FORMAT), layout.width() - 255,
                 layout.height() - 23, 230, UiTheme.META, UiTheme.TEXT, Align.right);
-        view.text("Play local beatmaps  ·  P / Enter", 28, 20, layout.width() - 56, UiTheme.META, UiTheme.MUTED);
+        view.textSmooth("Play local beatmaps  ·  P / Enter", 28, 20, layout.width() - 56, UiTheme.META, UiTheme.MUTED);
         view.endText();
         view.fade(entrance, delta);
         view.cover(outgoing.opacity());

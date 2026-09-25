@@ -11,6 +11,7 @@ final class OsuCookie {
     private static final Color INNER = new Color(.78f, .28f, .53f, 1f);
     private static final Color HOVER = new Color(.91f, .38f, .63f, 1f);
     private static final Color PRESSED = new Color(.68f, .19f, .43f, 1f);
+    private static final Color SHEEN = new Color(1f, 1f, 1f, .045f);
     private float x, y, radius;
 
     void bounds(float x, float y, float radius) { this.x = x; this.y = y; this.radius = radius; }
@@ -27,11 +28,11 @@ final class OsuCookie {
         view.circle(x, y, r + 20, HALO);
         view.circle(x, y, r + 8, RING);
         view.circle(x, y, r - 3, pressed ? PRESSED : hovered ? HOVER : INNER);
-        view.circle(x - r * .22f, y + r * .25f, r * .33f, new Color(1f, 1f, 1f, .045f));
+        view.circle(x - r * .22f, y + r * .25f, r * .33f, SHEEN);
     }
 
     void drawText(UiView view) {
-        view.text("osu!", x - radius, y + radius * .20f, radius * 2, radius / 55f,
+        view.textSmooth("osu!", x - radius, y - radius * .12f, radius * 2, radius / 43f,
                 Color.WHITE, Align.center);
     }
 }

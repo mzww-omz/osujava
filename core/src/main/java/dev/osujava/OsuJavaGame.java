@@ -11,6 +11,7 @@ import dev.osujava.library.PropertiesBeatmapLibraryStorage;
 import dev.osujava.ruleset.osu.OsuRuleset;
 import dev.osujava.ui.BeatmapFileChooser;
 import dev.osujava.ui.MainMenuScreen;
+import dev.osujava.ui.theme.SmoothUiFont;
 
 import java.nio.file.Path;
 
@@ -19,6 +20,7 @@ public class OsuJavaGame extends Game {
     private SpriteBatch batch;
     private ShapeRenderer shapes;
     private BitmapFont font;
+    private SmoothUiFont smoothFont;
     private BeatmapLibrary library;
     private BeatmapArchiveImporter importer;
     private OsuRuleset osuRuleset;
@@ -32,6 +34,7 @@ public class OsuJavaGame extends Game {
         batch = new SpriteBatch();
         shapes = new ShapeRenderer();
         font = new BitmapFont();
+        smoothFont = new SmoothUiFont();
         Path libraryRoot = Path.of(System.getProperty("user.home", "."), ".osujava", "library");
         library = new BeatmapLibrary(new PropertiesBeatmapLibraryStorage(libraryRoot));
         importer = new BeatmapArchiveImporter(libraryRoot);
@@ -57,6 +60,8 @@ public class OsuJavaGame extends Game {
         return font;
     }
 
+    public SmoothUiFont smoothFont() { return smoothFont; }
+
     public BeatmapLibrary library() {
         return library;
     }
@@ -81,5 +86,6 @@ public class OsuJavaGame extends Game {
         batch.dispose();
         shapes.dispose();
         font.dispose();
+        smoothFont.close();
     }
 }

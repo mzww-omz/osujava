@@ -48,7 +48,11 @@ public final class UiView {
         batch.setColor(Color.WHITE);
     }
 
-    public void beginShapes() { game.shapes().begin(ShapeRenderer.ShapeType.Filled); }
+    public void beginShapes() {
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        game.shapes().begin(ShapeRenderer.ShapeType.Filled);
+    }
     public void endShapes() { game.shapes().end(); }
 
     public void box(float x, float y, float w, float h, float radius, Color color) {
@@ -80,6 +84,10 @@ public final class UiView {
     }
 
     public void beginText() { game.batch().begin(); }
+    public void image(Texture texture, float x, float y, float w, float h) {
+        if (texture == null) return;
+        game.batch().draw(texture, x, y, w, h);
+    }
     public void endText() {
         game.batch().end();
         game.font().getData().setScale(1f);
@@ -95,6 +103,14 @@ public final class UiView {
 
     public void text(String value, float x, float baseline, float width, float scale, Color color) {
         text(value, x, baseline, width, scale, color, Align.left);
+    }
+
+    public void textSmooth(String value, float x, float baseline, float width, float scale, Color color, int align) {
+        game.smoothFont().draw(game.batch(), value, x, baseline, width, scale, color, align);
+    }
+
+    public void textSmooth(String value, float x, float baseline, float width, float scale, Color color) {
+        textSmooth(value, x, baseline, width, scale, color, Align.left);
     }
 
     public void cover(float opacity) {
