@@ -6,6 +6,7 @@ import dev.osujava.beatmap.BeatmapPoint;
 import dev.osujava.beatmap.DifficultySettings;
 import dev.osujava.beatmap.HitObject;
 import dev.osujava.beatmap.SliderData;
+import dev.osujava.beatmap.SpinnerData;
 import dev.osujava.beatmap.TimingPoint;
 
 import java.io.IOException;
@@ -124,14 +125,28 @@ public final class BeatmapFileParser {
                 int rawType = Integer.parseInt(fields[3].trim());
                 HitObject.Type type = HitObject.typeFromBits(rawType);
                 SliderData slider = type == HitObject.Type.SLIDER ? parseSliderData(fields, x, y) : null;
-                objects.add(new HitObject(x, y, Long.parseLong(fields[2].trim()), type, rawType,
-                        Integer.parseInt(fields[4].trim()), slider));
+                long timeMs = Long.parseLong(fields[2].trim());
+                SpinnerData spinner = type == HitObject.Type.SPINNER ? parseSpinnerData(fields, timeMs) : null;
+                if (type == HitObject.Type.SPINNER) {
+                    // Legacy osu! spinners always occupy the centre of the playfield.
+                    x = 256;
+                    y = 192;
+                }
+                objects.add(new HitObject(x, y, timeMs, type, rawType,
+                        Integer.parseInt(fields[4].trim()), slider, spinner));
             } catch (IllegalArgumentException ignored) {
                 // Invalid objects are skipped so one damaged line does not discard a whole set.
             }
         }
         objects.sort(Comparator.comparingLong(HitObject::timeMs));
         return objects;
+    }
+
+    private SpinnerData parseSpinnerData(String[] fields, long startTimeMs) {
+        if (fields.length < 6) throw new IllegalArgumentException("Spinner is missing its end time");
+        double endTimeMs = Double.parseDouble(fields[5].trim());
+        if (!Double.isFinite(endTimeMs)) throw new IllegalArgumentException("Spinner end time must be finite");
+        return new SpinnerData(Math.max(startTimeMs, endTimeMs));
     }
 
     private SliderData parseSliderData(String[] fields, double startX, double startY) {

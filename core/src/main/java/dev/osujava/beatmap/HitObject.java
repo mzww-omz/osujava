@@ -7,10 +7,23 @@ public record HitObject(
         Type type,
         int rawType,
         int hitSound,
-        SliderData sliderData) {
+        SliderData sliderData,
+        SpinnerData spinnerData) {
+
+    public HitObject(double x, double y, long timeMs, Type type, int rawType, int hitSound, SliderData sliderData) {
+        this(x, y, timeMs, type, rawType, hitSound, sliderData, null);
+    }
 
     public HitObject(double x, double y, long timeMs, Type type, int rawType, int hitSound) {
-        this(x, y, timeMs, type, rawType, hitSound, null);
+        this(x, y, timeMs, type, rawType, hitSound, null, null);
+    }
+
+    public double endTimeMs() {
+        return spinnerData == null ? timeMs : Math.max(timeMs, spinnerData.endTimeMs());
+    }
+
+    public double durationMs() {
+        return endTimeMs() - timeMs;
     }
 
     public enum Type {
