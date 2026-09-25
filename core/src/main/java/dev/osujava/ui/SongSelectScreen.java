@@ -11,6 +11,7 @@ import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapSet;
 import dev.osujava.beatmap.HitObject;
 import dev.osujava.beatmap.TimingPoint;
+import dev.osujava.gameplay.GameplayRunMode;
 import dev.osujava.library.BeatmapImportException;
 import dev.osujava.library.ImportResult;
 import dev.osujava.ui.theme.UiLayout;
@@ -118,6 +119,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 }
                 if (key == Input.Keys.ESCAPE) { goBack(); return true; }
                 if (key == Input.Keys.I) { requestImport(); return true; }
+                if (key == Input.Keys.F6) { startSelectedPlay(GameplayRunMode.DEBUG_AUTO); return true; }
                 if (key == Input.Keys.ENTER || key == Input.Keys.SPACE) { playSelected(); return true; }
                 if (key == Input.Keys.UP) { advance(-1); return true; }
                 if (key == Input.Keys.DOWN) { advance(1); return true; }
@@ -188,6 +190,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.textSmooth("‹  back", 12, 11, 96, 1.0f, UiTheme.TEXT);
         view.textSmooth("Import .osz / .osu", 126, 11, 151, .75f, UiTheme.TEXT);
         view.textSmooth(sets.size() + " local sets", 305, 11, 250, .72f, UiTheme.MUTED);
+        view.textSmooth("F6  DEBUG AUTO", layout.width() - 145, 11, 132, .62f, UiTheme.MUTED);
         if (selectedDifficulty() != null) playCookie.drawText(view, Metrics.COOKIE_TEXT_SCALE);
         if (toastSeconds > 0) view.textSmooth(toast, 27, bottom + 34, Math.min(430, layout.width() * .4f), UiTheme.META, toastColor);
         view.endText();
@@ -435,13 +438,16 @@ public final class SongSelectScreen extends ScreenAdapter {
         return Math.round(min) == Math.round(max) ? "" + Math.round(max) : Math.round(min) + "–" + Math.round(max);
     }
     private void goBack() { outgoing.request(() -> game.navigate(new MainMenuScreen(game))); }
-    private void playSelected() {
+    private void playSelected() { startSelectedPlay(GameplayRunMode.MANUAL); }
+
+    private void startSelectedPlay(GameplayRunMode runMode) {
         BeatmapSet set = selectedSet(); BeatmapDifficulty difficulty = selectedDifficulty();
         if (set == null) { showToast("Import a beatmap to play.", UiTheme.MUTED); return; }
         if (!game.osuRuleset().supportsMode(difficulty.mode())) {
             showToast("Only osu!standard is playable right now.", UiTheme.ERROR); return;
         }
-        outgoing.request(() -> game.navigate(new GameplayScreen(game, set, difficulty)));
+        if (runMode == GameplayRunMode.DEBUG_AUTO) showToast("Debug Auto Play", UiTheme.ACCENT);
+        outgoing.request(() -> game.navigate(new GameplayScreen(game, set, difficulty, runMode)));
     }
 
     public void requestImport() {

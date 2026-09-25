@@ -12,13 +12,19 @@ import java.util.Set;
 public final class GameplayInputProcessor extends InputAdapter {
     private final GameplaySession session;
     private final Runnable onBack;
+    private final boolean manualGameplayInputEnabled;
     private PlayfieldViewport viewport;
     private final Set<Integer> heldMouseButtons = new HashSet<>();
     private final Set<Integer> heldHitKeys = new HashSet<>();
 
     public GameplayInputProcessor(GameplaySession session, Runnable onBack) {
+        this(session, onBack, true);
+    }
+
+    public GameplayInputProcessor(GameplaySession session, Runnable onBack, boolean manualGameplayInputEnabled) {
         this.session = session;
         this.onBack = onBack;
+        this.manualGameplayInputEnabled = manualGameplayInputEnabled;
     }
 
     public void setViewport(PlayfieldViewport viewport) {
@@ -28,6 +34,7 @@ public final class GameplayInputProcessor extends InputAdapter {
     @Override
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         if (!isHitButton(button)) return false;
+        if (!manualGameplayInputEnabled) return true;
         if (heldMouseButtons.add(button)) pressAt(screenX, screenY);
         return true;
     }
@@ -35,6 +42,7 @@ public final class GameplayInputProcessor extends InputAdapter {
     @Override
     public boolean touchUp(int screenX, int screenY, int pointer, int button) {
         if (!isHitButton(button)) return false;
+        if (!manualGameplayInputEnabled) return true;
         heldMouseButtons.remove(button);
         releaseIfIdle();
         return true;
@@ -42,12 +50,14 @@ public final class GameplayInputProcessor extends InputAdapter {
 
     @Override
     public boolean touchDragged(int screenX, int screenY, int pointer) {
+        if (!manualGameplayInputEnabled) return viewport != null;
         updatePointer(screenX, screenY);
         return viewport != null;
     }
 
     @Override
     public boolean mouseMoved(int screenX, int screenY) {
+        if (!manualGameplayInputEnabled) return viewport != null;
         updatePointer(screenX, screenY);
         return viewport != null;
     }
@@ -80,6 +90,7 @@ public final class GameplayInputProcessor extends InputAdapter {
             onBack.run();
             return true;
         }
+        if (!manualGameplayInputEnabled) return isHitKey(keycode);
         if (isHitKey(keycode)) {
             if (heldHitKeys.add(keycode)) pressAt(Gdx.input.getX(), Gdx.input.getY());
             return true;
@@ -90,6 +101,7 @@ public final class GameplayInputProcessor extends InputAdapter {
     @Override
     public boolean keyUp(int keycode) {
         if (!isHitKey(keycode)) return false;
+        if (!manualGameplayInputEnabled) return true;
         heldHitKeys.remove(keycode);
         releaseIfIdle();
         return true;

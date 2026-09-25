@@ -47,6 +47,11 @@ public final class GameplayRenderer {
 
     public void render(BeatmapSet set, BeatmapDifficulty difficulty, GameplayState state,
                        PlayfieldViewport viewport, Texture background, String notice) {
+        render(set, difficulty, state, viewport, background, notice, null);
+    }
+
+    public void render(BeatmapSet set, BeatmapDifficulty difficulty, GameplayState state,
+                       PlayfieldViewport viewport, Texture background, String notice, BeatmapPoint debugCursor) {
         Gdx.gl.glClearColor(visuals.background.r, visuals.background.g, visuals.background.b, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
@@ -80,6 +85,7 @@ public final class GameplayRenderer {
         drawSliderOverlays(shapes, state, viewport);
         drawSpinnerOverlays(shapes, state, viewport);
         drawJudgementRings(shapes, state, viewport);
+        if (debugCursor != null) drawDebugCursor(shapes, debugCursor, viewport);
         shapes.end();
 
         batch.begin();
@@ -88,6 +94,16 @@ public final class GameplayRenderer {
         batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
         pruneSliderRenderData(state.currentTimeMs());
+    }
+
+    private void drawDebugCursor(ShapeRenderer shapes, BeatmapPoint cursor, PlayfieldViewport viewport) {
+        float x = viewport.toScreenX(cursor.x());
+        float y = viewport.toScreenY(cursor.y());
+        float radius = viewport.toScreenLength(8);
+        shapes.setColor(.42f, 1f, .79f, .96f);
+        shapes.circle(x, y, radius, 24);
+        shapes.line(x - radius * 1.6f, y, x + radius * 1.6f, y);
+        shapes.line(x, y - radius * 1.6f, x, y + radius * 1.6f);
     }
 
     private void drawHitCircle(ShapeRenderer shapes, HitCircleVisual circle,

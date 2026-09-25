@@ -18,6 +18,7 @@ import java.lang.reflect.Proxy;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GameplayInputProcessorTest {
@@ -74,6 +75,41 @@ class GameplayInputProcessorTest {
             assertTrue(keyboardSession.update().sliders().getFirst().tracking());
             assertTrue(keyboard.keyUp(Input.Keys.X));
             assertFalse(keyboardSession.update().sliders().getFirst().tracking());
+        } finally {
+            Gdx.graphics = previousGraphics;
+            Gdx.input = previousInput;
+        }
+    }
+
+    @Test
+    void debugAutoInputIgnoresHumanHitsButKeepsEscapeNavigation() {
+        Graphics previousGraphics = Gdx.graphics;
+        Input previousInput = Gdx.input;
+        Gdx.graphics = proxy(Graphics.class, method -> method.equals("getHeight") ? 384 : null);
+        Gdx.input = proxy(Input.class, method -> switch (method) {
+            case "getX" -> 100;
+            case "getY" -> 284;
+            default -> null;
+        });
+
+        try {
+            ManualClock clock = new ManualClock();
+            clock.set(1000);
+            OsuGameplaySession session = session(clock);
+            int[] backs = {0};
+            GameplayInputProcessor input = new GameplayInputProcessor(session, () -> backs[0]++, false);
+            input.setViewport(PlayfieldViewport.fit(512, 384));
+
+            assertTrue(input.touchDown(100, 284, 0, Input.Buttons.LEFT));
+            assertTrue(input.mouseMoved(300, 100));
+            assertTrue(input.keyDown(Input.Keys.Z));
+            input.touchUp(100, 284, 0, Input.Buttons.LEFT);
+            input.keyUp(Input.Keys.Z);
+            assertFalse(session.state().sliders().getFirst().headHit());
+            assertFalse(session.state().sliders().getFirst().tracking());
+
+            assertTrue(input.keyDown(Input.Keys.ESCAPE));
+            assertEquals(1, backs[0]);
         } finally {
             Gdx.graphics = previousGraphics;
             Gdx.input = previousInput;

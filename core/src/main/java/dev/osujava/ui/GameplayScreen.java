@@ -10,6 +10,7 @@ import dev.osujava.ui.theme.UiView;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import dev.osujava.OsuJavaGame;
 import dev.osujava.beatmap.BeatmapDifficulty;
+import dev.osujava.beatmap.BeatmapPoint;
 import dev.osujava.beatmap.BeatmapSet;
 import dev.osujava.beatmap.HitObject;
 import dev.osujava.gameplay.ElapsedGameClock;
@@ -20,6 +21,7 @@ import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.MusicGameClock;
 import dev.osujava.ruleset.osu.SliderPath;
 import dev.osujava.ruleset.osu.SliderTiming;
+import dev.osujava.ruleset.osu.DebugAutoPlayer;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,6 +33,7 @@ public final class GameplayScreen extends ScreenAdapter {
     private final GameClock clock;
     private final GameplaySession session;
     private final GameplayRunMode runMode;
+    private final DebugAutoPlayer autoPlayer;
     private final GameplayRenderer renderer;
     private final GameplayInputProcessor input;
     private final Music music;
@@ -89,7 +92,10 @@ public final class GameplayScreen extends ScreenAdapter {
         this.notice = audioNotice;
         this.session = game.osuRuleset().createSession(difficulty, clock);
         this.input = new GameplayInputProcessor(session, () -> game.navigate(
-                new SongSelectScreen(game, set.id(), set.difficulties().indexOf(difficulty))));
+                new SongSelectScreen(game, set.id(), set.difficulties().indexOf(difficulty))),
+                runMode == GameplayRunMode.MANUAL);
+        this.autoPlayer = runMode == GameplayRunMode.DEBUG_AUTO
+                ? new DebugAutoPlayer(difficulty, clock, session) : null;
         this.background = loadBackground(difficulty.backgroundPath() != null ? difficulty.backgroundPath() : set.backgroundPath());
     }
 
@@ -105,13 +111,16 @@ public final class GameplayScreen extends ScreenAdapter {
         game.shapes().setProjectionMatrix(pixelProjection);
         viewport = PlayfieldViewport.fit(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         input.setViewport(viewport);
+        if (autoPlayer != null) autoPlayer.update();
         GameplayState state = session.update();
+        if (autoPlayer != null) autoPlayer.afterSessionUpdate();
         if (clock.finished()) {
             session.finish();
             game.navigate(new ResultsScreen(game, set, difficulty, session.state().score(), runMode));
             return;
         }
-        renderer.render(set, difficulty, state, viewport, background, notice);
+        renderer.render(set, difficulty, state, viewport, background, notice,
+                autoPlayer == null ? null : new BeatmapPoint(autoPlayer.cursorX(), autoPlayer.cursorY()));
         transitionView.prepare();
         transitionView.fade(entrance, delta);
     }
