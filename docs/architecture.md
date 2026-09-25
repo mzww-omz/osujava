@@ -9,13 +9,18 @@
 BeatmapArchiveImporter ── validates paths, extracts/copies local files
     │
     ▼
-BeatmapFileParser ── reads each .osu file
+Local Beatmap Storage ── ~/.osujava/library/<set-id>/
     │
     ▼
-BeatmapSet / BeatmapDifficulty ── assets resolved to local Paths
+BeatmapFileParser ── reads each stored .osu file
     │
     ▼
-BeatmapLibrary ── in-memory set repository
+BeatmapSet / BeatmapDifficulty ── assets and .osu files resolved to local Paths
+    │
+    ├── PropertiesBeatmapLibraryStorage ── one index entry per set
+    │
+    ▼
+BeatmapLibrary ── in-memory repository backed by the local index
     │
     ▼
 SongSelectScreen ── selects a set and one difficulty
@@ -35,7 +40,7 @@ GameplayRenderer ── renders immutable GameplayState
 ResultsScreen
 ~~~
 
-Import and gameplay have no archive dependency in common: after Import, Gameplay receives the resolved model and local asset paths.
+Import and gameplay have no archive dependency in common. The importer owns extraction into local beatmap storage. The library index stores metadata and paths into that storage. Gameplay receives a resolved BeatmapSet and BeatmapDifficulty and does not read an archive or the index.
 
 ## Modules
 
@@ -43,7 +48,7 @@ Import and gameplay have no archive dependency in common: after Import, Gameplay
 
 - beatmap: immutable records for sets, difficulties, timing points, hit objects, and difficulty settings.
 - beatmap.parse: parses General, Metadata, Difficulty, Events, TimingPoints, and HitObjects. The integer mode is retained even when the mode is not playable.
-- library: safely imports .osz and standalone .osu files and holds imported sets in an in-memory BeatmapLibrary.
+- library: safely imports .osz and standalone .osu files into local beatmap storage. BeatmapLibrary exposes the in-memory repository; BeatmapLibraryStorage is its persistence boundary, implemented by PropertiesBeatmapLibraryStorage.
 - gameplay: one GameClock interface, audio/elapsed implementations, judgement windows, score state, and the session contract.
 - ruleset: ruleset selection boundary. OsuRuleset currently judges HitCircles and ignores Slider/Spinner gameplay.
 - ui: screens, input mapping, playfield viewport, and renderers. GameplayRenderer consumes state snapshots and does not update score or hit state.
@@ -60,7 +65,11 @@ Every .osu file is parsed independently. Valid difficulties are grouped into one
 
 For a standalone .osu, the importer copies the chart and its referenced audio/background files into the same local storage structure. Missing optional assets do not prevent the chart from importing.
 
-The current BeatmapLibrary is in-memory. Its interface is the seam for a later local persistence implementation; no database is required for this milestone.
+Storage and the index have separate responsibilities. Imported chart and asset files live under `~/.osujava/library/<set-id>/`. The index lives under `~/.osujava/library/index/`, with one versioned Java Properties file per set. Each index entry stores set metadata, each difficulty's title, artist, creator, version and mode, plus relative audio, background and `.osu` paths. The `.osu` path is used to rebuild timing points and hit objects when the app starts; Gameplay still receives the parsed model.
+
+The importer uses a positive osu! `BeatmapSetID` as the stable set id. When a chart has no positive set id, it hashes normalized title, artist, creator and the sorted mode/version pairs. Reimporting the same id replaces the set's local files and atomically replaces its index entry, so the library has one entry for that set. With the fallback identity, two unrelated custom sets with identical metadata and mode/version pairs are treated as the same set.
+
+`BeatmapLibrary` loads the index during app startup and saves after each imported set. Each set entry is read independently; a damaged entry or difficulty is skipped so the rest of the library remains usable. Stored paths must remain inside local beatmap storage. Missing audio/background files resolve to null and Gameplay uses its existing local-timer fallback; a missing or unparsable `.osu` file causes that difficulty to be skipped. Index writes use a temporary file and atomic replacement where supported.
 
 ## Clock and gameplay
 
