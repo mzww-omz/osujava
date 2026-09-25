@@ -1,6 +1,7 @@
 package dev.osujava.ruleset.osu;
 
 import dev.osujava.beatmap.BeatmapDifficulty;
+import dev.osujava.beatmap.BeatmapPoint;
 import dev.osujava.beatmap.HitObject;
 import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.GameClock;
@@ -9,21 +10,28 @@ import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.HitCircleVisual;
 import dev.osujava.gameplay.Judgement;
 import dev.osujava.gameplay.JudgementWindows;
-import dev.osujava.gameplay.ScoreState;
 import dev.osujava.gameplay.ScoreTracker;
+import dev.osujava.gameplay.SliderVisual;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+/** osu!standard gameplay rules for circles and legacy Sliders. */
 public final class OsuGameplaySession implements GameplaySession {
+    private static final double SLIDER_FOLLOW_AREA = 2.4;
+
     private final GameClock clock;
     private final List<HitObject> circles;
-    private final boolean[] judged;
+    private final boolean[] judgedCircles;
+    private final List<SliderRuntime> sliders;
     private final JudgementWindows windows;
     private final ScoreTracker score = new ScoreTracker();
     private final long preemptMs;
     private final double circleRadius;
+    private double cursorX;
+    private double cursorY;
+    private boolean primaryPressed;
     private GameplayState state;
 
     public OsuGameplaySession(BeatmapDifficulty difficulty, GameClock clock, JudgementWindows windows) {
@@ -35,7 +43,12 @@ public final class OsuGameplaySession implements GameplaySession {
                 .filter(object -> object.type() == HitObject.Type.CIRCLE)
                 .sorted(Comparator.comparingLong(HitObject::timeMs))
                 .toList();
-        this.judged = new boolean[circles.size()];
+        this.judgedCircles = new boolean[circles.size()];
+        this.sliders = difficulty.hitObjects().stream()
+                .filter(object -> object.type() == HitObject.Type.SLIDER && object.sliderData() != null)
+                .sorted(Comparator.comparingLong(HitObject::timeMs))
+                .map(object -> new SliderRuntime(object, difficulty))
+                .toList();
         this.state = createState(clock.nowMs());
     }
 
@@ -43,6 +56,7 @@ public final class OsuGameplaySession implements GameplaySession {
     public GameplayState update() {
         long now = clock.nowMs();
         expireMisses(now);
+        processSliderEvents(now);
         state = createState(now);
         return state;
     }
@@ -50,35 +64,56 @@ public final class OsuGameplaySession implements GameplaySession {
     @Override
     public void click(double x, double y) {
         long now = clock.nowMs();
+        cursorX = x;
+        cursorY = y;
+        primaryPressed = true;
         expireMisses(now);
-        int candidate = -1;
-        long bestOffset = Long.MAX_VALUE;
-        for (int index = 0; index < circles.size(); index++) {
-            if (judged[index]) continue;
-            HitObject circle = circles.get(index);
-            long offset = Math.abs(now - circle.timeMs());
-            if (offset > windows.hit50Ms()) continue;
-            double dx = x - circle.x();
-            double dy = y - circle.y();
-            if (dx * dx + dy * dy > circleRadius * circleRadius) continue;
-            if (offset < bestOffset) {
-                candidate = index;
-                bestOffset = offset;
-            }
+
+        Candidate circleCandidate = bestCircleCandidate(x, y, now);
+        Candidate sliderCandidate = bestSliderCandidate(x, y, now);
+        if (circleCandidate != null && (sliderCandidate == null || circleCandidate.offsetMs() <= sliderCandidate.offsetMs())) {
+            judgedCircles[circleCandidate.index()] = true;
+            score.record(windows.judge(circleCandidate.offsetMs()));
+        } else if (sliderCandidate != null) {
+            SliderRuntime slider = sliders.get(sliderCandidate.index());
+            slider.headJudged = true;
+            slider.headHit = true;
+            score.record(windows.judge(sliderCandidate.offsetMs()));
         }
-        if (candidate >= 0) {
-            score.record(windows.judge(bestOffset));
-            judged[candidate] = true;
-        }
+
+        processSliderEvents(now);
         state = createState(now);
+    }
+
+    @Override
+    public void pointerMoved(double x, double y) {
+        cursorX = x;
+        cursorY = y;
+    }
+
+    @Override
+    public void pointerReleased() {
+        primaryPressed = false;
     }
 
     @Override
     public void finish() {
         for (int index = 0; index < circles.size(); index++) {
-            if (!judged[index]) {
-                judged[index] = true;
+            if (!judgedCircles[index]) {
+                judgedCircles[index] = true;
                 score.record(Judgement.MISS);
+            }
+        }
+        for (SliderRuntime slider : sliders) {
+            if (!slider.headJudged) {
+                slider.headJudged = true;
+                score.record(Judgement.MISS);
+            }
+            for (int index = 0; index < slider.events.size(); index++) {
+                if (!slider.eventJudged[index]) {
+                    slider.eventJudged[index] = true;
+                    score.record(Judgement.MISS);
+                }
             }
         }
         state = createState(clock.nowMs());
@@ -89,32 +124,143 @@ public final class OsuGameplaySession implements GameplaySession {
         return state;
     }
 
+    private Candidate bestCircleCandidate(double x, double y, long now) {
+        Candidate best = null;
+        for (int index = 0; index < circles.size(); index++) {
+            if (judgedCircles[index]) continue;
+            HitObject circle = circles.get(index);
+            double offset = Math.abs((double) now - circle.timeMs());
+            if (offset > windows.hit50Ms() || !withinRadius(x, y, circle.x(), circle.y(), circleRadius)) continue;
+            if (best == null || offset < best.offsetMs()) best = new Candidate(index, offset);
+        }
+        return best;
+    }
+
+    private Candidate bestSliderCandidate(double x, double y, long now) {
+        Candidate best = null;
+        for (int index = 0; index < sliders.size(); index++) {
+            SliderRuntime slider = sliders.get(index);
+            if (slider.headJudged) continue;
+            double offset = Math.abs((double) now - slider.object.timeMs());
+            if (offset > windows.hit50Ms()
+                    || !withinRadius(x, y, slider.object.x(), slider.object.y(), circleRadius)) continue;
+            if (best == null || offset < best.offsetMs()) best = new Candidate(index, offset);
+        }
+        return best;
+    }
+
     private void expireMisses(long now) {
         for (int index = 0; index < circles.size(); index++) {
-            if (!judged[index] && now > circles.get(index).timeMs() + windows.hit50Ms()) {
-                judged[index] = true;
+            if (!judgedCircles[index] && now > circles.get(index).timeMs() + windows.hit50Ms()) {
+                judgedCircles[index] = true;
+                score.record(Judgement.MISS);
+            }
+        }
+        for (SliderRuntime slider : sliders) {
+            if (!slider.headJudged && now > slider.object.timeMs() + windows.hit50Ms()) {
+                slider.headJudged = true;
+                slider.headHit = false;
                 score.record(Judgement.MISS);
             }
         }
     }
 
+    private void processSliderEvents(long now) {
+        for (SliderRuntime slider : sliders) {
+            slider.tracking = slider.headHit && isTrackingAt(slider, now);
+            if (!slider.headJudged && now <= slider.object.timeMs() + windows.hit50Ms()) continue;
+            for (int index = 0; index < slider.events.size(); index++) {
+                if (slider.eventJudged[index]) continue;
+                SliderEvent event = slider.events.get(index);
+                double dueAt = event.type() == SliderEvent.Type.TAIL
+                        ? SliderEventGenerator.tailJudgementStartTime(slider.timing) : event.timeMs();
+                if (now < dueAt) continue;
+                boolean hit = slider.headHit && isTrackingAt(slider, now);
+                slider.eventJudged[index] = true;
+                slider.eventHit[index] = hit;
+                score.record(hit ? Judgement.HIT300 : Judgement.MISS);
+            }
+        }
+    }
+
+    private boolean isTrackingAt(SliderRuntime slider, long now) {
+        if (!primaryPressed || now < slider.object.timeMs()
+                || now > slider.timing.endTimeMs() + windows.hit50Ms()) return false;
+        BeatmapPoint ball = slider.path.positionAt(slider.timing.progressAt(now));
+        return withinRadius(cursorX, cursorY, ball.x(), ball.y(), circleRadius * SLIDER_FOLLOW_AREA);
+    }
+
     private GameplayState createState(long now) {
-        List<HitCircleVisual> visible = new ArrayList<>();
+        List<HitCircleVisual> visibleCircles = new ArrayList<>();
         for (int index = 0; index < circles.size(); index++) {
-            if (judged[index]) continue;
+            if (judgedCircles[index]) continue;
             HitObject circle = circles.get(index);
             long spawnAt = circle.timeMs() - preemptMs;
             if (now < spawnAt || now > circle.timeMs() + windows.hit50Ms()) continue;
             double progress = Math.max(0, Math.min(1, (double) (now - spawnAt) / preemptMs));
-            visible.add(new HitCircleVisual(circle.x(), circle.y(), circleRadius,
+            visibleCircles.add(new HitCircleVisual(circle.x(), circle.y(), circleRadius,
                     circleRadius * (2.5 - 1.5 * progress), circle.timeMs()));
         }
-        boolean complete = allJudged();
-        return new GameplayState(now, visible, score.snapshot(), complete);
+
+        List<SliderVisual> visibleSliders = new ArrayList<>();
+        for (SliderRuntime slider : sliders) {
+            double spawnAt = slider.object.timeMs() - preemptMs;
+            if (now < spawnAt || now > slider.timing.endTimeMs() + 150) continue;
+            double progress = slider.timing.progressAt(now);
+            BeatmapPoint ball = slider.path.positionAt(progress);
+            double approachProgress = Math.max(0, Math.min(1, (now - spawnAt) / preemptMs));
+            List<SliderVisual.RepeatMarker> repeats = new ArrayList<>();
+            for (int index = 0; index < slider.events.size(); index++) {
+                SliderEvent event = slider.events.get(index);
+                if (event.type() == SliderEvent.Type.REPEAT) {
+                    repeats.add(new SliderVisual.RepeatMarker(slider.path.positionAt(event.pathProgress()),
+                            event.spanIndex(), slider.eventJudged[index]));
+                }
+            }
+            visibleSliders.add(new SliderVisual(slider.path.sampledPoints(),
+                    new BeatmapPoint(slider.object.x(), slider.object.y()), slider.path.positionAt(slider.timing.endProgress()),
+                    ball, repeats, circleRadius, circleRadius * (2.5 - 1.5 * approachProgress), progress,
+                    slider.object.timeMs(), slider.timing.endTimeMs(), slider.headJudged, slider.headHit, slider.tracking));
+        }
+        return new GameplayState(now, visibleCircles, visibleSliders, score.snapshot(), allJudged());
     }
 
     private boolean allJudged() {
-        for (boolean value : judged) if (!value) return false;
+        for (boolean judged : judgedCircles) if (!judged) return false;
+        for (SliderRuntime slider : sliders) {
+            if (!slider.headJudged) return false;
+            for (boolean judged : slider.eventJudged) if (!judged) return false;
+        }
         return true;
+    }
+
+    private boolean withinRadius(double x, double y, double targetX, double targetY, double radius) {
+        double dx = x - targetX;
+        double dy = y - targetY;
+        return dx * dx + dy * dy <= radius * radius;
+    }
+
+    private final class SliderRuntime {
+        private final HitObject object;
+        private final SliderPath path;
+        private final SliderTiming timing;
+        private final List<SliderEvent> events;
+        private final boolean[] eventJudged;
+        private final boolean[] eventHit;
+        private boolean headJudged;
+        private boolean headHit;
+        private boolean tracking;
+
+        private SliderRuntime(HitObject object, BeatmapDifficulty difficulty) {
+            this.object = object;
+            this.path = new SliderPath(object.x(), object.y(), object.sliderData());
+            this.timing = SliderTiming.calculate(difficulty, object, path);
+            this.events = SliderEventGenerator.generate(timing, path);
+            this.eventJudged = new boolean[events.size()];
+            this.eventHit = new boolean[events.size()];
+        }
+    }
+
+    private record Candidate(int index, double offsetMs) {
     }
 }

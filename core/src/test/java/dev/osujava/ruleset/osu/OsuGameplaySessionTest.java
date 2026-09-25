@@ -3,10 +3,12 @@ package dev.osujava.ruleset.osu;
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.DifficultySettings;
 import dev.osujava.beatmap.HitObject;
+import dev.osujava.beatmap.BeatmapPoint;
 import dev.osujava.gameplay.GameClock;
 import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.Judgement;
 import dev.osujava.gameplay.ScoreState;
+import dev.osujava.beatmap.SliderData;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -63,14 +65,56 @@ class OsuGameplaySessionTest {
     }
 
     @Test
-    void doesNotRunSliderGameplayInOsuMilestone() {
+    void playsSliderHeadTrackingRepeatsAndTailAgainstGameClock() {
         ManualClock clock = new ManualClock();
-        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(object(256, 192, 1000, 2))), clock,
+        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(sliderObject(100, 100, 1000, 280, 2))), clock,
                 new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
 
-        assertTrue(session.state().completed());
-        assertTrue(session.state().circles().isEmpty());
-        assertFalse(session.state().score().misses() > 0);
+        assertFalse(session.state().completed());
+        clock.set(1000);
+        GameplayState visible = session.update();
+        assertEquals(1, visible.sliders().size());
+        assertEquals(0, visible.sliders().getFirst().progress(), 1e-6);
+        assertFalse(visible.sliders().getFirst().headJudged());
+
+        session.click(100, 100);
+        assertTrue(session.state().sliders().getFirst().headHit());
+        assertEquals(1, session.state().score().count300());
+
+        clock.set(1500);
+        session.pointerMoved(240, 100);
+        assertEquals(600, session.update().score().score());
+        clock.set(2000);
+        session.pointerMoved(380, 100);
+        assertEquals(900, session.update().score().score());
+        clock.set(2500);
+        session.pointerMoved(240, 100);
+        assertEquals(1200, session.update().score().score());
+        clock.set(2964);
+        session.pointerMoved(110.08, 100);
+        GameplayState complete = session.update();
+
+        assertTrue(complete.completed());
+        assertEquals(1500, complete.score().score());
+        assertEquals(1, complete.score().accuracy(), 1e-6);
+        assertEquals(5, complete.score().count300());
+    }
+
+    @Test
+    void sliderTrackingLossMissesNestedEventsAndReducesAccuracy() {
+        ManualClock clock = new ManualClock();
+        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(sliderObject(100, 100, 1000, 280, 2))), clock,
+                new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+
+        clock.set(1000);
+        session.click(100, 100);
+        session.pointerMoved(20, 20);
+        clock.set(1500);
+        GameplayState state = session.update();
+
+        assertEquals(1, state.score().count300());
+        assertEquals(1, state.score().misses());
+        assertEquals(0.5, state.score().accuracy(), 1e-6);
     }
 
     private BeatmapDifficulty difficulty(List<HitObject> objects) {
@@ -80,6 +124,12 @@ class OsuGameplaySessionTest {
 
     private HitObject object(double x, double y, long time, int type) {
         return new HitObject(x, y, time, HitObject.typeFromBits(type), type, 0);
+    }
+
+    private HitObject sliderObject(double x, double y, long time, double length, int slides) {
+        return new HitObject(x, y, time, HitObject.Type.SLIDER, 2, 0,
+                new SliderData(List.of(new SliderData.Segment(SliderData.CurveType.LINEAR, 0,
+                        List.of(new BeatmapPoint(x, y), new BeatmapPoint(x + length, y)))), slides - 1, length));
     }
 
     private static final class ManualClock implements GameClock {

@@ -14,6 +14,8 @@ import dev.osujava.gameplay.GameClock;
 import dev.osujava.gameplay.GameplaySession;
 import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.MusicGameClock;
+import dev.osujava.ruleset.osu.SliderPath;
+import dev.osujava.ruleset.osu.SliderTiming;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,10 +38,17 @@ public final class GameplayScreen extends ScreenAdapter {
         this.set = set;
         this.difficulty = difficulty;
         this.renderer = new GameplayRenderer(game);
-        long finishAt = difficulty.hitObjects().stream()
-                .filter(object -> object.type() == HitObject.Type.CIRCLE)
-                .mapToLong(HitObject::timeMs)
-                .max().orElse(0) + 2500;
+        long lastObjectEnd = 0;
+        for (HitObject object : difficulty.hitObjects()) {
+            if (object.type() == HitObject.Type.CIRCLE) {
+                lastObjectEnd = Math.max(lastObjectEnd, object.timeMs());
+            } else if (object.type() == HitObject.Type.SLIDER && object.sliderData() != null) {
+                SliderPath path = new SliderPath(object.x(), object.y(), object.sliderData());
+                SliderTiming timing = SliderTiming.calculate(difficulty, object, path);
+                lastObjectEnd = Math.max(lastObjectEnd, (long) Math.ceil(timing.endTimeMs()));
+            }
+        }
+        long finishAt = lastObjectEnd + 2500;
 
         Music loadedMusic = null;
         GameClock selectedClock;

@@ -5,6 +5,12 @@ public interface GameplaySession {
 
     void click(double x, double y);
 
+    default void pointerMoved(double x, double y) {
+    }
+
+    default void pointerReleased() {
+    }
+
     void finish();
 
     GameplayState state();
