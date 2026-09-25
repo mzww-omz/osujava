@@ -32,9 +32,13 @@ macOSではlauncherがGLFWの非同期起動設定を使います。
 4. HitCircleはタイミングに合わせてクリックします。左/右クリックまたはZ/Xキーで操作できます。Sliderは頭を押してから、押したままカーソルでボールを追います。
 5. 曲が終わるとResultsを表示します。
 
+### 開発確認用 Debug Auto
+
+Song SelectでDifficultyを選び、`F6`を押すとDebug Auto Playを開始します。検索欄が入力中の間はショートカットは動作しません。`Enter`またはPlay Cookieは通常のManual Playです。Debug Autoは既存のGameplay入力・判定経路に入力を送り、カーソルには目視確認用のcrosshairを表示します。Resultsには`AUTO / DEBUG`と表示されます。これはModsではなく、将来の通常プレイ用Local Rankingへ含めない開発用の実行種別です。Gameplay中の`Escape`でSong Selectへ戻れます。
+
 終了はウィンドウの閉じるボタン、macOSのCmd+Q、Windows / LinuxのCtrl+Qで行えます。
 
-Song Selectでは、1つの.oszに入った複数Difficultyを1つのBeatmap Setとして表示します。taiko / catch / maniaのmode情報も保持して表示しますが、Gameplay対応はosu!standardのHitCircleと基本的なSliderです。Spinner、Mods、Replay、Skin、Editor、オンライン機能は未実装です。
+Song Selectでは、1つの.oszに入った複数Difficultyを1つのBeatmap Setとして表示します。taiko / catch / maniaのmode情報も保持して表示しますが、Gameplay対応はosu!standardのHitCircle、Slider、Spinnerです。Mods、Replay、Skin、Editor、オンライン機能は未実装です。
 
 Importしたファイルはユーザーのホームディレクトリ下の.osujava/libraryへ展開・コピーします。Library indexも同じ場所へ保存され、アプリ起動時に読み込みます。Importした譜面は再起動後もSong Selectに表示され、そのままGameplayを開始できます。同一beatmap setをもう一度Importすると、既存のローカルデータとindex entryを更新します。保存方式とset識別方法は[docs/architecture.md](docs/architecture.md)を参照してください。
 
