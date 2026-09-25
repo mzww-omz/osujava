@@ -34,7 +34,7 @@ macOSではlauncherがGLFWの非同期起動設定を使います。
 
 Song Selectでは、1つの.oszに入った複数Difficultyを1つのBeatmap Setとして表示します。taiko / catch / maniaのmode情報も保持して表示しますが、Gameplay対応はosu!standardのHitCircleだけです。Slider、Spinner、Mods、Replay、Skin、Editor、オンライン機能は未実装です。
 
-Importしたファイルはユーザーのホームディレクトリ下の.osujava/libraryへ展開・コピーします。現時点でLibraryの一覧はメモリ上にあり、アプリ再起動後は譜面をもう一度Importしてください。
+Importしたファイルはユーザーのホームディレクトリ下の.osujava/libraryへ展開・コピーします。Library indexも同じ場所へ保存され、アプリ起動時に読み込みます。Importした譜面は再起動後もSong Selectに表示され、そのままGameplayを開始できます。同一beatmap setをもう一度Importすると、既存のローカルデータとindex entryを更新します。保存方式とset識別方法は[docs/architecture.md](docs/architecture.md)を参照してください。
 
 ## テスト
 
@@ -42,7 +42,7 @@ Importしたファイルはユーザーのホームディレクトリ下の.osuj
 ./gradlew test
 ~~~
 
-parser、archiveのパス検証、複数DifficultyのImport、アセット関連付け、Rulesetの判定、Score/accuracy、Playfield座標変換をJUnit 5で確認します。
+parser、archiveのパス検証、複数DifficultyのImport、アセット関連付け、Library indexの保存・再読込・破損entryのスキップ、Rulesetの判定、Score/accuracy、Playfield座標変換をJUnit 5で確認します。
 
 ## 構成
 

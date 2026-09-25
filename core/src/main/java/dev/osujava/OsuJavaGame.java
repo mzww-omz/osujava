@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import dev.osujava.library.BeatmapArchiveImporter;
 import dev.osujava.library.BeatmapLibrary;
+import dev.osujava.library.PropertiesBeatmapLibraryStorage;
 import dev.osujava.ruleset.osu.OsuRuleset;
 import dev.osujava.ui.BeatmapFileChooser;
 import dev.osujava.ui.MainMenuScreen;
@@ -31,8 +32,8 @@ public class OsuJavaGame extends Game {
         batch = new SpriteBatch();
         shapes = new ShapeRenderer();
         font = new BitmapFont();
-        library = new BeatmapLibrary();
         Path libraryRoot = Path.of(System.getProperty("user.home", "."), ".osujava", "library");
+        library = new BeatmapLibrary(new PropertiesBeatmapLibraryStorage(libraryRoot));
         importer = new BeatmapArchiveImporter(libraryRoot);
         osuRuleset = new OsuRuleset();
         navigate(new MainMenuScreen(this));

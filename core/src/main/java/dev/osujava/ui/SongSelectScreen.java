@@ -14,6 +14,7 @@ import dev.osujava.OsuJavaGame;
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapSet;
 import dev.osujava.library.BeatmapImportException;
+import dev.osujava.library.LibraryStorageException;
 import dev.osujava.library.ImportResult;
 
 import java.nio.file.Files;
@@ -266,13 +267,15 @@ public final class SongSelectScreen extends ScreenAdapter {
         try {
             ImportResult result = game.importer().importFile(path);
             game.library().add(result.beatmapSet());
-            selectedSetIndex = game.library().size() - 1;
+            selectedSetIndex = setIndex(result.beatmapSet().id());
             selectedDifficultyIndex = 0;
             reloadBackdrop();
             status = "Imported " + result.beatmapSet().title() + " · " + result.beatmapSet().difficulties().size() + " difficulties";
             if (!result.warnings().isEmpty()) status += " · " + result.warnings().getFirst();
         } catch (BeatmapImportException e) {
             status = "Import failed: " + e.getMessage();
+        } catch (LibraryStorageException e) {
+            status = "Could not save the local library: " + e.getMessage();
         }
     }
 
@@ -302,6 +305,14 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     private List<BeatmapSet> sets() {
         return game.library().all();
+    }
+
+    private int setIndex(String id) {
+        List<BeatmapSet> sets = sets();
+        for (int i = 0; i < sets.size(); i++) {
+            if (sets.get(i).id().equals(id)) return i;
+        }
+        return 0;
     }
 
     private BeatmapSet selectedSet() {
