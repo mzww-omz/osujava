@@ -15,6 +15,16 @@ public record PlayfieldViewport(float left, float bottom, float scale) {
         return 384 * scale;
     }
 
+    /** Converts a logical osu! playfield length to the fitted window length. */
+    public float toScreenLength(double osuLength) {
+        return (float) osuLength * scale;
+    }
+
+    /** Converts a window length back to the logical osu! playfield coordinate space. */
+    public double toOsuLength(float screenLength) {
+        return screenLength / scale;
+    }
+
     public float toScreenX(double osuX) {
         return left + (float) osuX * scale;
     }
