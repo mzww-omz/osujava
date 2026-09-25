@@ -12,6 +12,7 @@ import dev.osujava.gameplay.Judgement;
 import dev.osujava.gameplay.JudgementWindows;
 import dev.osujava.gameplay.ScoreTracker;
 import dev.osujava.gameplay.SliderVisual;
+import dev.osujava.gameplay.SpinnerVisual;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -20,11 +21,15 @@ import java.util.List;
 /** osu!standard gameplay rules for circles and legacy Sliders. */
 public final class OsuGameplaySession implements GameplaySession {
     private static final double SLIDER_FOLLOW_AREA = 2.4;
+    private static final double SPINNER_ACTIVE_RADIUS = 160;
+    private static final int SPINNER_SMALL_BONUS_SCORE = 10;
+    private static final int SPINNER_LARGE_BONUS_SCORE = 50;
 
     private final GameClock clock;
     private final List<HitObject> circles;
     private final boolean[] judgedCircles;
     private final List<SliderRuntime> sliders;
+    private final List<SpinnerRuntime> spinners;
     private final JudgementWindows windows;
     private final ScoreTracker score = new ScoreTracker();
     private final long preemptMs;
@@ -49,14 +54,21 @@ public final class OsuGameplaySession implements GameplaySession {
                 .sorted(Comparator.comparingLong(HitObject::timeMs))
                 .map(object -> new SliderRuntime(object, difficulty))
                 .toList();
+        this.spinners = difficulty.hitObjects().stream()
+                .filter(object -> object.type() == HitObject.Type.SPINNER)
+                .sorted(Comparator.comparingLong(HitObject::timeMs))
+                .map(object -> new SpinnerRuntime(object, difficulty.settings().overallDifficulty()))
+                .toList();
         this.state = createState(clock.nowMs());
     }
 
     @Override
     public GameplayState update() {
         long now = clock.nowMs();
+        updateSpinnerRotation(now);
         expireMisses(now);
         processSliderEvents(now);
+        processSpinnerJudgements(now);
         state = createState(now);
         return state;
     }
@@ -67,7 +79,9 @@ public final class OsuGameplaySession implements GameplaySession {
         cursorX = x;
         cursorY = y;
         primaryPressed = true;
+        updateSpinnerRotation(now);
         expireMisses(now);
+        processSpinnerJudgements(now);
 
         Candidate circleCandidate = bestCircleCandidate(x, y, now);
         Candidate sliderCandidate = bestSliderCandidate(x, y, now);
@@ -89,6 +103,7 @@ public final class OsuGameplaySession implements GameplaySession {
     public void pointerMoved(double x, double y) {
         cursorX = x;
         cursorY = y;
+        updateSpinnerRotation(clock.nowMs());
     }
 
     @Override
@@ -98,6 +113,8 @@ public final class OsuGameplaySession implements GameplaySession {
 
     @Override
     public void finish() {
+        long now = clock.nowMs();
+        updateSpinnerRotation(now);
         for (int index = 0; index < circles.size(); index++) {
             if (!judgedCircles[index]) {
                 judgedCircles[index] = true;
@@ -116,7 +133,8 @@ public final class OsuGameplaySession implements GameplaySession {
                 }
             }
         }
-        state = createState(clock.nowMs());
+        processSpinnerJudgements(now);
+        state = createState(now);
     }
 
     @Override
@@ -184,6 +202,36 @@ public final class OsuGameplaySession implements GameplaySession {
         }
     }
 
+    private void updateSpinnerRotation(long now) {
+        for (SpinnerRuntime spinner : spinners) {
+            spinner.tracking = primaryPressed && now >= spinner.object.timeMs() && now < spinner.object.endTimeMs();
+            spinner.rotation.moveCursor(cursorX, cursorY, now, spinner.tracking);
+            int completedSpins = spinner.rotation.completedSpins();
+            while (spinner.scoredSpins < completedSpins) {
+                spinner.scoredSpins++;
+                if (spinner.scoredSpins <= spinner.requirements.spinsRequiredForBonus()) {
+                    score.recordBonusScore(SPINNER_SMALL_BONUS_SCORE);
+                } else if (spinner.scoredSpins <= spinner.requirements.spinsRequiredForBonus()
+                        + spinner.requirements.maximumBonusSpins()) {
+                    score.recordBonusScore(SPINNER_LARGE_BONUS_SCORE);
+                }
+            }
+        }
+    }
+
+    private void processSpinnerJudgements(long now) {
+        for (SpinnerRuntime spinner : spinners) {
+            if (spinner.judgement != null || now < spinner.object.endTimeMs()) continue;
+            double progress = spinner.progress();
+            spinner.judgement = progress >= 1 ? Judgement.HIT300
+                    : progress > 0.9 ? Judgement.HIT100
+                    : progress > 0.75 ? Judgement.HIT50
+                    : Judgement.MISS;
+            score.record(spinner.judgement);
+            spinner.tracking = false;
+        }
+    }
+
     private boolean hasPendingEarlierEvent(SliderRuntime slider, int eventIndex) {
         for (int index = 0; index < eventIndex; index++) {
             if (!slider.eventJudged[index]) return true;
@@ -231,7 +279,18 @@ public final class OsuGameplaySession implements GameplaySession {
                     ball, repeats, circleRadius, circleRadius * (2.5 - 1.5 * approachProgress), progress,
                     slider.object.timeMs(), slider.timing.endTimeMs(), slider.headJudged, slider.headHit, slider.tracking));
         }
-        return new GameplayState(now, visibleCircles, visibleSliders, score.snapshot(), allJudged());
+
+        List<SpinnerVisual> visibleSpinners = new ArrayList<>();
+        for (SpinnerRuntime spinner : spinners) {
+            double spawnAt = spinner.object.timeMs() - preemptMs;
+            if (now < spawnAt || now > spinner.object.endTimeMs() + 150) continue;
+            visibleSpinners.add(new SpinnerVisual(spinner.object.x(), spinner.object.y(), SPINNER_ACTIVE_RADIUS,
+                    spinner.progress(), spinner.rotation.visualRotationDegrees(),
+                    spinner.rotation.totalRotationDegrees(), spinner.rotation.completedSpins(),
+                    spinner.requirements.spinsRequired(), spinner.object.timeMs(), spinner.object.endTimeMs(),
+                    spinner.tracking, spinner.judgement));
+        }
+        return new GameplayState(now, visibleCircles, visibleSliders, visibleSpinners, score.snapshot(), allJudged());
     }
 
     private boolean allJudged() {
@@ -240,6 +299,7 @@ public final class OsuGameplaySession implements GameplaySession {
             if (!slider.headJudged) return false;
             for (boolean judged : slider.eventJudged) if (!judged) return false;
         }
+        for (SpinnerRuntime spinner : spinners) if (spinner.judgement == null) return false;
         return true;
     }
 
@@ -267,6 +327,26 @@ public final class OsuGameplaySession implements GameplaySession {
             this.events = SliderEventGenerator.generate(timing, path);
             this.eventJudged = new boolean[events.size()];
             this.eventHit = new boolean[events.size()];
+        }
+    }
+
+    private final class SpinnerRuntime {
+        private final HitObject object;
+        private final SpinnerRequirements requirements;
+        private final SpinnerRotationTracker rotation;
+        private int scoredSpins;
+        private boolean tracking;
+        private Judgement judgement;
+
+        private SpinnerRuntime(HitObject object, double overallDifficulty) {
+            this.object = object;
+            this.requirements = SpinnerRequirements.calculate(object.durationMs(), overallDifficulty);
+            this.rotation = new SpinnerRotationTracker(object.x(), object.y());
+        }
+
+        private double progress() {
+            if (requirements.spinsRequired() == 0) return 1;
+            return rotation.totalRotationDegrees() / (requirements.spinsRequired() * 360.0);
         }
     }
 

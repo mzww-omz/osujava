@@ -1,0 +1,17 @@
+package dev.osujava.gameplay;
+
+/** Immutable Spinner rendering data prepared by the osu! gameplay session. */
+public record SpinnerVisual(
+        double centerX,
+        double centerY,
+        double radius,
+        double progress,
+        double rotationDegrees,
+        double totalRotationDegrees,
+        int completedSpins,
+        int requiredSpins,
+        long startTimeMs,
+        double endTimeMs,
+        boolean tracking,
+        Judgement judgement) {
+}

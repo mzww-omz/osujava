@@ -46,6 +46,8 @@ public final class GameplayScreen extends ScreenAdapter {
                 SliderPath path = new SliderPath(object.x(), object.y(), object.sliderData());
                 SliderTiming timing = SliderTiming.calculate(difficulty, object, path);
                 lastObjectEnd = Math.max(lastObjectEnd, (long) Math.ceil(timing.endTimeMs()));
+            } else if (object.type() == HitObject.Type.SPINNER) {
+                lastObjectEnd = Math.max(lastObjectEnd, (long) Math.ceil(object.endTimeMs()));
             }
         }
         long finishAt = lastObjectEnd + 2500;

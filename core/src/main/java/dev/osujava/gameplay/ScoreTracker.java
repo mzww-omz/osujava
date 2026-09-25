@@ -36,6 +36,12 @@ public final class ScoreTracker {
         maxCombo = Math.max(maxCombo, combo);
     }
 
+    /** Adds Spinner tick/bonus points, which do not contribute to accuracy or combo. */
+    public void recordBonusScore(long bonusScore) {
+        if (bonusScore < 0) throw new IllegalArgumentException("Bonus score cannot be negative");
+        score += bonusScore;
+    }
+
     public ScoreState snapshot() {
         int total = judgedObjects;
         double accuracy = total == 0 ? 1.0 : (double) earnedAccuracy / (300 * total);
