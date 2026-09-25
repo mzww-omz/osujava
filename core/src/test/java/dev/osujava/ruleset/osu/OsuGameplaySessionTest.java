@@ -117,6 +117,24 @@ class OsuGameplaySessionTest {
         assertEquals(0.5, state.score().accuracy(), 1e-6);
     }
 
+    @Test
+    void releasingPointerStopsSliderTracking() {
+        ManualClock clock = new ManualClock();
+        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(sliderObject(100, 100, 1000, 280, 2))), clock,
+                new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+
+        clock.set(1000);
+        session.click(100, 100);
+        session.pointerReleased();
+        clock.set(1500);
+        session.pointerMoved(240, 100);
+        GameplayState state = session.update();
+
+        assertFalse(state.sliders().getFirst().tracking());
+        assertEquals(1, state.score().misses());
+        assertEquals(0.5, state.score().accuracy(), 1e-6);
+    }
+
     private BeatmapDifficulty difficulty(List<HitObject> objects) {
         return new BeatmapDifficulty("Song", "Artist", "Creator", "Normal", 0, "", "",
                 new DifficultySettings(5, 5, 5, 5, 1.4, 1), List.of(), objects, null, null);
