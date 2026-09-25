@@ -40,3 +40,9 @@
 - 色の役割は現在選択・同一 Set・別 Set というローカルの実データに割り当てる。
 - 譜面背景がなければ暗色の抽象背景、thumbnail がなければ同寸の fallback を使う。
 - 画面の silhouette、情報密度、階層、重なりと短い動きを優先し、実データがない機能のボタンは置かない。
+
+## 旧UIとの差分と実装順
+
+調査時点の Main Menu は Cookie 右側に独立した角丸ボタンを縦配置しており、文字の大きさと帯の重なりが stable の silhouette と異なっていた。Song Select は左の不透明な hero card と右の平坦な Set list が背景を大きく隠し、難易度の選択行も同一 Set の階層も carousel として見えなかった。
+
+実装順は、(1) Main Menu の Cookie と右向きの斜め帯、(2) Main Menu の短い展開・脈動、(3) Song Select の右側行と Set/difficulty 展開、(4) 背景・top-left metadata・local score 領域・下端 toolbar、(5) 選択補間・thumbnail・検索、(6) GUI と build の確認とした。UI clock だけを使い、Gameplay の GameClock や判定処理には触れない。
