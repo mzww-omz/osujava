@@ -12,6 +12,7 @@ import dev.osujava.beatmap.BeatmapSet;
 import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.HitCircleVisual;
 import dev.osujava.gameplay.SliderVisual;
+import dev.osujava.gameplay.SpinnerVisual;
 
 import java.util.List;
 
@@ -27,6 +28,10 @@ public final class GameplayRenderer {
     private static final Color SLIDER_HEAD_HIT = new Color(0.52f, 0.78f, 0.69f, 1);
     private static final Color SLIDER_HEAD_MISS = new Color(0.42f, 0.35f, 0.47f, 1);
     private static final Color SLIDER_BALL_TRACKING = new Color(0.58f, 0.94f, 0.77f, 1);
+    private static final Color SPINNER_FIELD = new Color(0.14f, 0.12f, 0.2f, 0.78f);
+    private static final Color SPINNER_RING = new Color(0.88f, 0.82f, 0.95f, 0.82f);
+    private static final Color SPINNER_PROGRESS = new Color(1f, 0.67f, 0.33f, 1);
+    private static final Color SPINNER_TRACKING = new Color(0.55f, 0.96f, 0.77f, 1);
     private static final Color SLIDER_BALL_INNER = new Color(0.3f, 0.23f, 0.43f, 1);
     private static final Color APPROACH = new Color(0.98f, 0.75f, 0.86f, 0.92f);
     private final OsuJavaGame game;
@@ -52,6 +57,21 @@ public final class GameplayRenderer {
         shapes.begin(ShapeRenderer.ShapeType.Filled);
         shapes.setColor(0, 0, 0, background == null ? 1 : 0.48f);
         shapes.rect(viewport.left(), viewport.bottom(), viewport.width(), viewport.height());
+        for (SpinnerVisual spinner : state.spinners()) {
+            float centerX = viewport.toScreenX(spinner.centerX());
+            float centerY = viewport.toScreenY(spinner.centerY());
+            float radius = (float) spinner.radius() * viewport.scale();
+            shapes.setColor(SPINNER_FIELD);
+            shapes.circle(centerX, centerY, radius);
+            shapes.setColor(spinner.tracking() ? SPINNER_TRACKING : SPINNER_RING);
+            shapes.circle(centerX, centerY, radius * 0.98f);
+            shapes.setColor(SPINNER_FIELD);
+            shapes.circle(centerX, centerY, radius * 0.94f);
+            shapes.setColor(spinner.tracking() ? SPINNER_TRACKING : SLIDER_TRACK_INNER);
+            shapes.circle(centerX, centerY, radius * 0.18f);
+            shapes.setColor(CIRCLE_INNER);
+            shapes.circle(centerX, centerY, radius * 0.12f);
+        }
         for (SliderVisual slider : state.sliders()) {
             drawSliderTrack(shapes, slider, viewport, (float) slider.radius() * viewport.scale());
             float x = viewport.toScreenX(slider.tailPosition().x());
@@ -101,6 +121,21 @@ public final class GameplayRenderer {
         shapes.end();
 
         shapes.begin(ShapeRenderer.ShapeType.Line);
+        for (SpinnerVisual spinner : state.spinners()) {
+            float centerX = viewport.toScreenX(spinner.centerX());
+            float centerY = viewport.toScreenY(spinner.centerY());
+            float radius = (float) spinner.radius() * viewport.scale();
+            shapes.setColor(SPINNER_RING);
+            shapes.circle(centerX, centerY, radius);
+            shapes.setColor(SPINNER_PROGRESS);
+            shapes.arc(centerX, centerY, radius * 1.08f, 90,
+                    (float) (360 * Math.min(1, spinner.progress())), 72);
+            double angle = Math.toRadians(spinner.rotationDegrees());
+            float indicatorX = viewport.toScreenX(spinner.centerX() + Math.cos(angle) * spinner.radius() * 0.7);
+            float indicatorY = viewport.toScreenY(spinner.centerY() + Math.sin(angle) * spinner.radius() * 0.7);
+            shapes.setColor(spinner.tracking() ? SPINNER_TRACKING : SPINNER_RING);
+            shapes.line(centerX, centerY, indicatorX, indicatorY);
+        }
         for (SliderVisual slider : state.sliders()) {
             if (slider.headJudged()) continue;
             float x = viewport.toScreenX(slider.headPosition().x());
@@ -127,6 +162,21 @@ public final class GameplayRenderer {
         game.font().draw(batch, "Score " + state.score().score() + "     Combo " + state.score().combo()
                 + "     Accuracy " + String.format(java.util.Locale.ROOT, "%.2f%%", state.score().accuracy() * 100),
                 28, com.badlogic.gdx.Gdx.graphics.getHeight() - 54);
+        for (SpinnerVisual spinner : state.spinners()) {
+            if (state.currentTimeMs() < spinner.startTimeMs() || state.currentTimeMs() > spinner.endTimeMs()) continue;
+            float centerX = viewport.toScreenX(spinner.centerX());
+            float centerY = viewport.toScreenY(spinner.centerY());
+            game.font().setColor(Color.WHITE);
+            game.font().getData().setScale(0.8f);
+            game.font().draw(batch, spinner.judgement() == null ? "SPIN!" : spinner.judgement().name(),
+                    centerX - 24, centerY + 8);
+            game.font().setColor(new Color(0.92f, 0.87f, 0.98f, 1));
+            game.font().getData().setScale(0.62f);
+            String progress = spinner.requiredSpins() == 0 ? "CLEAR"
+                    : spinner.completedSpins() + " / " + spinner.requiredSpins();
+            game.font().draw(batch, progress,
+                    centerX - 25, centerY - 16);
+        }
         if (notice != null && !notice.isBlank()) {
             game.font().setColor(new Color(1f, 0.83f, 0.66f, 1));
             game.font().draw(batch, notice, 28, 28);

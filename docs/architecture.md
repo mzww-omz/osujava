@@ -31,7 +31,7 @@ Ruleset (OsuRuleset)
     ▼
 GameplaySession ◄──── GameClock (Music position or local elapsed clock)
     │
-    ├── click / cursor hold → osu! judgement → ScoreTracker → GameplayState
+    ├── click / cursor hold / Spinner rotation → osu! judgement → ScoreTracker → GameplayState
     ├── SliderPath + SliderTiming → tick / repeat / tail events
     │
     ▼
@@ -51,7 +51,7 @@ Import and gameplay have no archive dependency in common. The importer owns extr
 - beatmap.parse: parses General, Metadata, Difficulty, Events, TimingPoints, and HitObjects. The integer mode is retained even when the mode is not playable.
 - library: safely imports .osz and standalone .osu files into local beatmap storage. BeatmapLibrary exposes the in-memory repository; BeatmapLibraryStorage is its persistence boundary, implemented by PropertiesBeatmapLibraryStorage.
 - gameplay: one GameClock interface, audio/elapsed implementations, judgement windows, score state, and the session contract.
-- ruleset: ruleset selection boundary. OsuRuleset judges HitCircles and basic Slider head/tracking/repeat/tail events; Spinner gameplay remains unsupported.
+- ruleset: ruleset selection boundary. OsuRuleset judges HitCircles, basic Slider head/tracking/repeat/tail events, and Spinner rotation/completion.
 - ui: screens, input mapping, playfield viewport, and renderers. GameplayRenderer consumes state snapshots and does not update score or hit state.
 
 ### lwjgl3
@@ -76,7 +76,7 @@ On its first load, the index storage also scans unindexed UUID-named folders lef
 
 ## Clock and gameplay
 
-GameClock is the only source of gameplay time. With audio, MusicGameClock samples libGDX's music position. If the audio file is absent or cannot be decoded, ElapsedGameClock provides a local fallback timeline. OsuGameplaySession reads the clock, expires misses, resolves pointer clicks, and creates a GameplayState snapshot.
+GameClock is the only source of gameplay time. With audio, MusicGameClock samples libGDX's music position. If the audio file is absent or cannot be decoded, ElapsedGameClock provides a local fallback timeline. OsuGameplaySession reads the clock, expires misses, resolves pointer clicks and Spinner active intervals, and creates a GameplayState snapshot.
 
 The playfield uses osu!'s 512×384 coordinate space fitted into the window. Input converts screen coordinates back into that space. Rendering reads the same immutable snapshot and never changes hit status or score. SliderPath calculates the curve and its distance-adjusted position independently of the renderer. SliderTiming derives velocity from the active redline and inherited timing point, then maps GameClock time to alternating span progress. Slider head, tick, repeat, and tail states are judged in OsuGameplaySession and contribute to ScoreTracker.
 
@@ -90,7 +90,15 @@ SliderPath is intentionally a sampled piecewise-linear approximation. Bezier cur
 
 Scoring is also deliberately simpler than lazer. The slider head uses the ordinary timing judgement, while each tick, repeat, and tail is recorded as either one `HIT300` or one `MISS`. ScoreTracker therefore gives every nested event the same maximum score and accuracy weight. Lazer keeps object-specific judgement results (for example, slider ticks and end nodes use large-tick results) and applies ruleset scoring, combo, and health rules to those results. The local score, accuracy, and combo are not expected to match lazer. A future scoring change belongs in the osu! session's event-to-judgement mapping and ScoreTracker's typed/weighted judgement model; it should not add state changes to the renderer.
 
-Input routes left click, right click, and Z/X keyboard presses through the same session click path. Holding any one of them enables tracking, and tracking stops when all are released. Lazer can restrict which key sustains a slider immediately after its head is hit; osujava does not yet model that key-specific transition.
+Input routes left click, right click, and Z/X keyboard presses through the same session click path. Holding any one of them enables Slider tracking and Spinner rotation; tracking stops when all are released. Lazer can restrict which key sustains a slider immediately after its head is hit; osujava does not yet model that key-specific transition. Spinner movement is sampled from cursor-position events while the GameClock time is inside the Spinner interval.
+
+### Spinner compatibility and scoring limits
+
+The parser stores Spinner end time in `SpinnerData`; Gameplay uses the model start/end interval and never re-reads `.osu` text. Legacy Spinner position is normalised to the playfield centre, matching lazer. The cursor angle is measured around that centre and each delta is wrapped to the shortest range of −180° to +180°. A 12 osu-unit centre dead zone resets the angle baseline so movement through the singular centre cannot add a large or noisy turn; lazer's current drawable tracker does not use this distance threshold.
+
+Required spins use lazer's OD-interpolated clear RPM values of 90/150/225 at OD 0/5/10, multiplied by Spinner duration and floored with its 0.0001 precision allowance. Full-spin progress is unidirectional: reversing first undoes progress in the current turn, which prevents rapid direction changes from manufacturing spins. Two normal spin ticks follow the clear requirement before large bonus ticks begin. Spinner result thresholds follow lazer: full progress is HIT300, above 90% is HIT100, above 75% is HIT50, and lower progress is MISS. A zero-spin requirement completes implicitly.
+
+The local ScoreTracker records one Spinner result for accuracy and combo. Completed normal ticks add 10 score each and completed bonus ticks add 50 score each, without changing accuracy or combo, matching lazer's base tick values. The full lazer scoring processor, score multipliers, health, samples, and tick miss results are not modeled. GameplayState carries rotation and progress values for the renderer; rendering does not change Spinner state or judgement.
 
 ## Extending rulesets
 
