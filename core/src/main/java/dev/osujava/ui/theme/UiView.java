@@ -89,13 +89,16 @@ public final class UiView {
         text(value, x, baseline, width, scale, color, Align.left);
     }
 
-    public void fade(UiTransition transition, float delta) {
-        transition.advance(delta);
-        float opacity = transition.opacity();
+    public void cover(float opacity) {
         if (opacity <= 0) return;
         beginShapes();
-        box(0, 0, layout.width(), layout.height(), 0, fadeColor.set(UiTheme.BACKGROUND.r, UiTheme.BACKGROUND.g,
-                UiTheme.BACKGROUND.b, opacity));
+        box(0, 0, layout.width(), layout.height(), 0, fadeColor.set(UiTheme.BACKGROUND.r,
+                UiTheme.BACKGROUND.g, UiTheme.BACKGROUND.b, Math.min(1, opacity)));
         endShapes();
+    }
+
+    public void fade(UiTransition transition, float delta) {
+        transition.advance(delta);
+        cover(transition.opacity());
     }
 }

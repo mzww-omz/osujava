@@ -4,6 +4,9 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.audio.Music;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.math.Matrix4;
+import dev.osujava.ui.theme.UiTransition;
+import dev.osujava.ui.theme.UiView;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import dev.osujava.OsuJavaGame;
 import dev.osujava.beatmap.BeatmapDifficulty;
@@ -32,9 +35,13 @@ public final class GameplayScreen extends ScreenAdapter {
     private final Texture background;
     private final String notice;
     private PlayfieldViewport viewport;
+    private final UiView transitionView;
+    private final UiTransition entrance = new UiTransition();
+    private final Matrix4 pixelProjection = new Matrix4();
 
     public GameplayScreen(OsuJavaGame game, BeatmapSet set, BeatmapDifficulty difficulty) {
         this.game = game;
+        this.transitionView = new UiView(game);
         this.set = set;
         this.difficulty = difficulty;
         this.renderer = new GameplayRenderer(game);
@@ -85,6 +92,9 @@ public final class GameplayScreen extends ScreenAdapter {
 
     @Override
     public void render(float delta) {
+        pixelProjection.setToOrtho2D(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        game.batch().setProjectionMatrix(pixelProjection);
+        game.shapes().setProjectionMatrix(pixelProjection);
         viewport = PlayfieldViewport.fit(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         input.setViewport(viewport);
         GameplayState state = session.update();
@@ -94,6 +104,8 @@ public final class GameplayScreen extends ScreenAdapter {
             return;
         }
         renderer.render(set, difficulty, state, viewport, background, notice);
+        transitionView.prepare();
+        transitionView.fade(entrance, delta);
     }
 
     @Override
