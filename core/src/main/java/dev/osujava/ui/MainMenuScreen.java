@@ -26,20 +26,16 @@ public final class MainMenuScreen extends ScreenAdapter {
     public void show() {
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override
-            public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-                if (button == Input.Buttons.LEFT && contains(screenX, Gdx.graphics.getHeight() - screenY,
-                        playX, playY, playW, playH)) {
-                    game.navigate(new SongSelectScreen(game));
-                    return true;
-                }
-                return false;
-            }
-
-            @Override
             public boolean keyDown(int keycode) {
                 if (AppShortcuts.handleQuit(keycode)) return true;
                 if (keycode == Input.Keys.ENTER || keycode == Input.Keys.SPACE) {
                     game.navigate(new SongSelectScreen(game));
+                    return true;
+                }
+                if (keycode == Input.Keys.I) {
+                    SongSelectScreen songSelect = new SongSelectScreen(game);
+                    game.navigate(songSelect);
+                    songSelect.requestImport();
                     return true;
                 }
                 if (keycode == Input.Keys.ESCAPE) {
@@ -67,6 +63,12 @@ public final class MainMenuScreen extends ScreenAdapter {
         playX = width / 2f - playW / 2;
         playY = panelY + 86;
 
+        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)
+                && contains(Gdx.input.getX(), height - Gdx.input.getY(), playX, playY, playW, playH)) {
+            game.navigate(new SongSelectScreen(game));
+            return;
+        }
+
         game.shapes().begin(com.badlogic.gdx.graphics.glutils.ShapeRenderer.ShapeType.Filled);
         game.shapes().setColor(new Color(0.14f, 0.12f, 0.21f, 1));
         game.shapes().rect(0, height * 0.83f, width, height * 0.17f);
@@ -90,6 +92,7 @@ public final class MainMenuScreen extends ScreenAdapter {
         game.font().getData().setScale(0.9f);
         game.font().setColor(new Color(0.72f, 0.69f, 0.79f, 1));
         game.font().draw(game.batch(), "Import beatmaps from your computer", panelX + 45, panelY + 48);
+        game.font().draw(game.batch(), "Press I to import directly", panelX + 45, panelY + 28);
         game.font().setColor(Color.WHITE);
         game.font().getData().setScale(1f);
         game.batch().end();

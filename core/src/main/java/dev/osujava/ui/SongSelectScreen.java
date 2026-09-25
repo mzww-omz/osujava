@@ -44,28 +44,6 @@ public final class SongSelectScreen extends ScreenAdapter {
         reloadBackdrop();
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override
-            public boolean touchDown(int screenX, int screenY, int pointer, int button) {
-                if (button != Input.Buttons.LEFT) return false;
-                float x = screenX;
-                float y = Gdx.graphics.getHeight() - screenY;
-                if (contains(x, y, importX, importY, importW, importH)) {
-                    openImport();
-                } else if (contains(x, y, backX, backY, backW, backH)) {
-                    game.navigate(new MainMenuScreen(game));
-                } else if (contains(x, y, playX, playY, playW, playH)) {
-                    playSelected();
-                } else if (x >= leftX && x <= leftX + leftW && y <= rowTop && y >= leftY) {
-                    int index = (int) ((rowTop - y) / rowHeight);
-                    if (index < sets().size()) selectSet(index);
-                } else if (x >= rightX && x <= rightX + rightW && y <= rowTop && y >= leftY) {
-                    BeatmapSet set = selectedSet();
-                    int index = (int) ((rowTop - y) / rowHeight);
-                    if (set != null && index < set.difficulties().size()) selectedDifficultyIndex = index;
-                }
-                return true;
-            }
-
-            @Override
             public boolean keyDown(int keycode) {
                 if (AppShortcuts.handleQuit(keycode)) return true;
                 if (keycode == Input.Keys.ESCAPE) {
@@ -114,6 +92,10 @@ public final class SongSelectScreen extends ScreenAdapter {
         int width = Gdx.graphics.getWidth();
         int height = Gdx.graphics.getHeight();
         calculateLayout(width, height);
+        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+            handleMouseClick(Gdx.input.getX(), height - Gdx.input.getY());
+            if (game.getScreen() != this) return;
+        }
         Gdx.gl.glClearColor(BACKGROUND.r, BACKGROUND.g, BACKGROUND.b, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
@@ -216,6 +198,23 @@ public final class SongSelectScreen extends ScreenAdapter {
         playY = 20;
     }
 
+    private void handleMouseClick(float x, float y) {
+        if (contains(x, y, importX, importY, importW, importH)) {
+            openImport();
+        } else if (contains(x, y, backX, backY, backW, backH)) {
+            game.navigate(new MainMenuScreen(game));
+        } else if (contains(x, y, playX, playY, playW, playH)) {
+            playSelected();
+        } else if (x >= leftX && x <= leftX + leftW && y <= rowTop && y >= leftY) {
+            int index = (int) ((rowTop - y) / rowHeight);
+            if (index < sets().size()) selectSet(index);
+        } else if (x >= rightX && x <= rightX + rightW && y <= rowTop && y >= leftY) {
+            BeatmapSet set = selectedSet();
+            int index = (int) ((rowTop - y) / rowHeight);
+            if (set != null && index < set.difficulties().size()) selectedDifficultyIndex = index;
+        }
+    }
+
     private void drawSetRows(SpriteBatch batch, List<BeatmapSet> sets) {
         if (sets.isEmpty()) {
             game.font().setColor(Color.WHITE);
@@ -257,6 +256,10 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     private void openImport() {
         game.fileChooser().chooseFile(path -> Gdx.app.postRunnable(() -> importFile(path)));
+    }
+
+    void requestImport() {
+        openImport();
     }
 
     private void importFile(Path path) {
