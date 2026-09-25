@@ -5,14 +5,14 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.graphics.Texture;
 import dev.osujava.OsuJavaGame;
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapSet;
+import dev.osujava.beatmap.HitObject;
+import dev.osujava.beatmap.TimingPoint;
 import dev.osujava.library.BeatmapImportException;
 import dev.osujava.library.ImportResult;
-import dev.osujava.ui.theme.BeatmapBackdrop;
-import dev.osujava.ui.theme.UiButton;
 import dev.osujava.ui.theme.UiLayout;
 import dev.osujava.ui.theme.UiNavigation;
 import dev.osujava.ui.theme.UiTheme;
@@ -20,63 +20,103 @@ import dev.osujava.ui.theme.UiTransition;
 import dev.osujava.ui.theme.UiView;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public final class SongSelectScreen extends ScreenAdapter {
+    private static final Color TOP = new Color(.025f, .022f, .045f, .72f);
+    private static final Color LEFT = new Color(.025f, .022f, .045f, .40f);
+    private static final Color BOTTOM = new Color(.025f, .022f, .045f, .91f);
+    private static final Color DIM = new Color(.025f, .022f, .045f, .14f);
+    private static final Color OTHER = new Color(.58f, .30f, .49f, .90f);
+    private static final Color OTHER_HOVER = new Color(.73f, .38f, .59f, .96f);
+    private static final Color SIBLING = new Color(.25f, .54f, .73f, .92f);
+    private static final Color SIBLING_HOVER = new Color(.34f, .66f, .84f, .98f);
+    private static final Color SELECTED = new Color(.96f, .95f, .98f, .98f);
+    private static final Color DARK_TEXT = new Color(.14f, .10f, .18f, 1f);
+    private static final Color THUMB_FALLBACK = new Color(.23f, .20f, .31f, 1f);
+    private static final Color BACK_PINK = new Color(.83f, .28f, .55f, 1f);
+
     private final OsuJavaGame game;
     private final UiView view;
     private final UiTransition entrance = new UiTransition();
     private final UiNavigation outgoing = new UiNavigation();
-    private final BeatmapBackdrop backdrop = new BeatmapBackdrop();
-    private final UiButton back = new UiButton("BACK", false);
-    private final UiButton importButton = new UiButton("IMPORT BEATMAP", false);
-    private final UiButton play = new UiButton("PLAY SELECTED", true);
+    private final BeatmapThumbnails thumbnails = new BeatmapThumbnails();
+    private final OsuCookie playCookie = new OsuCookie();
+    private final Map<String, RowMotion> motions = new HashMap<>();
     private List<BeatmapSet> sets;
+    private List<Row> visibleRows = List.of();
     private int selectedSetIndex, selectedDifficultyIndex;
-    private boolean importing, closed;
+    private boolean importing, closed, searchActive;
+    private String search = "";
     private String toast = "";
     private Color toastColor = UiTheme.TEXT;
-    private float toastSeconds;
-    private float listX, listW, listTop, listBottom, heroX, heroW;
+    private float toastSeconds, seconds;
+    private float backgroundFade;
+    private Path backgroundPath;
+    private float top, bottom, searchX, searchW, cookieX, cookieY, cookieRadius;
+
+    private static final class RowMotion {
+        float x, y;
+        RowMotion(float x, float y) { this.x = x; this.y = y; }
+    }
+    private record Row(int setIndex, int difficultyIndex, boolean selected, boolean sibling,
+                       float x, float y, float width, float height) { }
 
     public SongSelectScreen(OsuJavaGame game) { this(game, null, 0); }
-
     public SongSelectScreen(OsuJavaGame game, String preferredSetId, int preferredDifficulty) {
         this.game = game;
         view = new UiView(game);
-        sets = game.library().all();
+        sets = sortedSets();
         if (preferredSetId != null) {
-            for (int i = 0; i < sets.size(); i++) {
-                if (sets.get(i).id().equals(preferredSetId)) {
-                    selectedSetIndex = i;
-                    selectedDifficultyIndex = Math.max(0, Math.min(preferredDifficulty, sets.get(i).difficulties().size() - 1));
-                    break;
-                }
+            for (int i = 0; i < sets.size(); i++) if (sets.get(i).id().equals(preferredSetId)) {
+                selectedSetIndex = i;
+                selectedDifficultyIndex = Math.max(0, Math.min(preferredDifficulty, sets.get(i).difficulties().size() - 1));
+                break;
             }
         }
     }
 
     @Override public void show() {
-        backdrop.select(selectedSet(), selectedDifficulty());
+        selectBackground();
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override public boolean keyDown(int key) {
                 if (AppShortcuts.handleQuit(key)) return true;
+                if (searchActive) {
+                    if (key == Input.Keys.ESCAPE || key == Input.Keys.ENTER) { searchActive = false; return true; }
+                    if (key == Input.Keys.BACKSPACE && !search.isEmpty()) {
+                        search = search.substring(0, search.length() - 1);
+                        ensureVisibleSelection();
+                        return true;
+                    }
+                    return false;
+                }
                 if (key == Input.Keys.ESCAPE) { goBack(); return true; }
                 if (key == Input.Keys.I) { requestImport(); return true; }
                 if (key == Input.Keys.ENTER || key == Input.Keys.SPACE) { playSelected(); return true; }
-                if (key == Input.Keys.UP) { selectSet(selectedSetIndex - 1); return true; }
-                if (key == Input.Keys.DOWN) { selectSet(selectedSetIndex + 1); return true; }
+                if (key == Input.Keys.UP) { advance(-1); return true; }
+                if (key == Input.Keys.DOWN) { advance(1); return true; }
                 if (key == Input.Keys.LEFT || key == Input.Keys.RIGHT) {
-                    BeatmapSet set = selectedSet();
-                    if (set != null) selectDifficulty(selectedDifficultyIndex + (key == Input.Keys.RIGHT ? 1 : -1));
+                    selectDifficulty(selectedDifficultyIndex + (key == Input.Keys.RIGHT ? 1 : -1));
                     return true;
                 }
                 return false;
             }
+            @Override public boolean keyTyped(char character) {
+                if (!searchActive || Character.isISOControl(character)) return false;
+                if (search.length() < 80) {
+                    search += character;
+                    ensureVisibleSelection();
+                }
+                return true;
+            }
             @Override public boolean scrolled(float amountX, float amountY) {
                 if (sets.isEmpty()) return false;
-                selectSet(selectedSetIndex + (int) Math.signum(amountY));
+                advance((int) Math.signum(amountY));
                 return true;
             }
         });
@@ -85,195 +125,279 @@ public final class SongSelectScreen extends ScreenAdapter {
     @Override public void render(float delta) {
         if (outgoing.advance(delta)) return;
         UiLayout layout = view.prepare();
+        seconds += Math.min(delta, .05f);
         calculateLayout(layout);
+        visibleRows = layoutRows(layout, delta);
+        float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
-            float x = layout.pointerX(Gdx.input.getX()), y = layout.pointerY(Gdx.input.getY());
-            if (back.hit(x, y)) { goBack(); return; }
-            if (importButton.hit(x, y)) { requestImport(); }
-            else if (play.hit(x, y)) { playSelected(); if (game.getScreen() != this) return; }
-            else handleRowClick(x, y);
+            if (px >= searchX && px <= searchX + searchW && py >= top + 5 && py <= top + 37) searchActive = true;
+            else if (py < bottom && px < 114) { goBack(); return; }
+            else if (py < bottom && px >= 127 && px < 290) { requestImport(); }
+            else if (selectedDifficulty() != null && playCookie.hit(px, py)) { playSelected(); return; }
+            else { searchActive = false; handleRowClick(px, py); }
         }
+
         view.clear();
-        backdrop.draw(view, delta);
+        backgroundFade = Math.min(1, backgroundFade + Math.max(0, delta) / .22f);
+        view.background(thumbnails.get(backgroundPath), .82f * backgroundFade);
         view.beginShapes();
-        view.box(0, 0, layout.width(), layout.height(), 0, UiTheme.VEIL);
-        view.box(0, layout.height() - 88, layout.width(), 88, 0, UiTheme.SURFACE);
-        view.box(0, 0, layout.width(), 78, 0, UiTheme.SURFACE);
-        view.box(heroX, 108, heroW, layout.height() - 220, UiTheme.RADIUS, UiTheme.SURFACE);
-        view.box(listX, listBottom - 10, listW, listTop - listBottom + 42, UiTheme.RADIUS, UiTheme.SURFACE);
-        drawRowsShape(layout);
-        back.drawShape(view, layout, delta);
-        importButton.drawShape(view, layout, delta);
-        play.drawShape(view, layout, delta);
-        if (toastSeconds > 0) view.box(heroX + 12, 90, Math.min(heroW - 24, 460), 48, UiTheme.RADIUS, UiTheme.SURFACE_RAISED);
+        view.box(0, 0, layout.width(), layout.height(), 0, DIM);
+        view.box(0, top, layout.width(), layout.height() - top, 0, TOP);
+        view.box(0, bottom, layout.width() * .32f, top - bottom, 0, LEFT);
+        view.box(0, 0, layout.width(), bottom, 0, BOTTOM);
+        view.box(0, 0, 113, 45, 0, BACK_PINK);
+        view.box(126, 0, 165, 45, 0, OTHER);
+        view.box(searchX, top + 5, searchW, 32, 0, searchActive ? SIBLING : LEFT);
+        drawRowShapes(layout, px, py);
+        if (selectedDifficulty() != null) {
+            playCookie.drawShape(view, seconds, playCookie.hit(px, py), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
+        }
+        if (toastSeconds > 0) view.box(18, bottom + 12, Math.min(450, layout.width() * .42f), 35, 0, BOTTOM);
         view.endShapes();
         view.beginText();
-        view.text("SONG SELECT", layout.contentX() + 4, layout.height() - 29, 330, UiTheme.HEADING, UiTheme.TEXT);
-        view.text(sets.size() + " LOCAL SETS", listX, layout.height() - 38, listW - 12, UiTheme.META, UiTheme.MUTED, Align.right);
-        drawHeroText(layout);
-        drawRowsText();
-        back.drawText(view); importButton.drawText(view); play.drawText(view);
-        if (toastSeconds > 0) view.text(toast, heroX + 26, 120, Math.min(heroW - 52, 432), UiTheme.META, toastColor);
+        drawThumbnails();
+        drawRowText();
+        drawMetadata(layout);
+        drawRanking(layout);
+        view.textSmooth("LOCAL SETS", layout.width() * .58f, top + 27, 235, UiTheme.META, UiTheme.TEXT);
+        view.textSmooth("Sorted by title", layout.width() * .58f, top + 9, 235, .72f, UiTheme.MUTED);
+        view.textSmooth(search.isEmpty() ? "Search beatmaps" : search + (searchActive ? "|" : ""),
+                searchX + 9, top + 26, searchW - 18, UiTheme.META, search.isEmpty() ? UiTheme.MUTED : UiTheme.TEXT);
+        view.textSmooth("‹  back", 14, 16, 96, UiTheme.BODY, UiTheme.TEXT);
+        view.textSmooth("Import .osz / .osu", 136, 16, 151, UiTheme.META, UiTheme.TEXT);
+        view.textSmooth(sets.size() + " local sets", 312, 26, 250, UiTheme.META, UiTheme.MUTED);
+        if (selectedDifficulty() != null) playCookie.drawText(view);
+        if (toastSeconds > 0) view.textSmooth(toast, 27, bottom + 34, Math.min(430, layout.width() * .4f), UiTheme.META, toastColor);
         view.endText();
         toastSeconds = Math.max(0, toastSeconds - Math.max(0, delta));
         view.fade(entrance, delta);
         view.cover(outgoing.opacity());
     }
 
-    @Override public void dispose() { closed = true; backdrop.close(); }
+    @Override public void dispose() { closed = true; thumbnails.close(); }
 
     private void calculateLayout(UiLayout layout) {
-        float contentX = layout.contentX(), contentW = layout.contentWidth();
-        heroX = contentX;
-        heroW = Math.max(375, contentW * 0.43f);
-        listX = heroX + heroW + 16;
-        listW = contentX + contentW - listX;
-        listTop = layout.height() - 119;
-        listBottom = 112;
-        back.bounds(contentX, 15, 104, 49);
-        importButton.bounds(contentX + 116, 15, 182, 49);
-        play.bounds(contentX + contentW - 213, 14, 213, 51);
-        BeatmapDifficulty difficulty = selectedDifficulty();
-        play.enabled(difficulty != null && game.osuRuleset().supportsMode(difficulty.mode()));
-        importButton.enabled(!importing);
+        bottom = 84;
+        top = layout.height() - 93;
+        searchW = Math.min(210, layout.width() * .19f);
+        searchX = layout.width() - searchW - 16;
+        cookieRadius = Math.min(70, layout.height() * .10f);
+        cookieX = layout.width() - cookieRadius * .50f;
+        cookieY = cookieRadius * .55f;
+        playCookie.bounds(cookieX, cookieY, cookieRadius);
     }
 
-    private int visibleStart() { return Math.max(0, selectedSetIndex - 3); }
-    private float rowHeight(int index) { return index == selectedSetIndex ? 70 : 59; }
-    private int diffStart() {
-        BeatmapSet set = selectedSet();
-        if (set == null) return 0;
-        return Math.max(0, selectedDifficultyIndex - 3);
-    }
-
-    private void drawRowsShape(UiLayout layout) {
-        float y = listTop;
-        for (int i = visibleStart(); i < sets.size(); i++) {
-            float h = rowHeight(i);
-            y -= h;
-            if (y < listBottom + 8) break;
-            boolean selected = i == selectedSetIndex;
-            boolean hover = rowHit(layout, listX + 8, y, listW - 16, h - 5);
-            view.box(listX + (selected ? 2 : 10), y, listW - (selected ? 12 : 20), h - 5,
-                    UiTheme.RADIUS, selected ? UiTheme.SURFACE_RAISED : hover ? UiTheme.SURFACE_RAISED : UiTheme.SURFACE);
-            if (selected) {
-                view.box(listX + 2, y + 5, 5, h - 15, 2, UiTheme.ACCENT);
-                BeatmapSet set = sets.get(i);
-                int start = diffStart();
-                for (int j = start; j < set.difficulties().size(); j++) {
-                    y -= 44;
-                    if (y < listBottom + 8) break;
-                    boolean active = j == selectedDifficultyIndex;
-                    boolean diffHover = rowHit(layout, listX + 30, y, listW - 44, 39);
-                    view.box(listX + 30, y, listW - 44, 39, 7,
-                            active ? UiTheme.ACCENT : diffHover ? UiTheme.SURFACE_RAISED : UiTheme.SURFACE);
-                }
-                y -= 8;
-            }
-        }
-    }
-
-    private void drawRowsText() {
-        float y = listTop;
-        if (sets.isEmpty()) {
-            view.text("YOUR LIBRARY IS EMPTY", listX + 28, y - 44, listW - 56, UiTheme.TITLE, UiTheme.TEXT);
-            view.text("Import an .osz or .osu file to begin.", listX + 28, y - 77, listW - 56, UiTheme.BODY, UiTheme.MUTED);
-            return;
-        }
-        for (int i = visibleStart(); i < sets.size(); i++) {
-            float h = rowHeight(i);
-            y -= h;
-            if (y < listBottom + 8) break;
+    private List<Row> layoutRows(UiLayout layout, float delta) {
+        List<int[]> entries = new ArrayList<>();
+        int selectedEntry = 0;
+        String query = search.toLowerCase(Locale.ROOT).strip();
+        for (int i = 0; i < sets.size(); i++) {
             BeatmapSet set = sets.get(i);
-            boolean selected = i == selectedSetIndex;
-            float x = listX + (selected ? 22 : 27);
-            view.text(set.title(), x, y + h - 18, listW - 57, selected ? UiTheme.TITLE : UiTheme.BODY, UiTheme.TEXT);
-            view.text(set.artist() + "  /  " + set.creator(), x, y + 18, listW - 57, UiTheme.META, UiTheme.MUTED);
-            if (selected) {
-                int start = diffStart();
-                for (int j = start; j < set.difficulties().size(); j++) {
-                    y -= 44;
-                    if (y < listBottom + 8) break;
-                    BeatmapDifficulty diff = set.difficulties().get(j);
-                    Color color = j == selectedDifficultyIndex ? UiTheme.TEXT : UiTheme.MUTED;
-                    view.text(">  " + diff.version(), listX + 43, y + 25, listW - 170, UiTheme.BODY, color);
-                    view.text(modeName(diff.mode()), listX + listW - 122, y + 24, 100, UiTheme.META, color, Align.right);
+            if (!matches(set, query)) continue;
+            if (i == selectedSetIndex) {
+                for (int j = 0; j < set.difficulties().size(); j++) {
+                    if (j == selectedDifficultyIndex) selectedEntry = entries.size();
+                    entries.add(new int[]{i, j});
                 }
-                y -= 8;
-            }
+            } else entries.add(new int[]{i, -1});
+        }
+        List<Row> result = new ArrayList<>();
+        float centerY = bottom + (top - bottom) * .49f;
+        float right = layout.width() - 9;
+        for (int i = 0; i < entries.size(); i++) {
+            int setIndex = entries.get(i)[0], diffIndex = entries.get(i)[1];
+            boolean selected = setIndex == selectedSetIndex && diffIndex == selectedDifficultyIndex;
+            boolean sibling = setIndex == selectedSetIndex && !selected;
+            float targetX = layout.width() * (selected ? .555f : sibling ? .615f : .665f);
+            float targetY = centerY + (selectedEntry - i) * 73;
+            float width = right - targetX;
+            String key = rowKey(setIndex, diffIndex);
+            RowMotion motion = motions.computeIfAbsent(key, unused -> new RowMotion(targetX + 28, targetY));
+            float factor = Math.min(1, Math.max(0, delta) * 14);
+            motion.x += (targetX - motion.x) * factor;
+            motion.y += (targetY - motion.y) * factor;
+            if (motion.y + 69 < bottom || motion.y > top) continue;
+            result.add(new Row(setIndex, diffIndex, selected, sibling, motion.x, motion.y, width + targetX - motion.x, 68));
+        }
+        return result;
+    }
+
+    private void drawRowShapes(UiLayout layout, float px, float py) {
+        for (Row row : visibleRows) if (!row.selected()) drawRowShape(row, px, py);
+        for (Row row : visibleRows) if (row.selected()) drawRowShape(row, px, py);
+        if (visibleRows.isEmpty()) view.box(layout.width() * .59f, bottom + 155, layout.width() * .38f, 66, 0, LEFT);
+    }
+
+    private void drawRowShape(Row row, float px, float py) {
+        boolean hover = rowHit(row, px, py);
+        Color color = row.selected() ? SELECTED : row.sibling()
+                ? hover ? SIBLING_HOVER : SIBLING : hover ? OTHER_HOVER : OTHER;
+        float x = row.x() - (hover && !row.selected() ? 7 : 0), y = row.y();
+        view.quad(x, y, x + row.width() - 9, y, x + row.width(), y + row.height(), x + 11, y + row.height(), color);
+        view.box(x + 8, y + 5, 96, row.height() - 10, 0, THUMB_FALLBACK);
+    }
+
+    private void drawThumbnails() {
+        for (Row row : visibleRows) {
+            BeatmapSet set = sets.get(row.setIndex());
+            BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : set.difficulties().get(0);
+            Path path = diff.backgroundPath() != null ? diff.backgroundPath() : set.backgroundPath();
+            Texture texture = thumbnails.get(path);
+            view.image(texture, row.x() + 8, row.y() + 5, 96, row.height() - 10);
         }
     }
 
-    private void drawHeroText(UiLayout layout) {
-        BeatmapSet set = selectedSet();
-        if (set == null) {
-            view.text("READY WHEN YOU ARE", heroX + 28, layout.height() - 164, heroW - 56, UiTheme.HEADING, UiTheme.TEXT);
-            view.text("Build a local library to play.", heroX + 28, layout.height() - 205, heroW - 56, UiTheme.BODY, UiTheme.MUTED);
+    private void drawRowText() {
+        if (visibleRows.isEmpty()) {
+            view.textSmooth(search.isEmpty() ? "Import a beatmap to begin" : "No matching beatmaps",
+                    searchX - 220, bottom + 196, 410, UiTheme.BODY, UiTheme.TEXT);
             return;
         }
+        for (Row row : visibleRows) if (!row.selected()) drawRowLabel(row);
+        for (Row row : visibleRows) if (row.selected()) drawRowLabel(row);
+    }
+
+    private void drawRowLabel(Row row) {
+        BeatmapSet set = sets.get(row.setIndex());
+        BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : null;
+        Color primary = row.selected() ? DARK_TEXT : UiTheme.TEXT;
+        Color secondary = row.selected() ? DARK_TEXT : UiTheme.MUTED;
+        float x = row.x() + 115, w = Math.max(60, row.width() - 132);
+        view.textSmooth(set.artist() + " - " + set.title(), x, row.y() + 48, w, .94f, primary);
+        view.textSmooth(diff == null ? set.creator() + "  ·  " + set.difficulties().size() + " difficulties"
+                        : "[" + diff.version() + "]  mapped by " + set.creator(),
+                x, row.y() + 27, w, .73f, secondary);
+        if (diff != null) view.textSmooth(modeName(diff.mode()), x, row.y() + 11, w, .72f, secondary);
+    }
+
+    private void drawMetadata(UiLayout layout) {
+        BeatmapSet set = selectedSet();
         BeatmapDifficulty diff = selectedDifficulty();
-        float top = layout.height() - 151;
-        view.text("NOW SELECTED", heroX + 30, top, heroW - 60, UiTheme.META, UiTheme.ACCENT);
-        view.text(set.title(), heroX + 28, top - 45, heroW - 56, UiTheme.HEADING, UiTheme.TEXT);
-        view.text(set.artist(), heroX + 30, top - 78, heroW - 60, UiTheme.TITLE, UiTheme.TEXT);
-        view.text("mapped by " + set.creator(), heroX + 30, top - 105, heroW - 60, UiTheme.META, UiTheme.MUTED);
-        if (diff != null) {
-            view.text("DIFFICULTY", heroX + 30, top - 169, heroW - 60, UiTheme.META, UiTheme.MUTED);
-            view.text(diff.version(), heroX + 30, top - 205, heroW - 60, UiTheme.TITLE, UiTheme.TEXT);
-            view.text(modeName(diff.mode()).toUpperCase(Locale.ROOT) + "    /    OD " + diff.settings().overallDifficulty(),
-                    heroX + 30, top - 239, heroW - 60, UiTheme.META, UiTheme.MUTED);
-            if (!game.osuRuleset().supportsMode(diff.mode()))
-                view.text("This mode is imported but cannot be played yet.", heroX + 30, top - 273,
-                        heroW - 60, UiTheme.META, UiTheme.ERROR);
+        if (set == null || diff == null) {
+            view.textSmooth("SONG SELECT", 21, layout.height() - 26, layout.width() * .52f, UiTheme.TITLE, UiTheme.TEXT);
+            return;
         }
-        view.text(set.difficulties().size() + " DIFFICULTIES IN THIS SET", heroX + 30, 158, heroW - 60, UiTheme.META, UiTheme.MUTED);
+        float w = layout.width() * .55f - 28;
+        view.textSmooth(set.artist() + " - " + set.title() + " [" + diff.version() + "]",
+                21, layout.height() - 23, w, 1.24f, UiTheme.TEXT);
+        view.textSmooth("Mapped by " + set.creator(), 22, layout.height() - 45, w, UiTheme.META, UiTheme.TEXT);
+        long circles = diff.hitObjects().stream().filter(o -> o.type() == HitObject.Type.CIRCLE).count();
+        long sliders = diff.hitObjects().stream().filter(o -> o.type() == HitObject.Type.SLIDER).count();
+        long spinners = diff.hitObjects().stream().filter(o -> o.type() == HitObject.Type.SPINNER).count();
+        long lastMs = diff.hitObjects().stream().mapToLong(o -> (long) o.endTimeMs()).max().orElse(0);
+        String bpm = bpmText(diff);
+        view.textSmooth("Map end " + formatTime(lastMs) + "    BPM " + bpm + "    Objects " + diff.hitObjects().size(),
+                22, layout.height() - 64, w, UiTheme.META, UiTheme.TEXT);
+        view.textSmooth("Circles " + circles + "   Sliders " + sliders + "   Spinners " + spinners
+                        + "    OD " + oneDecimal(diff.settings().overallDifficulty())
+                        + "   AR " + oneDecimal(diff.settings().approachRate())
+                        + "   CS " + oneDecimal(diff.settings().circleSize())
+                        + "   HP " + oneDecimal(diff.settings().hpDrainRate()),
+                22, layout.height() - 81, w, .74f, UiTheme.MUTED);
     }
 
-    private boolean rowHit(UiLayout layout, float x, float y, float w, float h) {
-        float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
-        return px >= x && px <= x + w && py >= y && py <= y + h;
+    private void drawRanking(UiLayout layout) {
+        view.textSmooth("LOCAL SCORES", 22, top - 34, layout.width() * .29f, UiTheme.BODY, UiTheme.TEXT);
+        view.textSmooth("No local scores", 22, top - 71, layout.width() * .29f, UiTheme.META, UiTheme.MUTED);
+        BeatmapDifficulty diff = selectedDifficulty();
+        if (diff != null && !game.osuRuleset().supportsMode(diff.mode()))
+            view.textSmooth("This mode cannot be played yet", 22, bottom + 25, layout.width() * .31f - 20, UiTheme.META, UiTheme.ERROR);
     }
 
-    private void handleRowClick(float x, float py) {
-        if (x < listX || x > listX + listW) return;
-        float y = listTop;
-        for (int i = visibleStart(); i < sets.size(); i++) {
-            float h = rowHeight(i);
-            y -= h;
-            if (y < listBottom + 8) break;
-            if (py >= y && py <= y + h - 5) { selectSet(i); return; }
-            if (i == selectedSetIndex) {
-                BeatmapSet set = sets.get(i);
-                for (int j = diffStart(); j < set.difficulties().size(); j++) {
-                    y -= 44;
-                    if (y < listBottom + 8) break;
-                    if (py >= y && py <= y + 39) { selectDifficulty(j); return; }
-                }
-                y -= 8;
-            }
+    private boolean rowHit(Row row, float x, float y) {
+        return x >= row.x() && x <= row.x() + row.width() && y >= row.y() && y <= row.y() + row.height();
+    }
+    private void handleRowClick(float x, float y) {
+        for (int i = visibleRows.size() - 1; i >= 0; i--) {
+            Row row = visibleRows.get(i);
+            if (!rowHit(row, x, y)) continue;
+            if (row.selected()) playSelected();
+            else if (row.difficultyIndex() >= 0) selectDifficulty(row.difficultyIndex());
+            else selectSet(row.setIndex());
+            return;
         }
     }
-
+    private void advance(int direction) {
+        if (direction == 0) return;
+        BeatmapSet current = selectedSet();
+        if (current == null) return;
+        int nextDifficulty = selectedDifficultyIndex + direction;
+        if (nextDifficulty >= 0 && nextDifficulty < current.difficulties().size()) {
+            selectDifficulty(nextDifficulty);
+            return;
+        }
+        String query = search.toLowerCase(Locale.ROOT).strip();
+        for (int i = selectedSetIndex + direction; i >= 0 && i < sets.size(); i += direction) {
+            if (!matches(sets.get(i), query)) continue;
+            selectSet(i);
+            if (direction < 0) selectDifficulty(sets.get(i).difficulties().size() - 1);
+            return;
+        }
+    }
+    private boolean matches(BeatmapSet set, String query) {
+        if (query.isEmpty()) return true;
+        return (set.title() + " " + set.artist() + " " + set.creator()).toLowerCase(Locale.ROOT).contains(query)
+                || set.difficulties().stream().anyMatch(d -> d.version().toLowerCase(Locale.ROOT).contains(query));
+    }
+    private void ensureVisibleSelection() {
+        if (sets.isEmpty() || matches(sets.get(selectedSetIndex), search.toLowerCase(Locale.ROOT).strip())) return;
+        for (int i = 0; i < sets.size(); i++) if (matches(sets.get(i), search.toLowerCase(Locale.ROOT).strip())) {
+            selectSet(i);
+            return;
+        }
+    }
     private void selectSet(int index) {
         if (sets.isEmpty()) return;
         int next = Math.max(0, Math.min(sets.size() - 1, index));
         if (next == selectedSetIndex) return;
         selectedSetIndex = next;
         selectedDifficultyIndex = 0;
-        backdrop.select(selectedSet(), selectedDifficulty());
+        selectBackground();
     }
     private void selectDifficulty(int index) {
         BeatmapSet set = selectedSet();
         if (set == null) return;
-        selectedDifficultyIndex = Math.max(0, Math.min(set.difficulties().size() - 1, index));
-        backdrop.select(set, selectedDifficulty());
+        int next = Math.max(0, Math.min(set.difficulties().size() - 1, index));
+        if (next == selectedDifficultyIndex) return;
+        selectedDifficultyIndex = next;
+        selectBackground();
+    }
+    private String rowKey(int setIndex, int difficultyIndex) {
+        return sets.get(setIndex).id() + "#" + difficultyIndex;
+    }
+    private List<BeatmapSet> sortedSets() {
+        List<BeatmapSet> result = new ArrayList<>(game.library().all());
+        result.sort(Comparator.comparing(BeatmapSet::title, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(BeatmapSet::artist, String.CASE_INSENSITIVE_ORDER));
+        return result;
     }
     private BeatmapSet selectedSet() { return selectedSetIndex < sets.size() ? sets.get(selectedSetIndex) : null; }
     private BeatmapDifficulty selectedDifficulty() {
         BeatmapSet set = selectedSet();
         return set == null ? null : set.difficulties().get(selectedDifficultyIndex);
     }
+    private void selectBackground() {
+        BeatmapSet set = selectedSet();
+        BeatmapDifficulty diff = selectedDifficulty();
+        Path next = diff != null && diff.backgroundPath() != null ? diff.backgroundPath()
+                : set == null ? null : set.backgroundPath();
+        if (next == null ? backgroundPath != null : !next.equals(backgroundPath)) {
+            backgroundPath = next;
+            backgroundFade = 0;
+        }
+    }
     private String modeName(int mode) { return mode == 0 ? "osu!standard" : "mode " + mode; }
+    private String oneDecimal(double value) { return String.format(Locale.ROOT, "%.1f", value); }
+    private String formatTime(long ms) { return (ms / 60000) + ":" + String.format(Locale.ROOT, "%02d", (ms / 1000) % 60); }
+    private String bpmText(BeatmapDifficulty diff) {
+        double min = Double.POSITIVE_INFINITY, max = 0;
+        for (TimingPoint point : diff.timingPoints()) if (point.uninherited() && point.beatLength() > 0) {
+            double bpm = 60000 / point.beatLength();
+            min = Math.min(min, bpm); max = Math.max(max, bpm);
+        }
+        if (max == 0) return "—";
+        return Math.round(min) == Math.round(max) ? "" + Math.round(max) : Math.round(min) + "–" + Math.round(max);
+    }
     private void goBack() { outgoing.request(() -> game.navigate(new MainMenuScreen(game))); }
     private void playSelected() {
         BeatmapSet set = selectedSet(); BeatmapDifficulty difficulty = selectedDifficulty();
@@ -313,11 +437,12 @@ public final class SongSelectScreen extends ScreenAdapter {
                 importing = false;
                 if (closed) return;
                 if (failure != null) { showToast("Import failed: " + failure, UiTheme.ERROR); return; }
-                sets = game.library().all();
+                sets = sortedSets();
                 for (int i = 0; i < sets.size(); i++)
                     if (sets.get(i).id().equals(finished.beatmapSet().id())) { selectedSetIndex = i; break; }
                 selectedDifficultyIndex = 0;
-                backdrop.select(selectedSet(), selectedDifficulty());
+                motions.clear();
+                selectBackground();
                 String message = existing ? "Already imported: " : "Imported: ";
                 message += finished.beatmapSet().title();
                 if (!finished.warnings().isEmpty()) message += " (some difficulties skipped)";
