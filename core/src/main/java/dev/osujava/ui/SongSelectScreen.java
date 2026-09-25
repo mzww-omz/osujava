@@ -28,10 +28,10 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class SongSelectScreen extends ScreenAdapter {
-    private static final Color TOP = new Color(.025f, .022f, .045f, .72f);
-    private static final Color LEFT = new Color(.025f, .022f, .045f, .40f);
+    private static final Color TOP = new Color(.025f, .022f, .045f, .68f);
+    private static final Color LEFT = new Color(.025f, .022f, .045f, .24f);
     private static final Color BOTTOM = new Color(.025f, .022f, .045f, .91f);
-    private static final Color DIM = new Color(.025f, .022f, .045f, .14f);
+    private static final Color DIM = new Color(.025f, .022f, .045f, .18f);
     private static final Color OTHER = new Color(.58f, .30f, .49f, .90f);
     private static final Color OTHER_HOVER = new Color(.73f, .38f, .59f, .96f);
     private static final Color SIBLING = new Color(.25f, .54f, .73f, .92f);
@@ -42,8 +42,8 @@ public final class SongSelectScreen extends ScreenAdapter {
     private static final Color BACK_PINK = new Color(.83f, .28f, .55f, 1f);
 
     private static final class Metrics {
-        static final float HEADER_HEIGHT = 70;
-        static final float TOOLBAR_HEIGHT = 44;
+        static final float HEADER_HEIGHT = 62;
+        static final float TOOLBAR_HEIGHT = 38;
         static final float SELECTED_X = .49f;
         static final float SIBLING_X = .585f;
         static final float OTHER_X = .665f;
@@ -56,6 +56,10 @@ public final class SongSelectScreen extends ScreenAdapter {
         static final float BACK_WIDTH = 110;
         static final float IMPORT_X = 116;
         static final float IMPORT_WIDTH = 170;
+        static final float ROW_TITLE_SCALE = .84f;
+        static final float ROW_DETAIL_SCALE = .66f;
+        static final float ROW_MODE_SCALE = .62f;
+        static final float COOKIE_TEXT_SCALE = .68f;
     }
 
     private final OsuJavaGame game;
@@ -149,7 +153,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         visibleRows = layoutRows(layout, delta);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
-            if (px >= searchX && px <= searchX + searchW && py >= top + 5 && py <= top + 37) searchActive = true;
+            if (px >= searchX && px <= searchX + searchW && py >= top + 4 && py <= top + 29) searchActive = true;
             else if (py < bottom && px < Metrics.BACK_WIDTH) { goBack(); return; }
             else if (py < bottom && px >= Metrics.IMPORT_X && px < Metrics.IMPORT_X + Metrics.IMPORT_WIDTH) { requestImport(); }
             else if (selectedDifficulty() != null && playCookie.hit(px, py)) { playSelected(); return; }
@@ -158,7 +162,7 @@ public final class SongSelectScreen extends ScreenAdapter {
 
         view.clear();
         backgroundFade = Math.min(1, backgroundFade + Math.max(0, delta) / .22f);
-        view.background(thumbnails.get(backgroundPath), .82f * backgroundFade);
+        view.background(thumbnails.get(backgroundPath), .72f * backgroundFade);
         view.beginShapes();
         view.box(0, 0, layout.width(), layout.height(), 0, DIM);
         view.box(0, top, layout.width(), layout.height() - top, 0, TOP);
@@ -166,7 +170,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.box(0, 0, layout.width(), bottom, 0, BOTTOM);
         view.box(0, 0, Metrics.BACK_WIDTH, bottom, 0, BACK_PINK);
         view.box(Metrics.IMPORT_X, 0, Metrics.IMPORT_WIDTH, bottom, 0, OTHER);
-        view.box(searchX, top + 5, searchW, 32, 0, searchActive ? SIBLING : LEFT);
+        view.box(searchX, top + 4, searchW, 25, 0, searchActive ? SIBLING : LEFT);
         drawRowShapes(layout, px, py);
         if (selectedDifficulty() != null) {
             playCookie.drawShape(view, seconds, playCookie.hit(px, py), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
@@ -178,14 +182,13 @@ public final class SongSelectScreen extends ScreenAdapter {
         drawRowText();
         drawMetadata(layout);
         drawRanking(layout);
-        view.textSmooth("LOCAL SETS", layout.width() * .58f, top + 27, 235, UiTheme.META, UiTheme.TEXT);
-        view.textSmooth("Sorted by title", layout.width() * .58f, top + 9, 235, .72f, UiTheme.MUTED);
+        view.textSmooth("LOCAL SETS  ·  TITLE", layout.width() * .58f, top + 11, 235, .72f, UiTheme.TEXT);
         view.textSmooth(search.isEmpty() ? "Search beatmaps" : search + (searchActive ? "|" : ""),
-                searchX + 9, top + 26, searchW - 18, UiTheme.META, search.isEmpty() ? UiTheme.MUTED : UiTheme.TEXT);
-        view.textSmooth("‹  back", 12, 14, 96, UiTheme.BODY, UiTheme.TEXT);
-        view.textSmooth("Import .osz / .osu", 126, 14, 151, UiTheme.META, UiTheme.TEXT);
-        view.textSmooth(sets.size() + " local sets", 305, 16, 250, UiTheme.META, UiTheme.MUTED);
-        if (selectedDifficulty() != null) playCookie.drawText(view);
+                searchX + 9, top + 11, searchW - 18, .75f, search.isEmpty() ? UiTheme.MUTED : UiTheme.TEXT);
+        view.textSmooth("‹  back", 12, 11, 96, 1.0f, UiTheme.TEXT);
+        view.textSmooth("Import .osz / .osu", 126, 11, 151, .75f, UiTheme.TEXT);
+        view.textSmooth(sets.size() + " local sets", 305, 11, 250, .72f, UiTheme.MUTED);
+        if (selectedDifficulty() != null) playCookie.drawText(view, Metrics.COOKIE_TEXT_SCALE);
         if (toastSeconds > 0) view.textSmooth(toast, 27, bottom + 34, Math.min(430, layout.width() * .4f), UiTheme.META, toastColor);
         view.endText();
         toastSeconds = Math.max(0, toastSeconds - Math.max(0, delta));
@@ -265,12 +268,12 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private void drawThumbnail(Row row) {
-            BeatmapSet set = sets.get(row.setIndex());
-            BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : set.difficulties().get(0);
-            Path path = diff.backgroundPath() != null ? diff.backgroundPath() : set.backgroundPath();
-            Texture texture = thumbnails.get(path);
-            view.imageCover(texture, row.x() + Metrics.THUMB_X, row.y() + Metrics.THUMB_Y,
-                    Metrics.THUMB_WIDTH, Metrics.THUMB_HEIGHT);
+        BeatmapSet set = sets.get(row.setIndex());
+        BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : set.difficulties().get(0);
+        Path path = diff.backgroundPath() != null ? diff.backgroundPath() : set.backgroundPath();
+        Texture texture = thumbnails.get(path);
+        view.imageCover(texture, row.x() + Metrics.THUMB_X, row.y() + Metrics.THUMB_Y,
+                Metrics.THUMB_WIDTH, Metrics.THUMB_HEIGHT);
     }
 
     private void drawRowText() {
@@ -289,13 +292,13 @@ public final class SongSelectScreen extends ScreenAdapter {
         Color primary = row.selected() ? DARK_TEXT : UiTheme.TEXT;
         Color secondary = row.selected() ? DARK_TEXT : UiTheme.MUTED;
         float x = row.x() + 118, w = Math.max(60, row.width() - 136);
-        view.textSmooth(set.artist() + " - " + set.title(), x, row.y() + 48, w, .94f, primary);
+        view.textSmooth(set.artist() + " - " + set.title(), x, row.y() + 50, w, Metrics.ROW_TITLE_SCALE, primary);
         view.textSmooth(diff == null ? set.creator() + "  ·  " + set.difficulties().size() + " difficulties"
                         : "[" + diff.version() + "]  mapped by " + set.creator(),
-                x, row.y() + 27, w, .73f, secondary);
+                x, row.y() + 30, w, Metrics.ROW_DETAIL_SCALE, secondary);
         if (diff != null) view.textSmooth(modeName(diff.mode()) + (row.selected()
                         ? "  ·  " + (row.difficultyIndex() + 1) + "/" + set.difficulties().size() : ""),
-                x, row.y() + 11, w, .72f, secondary);
+                x, row.y() + 13, w, Metrics.ROW_MODE_SCALE, secondary);
     }
 
     private void drawMetadata(UiLayout layout) {
@@ -307,26 +310,26 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
         float w = layout.width() * .55f - 28;
         view.textSmooth(set.artist() + " - " + set.title() + " [" + diff.version() + "]",
-                21, layout.height() - 23, w, 1.24f, UiTheme.TEXT);
-        view.textSmooth("Mapped by " + set.creator(), 22, layout.height() - 45, w, UiTheme.META, UiTheme.TEXT);
+                18, layout.height() - 14, w, .94f, UiTheme.TEXT);
+        view.textSmooth("Mapped by " + set.creator(), 19, layout.height() - 29, w, .69f, UiTheme.TEXT);
         long circles = diff.hitObjects().stream().filter(o -> o.type() == HitObject.Type.CIRCLE).count();
         long sliders = diff.hitObjects().stream().filter(o -> o.type() == HitObject.Type.SLIDER).count();
         long spinners = diff.hitObjects().stream().filter(o -> o.type() == HitObject.Type.SPINNER).count();
         long lastMs = diff.hitObjects().stream().mapToLong(o -> (long) o.endTimeMs()).max().orElse(0);
         String bpm = bpmText(diff);
         view.textSmooth("Map end " + formatTime(lastMs) + "    BPM " + bpm + "    Objects " + diff.hitObjects().size(),
-                22, layout.height() - 64, w, UiTheme.META, UiTheme.TEXT);
+                19, layout.height() - 43, w, .66f, UiTheme.TEXT);
         view.textSmooth("Circles " + circles + "   Sliders " + sliders + "   Spinners " + spinners
                         + "    OD " + oneDecimal(diff.settings().overallDifficulty())
                         + "   AR " + oneDecimal(diff.settings().approachRate())
                         + "   CS " + oneDecimal(diff.settings().circleSize())
                         + "   HP " + oneDecimal(diff.settings().hpDrainRate()),
-                22, layout.height() - 81, w, .74f, UiTheme.MUTED);
+                19, layout.height() - 57, w, .62f, UiTheme.MUTED);
     }
 
     private void drawRanking(UiLayout layout) {
-        view.textSmooth("LOCAL SCORES", 22, top - 34, layout.width() * .29f, UiTheme.BODY, UiTheme.TEXT);
-        view.textSmooth("No local scores", 22, top - 71, layout.width() * .29f, UiTheme.META, UiTheme.MUTED);
+        view.textSmooth("LOCAL SCORES", 19, top - 25, layout.width() * .29f, .96f, UiTheme.TEXT);
+        view.textSmooth("No local scores", 19, top - 54, layout.width() * .29f, .72f, UiTheme.MUTED);
         BeatmapDifficulty diff = selectedDifficulty();
         if (diff != null && !game.osuRuleset().supportsMode(diff.mode()))
             view.textSmooth("This mode cannot be played yet", 22, bottom + 25, layout.width() * .31f - 20, UiTheme.META, UiTheme.ERROR);

@@ -31,8 +31,10 @@ final class OsuCookie {
         view.circle(x - r * .22f, y + r * .25f, r * .33f, SHEEN);
     }
 
-    void drawText(UiView view) {
-        view.textSmooth("osu!", x - radius, y - radius * .13f, radius * 2, radius / 23f,
+    void drawText(UiView view) { drawText(view, 1f); }
+
+    void drawText(UiView view, float scale) {
+        view.textSmooth("osu!", x - radius, y - radius * .13f, radius * 2, radius / 23f * scale,
                 Color.WHITE, Align.center);
     }
 }
