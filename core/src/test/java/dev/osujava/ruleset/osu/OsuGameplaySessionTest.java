@@ -4,6 +4,7 @@ import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.DifficultySettings;
 import dev.osujava.beatmap.HitObject;
 import dev.osujava.beatmap.BeatmapPoint;
+import dev.osujava.beatmap.SpinnerData;
 import dev.osujava.gameplay.GameClock;
 import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.Judgement;
@@ -18,6 +19,110 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OsuGameplaySessionTest {
+    @Test
+    void tracksHeldSpinnerRotationAndJudgesItAtItsEndTime() {
+        ManualClock clock = new ManualClock();
+        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(spinnerObject(1000, 4000)), 0), clock,
+                new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+
+        clock.set(1000);
+        rotateClockwise(session, clock, 16, 1000);
+        clock.set(2500);
+        GameplayState progress = session.update();
+        assertEquals(1, progress.spinners().getFirst().progress(), 1e-6);
+        assertFalse(progress.completed(), "The spinner remains active until its end time");
+
+        clock.set(4000);
+        GameplayState completed = session.update();
+        assertTrue(completed.completed());
+        assertEquals(Judgement.HIT300, completed.spinners().getFirst().judgement());
+        assertEquals(1, completed.score().count300());
+        assertEquals(340, completed.score().score(), "Four spin ticks add 40 score without accuracy weight");
+        assertEquals(1, completed.score().accuracy(), 1e-6);
+    }
+
+    @Test
+    void givesPartialJudgementAboveThreeQuarterProgressAndMissAtThreeQuarterProgress() {
+        ManualClock partialClock = new ManualClock();
+        OsuGameplaySession partial = new OsuGameplaySession(difficulty(List.of(spinnerObject(1000, 4000)), 0), partialClock,
+                new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+        partialClock.set(1000);
+        rotateClockwise(partial, partialClock, 14, 1000);
+        partialClock.set(4000);
+        GameplayState partialResult = partial.update();
+        assertEquals(Judgement.HIT50, partialResult.spinners().getFirst().judgement());
+        assertEquals(1, partialResult.score().count50());
+        assertEquals(0, partialResult.score().misses());
+        assertEquals(1.0 / 6, partialResult.score().accuracy(), 1e-6);
+        assertEquals(80, partialResult.score().score());
+
+        ManualClock missClock = new ManualClock();
+        OsuGameplaySession miss = new OsuGameplaySession(difficulty(List.of(spinnerObject(1000, 4000)), 0), missClock,
+                new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+        missClock.set(1000);
+        rotateClockwise(miss, missClock, 12, 1000);
+        missClock.set(4000);
+        GameplayState missed = miss.update();
+        assertEquals(Judgement.MISS, missed.spinners().getFirst().judgement());
+        assertEquals(1, missed.score().misses());
+        assertEquals(0, missed.score().accuracy());
+        assertEquals(30, missed.score().score(), "Only the three completed small spin ticks score");
+    }
+
+    @Test
+    void spinnerTickBonusScoreDoesNotChangeAccuracyAndNextObjectStillWorksAfterCleanup() {
+        ManualClock clock = new ManualClock();
+        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(
+                spinnerObject(1000, 4000), object(256, 192, 4500, 1)), 0), clock,
+                new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+
+        clock.set(1000);
+        rotateClockwise(session, clock, 16, 1000);
+        clock.set(4000);
+        session.update();
+        clock.set(4151);
+        GameplayState cleaned = session.update();
+        assertTrue(cleaned.spinners().isEmpty());
+        assertFalse(cleaned.completed());
+
+        clock.set(4500);
+        session.click(256, 192);
+        assertTrue(session.state().completed());
+        assertEquals(2, session.state().score().count300());
+        assertEquals(1, session.state().score().accuracy(), 1e-6);
+    }
+
+    @Test
+    void awardsLargeBonusScoreOnlyAfterRequiredSpinsAndBonusGap() {
+        ManualClock clock = new ManualClock();
+        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(spinnerObject(1000, 4000)), 0), clock,
+                new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+
+        clock.set(1000);
+        rotateClockwise(session, clock, 28, 1000);
+        clock.set(4000);
+        GameplayState result = session.update();
+
+        assertEquals(1, result.score().count300());
+        assertEquals(7, result.spinners().getFirst().completedSpins());
+        assertEquals(410, result.score().score(), "Six small ticks and one large bonus tick are awarded");
+        assertEquals(1, result.score().accuracy(), 1e-6);
+    }
+
+    @Test
+    void spinnerRotationRequiresOneOfTheExistingHitInputsToBeHeld() {
+        ManualClock clock = new ManualClock();
+        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(spinnerObject(1000, 4000)), 0), clock,
+                new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+
+        clock.set(1000);
+        moveAround(session, clock, 16, 1000);
+        clock.set(4000);
+        GameplayState state = session.update();
+        assertEquals(Judgement.MISS, state.spinners().getFirst().judgement());
+        assertEquals(0, state.score().score());
+    }
+
     @Test
     void judgesClicksByClockOffsetAndIgnoresUnsupportedHitObjects() {
         ManualClock clock = new ManualClock();
@@ -210,8 +315,12 @@ class OsuGameplaySessionTest {
     }
 
     private BeatmapDifficulty difficulty(List<HitObject> objects) {
+        return difficulty(objects, 5);
+    }
+
+    private BeatmapDifficulty difficulty(List<HitObject> objects, double overallDifficulty) {
         return new BeatmapDifficulty("Song", "Artist", "Creator", "Normal", 0, "", "",
-                new DifficultySettings(5, 5, 5, 5, 1.4, 1), List.of(), objects, null, null);
+                new DifficultySettings(5, 5, overallDifficulty, 5, 1.4, 1), List.of(), objects, null, null);
     }
 
     private HitObject object(double x, double y, long time, int type) {
@@ -222,6 +331,28 @@ class OsuGameplaySessionTest {
         return new HitObject(x, y, time, HitObject.Type.SLIDER, 2, 0,
                 new SliderData(List.of(new SliderData.Segment(SliderData.CurveType.LINEAR, 0,
                         List.of(new BeatmapPoint(x, y), new BeatmapPoint(x + length, y)))), slides - 1, length));
+    }
+
+    private HitObject spinnerObject(long startTime, double endTime) {
+        return new HitObject(256, 192, startTime, HitObject.Type.SPINNER, 8, 0, null, new SpinnerData(endTime));
+    }
+
+    private void rotateClockwise(OsuGameplaySession session, ManualClock clock, int quarterTurns, long startTime) {
+        session.click(336, 192);
+        for (int step = 1; step <= quarterTurns; step++) {
+            clock.set(startTime + step * 100);
+            double angle = Math.toRadians(step * 90.0);
+            session.pointerMoved(256 + Math.cos(angle) * 80, 192 + Math.sin(angle) * 80);
+        }
+    }
+
+    private void moveAround(OsuGameplaySession session, ManualClock clock, int quarterTurns, long startTime) {
+        session.pointerMoved(336, 192);
+        for (int step = 1; step <= quarterTurns; step++) {
+            clock.set(startTime + step * 100);
+            double angle = Math.toRadians(step * 90.0);
+            session.pointerMoved(256 + Math.cos(angle) * 80, 192 + Math.sin(angle) * 80);
+        }
     }
 
     private static final class ManualClock implements GameClock {

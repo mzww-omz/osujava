@@ -6,6 +6,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ScoreTrackerTest {
     @Test
+    void bonusScoreDoesNotAffectAccuracyCountsOrCombo() {
+        ScoreTracker tracker = new ScoreTracker();
+        tracker.record(Judgement.HIT300);
+        tracker.recordBonusScore(60);
+
+        ScoreState result = tracker.snapshot();
+        assertEquals(360, result.score());
+        assertEquals(1, result.combo());
+        assertEquals(1, result.count300());
+        assertEquals(1, result.accuracy());
+    }
+
+    @Test
     void calculatesScoreAccuracyCountsAndCombo() {
         ScoreTracker tracker = new ScoreTracker();
         tracker.record(Judgement.HIT300);
