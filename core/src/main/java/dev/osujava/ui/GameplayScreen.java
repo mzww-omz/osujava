@@ -81,7 +81,8 @@ public final class GameplayScreen extends ScreenAdapter {
         this.clock = selectedClock;
         this.notice = audioNotice;
         this.session = game.osuRuleset().createSession(difficulty, clock);
-        this.input = new GameplayInputProcessor(session, () -> game.navigate(new SongSelectScreen(game)));
+        this.input = new GameplayInputProcessor(session, () -> game.navigate(
+                new SongSelectScreen(game, set.id(), set.difficulties().indexOf(difficulty))));
         this.background = loadBackground(difficulty.backgroundPath() != null ? difficulty.backgroundPath() : set.backgroundPath());
     }
 

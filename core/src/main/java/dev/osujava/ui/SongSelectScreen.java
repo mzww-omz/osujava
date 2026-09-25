@@ -40,10 +40,21 @@ public final class SongSelectScreen extends ScreenAdapter {
     private float toastSeconds;
     private float listX, listW, listTop, listBottom, heroX, heroW;
 
-    public SongSelectScreen(OsuJavaGame game) {
+    public SongSelectScreen(OsuJavaGame game) { this(game, null, 0); }
+
+    public SongSelectScreen(OsuJavaGame game, String preferredSetId, int preferredDifficulty) {
         this.game = game;
         view = new UiView(game);
         sets = game.library().all();
+        if (preferredSetId != null) {
+            for (int i = 0; i < sets.size(); i++) {
+                if (sets.get(i).id().equals(preferredSetId)) {
+                    selectedSetIndex = i;
+                    selectedDifficultyIndex = Math.max(0, Math.min(preferredDifficulty, sets.get(i).difficulties().size() - 1));
+                    break;
+                }
+            }
+        }
     }
 
     @Override public void show() {
@@ -90,7 +101,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.box(0, 0, layout.width(), 78, 0, UiTheme.SURFACE);
         view.box(heroX, 108, heroW, layout.height() - 220, UiTheme.RADIUS, UiTheme.SURFACE);
         view.box(listX, listBottom - 10, listW, listTop - listBottom + 42, UiTheme.RADIUS, UiTheme.SURFACE);
-        drawRowsShape(layout, delta);
+        drawRowsShape(layout);
         back.drawShape(view, layout, delta);
         importButton.drawShape(view, layout, delta);
         play.drawShape(view, layout, delta);
@@ -100,7 +111,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.text("SONG SELECT", layout.contentX() + 4, layout.height() - 29, 330, UiTheme.HEADING, UiTheme.TEXT);
         view.text(sets.size() + " LOCAL SETS", listX, layout.height() - 38, listW - 12, UiTheme.META, UiTheme.MUTED, Align.right);
         drawHeroText(layout);
-        drawRowsText(layout);
+        drawRowsText();
         back.drawText(view); importButton.drawText(view); play.drawText(view);
         if (toastSeconds > 0) view.text(toast, heroX + 26, 120, Math.min(heroW - 52, 432), UiTheme.META, toastColor);
         view.endText();
@@ -135,7 +146,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         return Math.max(0, selectedDifficultyIndex - 3);
     }
 
-    private void drawRowsShape(UiLayout layout, float delta) {
+    private void drawRowsShape(UiLayout layout) {
         float y = listTop;
         for (int i = visibleStart(); i < sets.size(); i++) {
             float h = rowHeight(i);
@@ -162,7 +173,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
-    private void drawRowsText(UiLayout layout) {
+    private void drawRowsText() {
         float y = listTop;
         if (sets.isEmpty()) {
             view.text("YOUR LIBRARY IS EMPTY", listX + 28, y - 44, listW - 56, UiTheme.TITLE, UiTheme.TEXT);

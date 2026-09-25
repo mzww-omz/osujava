@@ -21,6 +21,9 @@ import dev.osujava.ui.theme.UiView;
 import java.util.Locale;
 
 public final class ResultsScreen extends ScreenAdapter {
+    private static final String[] JUDGEMENT_LABELS = {"300", "100", "50", "MISS"};
+    private final String scoreText;
+    private final String accuracyText;
     private final OsuJavaGame game;
     private final BeatmapSet set;
     private final BeatmapDifficulty difficulty;
@@ -35,6 +38,8 @@ public final class ResultsScreen extends ScreenAdapter {
     public ResultsScreen(OsuJavaGame game, BeatmapSet set, BeatmapDifficulty difficulty, ScoreState score) {
         this.game = game; this.set = set; this.difficulty = difficulty; this.score = score;
         view = new UiView(game);
+        scoreText = String.format(Locale.ROOT, "%,d", score.score());
+        accuracyText = String.format(Locale.ROOT, "%.2f%%", score.accuracy() * 100);
     }
 
     @Override public void show() {
@@ -88,21 +93,24 @@ public final class ResultsScreen extends ScreenAdapter {
         view.text(set.artist() + "  ·  mapped by " + set.creator(), x + 28, top - 61,
                 w - 56, UiTheme.META, UiTheme.MUTED);
         view.text("SCORE", x + 30, top - 120, 230, UiTheme.META, UiTheme.MUTED);
-        view.text(String.format(Locale.ROOT, "%,d", score.score()), x + 26, top - 183,
+        view.text(scoreText, x + 26, top - 183,
                 w * 0.62f, UiTheme.SCORE, UiTheme.TEXT);
         float rightX = x + w * 0.67f;
         view.text("ACCURACY", rightX, top - 115, w * 0.28f, UiTheme.META, UiTheme.MUTED);
-        view.text(String.format(Locale.ROOT, "%.2f%%", score.accuracy() * 100), rightX, top - 153,
+        view.text(accuracyText, rightX, top - 153,
                 w * 0.29f, UiTheme.TITLE, UiTheme.ACCENT);
         view.text("MAX COMBO", rightX, top - 202, w * 0.28f, UiTheme.META, UiTheme.MUTED);
         view.text(score.maxCombo() + "x", rightX, top - 240, w * 0.28f, UiTheme.TITLE, UiTheme.TEXT);
-        String[] labels = {"300", "100", "50", "MISS"};
-        int[] values = {score.count300(), score.count100(), score.count50(), score.misses()};
         for (int i = 0; i < 4; i++) {
             float sx = innerX + i * (statW + statGap);
-            view.text(labels[i], sx + 14, statsY + 68, statW - 28, UiTheme.META,
+            view.text(JUDGEMENT_LABELS[i], sx + 14, statsY + 68, statW - 28, UiTheme.META,
                     i == 3 ? UiTheme.ERROR : UiTheme.MUTED);
-            view.text(Integer.toString(values[i]), sx + 14, statsY + 34, statW - 28, UiTheme.TITLE,
+            view.text(Integer.toString(switch (i) {
+                case 0 -> score.count300();
+                case 1 -> score.count100();
+                case 2 -> score.count50();
+                default -> score.misses();
+            }), sx + 14, statsY + 34, statW - 28, UiTheme.TITLE,
                     UiTheme.TEXT, Align.left);
         }
         retry.drawText(view); songs.drawText(view);
@@ -113,5 +121,5 @@ public final class ResultsScreen extends ScreenAdapter {
 
     @Override public void dispose() { backdrop.close(); }
     private void goRetry() { outgoing.request(() -> game.navigate(new GameplayScreen(game, set, difficulty))); }
-    private void goSongs() { outgoing.request(() -> game.navigate(new SongSelectScreen(game))); }
+    private void goSongs() { outgoing.request(() -> game.navigate(new SongSelectScreen(game, set.id(), set.difficulties().indexOf(difficulty)))); }
 }
