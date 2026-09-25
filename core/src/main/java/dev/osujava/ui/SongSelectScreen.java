@@ -155,7 +155,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         game.font().getData().setScale(1.7f);
         game.font().draw(batch, "Play", playX + playW / 2 - 31, playY + playH / 2 + 9);
         game.font().getData().setScale(1.35f);
-        game.font().draw(batch, "SONG SELECT", leftX, height - 40);
+        game.font().draw(batch, "SONG SELECT", backX + backW + 28, height - 40);
         game.font().setColor(new Color(0.78f, 0.76f, 0.84f, 1));
         game.font().getData().setScale(0.85f);
         game.font().draw(batch, "BEATMAP SETS", leftX + 15, rowTop + 15);
