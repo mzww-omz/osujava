@@ -41,6 +41,23 @@ public final class SongSelectScreen extends ScreenAdapter {
     private static final Color THUMB_FALLBACK = new Color(.23f, .20f, .31f, 1f);
     private static final Color BACK_PINK = new Color(.83f, .28f, .55f, 1f);
 
+    private static final class Metrics {
+        static final float HEADER_HEIGHT = 70;
+        static final float TOOLBAR_HEIGHT = 44;
+        static final float SELECTED_X = .49f;
+        static final float SIBLING_X = .585f;
+        static final float OTHER_X = .665f;
+        static final float ROW_HEIGHT = 76;
+        static final float ROW_STEP = 72;
+        static final float THUMB_X = 9;
+        static final float THUMB_Y = 3;
+        static final float THUMB_WIDTH = 96;
+        static final float THUMB_HEIGHT = 70;
+        static final float BACK_WIDTH = 110;
+        static final float IMPORT_X = 116;
+        static final float IMPORT_WIDTH = 170;
+    }
+
     private final OsuJavaGame game;
     private final UiView view;
     private final UiTransition entrance = new UiTransition();
@@ -133,8 +150,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             if (px >= searchX && px <= searchX + searchW && py >= top + 5 && py <= top + 37) searchActive = true;
-            else if (py < bottom && px < 114) { goBack(); return; }
-            else if (py < bottom && px >= 127 && px < 290) { requestImport(); }
+            else if (py < bottom && px < Metrics.BACK_WIDTH) { goBack(); return; }
+            else if (py < bottom && px >= Metrics.IMPORT_X && px < Metrics.IMPORT_X + Metrics.IMPORT_WIDTH) { requestImport(); }
             else if (selectedDifficulty() != null && playCookie.hit(px, py)) { playSelected(); return; }
             else { searchActive = false; handleRowClick(px, py); }
         }
@@ -147,8 +164,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.box(0, top, layout.width(), layout.height() - top, 0, TOP);
         view.box(0, bottom, layout.width() * .32f, top - bottom, 0, LEFT);
         view.box(0, 0, layout.width(), bottom, 0, BOTTOM);
-        view.box(0, 0, 113, 45, 0, BACK_PINK);
-        view.box(126, 0, 165, 45, 0, OTHER);
+        view.box(0, 0, Metrics.BACK_WIDTH, bottom, 0, BACK_PINK);
+        view.box(Metrics.IMPORT_X, 0, Metrics.IMPORT_WIDTH, bottom, 0, OTHER);
         view.box(searchX, top + 5, searchW, 32, 0, searchActive ? SIBLING : LEFT);
         drawRowShapes(layout, px, py);
         if (selectedDifficulty() != null) {
@@ -165,9 +182,9 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.textSmooth("Sorted by title", layout.width() * .58f, top + 9, 235, .72f, UiTheme.MUTED);
         view.textSmooth(search.isEmpty() ? "Search beatmaps" : search + (searchActive ? "|" : ""),
                 searchX + 9, top + 26, searchW - 18, UiTheme.META, search.isEmpty() ? UiTheme.MUTED : UiTheme.TEXT);
-        view.textSmooth("‹  back", 14, 16, 96, UiTheme.BODY, UiTheme.TEXT);
-        view.textSmooth("Import .osz / .osu", 136, 16, 151, UiTheme.META, UiTheme.TEXT);
-        view.textSmooth(sets.size() + " local sets", 312, 26, 250, UiTheme.META, UiTheme.MUTED);
+        view.textSmooth("‹  back", 12, 14, 96, UiTheme.BODY, UiTheme.TEXT);
+        view.textSmooth("Import .osz / .osu", 126, 14, 151, UiTheme.META, UiTheme.TEXT);
+        view.textSmooth(sets.size() + " local sets", 305, 16, 250, UiTheme.META, UiTheme.MUTED);
         if (selectedDifficulty() != null) playCookie.drawText(view);
         if (toastSeconds > 0) view.textSmooth(toast, 27, bottom + 34, Math.min(430, layout.width() * .4f), UiTheme.META, toastColor);
         view.endText();
@@ -179,8 +196,8 @@ public final class SongSelectScreen extends ScreenAdapter {
     @Override public void dispose() { closed = true; thumbnails.close(); }
 
     private void calculateLayout(UiLayout layout) {
-        bottom = 84;
-        top = layout.height() - 93;
+        bottom = Metrics.TOOLBAR_HEIGHT;
+        top = layout.height() - Metrics.HEADER_HEIGHT;
         searchW = Math.min(210, layout.width() * .19f);
         searchX = layout.width() - searchW - 16;
         cookieRadius = Math.min(70, layout.height() * .10f);
@@ -207,21 +224,22 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
         List<Row> result = new ArrayList<>();
         float centerY = bottom + (top - bottom) * .49f;
-        float right = layout.width() - 9;
+        float right = layout.width() + 2;
         for (int i = 0; i < entries.size(); i++) {
             int setIndex = entries.get(i)[0], diffIndex = entries.get(i)[1];
             boolean selected = setIndex == selectedSetIndex && diffIndex == selectedDifficultyIndex;
             boolean sibling = setIndex == selectedSetIndex && !selected;
-            float targetX = layout.width() * (selected ? .555f : sibling ? .615f : .665f);
-            float targetY = centerY + (selectedEntry - i) * 73;
+            float targetX = layout.width() * (selected ? Metrics.SELECTED_X : sibling ? Metrics.SIBLING_X : Metrics.OTHER_X);
+            float targetY = centerY + (selectedEntry - i) * Metrics.ROW_STEP;
             float width = right - targetX;
             String key = rowKey(setIndex, diffIndex);
             RowMotion motion = motions.computeIfAbsent(key, unused -> new RowMotion(targetX + 28, targetY));
             float factor = Math.min(1, Math.max(0, delta) * 14);
             motion.x += (targetX - motion.x) * factor;
             motion.y += (targetY - motion.y) * factor;
-            if (motion.y + 69 < bottom || motion.y > top) continue;
-            result.add(new Row(setIndex, diffIndex, selected, sibling, motion.x, motion.y, width + targetX - motion.x, 68));
+            if (motion.y + Metrics.ROW_HEIGHT < bottom || motion.y > top) continue;
+            result.add(new Row(setIndex, diffIndex, selected, sibling, motion.x, motion.y,
+                    width + targetX - motion.x, Metrics.ROW_HEIGHT));
         }
         return result;
     }
@@ -237,18 +255,22 @@ public final class SongSelectScreen extends ScreenAdapter {
         Color color = row.selected() ? SELECTED : row.sibling()
                 ? hover ? SIBLING_HOVER : SIBLING : hover ? OTHER_HOVER : OTHER;
         float x = row.x() - (hover && !row.selected() ? 7 : 0), y = row.y();
-        view.quad(x, y, x + row.width() - 9, y, x + row.width(), y + row.height(), x + 11, y + row.height(), color);
-        view.box(x + 9, y + 4, 82, row.height() - 8, 0, THUMB_FALLBACK);
+        view.quad(x, y, x + row.width(), y, x + row.width(), y + row.height(), x + 9, y + row.height(), color);
+        view.box(x + Metrics.THUMB_X, y + Metrics.THUMB_Y, Metrics.THUMB_WIDTH, Metrics.THUMB_HEIGHT, 0, THUMB_FALLBACK);
     }
 
     private void drawThumbnails() {
-        for (Row row : visibleRows) {
+        for (Row row : visibleRows) if (!row.selected()) drawThumbnail(row);
+        for (Row row : visibleRows) if (row.selected()) drawThumbnail(row);
+    }
+
+    private void drawThumbnail(Row row) {
             BeatmapSet set = sets.get(row.setIndex());
             BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : set.difficulties().get(0);
             Path path = diff.backgroundPath() != null ? diff.backgroundPath() : set.backgroundPath();
             Texture texture = thumbnails.get(path);
-            view.imageCover(texture, row.x() + 9, row.y() + 4, 82, row.height() - 8);
-        }
+            view.imageCover(texture, row.x() + Metrics.THUMB_X, row.y() + Metrics.THUMB_Y,
+                    Metrics.THUMB_WIDTH, Metrics.THUMB_HEIGHT);
     }
 
     private void drawRowText() {
@@ -266,7 +288,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : null;
         Color primary = row.selected() ? DARK_TEXT : UiTheme.TEXT;
         Color secondary = row.selected() ? DARK_TEXT : UiTheme.MUTED;
-        float x = row.x() + 104, w = Math.max(60, row.width() - 122);
+        float x = row.x() + 118, w = Math.max(60, row.width() - 136);
         view.textSmooth(set.artist() + " - " + set.title(), x, row.y() + 48, w, .94f, primary);
         view.textSmooth(diff == null ? set.creator() + "  ·  " + set.difficulties().size() + " difficulties"
                         : "[" + diff.version() + "]  mapped by " + set.creator(),
