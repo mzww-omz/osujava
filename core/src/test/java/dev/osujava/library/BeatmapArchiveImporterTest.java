@@ -123,6 +123,29 @@ class BeatmapArchiveImporterTest {
         assertEquals(1, result.warnings().size());
     }
 
+    @Test
+    void reimportingTheSameSetReplacesItsStorageWithoutCreatingAnotherDirectory() throws Exception {
+        Path archive = tempDir.resolve("same-set.osz");
+        String firstChart = beatmap("Normal", 0, "", "")
+                .replace("Creator: Mapper", "Creator: Mapper\nBeatmapSetID: 2468");
+        writeZip(archive, List.of(entry("chart.osu", firstChart)));
+        Path libraryRoot = tempDir.resolve("library");
+        BeatmapArchiveImporter importer = new BeatmapArchiveImporter(libraryRoot);
+
+        ImportResult first = importer.importFile(archive);
+        String updatedChart = firstChart.replace("256,192,1000,1,0", "256,192,1000,1,0\n128,192,1500,1,0");
+        writeZip(archive, List.of(entry("chart.osu", updatedChart)));
+        ImportResult second = importer.importFile(archive);
+
+        assertEquals("osu-set-2468", first.beatmapSet().id());
+        assertEquals(first.beatmapSet().id(), second.beatmapSet().id());
+        assertEquals(2, second.beatmapSet().difficulties().getFirst().hitObjects().size());
+        assertTrue(Files.exists(second.beatmapSet().difficulties().getFirst().beatmapPath()));
+        try (var entries = Files.list(libraryRoot)) {
+            assertEquals(List.of(second.beatmapSet().id()), entries.map(path -> path.getFileName().toString()).toList());
+        }
+    }
+
     private String beatmap(String version, int mode, String audio, String background) {
         String event = background.isBlank() ? "" : "0,0,\"" + background + "\",0,0\n";
         return """

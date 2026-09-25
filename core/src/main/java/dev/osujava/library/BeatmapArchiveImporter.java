@@ -14,13 +14,16 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.UUID;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -167,7 +170,7 @@ public final class BeatmapArchiveImporter {
         for (Path osuFile : osuFiles) {
             try {
                 BeatmapFile beatmap = parser.parse(osuFile);
-                parsed.add(new ParsedEntry(beatmap,
+                parsed.add(new ParsedEntry(beatmap, staging.relativize(osuFile),
                         safeExistingAsset(staging, osuFile.getParent(), beatmap.difficulty().audioFilename()),
                         safeExistingAsset(staging, osuFile.getParent(), beatmap.difficulty().backgroundFilename())));
             } catch (IOException | BeatmapParseException e) {
@@ -178,20 +181,17 @@ public final class BeatmapArchiveImporter {
             throw new BeatmapImportException("No valid .osu difficulties were found");
         }
 
-        String id = UUID.randomUUID().toString();
+        String id = stableSetId(parsed);
         Path destination = libraryRoot.resolve(id);
-        try {
-            Files.move(staging, destination, StandardCopyOption.ATOMIC_MOVE);
-        } catch (AtomicMoveNotSupportedException e) {
-            Files.move(staging, destination);
-        }
+        replaceStorage(staging, destination, id);
 
         List<BeatmapDifficulty> difficulties = new ArrayList<>();
         for (ParsedEntry item : parsed) {
             BeatmapDifficulty difficulty = item.file().difficulty();
             difficulties.add(difficulty.withAssets(
                     item.audioRelative() == null ? null : destination.resolve(item.audioRelative()),
-                    item.backgroundRelative() == null ? null : destination.resolve(item.backgroundRelative())));
+                    item.backgroundRelative() == null ? null : destination.resolve(item.backgroundRelative()),
+                    destination.resolve(item.beatmapRelative())));
         }
         List<Path> assets;
         try (var paths = Files.walk(destination)) {
@@ -203,6 +203,63 @@ public final class BeatmapArchiveImporter {
         BeatmapSet set = new BeatmapSet(id, first.displayTitle(), first.displayArtist(), first.creator(), audio,
                 background, difficulties, assets);
         return new ImportResult(set, warnings);
+    }
+
+    private String stableSetId(List<ParsedEntry> parsed) {
+        int beatmapSetId = parsed.stream().map(item -> item.file().beatmapSetId())
+                .filter(value -> value > 0).findFirst().orElse(-1);
+        if (beatmapSetId > 0) return "osu-set-" + beatmapSetId;
+
+        BeatmapFile first = parsed.getFirst().file();
+        List<String> difficulties = parsed.stream()
+                .map(item -> item.file().difficulty().mode() + ":" + normalizeIdentity(item.file().difficulty().version()))
+                .sorted()
+                .toList();
+        String identity = String.join("\n", List.of(
+                normalizeIdentity(first.displayTitle()),
+                normalizeIdentity(first.displayArtist()),
+                normalizeIdentity(first.creator()),
+                String.join("\n", difficulties)));
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(identity.getBytes(StandardCharsets.UTF_8));
+            return "local-" + HexFormat.of().formatHex(digest);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 is not available", e);
+        }
+    }
+
+    private String normalizeIdentity(String value) {
+        return Normalizer.normalize(value == null ? "" : value.trim(), Normalizer.Form.NFC)
+                .replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
+
+    private void replaceStorage(Path staging, Path destination, String id) throws IOException {
+        Path backup = null;
+        if (Files.exists(destination)) {
+            backup = libraryRoot.resolve(".replace-" + id + "-" + System.nanoTime());
+            moveDirectory(destination, backup);
+        }
+        try {
+            moveDirectory(staging, destination);
+        } catch (IOException e) {
+            if (backup != null && Files.exists(backup)) {
+                try {
+                    moveDirectory(backup, destination);
+                } catch (IOException restoreError) {
+                    e.addSuppressed(restoreError);
+                }
+            }
+            throw e;
+        }
+        deleteTreeQuietly(backup);
+    }
+
+    private void moveDirectory(Path source, Path destination) throws IOException {
+        try {
+            Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE);
+        } catch (AtomicMoveNotSupportedException e) {
+            Files.move(source, destination);
+        }
     }
 
     private Path safeExistingAsset(Path storageRoot, Path relativeBase, String reference) {
@@ -246,6 +303,6 @@ public final class BeatmapArchiveImporter {
         }
     }
 
-    private record ParsedEntry(BeatmapFile file, Path audioRelative, Path backgroundRelative) {
+    private record ParsedEntry(BeatmapFile file, Path beatmapRelative, Path audioRelative, Path backgroundRelative) {
     }
 }

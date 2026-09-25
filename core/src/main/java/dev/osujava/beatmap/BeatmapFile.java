@@ -9,7 +9,13 @@ public record BeatmapFile(
         String artist,
         String artistUnicode,
         String creator,
+        int beatmapSetId,
         BeatmapDifficulty difficulty) {
+
+    public BeatmapFile(int formatVersion, String title, String titleUnicode, String artist, String artistUnicode,
+                       String creator, BeatmapDifficulty difficulty) {
+        this(formatVersion, title, titleUnicode, artist, artistUnicode, creator, -1, difficulty);
+    }
 
     public BeatmapFile {
         title = Objects.requireNonNullElse(title, "Unknown title");

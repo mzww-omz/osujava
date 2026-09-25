@@ -87,6 +87,20 @@ class BeatmapFileParserTest {
     }
 
     @Test
+    void readsBeatmapSetIdForStableLocalIdentity() throws Exception {
+        BeatmapFile file = parser.parse("""
+                osu file format v14
+                [Metadata]
+                Title: Test
+                BeatmapSetID: 1842
+                [HitObjects]
+                1,2,3,1,0
+                """, "set-id.osu");
+
+        assertEquals(1842, file.beatmapSetId());
+    }
+
+    @Test
     void rejectsFilesWithoutOsuHeader() {
         assertThrows(BeatmapParseException.class, () -> parser.parse("[General]", "bad.osu"));
     }

@@ -59,6 +59,7 @@ public final class BeatmapFileParser {
         String title = value(metadata, "title", "Unknown title");
         String artist = value(metadata, "artist", "Unknown artist");
         String creator = value(metadata, "creator", "Unknown creator");
+        int beatmapSetId = integer(metadata.get("beatmapsetid"), -1);
         String version = value(metadata, "version", "Normal");
         String titleUnicode = blankToNull(value(metadata, "titleunicode", null));
         String artistUnicode = blankToNull(value(metadata, "artistunicode", null));
@@ -78,7 +79,8 @@ public final class BeatmapFileParser {
         List<HitObject> hitObjects = parseHitObjects(objectLines);
         BeatmapDifficulty difficulty = new BeatmapDifficulty(title, artist, creator, version, mode,
                 audioFilename, backgroundFilename, settings, timingPoints, hitObjects, null, null);
-        return new BeatmapFile(formatVersion, title, titleUnicode, artist, artistUnicode, creator, difficulty);
+        return new BeatmapFile(formatVersion, title, titleUnicode, artist, artistUnicode, creator,
+                beatmapSetId, difficulty);
     }
 
     private int readFormatVersion(String text, String sourceName) throws BeatmapParseException {

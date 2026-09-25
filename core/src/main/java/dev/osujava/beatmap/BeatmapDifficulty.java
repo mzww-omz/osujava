@@ -16,7 +16,16 @@ public record BeatmapDifficulty(
         List<TimingPoint> timingPoints,
         List<HitObject> hitObjects,
         Path audioPath,
-        Path backgroundPath) {
+        Path backgroundPath,
+        Path beatmapPath) {
+
+    public BeatmapDifficulty(String title, String artist, String creator, String version, int mode,
+                             String audioFilename, String backgroundFilename, DifficultySettings settings,
+                             List<TimingPoint> timingPoints, List<HitObject> hitObjects,
+                             Path audioPath, Path backgroundPath) {
+        this(title, artist, creator, version, mode, audioFilename, backgroundFilename, settings,
+                timingPoints, hitObjects, audioPath, backgroundPath, null);
+    }
 
     public BeatmapDifficulty {
         title = Objects.requireNonNullElse(title, "Unknown title");
@@ -32,6 +41,11 @@ public record BeatmapDifficulty(
 
     public BeatmapDifficulty withAssets(Path resolvedAudio, Path resolvedBackground) {
         return new BeatmapDifficulty(title, artist, creator, version, mode, audioFilename,
-                backgroundFilename, settings, timingPoints, hitObjects, resolvedAudio, resolvedBackground);
+                backgroundFilename, settings, timingPoints, hitObjects, resolvedAudio, resolvedBackground, beatmapPath);
+    }
+
+    public BeatmapDifficulty withAssets(Path resolvedAudio, Path resolvedBackground, Path resolvedBeatmap) {
+        return new BeatmapDifficulty(title, artist, creator, version, mode, audioFilename,
+                backgroundFilename, settings, timingPoints, hitObjects, resolvedAudio, resolvedBackground, resolvedBeatmap);
     }
 }
