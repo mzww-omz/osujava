@@ -108,7 +108,6 @@ public final class GameplayRenderer {
                 case JUDGEMENT_BELOW -> {
                     sprites(shapes, () -> {
                         judgements.draw(batch, state, viewport, false);
-                        hud.drawJudgementText(batch, state, viewport);
                         hud.drawSpinnerText(batch, state, viewport);
                     });
                 }

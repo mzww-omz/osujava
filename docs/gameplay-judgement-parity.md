@@ -30,8 +30,8 @@
 
 通常resultはusable main画像が存在し、対応するusable particle画像もある場合だけnew style。
 particleがない・壊れている場合はold style。Missはparticle切替しない。
-main画像が欠ける・壊れる場合は、そのresultだけ従来のBitmapFont fallbackへ落とす。
-存在する別resultまでfallbackへ落とさず、同じJudgementにmainとfontを二重描画しない。
+main画像が欠ける・壊れる場合は、そのresultのJudgementは表示しない。2026-09-26の追加指示に従い、従来のBitmapFont判定表示を削除した。
+存在する別resultのSkin画像は引き続き表示する。font Judgementの描画経路自体を削除し、Skinなし・partial Skin・破損PNG・nested eventでも従来表示を出さない。
 
 `SLIDER_TAIL`は既にGameplayが位置・時刻・結果をemitするため、そのeventだけを専用mappingへ接続する。
 headの通常結果は通常mappingのまま。Rendererから追加の結果を生成しない。
@@ -51,7 +51,7 @@ Judgementは `GetAnimation(name, true, false)` なのでframe lengthは `1000 / 
 `applyConfigFrameRate`はfalseで、`AnimationFramerate`やframe数による変更はない。
 frame = floor(age / frame length)、0～末尾へclamp。loopしない。終了後は最後のframeをfade lifetimeまで保持する。
 
-壊れたframe列はresult全体を安全なfont fallbackへ落とす（欠損frameを飛ばさない）。
+壊れたframe列はresult全体を非表示にする（欠損frameを飛ばさない）。
 これは破損入力の安全方針であり、lazerのTextureStoreがnullを返して連番探索を止める処理を厳密に模倣するものではない。
 Skin source stackやdefault skinへのresource探索は既存osujavaにないため追加していない。
 
@@ -112,7 +112,7 @@ seed付きJava Randomで再現性を持たせるため、lazerのglobal RNGと�
 
 | layer | 内容 |
 | --- | --- |
-| Judgement below | new style particles（本体より奥）とmain、従来font fallback |
+| Judgement below | new style particles（本体より奥）とmain、asset不足時は表示なし |
 | HitObjects | 既存object-local順序 |
 | Judgement above | old style全体、new style temporary old、legacy slider point |
 | Approach | 既存approach proxy |
@@ -135,8 +135,7 @@ failed lookupもcacheする。成功frame・particleはidentity ownership setで
 
 - Tick / repeatは判定状態を持つが、専用Judgement visual eventはない。`slidertickmiss` / `sliderpoint30`の結果表示はemitしていない。
 - Slider全体のlazer最終Great/Ok/Meh判定は、現在のhead / nested score構造と異なる。今回scoreや判定計算は変更していない。
-- tail successで`sliderpoint10`がない場合（Version >= 2を含む）は、既存の300 font fallbackを維持する。
-  lazerのdefault nested hitがemptyになる点とは異なる。missing `sliderendmiss`も既存Miss font fallback。
+- tail successで`sliderpoint10`がない場合（Version >= 2を含む）は表示しない。missing `sliderendmiss`も表示しない。
 - randomの範囲・分布・時刻関数を再現し、lazer global RNGのsequence一致は目標にしていない。
 - 同一Skin・同一時刻のlazer側GPU capture比較は実施していない。sourceとの照合とosujava固定clock captureで検証した。
 
@@ -144,7 +143,7 @@ failed lookupもcacheする。成功frame・particleはidentity ownership setで
 
 Unit test: 通常mapping、explicit tail mapping、@2x、static / animated priority・順序・欠番、non-looping末尾、
 fadeと全scale境界、Miss Version差 / rotation target固定、animated transforms省略、new main / temporary、
-particle範囲・再現性、resultごとのold/new/fallback、破損PNG、HUDとのTexture共有・dispose、Gameplayのvisual lifetime。
+particle範囲・再現性、resultごとのold/new/非表示、破損PNG、HUDとのTexture共有・dispose、Gameplayのvisual lifetime。
 
 `./gradlew :core:test --offline`と `./gradlew build --offline` を実行。241 tests成功、失敗0・error0。Gradle build成功。
 固定clock harness:
@@ -153,9 +152,10 @@ particle範囲・再現性、resultごとのold/new/fallback、破損PNG、HUD�
 ./gradlew :lwjgl3:judgementVisualHarness -PjudgementOutput=/tmp/osujava-judgements
 ```
 
-16 scenario × 9時刻（0 / 60 / 120 / 144 / 168 / 500 / 800 / 1100 / 1500ms）= 144 PNG。
+17 scenario × 9時刻（0 / 60 / 120 / 144 / 168 / 500 / 800 / 1100 / 1500ms）= 153 PNG。
 300/100/50/Miss static、Version1 Miss、animated300/Miss、particle300、animated particle300、@2x、Skinなし、
-tail miss/old tail point、partial300/100、壊れた50をcapture。全captureに非重複例とHitObject重複例を併置する。
-各scenarioの1500ms後に60msへseekし、最初の60msとframebuffer全pixelの一致もassertする。16 scenarioすべてで一致を確認した。
+tail miss/old tail point/Version2 tail非表示、partial300/100、壊れた50をcapture。全captureに非重複例とHitObject重複例を併置する。
+各scenarioの1500ms後に60msへseekし、最初の60msとframebuffer全pixelの一致もassertする。17 scenarioすべてで一致を確認した。
+Skinなし・missing100・破損50・Version2 tail hitは、Judgement eventがないsnapshotとframebuffer全pixelが一致することもassertする。
 fixtureはframe番号入り画像、`AnimationFramerate: 2`を設定して無視されることを確認できる。
 生成PNG・Skin fixtureは指定output以下だけに置き、Gitへ含めない。

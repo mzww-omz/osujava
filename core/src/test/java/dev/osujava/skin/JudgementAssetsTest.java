@@ -39,11 +39,11 @@ class JudgementAssetsTest {
         assertEquals(Style.OLD, assets.judgementStyle(Result.MISS));
         Files.delete(dir.resolve("hit300.png"));
         var missing = new OsuSkinAssets(dir, f -> new TestTexture());
-        assertEquals(Style.FALLBACK, missing.judgementStyle(Result.GREAT));
+        assertEquals(Style.NONE, missing.judgementStyle(Result.GREAT));
         assertEquals(Style.NEW, missing.judgementStyle(Result.MEH));
         assets.dispose(); missing.dispose();
     }
-    @Test void brokenAnimationFallsBackOnlyForItsResultAndDoesNotLeak() throws Exception {
+    @Test void brokenAnimationOmitsOnlyItsResultAndDoesNotLeak() throws Exception {
         file("hit300-0"); file("hit300-1"); file("hit300"); file("hit100");
         List<TestTexture> loaded = new ArrayList<>();
         var assets = new OsuSkinAssets(dir, f -> {
@@ -51,7 +51,7 @@ class JudgementAssetsTest {
             assertFalse(f.path().endsWith("hit300.png"));
             var t = new TestTexture(); loaded.add(t); return t;
         });
-        assertEquals(Style.FALLBACK, assets.judgementStyle(Result.GREAT));
+        assertEquals(Style.NONE, assets.judgementStyle(Result.GREAT));
         assertEquals(Style.OLD, assets.judgementStyle(Result.OK));
         assertEquals(2, loaded.size()); assertEquals(1, loaded.getFirst().disposals);
         assets.dispose(); assets.dispose(); assertTrue(loaded.stream().allMatch(t -> t.disposals == 1));
@@ -80,7 +80,7 @@ class JudgementAssetsTest {
             if (f.path().endsWith("hit300-1.png")) throw new GdxRuntimeException("broken");
             return texture;
         });
-        assertEquals(Style.FALLBACK, assets.judgementStyle(Result.GREAT));
+        assertEquals(Style.NONE, assets.judgementStyle(Result.GREAT));
         assertSame(texture, assets.hudGlyph(OsuSkinAssets.HudFont.SCORE, '0').texture());
         assertEquals(0, texture.disposals);
         assertTrue(attempts.values().stream().allMatch(count -> count == 1));
@@ -93,12 +93,12 @@ class JudgementAssetsTest {
         assertEquals(Style.SLIDER_POINT, old.judgementStyle(Result.SLIDER_TAIL_HIT));
         Files.writeString(dir.resolve("skin.ini"), "[General]\nVersion: 2\n");
         var modern = new OsuSkinAssets(dir, f -> new TestTexture());
-        assertEquals(Style.FALLBACK, modern.judgementStyle(Result.SLIDER_TAIL_HIT));
+        assertEquals(Style.NONE, modern.judgementStyle(Result.SLIDER_TAIL_HIT));
         old.dispose(); modern.dispose();
     }
     @Test void noSkinDoesNotLoadAnything() {
         var assets = new OsuSkinAssets(null, f -> { fail("Unexpected load"); return null; });
-        for (Result r : Result.values()) assertEquals(Style.FALLBACK, assets.judgementStyle(r));
+        for (Result r : Result.values()) assertEquals(Style.NONE, assets.judgementStyle(r));
         assets.dispose();
     }
     static class TestTexture extends Texture {

@@ -24,7 +24,7 @@ public final class LegacyJudgementAnimation {
             return from(visual.judgement());
         }
     }
-    public enum Style { FALLBACK, OLD, NEW, SLIDER_POINT }
+    public enum Style { NONE, OLD, NEW, SLIDER_POINT }
     public record Transform(double alpha, double scale, double y, double rotation) { }
     public record Particle(double distance, double duration, double direction) {
         public double progress(double age) { return clamp((age + 100) / duration); }

@@ -15,18 +15,14 @@ import dev.osujava.gameplay.GameplaySkin;
 import dev.osujava.gameplay.GameplaySkinComponent;
 import dev.osujava.gameplay.GameplayVisualTiming;
 import dev.osujava.gameplay.Judgement;
-import dev.osujava.gameplay.JudgementVisual;
 import dev.osujava.gameplay.SpinnerVisual;
 import dev.osujava.skin.HitCircleNumberLayout;
 import dev.osujava.skin.OsuSkinAssets;
 
 import java.util.Locale;
 
-/** HUD text and transient judgement labels, separate from object geometry and scoring. */
+/** HUD text, separate from object geometry and skinned judgement pieces. */
 final class GameplayHudRenderer {
-    private static final double JUDGEMENT_LIFETIME_MS = 680;
-    private static final double JUDGEMENT_FADE_START_MS = 320;
-
     private final OsuJavaGame game;
     private final GameplaySkin visuals;
     private final OsuSkinAssets skinAssets;
@@ -90,42 +86,6 @@ final class GameplayHudRenderer {
                     glyph.width() * scale, glyph.height() * scale);
         }
         batch.setColor(Color.WHITE);
-    }
-
-    void drawJudgementText(SpriteBatch batch, GameplayState state, PlayfieldViewport viewport) {
-        long now = state.currentTimeMs();
-        for (JudgementVisual judgement : state.judgementVisuals()) {
-            if (skinAssets != null && skinAssets.judgement(
-                    dev.osujava.ruleset.osu.render.LegacyJudgementAnimation.Result.from(judgement)) != null) continue;
-            double age = now - judgement.timeMs();
-            if (age < 0 || age > JUDGEMENT_LIFETIME_MS) continue;
-            double fade = GameplayVisualTiming.fadeOutAlpha(now, judgement.timeMs() + JUDGEMENT_FADE_START_MS,
-                    JUDGEMENT_LIFETIME_MS - JUDGEMENT_FADE_START_MS);
-            double pop = 0.72 + 0.28 * GameplayVisualTiming.easeOutQuint(
-                    GameplayVisualTiming.progress(now, judgement.timeMs(), 110));
-            String label = judgementLabel(judgement.judgement());
-            float unit = viewport.toScreenLength(1);
-            float scale = unit * (float) pop * 0.9f;
-            float centerX = viewport.toScreenX(judgement.x());
-            float centerY = viewport.toScreenY(judgement.y()) + viewport.toScreenLength(judgement.radius() * 0.58)
-                    + viewport.toScreenLength(Math.min(14, age * 0.025));
-            float textWidth = measureTextWidth(label, scale);
-            game.font().getData().setScale(scale);
-            game.font().setColor(0.035f, 0.03f, 0.065f, (float) fade * 0.86f);
-            game.font().draw(batch, label, centerX - textWidth * 0.5f + 1.3f, centerY - 1.3f);
-            Color color = visuals.judgementColor(judgement.judgement());
-            game.font().setColor(color.r, color.g, color.b, color.a * (float) fade);
-            game.font().draw(batch, label, centerX - textWidth * 0.5f, centerY);
-        }
-    }
-
-    private String judgementLabel(Judgement judgement) {
-        return switch (judgement) {
-            case HIT300 -> "300";
-            case HIT100 -> "100";
-            case HIT50 -> "50";
-            case MISS -> "MISS";
-        };
     }
 
     void drawSpinnerText(SpriteBatch batch, GameplayState state, PlayfieldViewport viewport) {

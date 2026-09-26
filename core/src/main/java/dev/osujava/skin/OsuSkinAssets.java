@@ -184,7 +184,7 @@ public final class OsuSkinAssets implements Disposable {
     public JudgementAsset judgement(Result result) { return judgements.get(result); }
     public Style judgementStyle(Result result) {
         var asset = judgement(result);
-        return asset == null ? Style.FALLBACK : asset.style();
+        return asset == null ? Style.NONE : asset.style();
     }
 
     public List<SkinTexture> sliderBallFrames() { return sliderBallFrames; }

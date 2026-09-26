@@ -73,13 +73,14 @@ public final class LegacyJudgementVisualHarness extends ApplicationAdapter {
             scenarios.add(new Scenario("no-skin", null, Judgement.HIT300, JudgementVisual.Kind.CIRCLE));
             scenarios.add(new Scenario("tail-miss", modern, Judgement.MISS, JudgementVisual.Kind.SLIDER_TAIL));
             scenarios.add(new Scenario("tail-point-v1", old, Judgement.HIT300, JudgementVisual.Kind.SLIDER_TAIL));
-            // One result provided, another missing, and a corrupt asset must use only its own font fallback.
+            scenarios.add(new Scenario("tail-hit-v2-empty", modern, Judgement.HIT300, JudgementVisual.Kind.SLIDER_TAIL));
+            // One result provided, another missing, and a corrupt asset must not produce any judgement visual.
             Path partial = output.resolve("fixtures/partial"); Files.createDirectories(partial);
             image(partial.resolve("hit300.png"), "300", 0x64dbfa, 1);
             Files.writeString(partial.resolve("hit50.png"), "not a PNG");
             scenarios.add(new Scenario("partial-300", partial, Judgement.HIT300, JudgementVisual.Kind.CIRCLE));
-            scenarios.add(new Scenario("partial-100-fallback", partial, Judgement.HIT100, JudgementVisual.Kind.CIRCLE));
-            scenarios.add(new Scenario("broken-50-fallback", partial, Judgement.HIT50, JudgementVisual.Kind.CIRCLE));
+            scenarios.add(new Scenario("partial-100-empty", partial, Judgement.HIT100, JudgementVisual.Kind.CIRCLE));
+            scenarios.add(new Scenario("broken-50-empty", partial, Judgement.HIT50, JudgementVisual.Kind.CIRCLE));
             selectScenario();
         } catch (Exception e) { throw new RuntimeException(e); }
     }
@@ -133,8 +134,7 @@ public final class LegacyJudgementVisualHarness extends ApplicationAdapter {
         var score = new ScoreState(0, 0, 0, 0, 0, 0, 0, 1);
         var state = new GameplayState(now, List.of(circle), List.of(), List.of(), score, false, List.of(unoccluded, visual));
         renderer.render(null, null, state, PlayfieldViewport.fit(1024, 768), null, "");
-        batch.begin(); font.setColor(com.badlogic.gdx.graphics.Color.WHITE);
-        font.draw(batch, scene.name + " +" + age + "ms (fixed clock; left: unobstructed, right: overlapping HitObject)", 30, 735); batch.end();
+        drawLabel(scene, age);
         Pixmap capture = Pixmap.createFromFrameBuffer(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
         byte[] pixels = new byte[capture.getPixels().remaining()];
         capture.getPixels().duplicate().get(pixels);
@@ -143,11 +143,27 @@ public final class LegacyJudgementVisualHarness extends ApplicationAdapter {
             throw new AssertionError("Seek changed fixed-time pixels in " + scene.name);
         try { PixmapIO.writePNG(Gdx.files.absolute(output.resolve(scene.name + "-" + age + "ms.png").toString()), capture, -1, true); }
         finally { capture.dispose(); }
+        if (assets.judgement(dev.osujava.ruleset.osu.render.LegacyJudgementAnimation.Result.from(visual)) == null) {
+            var empty = new GameplayState(now, List.of(circle), List.of(), List.of(), score, false, List.of());
+            renderer.render(null, null, empty, PlayfieldViewport.fit(1024, 768), null, "");
+            drawLabel(scene, age);
+            Pixmap baseline = Pixmap.createFromFrameBuffer(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
+            try {
+                byte[] baselinePixels = new byte[baseline.getPixels().remaining()];
+                baseline.getPixels().duplicate().get(baselinePixels);
+                if (!java.util.Arrays.equals(pixels, baselinePixels))
+                    throw new AssertionError("Missing skin asset still draws a judgement in " + scene.name + " at " + age);
+            } finally { baseline.dispose(); }
+        }
         if (++ageIndex == AGES.length) {
             ageIndex = 0;
             if (++scenarioIndex == scenarios.size()) { Gdx.app.exit(); return; }
             selectScenario();
         }
+    }
+    private void drawLabel(Scenario scene, int age) {
+        batch.begin(); font.setColor(com.badlogic.gdx.graphics.Color.WHITE);
+        font.draw(batch, scene.name + " +" + age + "ms (fixed clock; left: unobstructed, right: overlapping HitObject)", 30, 735); batch.end();
     }
     @Override public void dispose() {
         renderer.dispose(); assets.dispose(); font.dispose(); batch.dispose(); shapes.dispose();

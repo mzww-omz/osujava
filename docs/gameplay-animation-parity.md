@@ -51,3 +51,5 @@ GPU非依存のangle、Follow event、Circle/number、Arrow、Tickの計算と�
 /tmpの固定clock OpenGL harnessで同一legacy Skin（Version 2.7）を使用し、Circle hit前/直後/+120/+240ms、short/long/fast/slow Slider、snaking、repeat前後、tracking開始、tick直後、break、終了の34枚を取得・画像確認した。harnessと画像はcommitしない。lazer実行画面との同時画像比較は未実施で、lazerとの照合は上記sourceによる。
 
 Judgement texture / animation / particle / proxy layerは [Judgement parity](gameplay-judgement-parity.md) で後続対応した。
+
+追加指示に従い、従来のBitmapFont Judgement表示も削除した。Skin assetがないresultは非表示になる。
