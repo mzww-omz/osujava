@@ -71,11 +71,8 @@ public final class GameplayInputProcessor extends InputAdapter {
 
     private void pressAt(int screenX, int screenY, GameInputAction action) {
         if (viewport == null) return;
-        float x = screenX;
-        float y = Gdx.graphics.getHeight() - screenY;
         Vector2 osuPosition = toOsuPosition(screenX, screenY);
-        if (viewport.containsScreenPoint(x, y)) session.press(action, osuPosition.x, osuPosition.y);
-        else session.pointerMoved(osuPosition.x, osuPosition.y);
+        session.press(action, osuPosition.x, osuPosition.y);
     }
 
     private Vector2 toOsuPosition(int screenX, int screenY) {

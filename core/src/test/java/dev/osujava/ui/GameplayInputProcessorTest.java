@@ -23,6 +23,28 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GameplayInputProcessorTest {
     @Test
+    void pressOutsidePlayfieldStillHoldsLogicalActionForSliderTracking() {
+        Graphics previousGraphics = Gdx.graphics;
+        Gdx.graphics = proxy(Graphics.class, method -> method.equals("getHeight") ? 384 : null);
+        try {
+            ManualClock clock = new ManualClock();
+            clock.set(1000);
+            OsuGameplaySession session = session(clock);
+            GameplayInputProcessor input = new GameplayInputProcessor(session, () -> { });
+            input.setViewport(PlayfieldViewport.fit(512, 384));
+            input.touchDown(-40, 100, 0, Input.Buttons.LEFT);
+            assertFalse(session.state().sliders().getFirst().headHit());
+            clock.set(1100);
+            input.mouseMoved(128, 100);
+            assertTrue(session.update().sliders().getFirst().tracking());
+            input.touchUp(-40, 100, 0, Input.Buttons.LEFT);
+            assertFalse(session.update().sliders().getFirst().tracking());
+        } finally {
+            Gdx.graphics = previousGraphics;
+        }
+    }
+
+    @Test
     void rightMouseAndKeyboardKeysShareTrackingAndReleaseOnlyWhenAllInputsAreUp() {
         Graphics previousGraphics = Gdx.graphics;
         Input previousInput = Gdx.input;
