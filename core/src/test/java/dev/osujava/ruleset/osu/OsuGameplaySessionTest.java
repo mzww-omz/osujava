@@ -6,6 +6,7 @@ import dev.osujava.beatmap.HitObject;
 import dev.osujava.beatmap.BeatmapPoint;
 import dev.osujava.beatmap.SpinnerData;
 import dev.osujava.gameplay.GameClock;
+import dev.osujava.gameplay.GameInputAction;
 import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.Judgement;
 import dev.osujava.gameplay.ScoreState;
@@ -19,6 +20,41 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OsuGameplaySessionTest {
+    @Test
+    void sliderCannotBeHeldByAnActionPressedBeforeTheHeadInsteadOfTheHeadAction() {
+        ManualClock clock = new ManualClock();
+        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(sliderObject(100, 100, 1000, 280, 1))),
+                clock, new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+        clock.set(800);
+        session.press(GameInputAction.LEFT, 100, 100);
+        clock.set(1000);
+        session.press(GameInputAction.RIGHT, 100, 100);
+        assertTrue(session.state().sliders().getFirst().headHit());
+        session.release(GameInputAction.RIGHT);
+        clock.set(1100);
+        session.pointerMoved(128, 100);
+        assertFalse(session.update().sliders().getFirst().tracking());
+
+        session.release(GameInputAction.LEFT);
+        session.press(GameInputAction.LEFT, 128, 100);
+        assertTrue(session.update().sliders().getFirst().tracking(), "Tracking can reacquire after the old hold is released");
+    }
+
+    @Test
+    void startTimeOrderBlocksEarlyLaterObjectThenMissesEarlierObject() {
+        ManualClock clock = new ManualClock();
+        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(
+                object(100, 100, 1000, 1), object(300, 100, 1010, 1))),
+                clock, new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+        clock.set(990);
+        session.press(GameInputAction.LEFT, 300, 100);
+        assertEquals(0, session.state().score().count300());
+        session.release(GameInputAction.LEFT);
+        clock.set(1010);
+        session.press(GameInputAction.LEFT, 300, 100);
+        assertEquals(1, session.state().score().count300());
+        assertEquals(1, session.state().score().misses());
+    }
     @Test
     void tracksHeldSpinnerRotationAndJudgesItAtItsEndTime() {
         ManualClock clock = new ManualClock();

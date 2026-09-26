@@ -5,6 +5,14 @@ public interface GameplaySession {
 
     void click(double x, double y);
 
+    default void press(GameInputAction action, double x, double y) {
+        click(x, y);
+    }
+
+    default void release(GameInputAction action) {
+        pointerReleased();
+    }
+
     default void pointerMoved(double x, double y) {
     }
 

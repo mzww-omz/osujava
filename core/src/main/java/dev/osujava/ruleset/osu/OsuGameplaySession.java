@@ -5,6 +5,7 @@ import dev.osujava.beatmap.BeatmapPoint;
 import dev.osujava.beatmap.HitObject;
 import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.GameClock;
+import dev.osujava.gameplay.GameInputAction;
 import dev.osujava.gameplay.GameplaySession;
 import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.GameplayVisualTiming;
@@ -19,6 +20,7 @@ import dev.osujava.gameplay.SpinnerVisual;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +45,7 @@ public final class OsuGameplaySession implements GameplaySession {
     private final double circleRadius;
     private double cursorX;
     private double cursorY;
-    private boolean primaryPressed;
+    private final EnumSet<GameInputAction> pressedActions = EnumSet.noneOf(GameInputAction.class);
     private GameplayState state;
 
     public OsuGameplaySession(BeatmapDifficulty difficulty, GameClock clock, JudgementWindows windows) {
@@ -83,26 +85,49 @@ public final class OsuGameplaySession implements GameplaySession {
 
     @Override
     public void click(double x, double y) {
+        // Legacy one-shot API used by tests and Debug Auto: each call is a fresh press.
+        release(GameInputAction.LEFT);
+        press(GameInputAction.LEFT, x, y);
+    }
+
+    @Override
+    public void press(GameInputAction action, double x, double y) {
         long now = clock.nowMs();
         cursorX = x;
         cursorY = y;
-        primaryPressed = true;
+        if (!pressedActions.add(action)) {
+            state = createState(now);
+            return;
+        }
         updateSpinnerRotation(now);
         expireMisses(now);
         processSpinnerJudgements(now);
 
         Candidate circleCandidate = bestCircleCandidate(x, y, now);
         Candidate sliderCandidate = bestSliderCandidate(x, y, now);
-        if (circleCandidate != null && (sliderCandidate == null || circleCandidate.offsetMs() <= sliderCandidate.offsetMs())) {
+        HitObject candidateObject = circleCandidate == null ? null : circles.get(circleCandidate.index());
+        if (sliderCandidate != null && (candidateObject == null
+                || sliders.get(sliderCandidate.index()).object.timeMs() < candidateObject.timeMs())) {
+            candidateObject = sliders.get(sliderCandidate.index()).object;
+        }
+        if (candidateObject != null && isBlockedByEarlierObject(candidateObject, now)) {
+            state = createState(now);
+            return;
+        }
+        if (candidateObject != null) missEarlierObjects(candidateObject, now);
+
+        if (circleCandidate != null && candidateObject == circles.get(circleCandidate.index())) {
             judgedCircles[circleCandidate.index()] = true;
             Judgement judgement = windows.judge(circleCandidate.offsetMs());
             score.record(judgement);
             recordVisualJudgement(circles.get(circleCandidate.index()), judgement, now);
-        } else if (sliderCandidate != null) {
+        } else if (sliderCandidate != null && candidateObject == sliders.get(sliderCandidate.index()).object) {
             SliderRuntime slider = sliders.get(sliderCandidate.index());
             slider.headJudged = true;
             slider.headHit = true;
             slider.headJudgementTimeMs = now;
+            slider.headAction = action;
+            slider.requiresHeadAction = pressedActions.contains(other(action));
             Judgement judgement = windows.judge(sliderCandidate.offsetMs());
             score.record(judgement);
             recordVisualJudgement(slider.object, judgement, now);
@@ -121,7 +146,17 @@ public final class OsuGameplaySession implements GameplaySession {
 
     @Override
     public void pointerReleased() {
-        primaryPressed = false;
+        release(GameInputAction.LEFT);
+    }
+
+    @Override
+    public void release(GameInputAction action) {
+        pressedActions.remove(action);
+        for (SliderRuntime slider : sliders) {
+            if (slider.headAction != null && action == other(slider.headAction)) {
+                slider.requiresHeadAction = false;
+            }
+        }
     }
 
     @Override
@@ -165,7 +200,7 @@ public final class OsuGameplaySession implements GameplaySession {
             HitObject circle = circles.get(index);
             double offset = Math.abs((double) now - circle.timeMs());
             if (offset > windows.hit50Ms() || !withinRadius(x, y, circle.x(), circle.y(), circleRadius)) continue;
-            if (best == null || offset < best.offsetMs()) best = new Candidate(index, offset);
+            if (best == null || circle.timeMs() < circles.get(best.index()).timeMs()) best = new Candidate(index, offset);
         }
         return best;
     }
@@ -178,7 +213,7 @@ public final class OsuGameplaySession implements GameplaySession {
             double offset = Math.abs((double) now - slider.object.timeMs());
             if (offset > windows.hit50Ms()
                     || !withinRadius(x, y, slider.object.x(), slider.object.y(), circleRadius)) continue;
-            if (best == null || offset < best.offsetMs()) best = new Candidate(index, offset);
+            if (best == null || slider.object.timeMs() < sliders.get(best.index()).object.timeMs()) best = new Candidate(index, offset);
         }
         return best;
     }
@@ -205,7 +240,7 @@ public final class OsuGameplaySession implements GameplaySession {
 
     private void processSliderEvents(long now) {
         for (SliderRuntime slider : sliders) {
-            slider.tracking = slider.headHit && updateTrackingAt(slider, now);
+            slider.tracking = updateTrackingAt(slider, now);
             if (!slider.headJudged && now <= slider.object.timeMs() + windows.hit50Ms()) continue;
             for (int index = 0; index < slider.events.size(); index++) {
                 if (slider.eventJudged[index]) continue;
@@ -214,7 +249,7 @@ public final class OsuGameplaySession implements GameplaySession {
                         ? SliderEventGenerator.tailJudgementStartTime(slider.timing) : event.timeMs();
                 if (now < dueAt) continue;
                 if (event.type() == SliderEvent.Type.TAIL && hasPendingEarlierEvent(slider, index)) continue;
-                boolean hit = slider.headHit && slider.tracking;
+                boolean hit = slider.tracking;
                 slider.eventJudged[index] = true;
                 slider.eventHit[index] = hit;
                 Judgement judgement = hit ? Judgement.HIT300 : Judgement.MISS;
@@ -229,7 +264,7 @@ public final class OsuGameplaySession implements GameplaySession {
 
     private void updateSpinnerRotation(long now) {
         for (SpinnerRuntime spinner : spinners) {
-            spinner.tracking = primaryPressed && now >= spinner.object.timeMs() && now < spinner.object.endTimeMs();
+            spinner.tracking = !pressedActions.isEmpty() && now >= spinner.object.timeMs() && now < spinner.object.endTimeMs();
             spinner.rotation.moveCursor(cursorX, cursorY, now, spinner.tracking);
             int completedSpins = spinner.rotation.completedSpins();
             while (spinner.scoredSpins < completedSpins) {
@@ -266,8 +301,9 @@ public final class OsuGameplaySession implements GameplaySession {
     }
 
     private boolean updateTrackingAt(SliderRuntime slider, long now) {
-        if (!primaryPressed || now < slider.object.timeMs()
+        if (pressedActions.isEmpty() || now < slider.object.timeMs()
                 || now > slider.timing.endTimeMs() + windows.hit50Ms()) return false;
+        if (slider.requiresHeadAction && !pressedActions.contains(slider.headAction)) return false;
         BeatmapPoint ball = slider.path.positionAt(slider.timing.progressAt(now));
         double radius = slider.tracking ? circleRadius * SLIDER_FOLLOW_AREA : circleRadius;
         return withinRadius(cursorX, cursorY, ball.x(), ball.y(), radius);
@@ -365,6 +401,44 @@ public final class OsuGameplaySession implements GameplaySession {
         return dx * dx + dy * dy <= radius * radius;
     }
 
+    private GameInputAction other(GameInputAction action) {
+        return action == GameInputAction.LEFT ? GameInputAction.RIGHT : GameInputAction.LEFT;
+    }
+
+    private boolean isBlockedByEarlierObject(HitObject target, long now) {
+        for (int index = 0; index < circles.size(); index++) {
+            HitObject circle = circles.get(index);
+            if (circle.timeMs() >= target.timeMs()) break;
+            if (!judgedCircles[index] && now < circle.timeMs()) return true;
+        }
+        for (SliderRuntime slider : sliders) {
+            if (slider.object.timeMs() >= target.timeMs()) break;
+            if (!slider.headJudged && now < slider.object.timeMs()) return true;
+        }
+        return false;
+    }
+
+    private void missEarlierObjects(HitObject target, long now) {
+        for (int index = 0; index < circles.size(); index++) {
+            HitObject circle = circles.get(index);
+            if (circle.timeMs() >= target.timeMs()) break;
+            if (!judgedCircles[index]) {
+                judgedCircles[index] = true;
+                score.record(Judgement.MISS);
+                recordVisualJudgement(circle, Judgement.MISS, now);
+            }
+        }
+        for (SliderRuntime slider : sliders) {
+            if (slider.object.timeMs() >= target.timeMs()) break;
+            if (!slider.headJudged) {
+                slider.headJudged = true;
+                slider.headJudgementTimeMs = now;
+                score.record(Judgement.MISS);
+                recordVisualJudgement(slider.object, Judgement.MISS, now);
+            }
+        }
+    }
+
     private final class SliderRuntime {
         private final HitObject object;
         private final SliderPath path;
@@ -375,6 +449,8 @@ public final class OsuGameplaySession implements GameplaySession {
         private boolean headJudged;
         private boolean headHit;
         private boolean tracking;
+        private GameInputAction headAction;
+        private boolean requiresHeadAction;
         private long headJudgementTimeMs = Long.MIN_VALUE;
 
         private SliderRuntime(HitObject object, BeatmapDifficulty difficulty) {
