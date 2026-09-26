@@ -4,6 +4,10 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import dev.osujava.skin.OsuSkinAssets.Image;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -15,6 +19,102 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class OsuSkinAssetsTest {
     @TempDir Path directory;
+
+    @Test
+    void headAndTailUseSeparatePrefixesWithoutChangingHitCircles() throws IOException {
+        for (String name : new String[]{"hitcircle", "hitcircleoverlay", "sliderstartcircle",
+                "sliderstartcircleoverlay", "sliderendcircle", "sliderendcircleoverlay"}) {
+            Files.createFile(directory.resolve(name + ".png"));
+        }
+        var assets = new OsuSkinAssets(directory, file -> new TestTexture());
+        assertImage(assets, Image.HIT_CIRCLE, "hitcircle.png");
+        assertImage(assets, Image.HIT_CIRCLE_OVERLAY, "hitcircleoverlay.png");
+        assertImage(assets, Image.SLIDER_START_CIRCLE, "sliderstartcircle.png");
+        assertImage(assets, Image.SLIDER_START_CIRCLE_OVERLAY, "sliderstartcircleoverlay.png");
+        assertImage(assets, Image.SLIDER_END_CIRCLE, "sliderendcircle.png");
+        assertImage(assets, Image.SLIDER_END_CIRCLE_OVERLAY, "sliderendcircleoverlay.png");
+        assertNotSame(assets.get(Image.SLIDER_START_CIRCLE), assets.get(Image.SLIDER_END_CIRCLE));
+        assets.dispose();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"sliderstartcircle", "sliderendcircle"})
+    void missingDedicatedBaseFallsBackAsWholePrefixAndSharesTextures(String prefix) throws IOException {
+        Files.createFile(directory.resolve("hitcircle.png"));
+        Files.createFile(directory.resolve("hitcircleoverlay.png"));
+        // An orphan dedicated overlay must not affect selection.
+        Files.createFile(directory.resolve(prefix + "overlay@2x.png"));
+        List<TestTexture> loaded = new ArrayList<>();
+        var assets = new OsuSkinAssets(directory, file -> {
+            var texture = new TestTexture();
+            loaded.add(texture);
+            return texture;
+        });
+        Image base = sliderBase(prefix);
+        Image overlay = sliderOverlay(prefix);
+        assertSame(assets.get(Image.HIT_CIRCLE), assets.get(base));
+        assertSame(assets.get(Image.HIT_CIRCLE_OVERLAY), assets.get(overlay));
+        assertFalse(assets.hasDedicatedSliderCircle(base));
+        for (int frame = 0; frame < 100; frame++) {
+            assets.get(base);
+            assets.get(overlay);
+        }
+        assertEquals(3, loaded.size());
+        assets.dispose();
+        assets.dispose();
+        assertTrue(loaded.stream().allMatch(texture -> texture.disposals == 1));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"sliderstartcircle", "sliderendcircle"})
+    void dedicatedBaseWithoutOverlayOmitsOverlayAndPreservesOtherCircles(String prefix) throws IOException {
+        Files.createFile(directory.resolve("hitcircle.png"));
+        Files.createFile(directory.resolve("hitcircleoverlay.png"));
+        Files.createFile(directory.resolve(prefix + ".png"));
+        var assets = new OsuSkinAssets(directory, file -> new TestTexture());
+        assertImage(assets, sliderBase(prefix), prefix + ".png");
+        assertNull(assets.get(sliderOverlay(prefix)));
+        assertTrue(assets.hasDedicatedSliderCircle(sliderOverlay(prefix))); // suppress vector overlay too
+        assertImage(assets, Image.HIT_CIRCLE, "hitcircle.png");
+        assertImage(assets, Image.HIT_CIRCLE_OVERLAY, "hitcircleoverlay.png");
+        String otherPrefix = prefix.equals("sliderstartcircle") ? "sliderendcircle" : "sliderstartcircle";
+        assertSame(assets.get(Image.HIT_CIRCLE), assets.get(sliderBase(otherPrefix)));
+        assertSame(assets.get(Image.HIT_CIRCLE_OVERLAY), assets.get(sliderOverlay(otherPrefix)));
+        assets.dispose();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"sliderstartcircle", "sliderendcircle"})
+    void dedicatedBaseAndOverlayPreferHighResolutionWithIndependentDensity(String prefix) throws IOException {
+        Files.createFile(directory.resolve(prefix + ".png"));
+        Files.createFile(directory.resolve(prefix + "@2x.png"));
+        Files.createFile(directory.resolve(prefix + "overlay.png"));
+        var assets = new OsuSkinAssets(directory, file -> new TestTexture());
+        assertImage(assets, sliderBase(prefix), prefix + "@2x.png");
+        assertEquals(2, assets.get(sliderBase(prefix)).density());
+        assertEquals(16f, assets.get(sliderBase(prefix)).logicalWidth());
+        assertEquals(24f, assets.get(sliderBase(prefix)).logicalHeight());
+        assertEquals(1, assets.get(sliderOverlay(prefix)).density());
+        assets.dispose();
+
+        Files.createFile(directory.resolve(prefix + "overlay@2x.png"));
+        assets = new OsuSkinAssets(directory, file -> new TestTexture());
+        assertImage(assets, sliderOverlay(prefix), prefix + "overlay@2x.png");
+        assertEquals(2, assets.get(sliderOverlay(prefix)).density());
+        assets.dispose();
+    }
+
+    private void assertImage(OsuSkinAssets assets, Image image, String filename) {
+        assertEquals(directory.resolve(filename), assets.get(image).file().path());
+    }
+
+    private static Image sliderBase(String prefix) {
+        return prefix.equals("sliderstartcircle") ? Image.SLIDER_START_CIRCLE : Image.SLIDER_END_CIRCLE;
+    }
+
+    private static Image sliderOverlay(String prefix) {
+        return prefix.equals("sliderstartcircle") ? Image.SLIDER_START_CIRCLE_OVERLAY : Image.SLIDER_END_CIRCLE_OVERLAY;
+    }
 
     @Test
     void loadsOnceReusesTexturesAndDisposesWithScreen() throws IOException {

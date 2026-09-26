@@ -15,7 +15,9 @@ import java.util.function.Function;
 /** Render-thread-owned textures, loaded once per gameplay screen, independently of GameplaySkin colours. */
 public final class OsuSkinAssets implements Disposable {
     public enum Image {
-        HIT_CIRCLE("hitcircle"), HIT_CIRCLE_OVERLAY("hitcircleoverlay"), APPROACH_CIRCLE("approachcircle");
+        HIT_CIRCLE("hitcircle"), HIT_CIRCLE_OVERLAY("hitcircleoverlay"), APPROACH_CIRCLE("approachcircle"),
+        SLIDER_START_CIRCLE("sliderstartcircle"), SLIDER_START_CIRCLE_OVERLAY("sliderstartcircleoverlay"),
+        SLIDER_END_CIRCLE("sliderendcircle"), SLIDER_END_CIRCLE_OVERLAY("sliderendcircleoverlay");
 
         private final String basename;
 
@@ -76,8 +78,24 @@ public final class OsuSkinAssets implements Disposable {
         if (Gdx.app != null) Gdx.app.log("Skin", message, error);
     }
 
-    /** Null means this individual image should use the existing vector drawing. */
-    public SkinTexture get(Image image) { return textures.get(image); }
+    /** Slider circles select their entire prefix by the loaded base, as in LegacyMainCirclePiece. */
+    public SkinTexture get(Image image) {
+        if (hasDedicatedSliderCircle(image)) return textures.get(image);
+        return textures.get(switch (image) {
+            case SLIDER_START_CIRCLE, SLIDER_END_CIRCLE -> Image.HIT_CIRCLE;
+            case SLIDER_START_CIRCLE_OVERLAY, SLIDER_END_CIRCLE_OVERLAY -> Image.HIT_CIRCLE_OVERLAY;
+            default -> image;
+        });
+    }
+
+    /** A dedicated circle with no overlay must omit it, including the vector overlay fallback. */
+    public boolean hasDedicatedSliderCircle(Image image) {
+        return switch (image) {
+            case SLIDER_START_CIRCLE, SLIDER_START_CIRCLE_OVERLAY -> textures.containsKey(Image.SLIDER_START_CIRCLE);
+            case SLIDER_END_CIRCLE, SLIDER_END_CIRCLE_OVERLAY -> textures.containsKey(Image.SLIDER_END_CIRCLE);
+            default -> false;
+        };
+    }
 
     public boolean hasHitCircleDigits() { return hitCircleDigits.size() == 10; }
     public SkinTexture hitCircleDigit(int digit) { return hitCircleDigits.get(digit); }
