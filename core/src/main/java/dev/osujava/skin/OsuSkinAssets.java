@@ -5,8 +5,12 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 
+import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
+import java.util.function.Function;
 
 /** Render-thread-owned textures, loaded once per gameplay screen, independently of GameplaySkin colours. */
 public final class OsuSkinAssets implements Disposable {
@@ -19,33 +23,72 @@ public final class OsuSkinAssets implements Disposable {
     }
 
     private final EnumMap<Image, SkinTexture> textures = new EnumMap<>(Image.class);
+    private List<SkinTexture> hitCircleDigits = List.of();
+    private SkinConfiguration configuration = SkinConfiguration.defaults();
 
     public OsuSkinAssets(Path directory) {
-        SkinAssetResolver resolver = new SkinAssetResolver(directory);
-        for (Image image : Image.values()) {
-            resolver.resolve(image.basename).ifPresent(file -> load(image, file));
-        }
+        this(directory, file -> new Texture(Gdx.files.absolute(file.path().toAbsolutePath().toString())));
     }
 
-    private void load(Image image, SkinAssetResolver.AssetFile file) {
+    /** Allows asset ownership/failure tests without an OpenGL context. */
+    OsuSkinAssets(Path directory, Function<SkinAssetResolver.AssetFile, Texture> textureLoader) {
+        SkinAssetResolver resolver = new SkinAssetResolver(directory);
+        for (Image image : Image.values()) {
+            resolver.resolve(image.basename).ifPresent(file -> {
+                SkinTexture texture = load(file, textureLoader);
+                if (texture != null) textures.put(image, texture);
+            });
+        }
+        try {
+            configuration = SkinConfiguration.read(directory);
+        } catch (IOException e) {
+            logFallback("Could not read skin.ini; using combo number fallback.", e);
+        }
+        resolver.resolveHitCircleDigits(configuration).ifPresent(files -> {
+            List<SkinTexture> loaded = new ArrayList<>(10);
+            for (var file : files) {
+                SkinTexture texture = load(file, textureLoader);
+                if (texture == null) {
+                    for (SkinTexture digit : loaded) digit.texture().dispose();
+                    return;
+                }
+                loaded.add(texture);
+            }
+            hitCircleDigits = List.copyOf(loaded);
+        });
+    }
+
+    private SkinTexture load(SkinAssetResolver.AssetFile file,
+                             Function<SkinAssetResolver.AssetFile, Texture> textureLoader) {
         Texture texture = null;
         try {
-            texture = new Texture(Gdx.files.absolute(file.path().toAbsolutePath().toString()));
+            texture = textureLoader.apply(file);
             texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-            textures.put(image, new SkinTexture(texture, file));
+            return new SkinTexture(texture, file);
         } catch (GdxRuntimeException | IllegalArgumentException e) {
             if (texture != null) texture.dispose();
-            Gdx.app.log("Skin", "Could not load " + file.path() + "; using vector fallback.", e);
+            logFallback("Could not load " + file.path() + "; using existing drawing fallback.", e);
         }
+        return null;
+    }
+
+    private static void logFallback(String message, Exception error) {
+        if (Gdx.app != null) Gdx.app.log("Skin", message, error);
     }
 
     /** Null means this individual image should use the existing vector drawing. */
     public SkinTexture get(Image image) { return textures.get(image); }
 
+    public boolean hasHitCircleDigits() { return hitCircleDigits.size() == 10; }
+    public SkinTexture hitCircleDigit(int digit) { return hitCircleDigits.get(digit); }
+    public float hitCircleOverlap() { return configuration.fonts().hitCircleOverlap(); }
+
     @Override
     public void dispose() {
         for (SkinTexture asset : textures.values()) asset.texture().dispose();
         textures.clear();
+        for (SkinTexture digit : hitCircleDigits) digit.texture().dispose();
+        hitCircleDigits = List.of();
     }
 
     public record SkinTexture(Texture texture, SkinAssetResolver.AssetFile file) {

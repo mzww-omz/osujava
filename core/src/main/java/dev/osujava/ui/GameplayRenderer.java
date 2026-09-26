@@ -59,7 +59,7 @@ public final class GameplayRenderer {
         this.game = game;
         this.visuals = visuals;
         this.skinAssets = skinAssets;
-        this.hud = new GameplayHudRenderer(game, visuals);
+        this.hud = new GameplayHudRenderer(game, visuals, skinAssets);
     }
 
     public void render(BeatmapSet set, BeatmapDifficulty difficulty, GameplayState state,

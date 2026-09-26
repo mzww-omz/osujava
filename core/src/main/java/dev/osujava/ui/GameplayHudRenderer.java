@@ -17,6 +17,8 @@ import dev.osujava.gameplay.JudgementVisual;
 import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.SliderVisual;
 import dev.osujava.gameplay.SpinnerVisual;
+import dev.osujava.skin.HitCircleNumberLayout;
+import dev.osujava.skin.OsuSkinAssets;
 
 import java.util.Locale;
 
@@ -27,10 +29,12 @@ final class GameplayHudRenderer {
 
     private final OsuJavaGame game;
     private final GameplaySkin visuals;
+    private final OsuSkinAssets skinAssets;
 
-    GameplayHudRenderer(OsuJavaGame game, GameplaySkin visuals) {
+    GameplayHudRenderer(OsuJavaGame game, GameplaySkin visuals, OsuSkinAssets skinAssets) {
         this.game = game;
         this.visuals = visuals;
+        this.skinAssets = skinAssets;
     }
 
     void drawPanels(ShapeRenderer shapes, PlayfieldViewport viewport) {
@@ -75,6 +79,10 @@ final class GameplayHudRenderer {
     private void drawComboNumber(SpriteBatch batch, int comboNumber, double x, double y,
                                  double logicalRadius, double alpha, PlayfieldViewport viewport) {
         if (alpha <= 0.01) return;
+        if (skinAssets != null && skinAssets.hasHitCircleDigits()) {
+            drawSkinnedComboNumber(batch, comboNumber, x, y, logicalRadius, alpha, viewport);
+            return;
+        }
         String text = Integer.toString(comboNumber);
         float radius = viewport.toScreenLength(logicalRadius);
         BitmapFont font = game.font();
@@ -88,6 +96,24 @@ final class GameplayHudRenderer {
         font.draw(batch, text, centerX - textWidth * 0.5f + 1.2f, baseline - 1.2f);
         font.setColor(1, 1, 1, (float) alpha);
         font.draw(batch, text, centerX - textWidth * 0.5f, baseline);
+    }
+
+    private void drawSkinnedComboNumber(SpriteBatch batch, int number, double x, double y,
+                                        double radius, double alpha, PlayfieldViewport viewport) {
+        HitCircleNumberLayout layout = HitCircleNumberLayout.create(number, digit -> {
+            var asset = skinAssets.hitCircleDigit(digit);
+            return new HitCircleNumberLayout.Size(asset.logicalWidth(), asset.logicalHeight());
+        }, skinAssets.hitCircleOverlap());
+        float scale = viewport.toScreenLength(HitCircleNumberLayout.scale(radius));
+        float centreX = viewport.toScreenX(x);
+        float centreY = viewport.toScreenY(y);
+        batch.setColor(1, 1, 1, (float) alpha);
+        for (var glyph : layout.glyphs()) {
+            batch.draw(skinAssets.hitCircleDigit(glyph.digit()).texture(),
+                    centreX + glyph.x() * scale, centreY + glyph.y() * scale,
+                    glyph.width() * scale, glyph.height() * scale);
+        }
+        batch.setColor(Color.WHITE);
     }
 
     private void drawJudgementText(SpriteBatch batch, GameplayState state, PlayfieldViewport viewport) {
