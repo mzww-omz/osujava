@@ -128,10 +128,22 @@ public final class GameplayRenderer {
                                GameplayState state, PlayfieldViewport viewport) {
         float alpha = (float) GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(),
                 circle.preemptMs(), ApproachTimeCalculator.fadeInMs(circle.preemptMs()));
-        if (drawSkinImage(shapes, Image.HIT_CIRCLE, circle.x(), circle.y(), circle.radius(),
-                visuals.comboColor(circle.comboColorIndex()), alpha, viewport)) return;
-        drawCircleBody(shapes, viewport.toScreenX(circle.x()), viewport.toScreenY(circle.y()),
-                viewport.toScreenLength(circle.radius()), visuals.comboColor(circle.comboColorIndex()), alpha);
+        drawSkinnedCircleBody(shapes, circle.x(), circle.y(), circle.radius(),
+                visuals.comboColor(circle.comboColorIndex()), alpha, viewport);
+    }
+
+    private void drawSkinnedCircleBody(ShapeRenderer shapes, double x, double y, double radius,
+                                       Color tint, float alpha, PlayfieldViewport viewport) {
+        if (drawSkinImage(shapes, Image.HIT_CIRCLE, x, y, radius, tint, alpha, viewport)) return;
+        drawCircleBody(shapes, viewport.toScreenX(x), viewport.toScreenY(y),
+                viewport.toScreenLength(radius), tint, alpha);
+    }
+
+    private void drawSkinnedCircleOverlay(ShapeRenderer shapes, double x, double y, double radius,
+                                          float alpha, PlayfieldViewport viewport) {
+        // osu! legacy overlays keep their source colours, independently of the combo colour.
+        if (drawSkinImage(shapes, Image.HIT_CIRCLE_OVERLAY, x, y, radius, Color.WHITE, alpha, viewport)) return;
+        drawCircleOverlay(shapes, x, y, radius, alpha, viewport);
     }
 
     /** Flush at the existing layer boundary so textures and vector fallbacks keep the same draw order. */
@@ -216,8 +228,8 @@ public final class GameplayRenderer {
 
         double tailFadeIn = slider.tailVisualTiming().alphaAt(now);
         float tailAlpha = (float) (bodyAlpha * tailFadeIn);
-        drawCircleBody(shapes, viewport.toScreenX(slider.tailPosition().x()),
-                viewport.toScreenY(slider.tailPosition().y()), radius * 0.72f, comboColor, tailAlpha);
+        drawSkinnedCircleBody(shapes, slider.tailPosition().x(), slider.tailPosition().y(),
+                slider.radius() * 0.72, comboColor, tailAlpha, viewport);
         for (SliderVisual.RepeatMarker repeat : slider.repeats()) {
             double markerFadeOut = repeatFadeOut(slider, repeat, now);
             float alpha = (float) (bodyAlpha * repeat.visualTiming().alphaAt(now) * markerFadeOut);
@@ -240,8 +252,8 @@ public final class GameplayRenderer {
                 ? GameplayVisualTiming.fadeOutAlpha(now, slider.headJudgementTimeMs(), CIRCLE_HIT_FADE_MS) : 1;
         float headAlpha = (float) (bodyAlpha * headFade);
         Color headColor = slider.headJudged() && !slider.headHit() ? visuals.component(GameplaySkinComponent.HITCIRCLE_MISS) : comboColor;
-        drawCircleBody(shapes, viewport.toScreenX(slider.headPosition().x()),
-                viewport.toScreenY(slider.headPosition().y()), radius, headColor, headAlpha);
+        drawSkinnedCircleBody(shapes, slider.headPosition().x(), slider.headPosition().y(),
+                slider.radius(), headColor, headAlpha, viewport);
         for (SliderVisual.RepeatMarker repeat : slider.repeats()) {
             double markerFadeOut = repeatFadeOut(slider, repeat, now);
             float alpha = (float) (bodyAlpha * repeat.reverseArrowTiming().alphaAt(now) * markerFadeOut);
@@ -348,25 +360,23 @@ public final class GameplayRenderer {
     private void drawApproachCircles(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
         for (HitCircleVisual circle : state.circles()) {
-            double progress = GameplayVisualTiming.approachProgress(now, circle.timeMs(), circle.preemptMs());
-            float alpha = (float) GameplayVisualTiming.approachAlpha(now, circle.timeMs(), circle.preemptMs());
-            if (drawSkinImage(shapes, Image.APPROACH_CIRCLE, circle.x(), circle.y(),
-                    GameplayVisualTiming.approachRadius(circle.radius(), progress),
-                    visuals.comboColor(circle.comboColorIndex()), alpha, viewport)) continue;
-            drawApproach(shapes, circle.x(), circle.y(), circle.radius(), circle.timeMs(), circle.preemptMs(), now, viewport);
+            drawApproach(shapes, circle.x(), circle.y(), circle.radius(), circle.timeMs(), circle.preemptMs(),
+                    now, visuals.comboColor(circle.comboColorIndex()), viewport);
         }
         for (SliderVisual slider : state.sliders()) {
             if (slider.headJudged() || now >= slider.startTimeMs()) continue;
             drawApproach(shapes, slider.headPosition().x(), slider.headPosition().y(), slider.radius(),
-                    slider.startTimeMs(), slider.preemptMs(), now, viewport);
+                    slider.startTimeMs(), slider.preemptMs(), now, visuals.comboColor(slider.comboColorIndex()), viewport);
         }
     }
 
     private void drawApproach(ShapeRenderer shapes, double x, double y, double radius,
-                              long objectTimeMs, long preemptMs, long now, PlayfieldViewport viewport) {
+                              long objectTimeMs, long preemptMs, long now, Color tint, PlayfieldViewport viewport) {
         double progress = GameplayVisualTiming.approachProgress(now, objectTimeMs, preemptMs);
         float alpha = (float) GameplayVisualTiming.approachAlpha(now, objectTimeMs, preemptMs);
-        float approachRadius = viewport.toScreenLength(GameplayVisualTiming.approachRadius(radius, progress));
+        double logicalRadius = GameplayVisualTiming.approachRadius(radius, progress);
+        if (drawSkinImage(shapes, Image.APPROACH_CIRCLE, x, y, logicalRadius, tint, alpha, viewport)) return;
+        float approachRadius = viewport.toScreenLength(logicalRadius);
         setColor(shapes, visuals.component(GameplaySkinComponent.APPROACHCIRCLE), alpha);
         shapes.circle(viewport.toScreenX(x), viewport.toScreenY(y), approachRadius, CIRCLE_SEGMENTS + 4);
     }
@@ -375,17 +385,14 @@ public final class GameplayRenderer {
         for (HitCircleVisual circle : state.circles()) {
             float alpha = (float) GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(),
                     circle.preemptMs(), ApproachTimeCalculator.fadeInMs(circle.preemptMs()));
-            // osu! legacy overlays keep their source colours, independently of the combo colour.
-            if (drawSkinImage(shapes, Image.HIT_CIRCLE_OVERLAY, circle.x(), circle.y(), circle.radius(),
-                    Color.WHITE, alpha, viewport)) continue;
-            drawCircleOverlay(shapes, circle.x(), circle.y(), circle.radius(), alpha, viewport);
+            drawSkinnedCircleOverlay(shapes, circle.x(), circle.y(), circle.radius(), alpha, viewport);
         }
         for (SliderVisual slider : state.sliders()) {
             double headFade = slider.headJudged() && slider.headJudgementTimeMs() != Long.MIN_VALUE
                     ? GameplayVisualTiming.fadeOutAlpha(state.currentTimeMs(), slider.headJudgementTimeMs(), CIRCLE_HIT_FADE_MS) : 1;
             double alpha = GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), slider.startTimeMs(),
                     slider.preemptMs(), ApproachTimeCalculator.fadeInMs(slider.preemptMs())) * headFade;
-            drawCircleOverlay(shapes, slider.headPosition().x(), slider.headPosition().y(), slider.radius(),
+            drawSkinnedCircleOverlay(shapes, slider.headPosition().x(), slider.headPosition().y(), slider.radius(),
                     (float) alpha, viewport);
         }
     }
@@ -409,9 +416,12 @@ public final class GameplayRenderer {
                     * GameplayVisualTiming.fadeOutAlpha(now, slider.endTimeMs(), SLIDER_POST_FADE_MS);
             Color comboColor = visuals.comboColor(slider.comboColorIndex());
             double tailAlpha = bodyFade * slider.tailVisualTiming().alphaAt(now);
-            setColor(shapes, comboColor, (float) tailAlpha * 0.72f);
-            shapes.circle(viewport.toScreenX(slider.tailPosition().x()), viewport.toScreenY(slider.tailPosition().y()),
-                    radius * 0.72f, CIRCLE_SEGMENTS);
+            if (!drawSkinImage(shapes, Image.HIT_CIRCLE_OVERLAY, slider.tailPosition().x(), slider.tailPosition().y(),
+                    slider.radius() * 0.72, Color.WHITE, (float) tailAlpha, viewport)) {
+                setColor(shapes, comboColor, (float) tailAlpha * 0.72f);
+                shapes.circle(viewport.toScreenX(slider.tailPosition().x()), viewport.toScreenY(slider.tailPosition().y()),
+                        radius * 0.72f, CIRCLE_SEGMENTS);
+            }
             for (SliderVisual.RepeatMarker repeat : slider.repeats()) {
                 float alpha = (float) (bodyFade * repeat.visualTiming().alphaAt(now)
                         * repeatFadeOut(slider, repeat, now));
