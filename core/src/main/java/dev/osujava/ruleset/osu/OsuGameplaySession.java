@@ -35,7 +35,7 @@ public final class OsuGameplaySession implements GameplaySession {
     private final boolean[] judgedCircles;
     private final List<SliderRuntime> sliders;
     private final List<SpinnerRuntime> spinners;
-    private final Map<HitObject, Integer> comboNumbers;
+    private final Map<HitObject, ComboInfo> comboInfo;
     private final OsuStacking stacking;
     private final List<JudgementVisual> judgementVisuals = new ArrayList<>();
     private final JudgementWindows windows;
@@ -53,7 +53,7 @@ public final class OsuGameplaySession implements GameplaySession {
         this.preemptMs = ApproachTimeCalculator.preemptMs(difficulty.settings().approachRate());
         this.circleRadius = OsuObjectGeometry.radius(difficulty.settings().circleSize());
         this.stacking = new OsuStacking(difficulty);
-        this.comboNumbers = comboNumbers(difficulty.hitObjects());
+        this.comboInfo = comboInformation(difficulty.hitObjects());
         this.circles = difficulty.hitObjects().stream()
                 .filter(object -> object.type() == HitObject.Type.CIRCLE)
                 .sorted(Comparator.comparingLong(HitObject::timeMs))
@@ -322,9 +322,10 @@ public final class OsuGameplaySession implements GameplaySession {
             if (now < spawnAt || now > circle.timeMs() + windows.hit50Ms()) continue;
             double progress = GameplayVisualTiming.approachProgress(now, circle.timeMs(), preemptMs);
             BeatmapPoint position = stacking.position(circle);
+            ComboInfo combo = comboInfo.getOrDefault(circle, new ComboInfo(1, 0));
             visibleCircles.add(new HitCircleVisual(position.x(), position.y(), circleRadius,
                     GameplayVisualTiming.approachRadius(circleRadius, progress), circle.timeMs(),
-                    preemptMs, comboNumbers.getOrDefault(circle, 1)));
+                    preemptMs, combo.number(), combo.colorIndex()));
         }
 
         List<SliderVisual> visibleSliders = new ArrayList<>();
@@ -336,19 +337,24 @@ public final class OsuGameplaySession implements GameplaySession {
             double approachProgress = GameplayVisualTiming.approachProgress(
                     now, slider.object.timeMs(), preemptMs);
             List<SliderVisual.RepeatMarker> repeats = new ArrayList<>();
+            List<SliderVisual.TickMarker> ticks = new ArrayList<>();
             for (int index = 0; index < slider.events.size(); index++) {
                 SliderEvent event = slider.events.get(index);
                 if (event.type() == SliderEvent.Type.REPEAT) {
                     repeats.add(new SliderVisual.RepeatMarker(slider.path.positionAt(event.pathProgress()),
                             event.spanIndex(), slider.eventJudged[index], event.timeMs()));
+                } else if (event.type() == SliderEvent.Type.TICK) {
+                    ticks.add(new SliderVisual.TickMarker(slider.path.positionAt(event.pathProgress()),
+                            event.timeMs(), slider.eventJudged[index], slider.eventHit[index]));
                 }
             }
+            ComboInfo combo = comboInfo.getOrDefault(slider.object, new ComboInfo(1, 0));
             visibleSliders.add(new SliderVisual(slider.path.sampledPoints(),
                     stacking.position(slider.object), slider.path.positionAt(slider.timing.endProgress()),
                     ball, repeats, circleRadius, GameplayVisualTiming.approachRadius(circleRadius, approachProgress), progress,
                     slider.object.timeMs(), slider.timing.endTimeMs(), slider.headJudged, slider.headHit,
-                    slider.tracking, preemptMs, comboNumbers.getOrDefault(slider.object, 1),
-                    slider.headJudgementTimeMs));
+                    slider.tracking, preemptMs, combo.number(),
+                    slider.headJudgementTimeMs, combo.colorIndex(), ticks));
         }
 
         List<SpinnerVisual> visibleSpinners = new ArrayList<>();
@@ -375,20 +381,29 @@ public final class OsuGameplaySession implements GameplaySession {
         judgementVisuals.add(new JudgementVisual(x, y, radius, judgement, (long) Math.round(timeMs)));
     }
 
-    private Map<HitObject, Integer> comboNumbers(List<HitObject> hitObjects) {
-        Map<HitObject, Integer> numbers = new IdentityHashMap<>();
+    private Map<HitObject, ComboInfo> comboInformation(List<HitObject> hitObjects) {
+        Map<HitObject, ComboInfo> information = new IdentityHashMap<>();
         List<HitObject> ordered = hitObjects.stream()
                 .filter(object -> object.type() == HitObject.Type.CIRCLE
                         || object.type() == HitObject.Type.SLIDER || object.type() == HitObject.Type.SPINNER)
                 .sorted(Comparator.comparingLong(HitObject::timeMs))
                 .toList();
         int comboNumber = 0;
+        int colorIndex = -1;
+        boolean afterSpinner = false;
         for (HitObject object : ordered) {
-            if (comboNumber == 0 || (object.rawType() & 4) != 0) comboNumber = 1;
-            else comboNumber++;
-            numbers.put(object, comboNumber);
+            if (object.type() == HitObject.Type.SPINNER) {
+                afterSpinner = true;
+                continue;
+            }
+            if (comboNumber == 0 || afterSpinner || (object.rawType() & 4) != 0) {
+                comboNumber = 1;
+                colorIndex += 1 + ((object.rawType() >> 4) & 7);
+            } else comboNumber++;
+            information.put(object, new ComboInfo(comboNumber, colorIndex));
+            afterSpinner = false;
         }
-        return numbers;
+        return information;
     }
 
     private boolean allJudged() {
@@ -492,5 +507,8 @@ public final class OsuGameplaySession implements GameplaySession {
     }
 
     private record Candidate(int index, double offsetMs) {
+    }
+
+    private record ComboInfo(int number, int colorIndex) {
     }
 }

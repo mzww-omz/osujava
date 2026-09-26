@@ -46,8 +46,8 @@ public final class GameplayVisualConfig {
         return DEFAULT;
     }
 
-    public Color comboColor(int comboNumber) {
-        return comboColors[Math.floorMod(Math.max(1, comboNumber) - 1, comboColors.length)];
+    public Color comboColor(int comboColorIndex) {
+        return comboColors[Math.floorMod(comboColorIndex, comboColors.length)];
     }
 
     public Color judgementColor(Judgement judgement) {

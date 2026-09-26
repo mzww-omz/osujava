@@ -30,6 +30,9 @@ class GameplayVisualTimingTest {
         assertEquals(1.5, GameplayVisualTiming.hitCircleScale(1400, 1000), 1e-9);
         assertEquals(1, GameplayVisualTiming.hitCircleAlpha(1040, 1000));
         assertEquals(0, GameplayVisualTiming.hitCircleAlpha(1840, 1000));
+        assertEquals(0, GameplayVisualTiming.sliderSnakeProgress(-200, 1000, 1200));
+        assertEquals(0.5, GameplayVisualTiming.sliderSnakeProgress(0, 1000, 1200));
+        assertEquals(1, GameplayVisualTiming.sliderSnakeProgress(200, 1000, 1200));
     }
 
     @Test

@@ -27,6 +27,11 @@ public final class GameplayVisualTiming {
         return alpha;
     }
 
+    /** Default SnakingSliderBody reaches full path length after one third of preempt. */
+    public static double sliderSnakeProgress(double currentTimeMs, double startTimeMs, double preemptMs) {
+        return progress(currentTimeMs, startTimeMs - preemptMs, preemptMs / 3);
+    }
+
     /** Default MainCirclePiece grows to 1.5 over 400 ms after a hit. */
     public static double hitCircleScale(double currentTimeMs, double hitTimeMs) {
         double progress = progress(currentTimeMs, hitTimeMs, 400);

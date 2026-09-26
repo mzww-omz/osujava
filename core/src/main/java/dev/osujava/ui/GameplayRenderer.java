@@ -112,7 +112,7 @@ public final class GameplayRenderer {
         float alpha = (float) GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(),
                 circle.preemptMs(), ApproachTimeCalculator.fadeInMs(circle.preemptMs()));
         drawCircleBody(shapes, viewport.toScreenX(circle.x()), viewport.toScreenY(circle.y()),
-                viewport.toScreenLength(circle.radius()), visuals.comboColor(circle.comboNumber()), alpha);
+                viewport.toScreenLength(circle.radius()), visuals.comboColor(circle.comboColorIndex()), alpha);
     }
 
     private void drawSliderBody(ShapeRenderer shapes, SliderVisual slider,
@@ -123,30 +123,37 @@ public final class GameplayRenderer {
         double fadeOut = GameplayVisualTiming.fadeOutAlpha(state.currentTimeMs(), slider.endTimeMs(), SLIDER_POST_FADE_MS);
         float alpha = (float) (fadeIn * fadeOut);
         float radius = viewport.toScreenLength(slider.radius());
-        Color comboColor = visuals.comboColor(slider.comboNumber());
-        drawThickPath(shapes, renderData, viewport, radius * 2.18f, visuals.sliderBorder, alpha);
-        drawThickPath(shapes, renderData, viewport, radius * 1.97f, visuals.sliderRim, alpha);
-        drawThickPath(shapes, renderData, viewport, radius * 1.76f, comboColor, alpha);
+        Color comboColor = visuals.comboColor(slider.comboColorIndex());
+        double snake = GameplayVisualTiming.sliderSnakeProgress(state.currentTimeMs(),
+                slider.startTimeMs(), slider.preemptMs());
+        drawThickPath(shapes, renderData, viewport, radius * 2.02f, visuals.sliderBorder, alpha, snake);
+        drawThickPath(shapes, renderData, viewport, radius * 1.94f, comboColor, alpha, snake);
+        drawThickPath(shapes, renderData, viewport, radius * 1.70f, visuals.sliderInner, alpha, snake);
     }
 
     private void drawThickPath(ShapeRenderer shapes, SliderRenderData geometry, PlayfieldViewport viewport,
-                               float width, Color color, float alpha) {
+                               float width, Color color, float alpha, double progress) {
         double[] points = geometry.points;
-        if (points.length < 2) return;
+        if (points.length < 2 || progress <= 0) return;
         setColor(shapes, color, alpha);
         float firstX = viewport.toScreenX(points[0]);
         float firstY = viewport.toScreenY(points[1]);
         float capRadius = width * 0.5f;
+        double limit = geometry.totalDistance * GameplayVisualTiming.clamp(progress);
+        shapes.circle(firstX, firstY, capRadius, BODY_CAP_SEGMENTS);
         for (int index = 2; index < points.length; index += 2) {
-            float x = viewport.toScreenX(points[index]);
-            float y = viewport.toScreenY(points[index + 1]);
+            int pointIndex = index / 2;
+            double before = geometry.cumulativeDistance[pointIndex - 1];
+            if (before >= limit) break;
+            double segment = geometry.cumulativeDistance[pointIndex] - before;
+            double fraction = segment <= 0 ? 1 : Math.min(1, (limit - before) / segment);
+            float x = viewport.toScreenX(points[index - 2] + (points[index] - points[index - 2]) * fraction);
+            float y = viewport.toScreenY(points[index - 1] + (points[index + 1] - points[index - 1]) * fraction);
             shapes.rectLine(firstX, firstY, x, y, width);
+            shapes.circle(x, y, capRadius, BODY_CAP_SEGMENTS);
             firstX = x;
             firstY = y;
-        }
-        for (int index = 0; index < points.length; index += 2) {
-            shapes.circle(viewport.toScreenX(points[index]), viewport.toScreenY(points[index + 1]),
-                    capRadius, BODY_CAP_SEGMENTS);
+            if (fraction < 1) break;
         }
     }
 
@@ -158,7 +165,7 @@ public final class GameplayRenderer {
         double fadeOut = GameplayVisualTiming.fadeOutAlpha(now, slider.endTimeMs(), SLIDER_POST_FADE_MS);
         float bodyAlpha = (float) (fadeIn * fadeOut);
         float radius = viewport.toScreenLength(slider.radius());
-        Color comboColor = visuals.comboColor(slider.comboNumber());
+        Color comboColor = visuals.comboColor(slider.comboColorIndex());
 
         float tailAlpha = bodyAlpha;
         drawCircleBody(shapes, viewport.toScreenX(slider.tailPosition().x()),
@@ -169,6 +176,16 @@ public final class GameplayRenderer {
             float y = viewport.toScreenY(repeat.position().y());
             drawCircleBody(shapes, x, y, radius * 0.37f,
                     repeat.judged() ? visuals.sliderInner : comboColor, alpha);
+        }
+        for (SliderVisual.TickMarker tick : slider.ticks()) {
+            double appearAt = Math.min(slider.startTimeMs(), tick.timeMs() - slider.preemptMs() * 0.66);
+            double tickFade = GameplayVisualTiming.progress(now, appearAt, 150);
+            if (tick.judged()) tickFade *= GameplayVisualTiming.fadeOutAlpha(now, tick.timeMs(), 120);
+            float tickRadius = radius * (tick.judged() && tick.hit() ? 0.22f : 0.17f);
+            setColor(shapes, tick.judged() && !tick.hit() ? visuals.spinnerMiss : visuals.circleBorder,
+                    (float) (bodyAlpha * tickFade));
+            shapes.circle(viewport.toScreenX(tick.position().x()), viewport.toScreenY(tick.position().y()),
+                    tickRadius, 16);
         }
 
         double headFade = slider.headJudged() && slider.headJudgementTimeMs() != Long.MIN_VALUE
@@ -248,7 +265,7 @@ public final class GameplayRenderer {
         }
 
         float ballRadius = radius * 0.54f;
-        drawCircleBody(shapes, x, y, ballRadius, visuals.comboColor(slider.comboNumber()), endFade);
+        drawCircleBody(shapes, x, y, ballRadius, visuals.comboColor(slider.comboColorIndex()), endFade);
         setColor(shapes, visuals.sliderBall, endFade * (slider.tracking() ? 0.7f : 0.38f));
         shapes.circle(x, y, ballRadius * 0.48f, CIRCLE_SEGMENTS);
     }
@@ -326,7 +343,7 @@ public final class GameplayRenderer {
             double bodyFade = GameplayVisualTiming.fadeInProgress(now, slider.startTimeMs(), slider.preemptMs(),
                     ApproachTimeCalculator.fadeInMs(slider.preemptMs()))
                     * GameplayVisualTiming.fadeOutAlpha(now, slider.endTimeMs(), SLIDER_POST_FADE_MS);
-            Color comboColor = visuals.comboColor(slider.comboNumber());
+            Color comboColor = visuals.comboColor(slider.comboColorIndex());
             setColor(shapes, comboColor, (float) bodyFade * 0.72f);
             shapes.circle(viewport.toScreenX(slider.tailPosition().x()), viewport.toScreenY(slider.tailPosition().y()),
                     radius * 0.72f, CIRCLE_SEGMENTS);
@@ -444,11 +461,19 @@ public final class GameplayRenderer {
 
     private static final class SliderRenderData {
         private final double[] points;
+        private final double[] cumulativeDistance;
+        private final double totalDistance;
         private final FollowCircleAnimation follow = new FollowCircleAnimation();
         private long lastUsedTimeMs;
 
         private SliderRenderData(double[] points) {
             this.points = points;
+            cumulativeDistance = new double[points.length / 2];
+            for (int i = 1; i < cumulativeDistance.length; i++) {
+                cumulativeDistance[i] = cumulativeDistance[i - 1]
+                        + Math.hypot(points[2 * i] - points[2 * i - 2], points[2 * i + 1] - points[2 * i - 1]);
+            }
+            totalDistance = cumulativeDistance.length == 0 ? 0 : cumulativeDistance[cumulativeDistance.length - 1];
         }
     }
 

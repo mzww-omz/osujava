@@ -21,6 +21,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OsuGameplaySessionTest {
     @Test
+    void comboColourAdvancesOnNewComboAndAfterSpinnerNotEveryNumber() {
+        ManualClock clock = new ManualClock();
+        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(
+                object(100, 100, 1000, 1), object(150, 100, 1100, 1),
+                spinnerObject(1150, 1200), object(200, 100, 1300, 1),
+                object(250, 100, 1400, 1 | 4 | (2 << 4)))),
+                clock, new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+        clock.set(300);
+        GameplayState state = session.update();
+        assertEquals(List.of(1, 2, 1, 1), state.circles().stream().map(c -> c.comboNumber()).toList());
+        assertEquals(List.of(0, 0, 1, 4), state.circles().stream().map(c -> c.comboColorIndex()).toList());
+    }
+
+    @Test
     void sliderCannotBeHeldByAnActionPressedBeforeTheHeadInsteadOfTheHeadAction() {
         ManualClock clock = new ManualClock();
         OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(sliderObject(100, 100, 1000, 280, 1))),
@@ -216,6 +230,7 @@ class OsuGameplaySessionTest {
         GameplayState visible = session.update();
         assertEquals(1, visible.sliders().size());
         assertEquals(0, visible.sliders().getFirst().progress(), 1e-6);
+        assertEquals(2, visible.sliders().getFirst().ticks().size());
         assertFalse(visible.sliders().getFirst().headJudged());
 
         session.click(100, 100);
