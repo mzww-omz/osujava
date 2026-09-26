@@ -39,7 +39,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-/** Draws immutable gameplay snapshots. All object geometry is transformed from osu! playfield space. */
+/** Draws immutable gameplay snapshots. HitObjects use playfield space; legacy Spinner uses its own window-space transform. */
 public final class GameplayRenderer {
     private static final int CIRCLE_SEGMENTS = 36;
     private static final double SLIDER_POST_FADE_MS = 150;
@@ -51,6 +51,7 @@ public final class GameplayRenderer {
     private final Map<List<BeatmapPoint>, SliderRenderData> sliderRenderData = new IdentityHashMap<>();
     private final SliderBodyRenderer sliderBodies = new SliderBodyRenderer();
     private final GameplayHudRenderer hud;
+    private final GameplaySpinnerRenderer spinners;
     private final GameplayJudgementRenderer judgements;
 
     public GameplayRenderer(OsuJavaGame game) {
@@ -65,6 +66,7 @@ public final class GameplayRenderer {
         this.game = game;
         this.visuals = visuals;
         this.skinAssets = skinAssets;
+        this.spinners = new GameplaySpinnerRenderer(skinAssets);
         this.hud = new GameplayHudRenderer(game, visuals, skinAssets);
         this.judgements = new GameplayJudgementRenderer(skinAssets);
     }
@@ -95,6 +97,11 @@ public final class GameplayRenderer {
             SliderVisual slider = command.object() instanceof SliderVisual v ? v : null;
             switch (command.piece()) {
                 case SPINNER -> {
+                    if (spinners.available()) {
+                        sprites(shapes, () -> spinners.draw(batch, (SpinnerVisual) command.object(), state.currentTimeMs(),
+                                Gdx.graphics.getWidth(), Gdx.graphics.getHeight()));
+                        break;
+                    }
                     drawSpinnerField(shapes, (SpinnerVisual) command.object(), state, viewport);
                     shapeType(shapes, ShapeRenderer.ShapeType.Line);
                     drawSpinnerOverlay(shapes, (SpinnerVisual) command.object(), state, viewport);

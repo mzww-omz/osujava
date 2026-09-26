@@ -26,6 +26,10 @@ public final class OsuSkinAssets implements Disposable {
         SLIDER_START_CIRCLE("sliderstartcircle"), SLIDER_START_CIRCLE_OVERLAY("sliderstartcircleoverlay"),
         SLIDER_END_CIRCLE("sliderendcircle"), SLIDER_END_CIRCLE_OVERLAY("sliderendcircleoverlay"),
         REVERSE_ARROW("reversearrow"), SLIDER_FOLLOW_CIRCLE("sliderfollowcircle"), SLIDER_TICK("sliderscorepoint"),
+        SPINNER_BACKGROUND("spinner-background"), SPINNER_CIRCLE("spinner-circle"), SPINNER_METRE("spinner-metre"),
+        SPINNER_APPROACH("spinner-approachcircle"), SPINNER_GLOW("spinner-glow"), SPINNER_BOTTOM("spinner-bottom"),
+        SPINNER_TOP("spinner-top"), SPINNER_MIDDLE2("spinner-middle2"), SPINNER_MIDDLE("spinner-middle"),
+        SPINNER_SPIN("spinner-spin"), SPINNER_CLEAR("spinner-clear"), SPINNER_RPM("spinner-rpm"),
         CURSOR("cursor"), CURSOR_MIDDLE("cursormiddle"), CURSOR_TRAIL("cursortrail");
 
         private final String basename;
@@ -168,6 +172,11 @@ public final class OsuSkinAssets implements Disposable {
     public boolean hitCircleOverlayAboveNumber() { return configuration.hitCircleOverlayAboveNumber(); }
     public SkinConfiguration.Colours sliderColours() { return configuration.colours(); }
     public SkinConfiguration.Cursor cursorConfiguration() { return configuration.cursor(); }
+    public SkinConfiguration.Spinner spinnerConfiguration() { return configuration.spinner(); }
+    public dev.osujava.ruleset.osu.render.LegacySpinnerAnimation.Style spinnerStyle() {
+        return dev.osujava.ruleset.osu.render.LegacySpinnerAnimation.select(
+                get(Image.SPINNER_BACKGROUND) != null, get(Image.SPINNER_TOP) != null);
+    }
     public double legacyVersion() { return configuration.legacyVersion(); }
     public float hitCircleOverlap() { return configuration.fonts().hitCircleOverlap(); }
 

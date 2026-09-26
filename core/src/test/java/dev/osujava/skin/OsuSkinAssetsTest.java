@@ -18,6 +18,42 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class OsuSkinAssetsTest {
+    @Test void everySpinnerPieceUsesStaticTwoXResolutionAndLoadsOnlyOnce() throws IOException {
+        for (String name : List.of("background", "circle", "metre", "approachcircle", "glow", "bottom", "top", "middle2", "middle", "spin", "clear", "rpm")) {
+            Files.createFile(directory.resolve("spinner-" + name + ".png"));
+            Files.createFile(directory.resolve("spinner-" + name + "@2x.png"));
+        }
+        List<TestTexture> loaded = new ArrayList<>();
+        var assets = new OsuSkinAssets(directory, file -> { var t = new TestTexture(); loaded.add(t); return t; });
+        for (Image image : Image.values()) if (image.name().startsWith("SPINNER_")) {
+            assertEquals(2, assets.get(image).density());
+            for (int i = 0; i < 10; i++) assertSame(assets.get(image), assets.get(image));
+        }
+        assertEquals(12, loaded.size()); assets.dispose(); assets.dispose();
+        assertTrue(loaded.stream().allMatch(t -> t.disposals == 1));
+    }
+
+    @Test void spinnerStaticAssetsDensityMissingPiecesAndOwnership() throws IOException {
+        Files.createFile(directory.resolve("spinner-background.png"));
+        Files.createFile(directory.resolve("spinner-background@2x.png"));
+        Files.createFile(directory.resolve("spinner-top.png"));
+        Files.createFile(directory.resolve("spinner-circle-0.png")); // static lookup must ignore numbered animation
+        Files.createFile(directory.resolve("score-5.png"));
+        var shared = new TestTexture();
+        var assets = new OsuSkinAssets(directory, file -> shared);
+        assertEquals(dev.osujava.ruleset.osu.render.LegacySpinnerAnimation.Style.OLD, assets.spinnerStyle());
+        assertEquals(2, assets.get(Image.SPINNER_BACKGROUND).density());
+        assertEquals(16, assets.get(Image.SPINNER_BACKGROUND).logicalWidth());
+        assertNull(assets.get(Image.SPINNER_CIRCLE)); assertNull(assets.get(Image.SPINNER_METRE));
+        assertSame(assets.get(Image.SPINNER_TOP).texture(), assets.hudGlyph(OsuSkinAssets.HudFont.SCORE, '5').texture());
+        assets.dispose(); assets.dispose(); assertEquals(1, shared.disposals);
+        assertEquals(dev.osujava.ruleset.osu.render.LegacySpinnerAnimation.Style.FALLBACK, assets.spinnerStyle());
+        Files.delete(directory.resolve("spinner-background.png")); Files.delete(directory.resolve("spinner-background@2x.png"));
+        var newAssets = new OsuSkinAssets(directory, file -> new TestTexture());
+        assertEquals(dev.osujava.ruleset.osu.render.LegacySpinnerAnimation.Style.NEW, newAssets.spinnerStyle());
+        newAssets.dispose();
+    }
+
     @TempDir Path directory;
 
     @Test

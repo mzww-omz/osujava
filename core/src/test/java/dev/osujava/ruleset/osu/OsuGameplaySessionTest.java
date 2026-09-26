@@ -319,6 +319,12 @@ class OsuGameplaySessionTest {
 
         assertEquals(1, result.score().count300());
         assertEquals(7, result.spinners().getFirst().completedSpins());
+        var events = result.spinners().getFirst().spinEvents();
+        assertEquals(7, events.size());
+        assertEquals(50, events.getLast().legacyBonusScore());
+        assertTrue(events.getLast().bonusTick());
+        assertEquals(0, events.getFirst().legacyBonusScore());
+        org.junit.jupiter.api.Assertions.assertThrows(UnsupportedOperationException.class, () -> events.clear());
         assertEquals(410, result.score().score(), "Six small ticks and one large bonus tick are awarded");
         assertEquals(1, result.score().accuracy(), 1e-6);
     }

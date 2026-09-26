@@ -382,6 +382,13 @@ public final class OsuGameplaySession implements GameplaySession {
                     && spinner.progress() >= 1) spinner.completedAtMs = now;
             while (spinner.scoredSpins < completedSpins) {
                 spinner.scoredSpins++;
+                int extra = Math.min(Math.max(0, spinner.scoredSpins - spinner.requirements.spinsRequiredForBonus()),
+                        spinner.requirements.maximumBonusSpins());
+                spinner.spinEvents.add(new SpinnerVisual.SpinEvent(now,
+                        (long) extra * OsuScoreEvent.SPINNER_BONUS.baseScore(),
+                        extra > 0 && extra == spinner.requirements.maximumBonusSpins(),
+                        spinner.scoredSpins > spinner.requirements.spinsRequiredForBonus()
+                                && spinner.scoredSpins <= spinner.requirements.spinsRequiredForBonus() + spinner.requirements.maximumBonusSpins()));
                 if (spinner.scoredSpins <= spinner.requirements.spinsRequiredForBonus()) {
                     score.recordBonusScore(OsuScoreEvent.SPINNER_SPIN.baseScore());
                     hud.changed(score.snapshot(), now);
@@ -501,7 +508,7 @@ public final class OsuGameplaySession implements GameplaySession {
                     spinner.rotation.totalRotationDegrees(), spinner.rotation.completedSpins(),
                     spinner.requirements.spinsRequired(), spinner.object.timeMs(), spinner.object.endTimeMs(),
                     spinner.tracking, spinner.judgement, preemptMs, spinner.rotation.spinsPerMinute(now),
-                    spinner.completedAtMs, spinner.bonusScore(), beatmapIndices.get(spinner.object)));
+                    spinner.completedAtMs, spinner.bonusScore(), beatmapIndices.get(spinner.object), spinner.spinEvents));
         }
         judgementVisuals.removeIf(visual -> now - visual.timeMs() > dev.osujava.ruleset.osu.render.LegacyJudgementAnimation.MAX_LIFETIME_MS);
         Map<Integer, HitObjectVisual> visibleObjects = new HashMap<>();
@@ -669,6 +676,7 @@ public final class OsuGameplaySession implements GameplaySession {
         private final HitObject object;
         private final SpinnerRequirements requirements;
         private final SpinnerRotationTracker rotation;
+        private final List<SpinnerVisual.SpinEvent> spinEvents = new ArrayList<>();
         private int scoredSpins;
         private boolean tracking;
         private Judgement judgement;

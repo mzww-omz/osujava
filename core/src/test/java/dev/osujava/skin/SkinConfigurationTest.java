@@ -11,6 +11,19 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SkinConfigurationTest {
+    @org.junit.jupiter.api.Test
+    void spinnerSettingsDefaultsMalformedAndExplicitValues() throws Exception {
+        var defaults = SkinConfiguration.defaults().spinner();
+        org.junit.jupiter.api.Assertions.assertFalse(defaults.noBlink());
+        org.junit.jupiter.api.Assertions.assertEquals(100 / 255f, defaults.background().r());
+        var parsed = SkinConfiguration.parse(new java.io.StringReader("[General]\nSpinnerNoBlink=1\n[Colours]\nSpinnerBackground: 10,20,30"));
+        org.junit.jupiter.api.Assertions.assertTrue(parsed.spinner().noBlink());
+        org.junit.jupiter.api.Assertions.assertEquals(20 / 255f, parsed.spinner().background().g());
+        var malformed = SkinConfiguration.parse(new java.io.StringReader("[General]\nSpinnerNoBlink: yes\n[Colours]\nSpinnerBackground: 256,0,bad"));
+        org.junit.jupiter.api.Assertions.assertEquals(defaults, malformed.spinner());
+        org.junit.jupiter.api.Assertions.assertFalse(SkinConfiguration.parse(new java.io.StringReader("[General]\nSpinnerNoBlink: 0")).spinner().noBlink());
+    }
+
     @TempDir Path directory;
 
     @Test

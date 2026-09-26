@@ -76,3 +76,11 @@ tasks.register('cursorVisualHarness', JavaExec) {
     systemProperty 'java.awt.headless', 'true'
     args project.findProperty('cursorOutput') ?: '/tmp/osujava-cursor'
 }
+
+tasks.register('spinnerVisualHarness', JavaExec) {
+    dependsOn hudHarnessClasses
+    classpath = sourceSets.hudHarness.runtimeClasspath
+    mainClass = 'dev.osujava.ui.LegacySpinnerVisualHarness'
+    systemProperty 'java.awt.headless', 'true'
+    args project.findProperty('spinnerOutput') ?: '/tmp/osujava-spinner'
+}

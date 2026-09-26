@@ -6,8 +6,14 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Small, section-oriented skin.ini reader. Supports legacy Fonts, General and Slider Body Colours settings. */
-public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber, double legacyVersion, Colours colours, Cursor cursor) {
+/** Small, section-oriented skin.ini reader. Supports legacy Fonts, General, cursor, slider and Spinner settings. */
+public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber, double legacyVersion, Colours colours, Cursor cursor, Spinner spinner) {
+    public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay, double version, Colours colours, Cursor cursor) {
+        this(fonts, hasIni, overlay, version, colours, cursor, Spinner.defaults());
+    }
+    public record Spinner(boolean noBlink, Rgb background) {
+        public static Spinner defaults() { return new Spinner(false, new Rgb(100 / 255f, 100 / 255f, 100 / 255f)); }
+    }
     public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay, double version, Colours colours) {
         this(fonts, hasIni, overlay, version, colours, Cursor.defaults());
     }
@@ -71,7 +77,8 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
         double version = 1;
         Rgb border = Colours.defaults().sliderBorder();
         Rgb track = null;
-        boolean centre = true, rotate = true, expand = true, trailRotate = true;
+        boolean centre = true, rotate = true, expand = true, trailRotate = true, noBlink = false;
+        Rgb spinnerBackground = Spinner.defaults().background();
         Boolean overlay = null;
         Boolean typoOverlay = null;
         String line;
@@ -87,6 +94,7 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
                 continue;
             }
             int separator = line.indexOf(':');
+            if (separator < 0) separator = line.indexOf('=');
             if (separator < 0) continue;
             String key = line.substring(0, separator).trim();
             String value = line.substring(separator + 1).trim();
@@ -100,6 +108,7 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
                 }
                 Boolean parsed = value.equals("1") ? Boolean.TRUE : value.equals("0") ? Boolean.FALSE : null;
                 if (parsed != null) {
+                    if (key.equalsIgnoreCase("SpinnerNoBlink")) noBlink = parsed;
                     if (key.equalsIgnoreCase("CursorCentre")) centre = parsed;
                     if (key.equalsIgnoreCase("CursorRotate")) rotate = parsed;
                     if (key.equalsIgnoreCase("CursorExpand")) expand = parsed;
@@ -114,6 +123,10 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
                     border = parsed != null ? parsed : Colours.defaults().sliderBorder();
                 }
                 if (key.equalsIgnoreCase("SliderTrackOverride")) track = parseRgb(value);
+                if (key.equalsIgnoreCase("SpinnerBackground")) {
+                    Rgb parsed = parseRgb(value);
+                    spinnerBackground = parsed != null ? parsed : Spinner.defaults().background();
+                }
             }
             if (!section.equalsIgnoreCase("Fonts")) continue;
             if (key.equalsIgnoreCase("HitCirclePrefix") && !value.isEmpty()) prefix = value;
@@ -134,6 +147,6 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             }
         }
         return new SkinConfiguration(new Fonts(prefix, overlap, scorePrefix, scoreOverlap, comboPrefix, comboOverlap), true,
-                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track), new Cursor(centre, rotate, expand, trailRotate));
+                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track), new Cursor(centre, rotate, expand, trailRotate), new Spinner(noBlink, spinnerBackground));
     }
 }

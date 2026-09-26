@@ -89,6 +89,7 @@ final class GameplayHudRenderer {
     }
 
     void drawSpinnerText(SpriteBatch batch, GameplayState state, PlayfieldViewport viewport) {
+        if (skinAssets != null && skinAssets.spinnerStyle() != dev.osujava.ruleset.osu.render.LegacySpinnerAnimation.Style.FALLBACK) return;
         for (SpinnerVisual spinner : state.spinners()) {
             long now = state.currentTimeMs();
             if (now < spinner.startTimeMs() - spinner.preemptMs()
