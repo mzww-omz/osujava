@@ -3,6 +3,8 @@ package dev.osujava.library;
 import dev.osujava.beatmap.BeatmapSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -144,6 +146,31 @@ class BeatmapArchiveImporterTest {
         try (var entries = Files.list(libraryRoot)) {
             assertEquals(List.of(second.beatmapSet().id()), entries.map(path -> path.getFileName().toString()).toList());
         }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/absolute.osu", "C:/outside.osu", "C:\\outside.osu", "..\\outside.osu", "nested/../outside.osu"})
+    void sharedExtractorStillRejectsDangerousBeatmapPaths(String name) throws Exception {
+        Path archive = tempDir.resolve("unsafe.osz");
+        writeZip(archive, List.of(entry("good.osu", beatmap("Good", 0, "", "")), entry(name, "bad")));
+        Path root = tempDir.resolve("library");
+        assertThrows(BeatmapImportException.class, () -> new BeatmapArchiveImporter(root).importFile(archive));
+        try (var entries = Files.list(root)) { assertTrue(entries.findAny().isEmpty()); }
+        assertFalse(Files.exists(tempDir.resolve("outside.osu")));
+    }
+
+    @Test
+    void rejectsDuplicateNormalizedPathsAndMissingCentralDirectory() throws Exception {
+        Path duplicate = tempDir.resolve("duplicate.osz");
+        writeZip(duplicate, List.of(entry("good.osu", beatmap("Good", 0, "", "")), entry("./good.osu", "bad")));
+        Path root = tempDir.resolve("library");
+        assertThrows(BeatmapImportException.class, () -> new BeatmapArchiveImporter(root).importFile(duplicate));
+        Path truncated = tempDir.resolve("truncated.osz");
+        writeZip(truncated, List.of(entry("good.osu", beatmap("Good", 0, "", ""))));
+        byte[] bytes = Files.readAllBytes(truncated);
+        Files.write(truncated, java.util.Arrays.copyOf(bytes, bytes.length - 22));
+        assertThrows(BeatmapImportException.class, () -> new BeatmapArchiveImporter(root).importFile(truncated));
+        try (var entries = Files.list(root)) { assertTrue(entries.findAny().isEmpty()); }
     }
 
     private String beatmap(String version, int mode, String audio, String background) {

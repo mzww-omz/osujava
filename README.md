@@ -50,11 +50,23 @@ Song Selectでは、1つの.oszに入った複数Difficultyを1つのBeatmap Set
 
 実行可能JARでは `java -Dosujava.skinDirectory="/path/to/skin" -jar lwjgl3/build/libs/osujava-0.1.0-all.jar` を使います。オプションを外して起動すると従来のベクター描画へ戻ります。
 
+`.osk`を直接指定する開発確認用オプションもあります。
+
+~~~sh
+./gradlew lwjgl3:run -PskinArchive="/path/to/skin.osk"
+~~~
+
+実行可能JARでは `java -Dosujava.skinArchive="/path/to/skin.osk" -jar lwjgl3/build/libs/osujava-0.1.0-all.jar` を使います。起動時に一度Importし、`~/.osujava/skins/<SHA-256 ID>/`へ保存したディレクトリを既存の`OsuSkinAssets`へ渡します。IDは展開後のファイル名と内容から生成し、同名でも内容が異なるSkinは別保存、同じ内容は再利用します。subdirectoryも保持しますが、対応画像は従来どおりSkinディレクトリ直下から解決します。
+
+ZIPのcentral directoryと各entryのサイズ・CRCを検証し、絶対パス、`..`、Windows drive path、backslash、正規化後の重複entryを拒否します。圧縮ファイル・展開後の合計はそれぞれ256 MiB、entry数は10,000までです。一時ディレクトリへ展開して成功時のみ配置し、失敗時はcleanupします。`.osz`とも安全な展開helperを共有します（`.osz`のサイズ上限は従来の1 GiB、entry数上限は10,000）。
+
+両方のオプションがある場合は`.osk`を優先します。Import失敗はログへ出し、`skinDirectory`指定があればそこへfallbackし、なければベクター描画で起動を続けます。Gameplay中にはarchiveを読みません。Skin選択UIはありません。
+
 対応するのはosu!standardのHitCircle用 `hitcircle.png`、`hitcircleoverlay.png`、`approachcircle.png` の3画像です。画像ごとに `@2x.png` を優先し、density=2で論理サイズを求めます。128論理pixelを基準直径としてCircleSizeとPlayfieldViewportの倍率を掛け、中心に配置します。本体とApproach Circleは既存のcombo colourでtintし、overlayは元の色で重ねます。既存の出現・Approach timingは維持します。画像なし、ディレクトリなし、読み込み失敗は各画像単位で従来の描画へfallbackします。
 
 色付けと基準サイズはosu!lazerの [LegacyMainCirclePiece](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Skinning/Legacy/LegacyMainCirclePiece.cs)、[LegacyApproachCircle](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Skinning/Legacy/LegacyApproachCircle.cs) を参照しています。
 
-`OsuSkinAssets` はScreen作成時にTextureを一度読み込み、GameplayScreen終了時にdisposeします。色設定の `GameplaySkin` と画像ファイル解決の `SkinAssetResolver` は別責務です。SliderなどのSkin、skin.ini、.osk Import、数字画像は未対応で、既存のcombo number表示は変更しません。
+`OsuSkinAssets` はScreen作成時にTextureを一度読み込み、GameplayScreen終了時にdisposeします。色設定の `GameplaySkin` と画像ファイル解決の `SkinAssetResolver` は別責務です。SliderなどのSkin、skin.iniの解析、数字画像は未対応で、既存のcombo number表示は変更しません。
 
 Importしたファイルはユーザーのホームディレクトリ下の.osujava/libraryへ展開・コピーします。Library indexも同じ場所へ保存され、アプリ起動時に読み込みます。Importした譜面は再起動後もSong Selectに表示され、そのままGameplayを開始できます。同一beatmap setをもう一度Importすると、既存のローカルデータとindex entryを更新します。保存方式とset識別方法は[docs/architecture.md](docs/architecture.md)を参照してください。
 

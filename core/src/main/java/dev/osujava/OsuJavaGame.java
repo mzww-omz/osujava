@@ -9,6 +9,8 @@ import dev.osujava.library.BeatmapArchiveImporter;
 import dev.osujava.library.BeatmapLibrary;
 import dev.osujava.library.PropertiesBeatmapLibraryStorage;
 import dev.osujava.ruleset.osu.OsuRuleset;
+import dev.osujava.skin.SkinImporter;
+import dev.osujava.skin.SkinImportException;
 import dev.osujava.ui.BeatmapFileChooser;
 import dev.osujava.ui.MainMenuScreen;
 import dev.osujava.ui.theme.SmoothUiFont;
@@ -39,6 +41,14 @@ public class OsuJavaGame extends Game {
     public Path skinDirectory() { return skinDirectory; }
 
     private static Path configuredSkinDirectory() {
+        String archive = System.getProperty("osujava.skinArchive");
+        if (archive != null && !archive.isBlank()) {
+            try {
+                return new SkinImporter(localDataRoot().resolve("skins")).importFile(Path.of(archive));
+            } catch (SkinImportException | InvalidPathException e) {
+                System.err.println("Could not import configured skin: " + e.getMessage());
+            }
+        }
         String value = System.getProperty("osujava.skinDirectory");
         if (value == null || value.isBlank()) return null;
         try {
@@ -48,13 +58,17 @@ public class OsuJavaGame extends Game {
         }
     }
 
+    private static Path localDataRoot() {
+        return Path.of(System.getProperty("user.home", "."), ".osujava");
+    }
+
     @Override
     public void create() {
         batch = new SpriteBatch();
         shapes = new ShapeRenderer();
         font = new BitmapFont();
         smoothFont = new SmoothUiFont();
-        Path libraryRoot = Path.of(System.getProperty("user.home", "."), ".osujava", "library");
+        Path libraryRoot = localDataRoot().resolve("library");
         library = new BeatmapLibrary(new PropertiesBeatmapLibraryStorage(libraryRoot));
         importer = new BeatmapArchiveImporter(libraryRoot);
         osuRuleset = new OsuRuleset();

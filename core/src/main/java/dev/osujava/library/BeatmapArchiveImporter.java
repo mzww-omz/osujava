@@ -1,5 +1,6 @@
 package dev.osujava.library;
 
+import dev.osujava.archive.SafeArchiveExtractor;
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapFile;
 import dev.osujava.beatmap.BeatmapSet;
@@ -7,21 +8,14 @@ import dev.osujava.beatmap.parse.BeatmapFileParser;
 import dev.osujava.beatmap.parse.BeatmapParseException;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
 
 public final class BeatmapArchiveImporter {
     private static final long MAX_ARCHIVE_BYTES = 1_073_741_824L;
@@ -67,71 +61,14 @@ public final class BeatmapArchiveImporter {
     }
 
     private List<Path> extractArchive(Path archive, Path staging) throws IOException, BeatmapImportException {
-        List<Path> osuFiles = new ArrayList<>();
-        Set<Path> seen = new HashSet<>();
-        long extractedBytes = 0;
-        try (InputStream fileInput = Files.newInputStream(archive);
-             ZipInputStream zip = new ZipInputStream(fileInput, StandardCharsets.UTF_8)) {
-            ZipEntry entry;
-            byte[] buffer = new byte[16 * 1024];
-            while ((entry = zip.getNextEntry()) != null) {
-                Path relative = validatedEntryPath(entry.getName());
-                if (!seen.add(relative)) {
-                    throw new BeatmapImportException("Duplicate archive path: " + entry.getName());
-                }
-                Path destination = staging.resolve(relative).normalize();
-                if (!destination.startsWith(staging)) {
-                    throw new BeatmapImportException("Unsafe archive path: " + entry.getName());
-                }
-                if (entry.isDirectory()) {
-                    Files.createDirectories(destination);
-                } else {
-                    Files.createDirectories(destination.getParent());
-                    try (OutputStream output = Files.newOutputStream(destination)) {
-                        int count;
-                        while ((count = zip.read(buffer)) != -1) {
-                            extractedBytes += count;
-                            if (extractedBytes > MAX_ARCHIVE_BYTES) {
-                                throw new BeatmapImportException("Archive expands beyond the 1 GiB import limit");
-                            }
-                            output.write(buffer, 0, count);
-                        }
-                    }
-                    if (relative.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".osu")) {
-                        osuFiles.add(destination);
-                    }
-                }
-                zip.closeEntry();
-            }
-        } catch (BeatmapImportException e) {
-            throw e;
+        try {
+            return SafeArchiveExtractor.extract(archive, staging, MAX_ARCHIVE_BYTES, 10_000).stream()
+                    .filter(path -> path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".osu"))
+                    .sorted(Comparator.comparing(path -> staging.relativize(path).toString()))
+                    .toList();
         } catch (IOException e) {
             throw new BeatmapImportException("Invalid or damaged .osz archive: " + safeMessage(e), e);
         }
-        osuFiles.sort(Comparator.comparing(path -> staging.relativize(path).toString()));
-        return osuFiles;
-    }
-
-    private Path validatedEntryPath(String entryName) throws BeatmapImportException {
-        if (entryName == null || entryName.isBlank() || entryName.indexOf('\0') >= 0 || entryName.contains("\\")
-                || entryName.startsWith("/") || entryName.matches("^[A-Za-z]:.*")) {
-            throw new BeatmapImportException("Unsafe archive path: " + entryName);
-        }
-        Path path;
-        try {
-            path = Path.of(entryName).normalize();
-        } catch (RuntimeException e) {
-            throw new BeatmapImportException("Invalid archive path: " + entryName, e);
-        }
-        if (path.isAbsolute() || path.getNameCount() == 0 || path.startsWith("..")) {
-            throw new BeatmapImportException("Unsafe archive path: " + entryName);
-        }
-        for (Path component : Path.of(entryName)) {
-            if (component.toString().equals("..")) {
-                throw new BeatmapImportException("Unsafe archive path: " + entryName);
-            }
-        }
-        return path;
     }
 
     private List<Path> importStandalone(Path source, Path staging) throws IOException, BeatmapImportException {
@@ -261,18 +198,7 @@ public final class BeatmapArchiveImporter {
     }
 
     private void deleteTreeQuietly(Path root) {
-        if (root == null || !Files.exists(root)) return;
-        try (var paths = Files.walk(root)) {
-            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (IOException ignored) {
-                    // Best-effort cleanup after a failed import.
-                }
-            });
-        } catch (IOException ignored) {
-            // Best-effort cleanup after a failed import.
-        }
+        SafeArchiveExtractor.deleteTreeQuietly(root);
     }
 
     private record ParsedEntry(BeatmapFile file, Path beatmapRelative, Path audioRelative, Path backgroundRelative) {

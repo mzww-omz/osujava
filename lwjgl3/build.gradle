@@ -38,5 +38,8 @@ run {
     if (project.hasProperty('skinDirectory')) {
         systemProperty 'osujava.skinDirectory', project.property('skinDirectory')
     }
+    if (project.hasProperty('skinArchive')) {
+        systemProperty 'osujava.skinArchive', project.property('skinArchive')
+    }
     setIgnoreExitValue(true)
 }
