@@ -10,7 +10,7 @@ import dev.osujava.ui.theme.UiView;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import dev.osujava.OsuJavaGame;
 import dev.osujava.beatmap.BeatmapDifficulty;
-import dev.osujava.beatmap.BeatmapPoint;
+import dev.osujava.ruleset.osu.render.LegacyCursorVisual;
 import dev.osujava.beatmap.BeatmapSet;
 import dev.osujava.beatmap.HitObject;
 import dev.osujava.gameplay.ElapsedGameClock;
@@ -37,6 +37,9 @@ public final class GameplayScreen extends ScreenAdapter {
     private final GameplayRunMode runMode;
     private final DebugAutoPlayer autoPlayer;
     private final GameplayRenderer renderer;
+    private final GameplayCursorRenderer cursorRenderer;
+    private final LegacyCursorVisual cursorVisual;
+    private final GameplayCursorVisibility cursorVisibility;
     private final OsuSkinAssets skinAssets;
     private final GameplayAudioPlayer audioPlayer;
     private final GameplayInputProcessor input;
@@ -60,6 +63,9 @@ public final class GameplayScreen extends ScreenAdapter {
         this.runMode = runMode;
         this.skinAssets = new OsuSkinAssets(game.skinDirectory());
         this.renderer = new GameplayRenderer(game, GameplayVisualConfig.defaults(), skinAssets);
+        this.cursorRenderer = new GameplayCursorRenderer(skinAssets);
+        this.cursorVisual = cursorRenderer.createVisual();
+        this.cursorVisibility = new GameplayCursorVisibility(Gdx.graphics);
         this.audioPlayer = new GameplayAudioPlayer(difficulty.beatmapPath() == null
                 ? null : difficulty.beatmapPath().getParent());
         long lastObjectEnd = 0;
@@ -97,7 +103,7 @@ public final class GameplayScreen extends ScreenAdapter {
         this.music = loadedMusic;
         this.clock = selectedClock;
         this.notice = audioNotice;
-        this.session = game.osuRuleset().createSession(difficulty, clock);
+        this.session = new CursorTrackingSession(game.osuRuleset().createSession(difficulty, clock), clock, cursorVisual);
         this.input = new GameplayInputProcessor(session, () -> game.navigate(
                 new SongSelectScreen(game, set.id(), set.difficulties().indexOf(difficulty))),
                 runMode == GameplayRunMode.MANUAL);
@@ -109,6 +115,19 @@ public final class GameplayScreen extends ScreenAdapter {
     @Override
     public void show() {
         Gdx.input.setInputProcessor(input);
+        cursorVisibility.show();
+        resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        if (autoPlayer != null) cursorVisual.move(clock.nowMs(), autoPlayer.cursorX(), autoPlayer.cursorY());
+    }
+
+    @Override
+    public void hide() { cursorVisibility.hide(); }
+
+    @Override
+    public void resize(int width, int height) {
+        viewport = PlayfieldViewport.fit(width, height);
+        input.setViewport(viewport);
+        if (autoPlayer == null) input.mouseMoved(Gdx.input.getX(), Gdx.input.getY());
     }
 
     @Override
@@ -127,14 +146,16 @@ public final class GameplayScreen extends ScreenAdapter {
             game.navigate(new ResultsScreen(game, set, difficulty, session.state().score(), runMode));
             return;
         }
-        renderer.render(set, difficulty, state, viewport, background, notice,
-                autoPlayer == null ? null : new BeatmapPoint(autoPlayer.cursorX(), autoPlayer.cursorY()));
+        renderer.render(set, difficulty, state, viewport, background, notice);
+        cursorVisual.advance(state.currentTimeMs());
+        cursorRenderer.draw(game.batch(), game.shapes(), cursorVisual, state.currentTimeMs(), viewport);
         transitionView.prepare();
         transitionView.fade(entrance, delta);
     }
 
     @Override
     public void dispose() {
+        cursorVisibility.close();
         renderer.dispose();
         skinAssets.dispose();
         audioPlayer.close();

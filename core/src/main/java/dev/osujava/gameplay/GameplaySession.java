@@ -3,6 +3,11 @@ package dev.osujava.gameplay;
 import java.util.List;
 
 public interface GameplaySession {
+    /** Authoritative input snapshot; visual consumers never maintain another action set. */
+    record PointerState(double x, double y, boolean pressed) { }
+
+    default PointerState pointerState() { return null; }
+
     GameplayState update();
 
     void click(double x, double y);

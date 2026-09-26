@@ -7,12 +7,20 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Small, section-oriented skin.ini reader. Supports legacy Fonts, General and Slider Body Colours settings. */
-public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber, double legacyVersion, Colours colours) {
+public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber, double legacyVersion, Colours colours, Cursor cursor) {
+    public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay, double version, Colours colours) {
+        this(fonts, hasIni, overlay, version, colours, Cursor.defaults());
+    }
     public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay, double version) {
         this(fonts, hasIni, overlay, version, Colours.defaults());
     }
     public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay) { this(fonts, hasIni, overlay, 1); }
     public SkinConfiguration(Fonts fonts, boolean hasIni) { this(fonts, hasIni, true); }
+
+    /** OsuCursor / LegacyCursor / LegacyCursorTrail null-config defaults. */
+    public record Cursor(boolean centre, boolean rotate, boolean expand, boolean trailRotate) {
+        public static Cursor defaults() { return new Cursor(true, true, true, true); }
+    }
 
     public record Rgb(float r, float g, float b) { }
 
@@ -63,6 +71,7 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
         double version = 1;
         Rgb border = Colours.defaults().sliderBorder();
         Rgb track = null;
+        boolean centre = true, rotate = true, expand = true, trailRotate = true;
         Boolean overlay = null;
         Boolean typoOverlay = null;
         String line;
@@ -91,6 +100,10 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
                 }
                 Boolean parsed = value.equals("1") ? Boolean.TRUE : value.equals("0") ? Boolean.FALSE : null;
                 if (parsed != null) {
+                    if (key.equalsIgnoreCase("CursorCentre")) centre = parsed;
+                    if (key.equalsIgnoreCase("CursorRotate")) rotate = parsed;
+                    if (key.equalsIgnoreCase("CursorExpand")) expand = parsed;
+                    if (key.equalsIgnoreCase("CursorTrailRotate")) trailRotate = parsed;
                     if (key.equalsIgnoreCase("HitCircleOverlayAboveNumber")) overlay = parsed;
                     if (key.equalsIgnoreCase("HitCircleOverlayAboveNumer")) typoOverlay = parsed;
                 }
@@ -121,6 +134,6 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             }
         }
         return new SkinConfiguration(new Fonts(prefix, overlap, scorePrefix, scoreOverlap, comboPrefix, comboOverlap), true,
-                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track));
+                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track), new Cursor(centre, rotate, expand, trailRotate));
     }
 }

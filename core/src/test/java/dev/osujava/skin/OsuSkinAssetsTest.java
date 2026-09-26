@@ -21,6 +21,42 @@ class OsuSkinAssetsTest {
     @TempDir Path directory;
 
     @Test
+    void cursorPiecesPreferTwoXShareTexturesAndDisposeOnce() throws IOException {
+        for (String name : new String[]{"cursor", "cursormiddle", "cursortrail"}) {
+            Files.createFile(directory.resolve(name + ".png"));
+            Files.createFile(directory.resolve(name + "@2x.png"));
+        }
+        List<TestTexture> loaded = new ArrayList<>();
+        var assets = new OsuSkinAssets(directory, file -> {
+            var texture = new TestTexture(); loaded.add(texture); return texture;
+        });
+        for (Image image : new Image[]{Image.CURSOR, Image.CURSOR_MIDDLE, Image.CURSOR_TRAIL}) {
+            var asset = assets.get(image); assertEquals(2, asset.density());
+            assertEquals(16, asset.logicalWidth()); assertEquals(24, asset.logicalHeight());
+            for (int i = 0; i < 100; i++) assertSame(asset, assets.get(image));
+        }
+        assertEquals(3, loaded.size()); assets.dispose(); assets.dispose();
+        assertTrue(loaded.stream().allMatch(t -> t.disposals == 1));
+        assertNull(assets.get(Image.CURSOR));
+    }
+
+    @Test
+    void missingAndBrokenCursorPiecesUseIndependentFallbacks() throws IOException {
+        var missing = new OsuSkinAssets(null, file -> { fail("No load"); return null; });
+        assertNull(missing.get(Image.CURSOR)); assertNull(missing.get(Image.CURSOR_TRAIL)); missing.dispose();
+        Files.createFile(directory.resolve("cursor.png"));
+        Files.createFile(directory.resolve("cursormiddle.png"));
+        Files.createFile(directory.resolve("cursortrail.png"));
+        var shared = new TestTexture();
+        var assets = new OsuSkinAssets(directory, file -> {
+            if (file.path().getFileName().toString().equals("cursortrail.png")) throw new GdxRuntimeException("bad PNG");
+            return shared;
+        });
+        assertNotNull(assets.get(Image.CURSOR)); assertSame(assets.get(Image.CURSOR).texture(), assets.get(Image.CURSOR_MIDDLE).texture());
+        assertNull(assets.get(Image.CURSOR_TRAIL)); assets.dispose(); assets.dispose(); assertEquals(1, shared.disposals);
+    }
+
+    @Test
     void hudFontsShareTexturesWithEachOtherAndHitcircleFontAndDisposeOnce() throws IOException {
         Files.writeString(directory.resolve("skin.ini"), "[Fonts]\nHitCirclePrefix: score\nScoreOverlap: 2\nComboOverlap: -3");
         for (char c : "0123456789.%x".toCharArray()) {

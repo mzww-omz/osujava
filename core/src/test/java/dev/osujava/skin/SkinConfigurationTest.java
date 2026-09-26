@@ -124,6 +124,21 @@ class SkinConfigurationTest {
         assertEquals(new SkinConfiguration.Rgb(0,1,0),parse("[colours]\nsliderborder: 0,255,0").colours().sliderBorder());
     }
 
+    @Test
+    void cursorSettingsUseLazerDefaultsSectionsAndSafeMalformedFallback() throws IOException {
+        var defaults = SkinConfiguration.Cursor.defaults();
+        assertEquals(defaults, SkinConfiguration.defaults().cursor());
+        assertEquals(defaults, parse("[General]\n").cursor());
+        String keys = "CursorCentre: %s\nCursorRotate: %s\nCursorExpand: %s\nCursorTrailRotate: %s\n";
+        assertEquals(new SkinConfiguration.Cursor(false, false, false, false),
+                parse("[General]\n" + keys.formatted("0", "0", "0", "0")).cursor());
+        assertEquals(defaults, parse("[Fonts]\n" + keys.formatted("0", "0", "0", "0")).cursor());
+        for (String bad : new String[]{"", "broken", "true", "2", "-1"})
+            assertEquals(defaults, parse("[General]\n" + keys.formatted(bad, bad, bad, bad)).cursor());
+        assertEquals(new SkinConfiguration.Cursor(false, true, false, true),
+                parse("[general]\ncursorcentre: 0\nCursorRotate: 1\nCursorExpand: 0\nCursorTrailRotate: 1").cursor());
+    }
+
     private SkinConfiguration parse(String ini) throws IOException {
         return SkinConfiguration.parse(new StringReader(ini));
     }

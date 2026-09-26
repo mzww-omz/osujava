@@ -71,11 +71,6 @@ public final class GameplayRenderer {
 
     public void render(BeatmapSet set, BeatmapDifficulty difficulty, GameplayState state,
                        PlayfieldViewport viewport, Texture background, String notice) {
-        render(set, difficulty, state, viewport, background, notice, null);
-    }
-
-    public void render(BeatmapSet set, BeatmapDifficulty difficulty, GameplayState state,
-                       PlayfieldViewport viewport, Texture background, String notice, BeatmapPoint debugCursor) {
         Color backgroundColor = visuals.component(GameplaySkinComponent.BACKGROUND);
         Gdx.gl.glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
@@ -161,11 +156,6 @@ public final class GameplayRenderer {
                     shapeType(shapes, ShapeRenderer.ShapeType.Filled);
                 }
                 case HUD -> {
-                    if (debugCursor != null) {
-                        shapeType(shapes, ShapeRenderer.ShapeType.Line);
-                        drawDebugCursor(shapes, debugCursor, viewport);
-                        shapeType(shapes, ShapeRenderer.ShapeType.Filled);
-                    }
                     hud.drawSongProgress(shapes, state);
                     sprites(shapes, () -> hud.draw(batch, state, viewport, notice));
                 }
@@ -254,16 +244,6 @@ public final class GameplayRenderer {
         return (float) (GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), slider.startTimeMs(),
                 slider.preemptMs(), ApproachTimeCalculator.fadeInMs(slider.preemptMs()))
                 * GameplayVisualTiming.fadeOutAlpha(state.currentTimeMs(), slider.endTimeMs(), SLIDER_POST_FADE_MS));
-    }
-
-    private void drawDebugCursor(ShapeRenderer shapes, BeatmapPoint cursor, PlayfieldViewport viewport) {
-        float x = viewport.toScreenX(cursor.x());
-        float y = viewport.toScreenY(cursor.y());
-        float radius = viewport.toScreenLength(8);
-        shapes.setColor(.42f, 1f, .79f, .96f);
-        shapes.circle(x, y, radius, 24);
-        shapes.line(x - radius * 1.6f, y, x + radius * 1.6f, y);
-        shapes.line(x, y - radius * 1.6f, x, y + radius * 1.6f);
     }
 
     private void drawHitCircle(ShapeRenderer shapes, HitCircleVisual circle,

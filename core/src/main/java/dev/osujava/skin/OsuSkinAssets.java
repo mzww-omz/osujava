@@ -25,7 +25,8 @@ public final class OsuSkinAssets implements Disposable {
         HIT_CIRCLE("hitcircle"), HIT_CIRCLE_OVERLAY("hitcircleoverlay"), APPROACH_CIRCLE("approachcircle"),
         SLIDER_START_CIRCLE("sliderstartcircle"), SLIDER_START_CIRCLE_OVERLAY("sliderstartcircleoverlay"),
         SLIDER_END_CIRCLE("sliderendcircle"), SLIDER_END_CIRCLE_OVERLAY("sliderendcircleoverlay"),
-        REVERSE_ARROW("reversearrow"), SLIDER_FOLLOW_CIRCLE("sliderfollowcircle"), SLIDER_TICK("sliderscorepoint");
+        REVERSE_ARROW("reversearrow"), SLIDER_FOLLOW_CIRCLE("sliderfollowcircle"), SLIDER_TICK("sliderscorepoint"),
+        CURSOR("cursor"), CURSOR_MIDDLE("cursormiddle"), CURSOR_TRAIL("cursortrail");
 
         private final String basename;
 
@@ -166,6 +167,7 @@ public final class OsuSkinAssets implements Disposable {
     public SkinTexture hitCircleDigit(int digit) { return hitCircleDigits.get(digit); }
     public boolean hitCircleOverlayAboveNumber() { return configuration.hitCircleOverlayAboveNumber(); }
     public SkinConfiguration.Colours sliderColours() { return configuration.colours(); }
+    public SkinConfiguration.Cursor cursorConfiguration() { return configuration.cursor(); }
     public double legacyVersion() { return configuration.legacyVersion(); }
     public float hitCircleOverlap() { return configuration.fonts().hitCircleOverlap(); }
 

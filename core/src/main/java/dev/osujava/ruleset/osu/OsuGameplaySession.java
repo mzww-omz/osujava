@@ -175,6 +175,11 @@ public final class OsuGameplaySession implements GameplaySession {
     }
 
     @Override
+    public PointerState pointerState() {
+        return new PointerState(cursorX, cursorY, !pressedActions.isEmpty());
+    }
+
+    @Override
     public void pointerMoved(double x, double y) {
         cursorX = x;
         cursorY = y;

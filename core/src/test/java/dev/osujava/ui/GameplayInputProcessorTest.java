@@ -138,6 +138,57 @@ class GameplayInputProcessorTest {
         }
     }
 
+    @Test
+    void visualReadsExactSessionPositionAndAllFourPhysicalInputsWithoutPrematureContract() {
+        Graphics oldGraphics = Gdx.graphics; Input oldInput = Gdx.input;
+        Gdx.graphics = proxy(Graphics.class, m -> m.equals("getHeight") ? 384 : null);
+        Gdx.input = proxy(Input.class, m -> m.equals("getX") || m.equals("getY") ? 100 : null);
+        try {
+            var clock = new ManualClock(); clock.set(1000);
+            var actual = session(clock);
+            var visual = new dev.osujava.ruleset.osu.render.LegacyCursorVisual(
+                    dev.osujava.skin.SkinConfiguration.Cursor.defaults(), true, true, 40);
+            var tracked = new CursorTrackingSession(actual, clock, visual);
+            var input = new GameplayInputProcessor(tracked, () -> { }); input.setViewport(PlayfieldViewport.fit(512, 384));
+            input.keyDown(Input.Keys.Z); input.keyDown(Input.Keys.X);
+            input.touchDown(100, 100, 0, Input.Buttons.LEFT); input.touchDown(100, 100, 0, Input.Buttons.RIGHT);
+            clock.set(1100); input.mouseMoved(-20, 400);
+            assertEquals(actual.pointerState().x(), visual.cursor(1100).x());
+            assertEquals(actual.pointerState().y(), visual.cursor(1100).y());
+            input.keyUp(Input.Keys.Z); input.touchUp(100, 100, 0, Input.Buttons.LEFT); input.keyUp(Input.Keys.X);
+            assertTrue(actual.pointerState().pressed()); assertEquals(1.3, visual.expandedScale(1200), 1e-6);
+            input.touchUp(100, 100, 0, Input.Buttons.RIGHT); assertFalse(actual.pointerState().pressed());
+            assertEquals(1.075, visual.expandedScale(1150), 1e-6); assertEquals(1, visual.expandedScale(1200));
+        } finally { Gdx.graphics = oldGraphics; Gdx.input = oldInput; }
+    }
+
+    @Test
+    void autoAndManualAdapterPreserveJudgementsAndAutoPositionAtEverySample() {
+        var clock = new ManualClock(); var plain = session(clock); var actual = session(clock);
+        var visual = new dev.osujava.ruleset.osu.render.LegacyCursorVisual(
+                dev.osujava.skin.SkinConfiguration.Cursor.defaults(), true, true, 40);
+        var tracked = new CursorTrackingSession(actual, clock, visual);
+        // The fixture session and the Auto target use the same beatmap.
+        HitObject slider = new HitObject(100, 100, 1000, HitObject.Type.SLIDER, 2, 0,
+                new SliderData(List.of(new SliderData.Segment(SliderData.CurveType.LINEAR, 0,
+                        List.of(new BeatmapPoint(100, 100), new BeatmapPoint(200, 100)))), 0, 100));
+        var difficulty = new BeatmapDifficulty("Song", "Artist", "Creator", "Normal", 0, "", "",
+                new DifficultySettings(5, 5, 5, 5, 1.4, 1),
+                List.of(new dev.osujava.beatmap.TimingPoint(0, 500, 4, 0, 0, 100, true, 0)), List.of(slider), null, null);
+        var a = new dev.osujava.ruleset.osu.DebugAutoPlayer(difficulty, clock, tracked);
+        var b = new dev.osujava.ruleset.osu.DebugAutoPlayer(difficulty, clock, plain);
+        for (int t = 0; t < 2500; t += 8) {
+            clock.set(t); a.update(); b.update();
+            assertEquals(plain.update().score(), tracked.update().score());
+            a.afterSessionUpdate(); b.afterSessionUpdate(); visual.advance(t);
+            if (visual.positioned()) {
+                assertEquals(a.cursorX(), visual.cursor(t).x()); assertEquals(a.cursorY(), visual.cursor(t).y());
+                assertEquals(actual.pointerState().x(), visual.cursor(t).x());
+            }
+            assertEquals(a.cursorX(), b.cursorX()); assertEquals(a.cursorY(), b.cursorY());
+        }
+    }
+
     private OsuGameplaySession session(ManualClock clock) {
         HitObject slider = new HitObject(100, 100, 1000, HitObject.Type.SLIDER, 2, 0,
                 new SliderData(List.of(new SliderData.Segment(SliderData.CurveType.LINEAR, 0,

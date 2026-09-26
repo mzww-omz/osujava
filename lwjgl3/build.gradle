@@ -68,3 +68,11 @@ tasks.register('judgementVisualHarness', JavaExec) {
     systemProperty 'java.awt.headless', 'true'
     args project.findProperty('judgementOutput') ?: '/tmp/osujava-judgements'
 }
+
+tasks.register('cursorVisualHarness', JavaExec) {
+    dependsOn hudHarnessClasses
+    classpath = sourceSets.hudHarness.runtimeClasspath
+    mainClass = 'dev.osujava.ui.LegacyCursorVisualHarness'
+    systemProperty 'java.awt.headless', 'true'
+    args project.findProperty('cursorOutput') ?: '/tmp/osujava-cursor'
+}
