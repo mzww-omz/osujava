@@ -30,7 +30,13 @@ public final class DebugAutoPlayer {
     private boolean primaryPressed;
     private boolean releaseAfterUpdate;
     private double cursorX = 256;
-    private double cursorY = 192;
+    private double cursorY = 500;
+    private int movementTargetIndex = -1;
+    private double movementFromX;
+    private double movementFromY;
+    private double movementStartMs;
+    private double movementEndMs;
+    private double previousTargetEndMs = Double.NEGATIVE_INFINITY;
 
     public DebugAutoPlayer(BeatmapDifficulty difficulty, GameClock clock, GameplaySession session) {
         Objects.requireNonNull(difficulty, "difficulty");
@@ -76,6 +82,7 @@ public final class DebugAutoPlayer {
         primaryPressed = false;
         releaseAfterUpdate = false;
         targetStarted = false;
+        previousTargetEndMs = clock.nowMs();
         targetIndex++;
     }
 
@@ -99,11 +106,12 @@ public final class DebugAutoPlayer {
         HitObject object = target.object();
         if (now < object.timeMs() - preemptMs) return;
         BeatmapPoint position = stacking.position(object);
-        moveCursor(position.x(), position.y());
+        moveTowards(position.x(), position.y(), object.timeMs(), now);
         if (now < object.timeMs()) return;
 
         session.click(cursorX, cursorY);
         session.pointerReleased();
+        previousTargetEndMs = now;
         targetIndex++;
     }
 
@@ -112,7 +120,7 @@ public final class DebugAutoPlayer {
         if (!targetStarted) {
             if (now < object.timeMs() - preemptMs) return;
             BeatmapPoint position = stacking.position(object);
-            moveCursor(position.x(), position.y());
+            moveTowards(position.x(), position.y(), object.timeMs(), now);
             if (now < object.timeMs()) return;
             session.click(cursorX, cursorY);
             targetStarted = true;
@@ -129,7 +137,10 @@ public final class DebugAutoPlayer {
     private void updateSpinner(Target target, long now) {
         HitObject object = target.object();
         if (now < object.timeMs() - preemptMs) return;
-        moveCursor(spinnerX(object, now), spinnerY(object, now));
+        if (now < object.timeMs()) {
+            moveTowards(spinnerX(object, object.timeMs()), spinnerY(object, object.timeMs()),
+                    object.timeMs(), now);
+        } else moveCursor(spinnerX(object, now), spinnerY(object, now));
         if (!targetStarted && now >= object.timeMs()) {
             session.click(cursorX, cursorY);
             targetStarted = true;
@@ -155,6 +166,21 @@ public final class DebugAutoPlayer {
         cursorX = x;
         cursorY = y;
         session.pointerMoved(x, y);
+    }
+
+    private void moveTowards(double targetX, double targetY, double targetTimeMs, long now) {
+        if (movementTargetIndex != targetIndex) {
+            movementTargetIndex = targetIndex;
+            movementFromX = cursorX;
+            movementFromY = cursorY;
+            movementStartMs = Math.max(targetTimeMs - preemptMs, previousTargetEndMs);
+            movementEndMs = targetTimeMs;
+        }
+        double p = movementEndMs <= movementStartMs ? 1
+                : Math.max(0, Math.min(1, (now - movementStartMs) / (movementEndMs - movementStartMs)));
+        double eased = 1 - (1 - p) * (1 - p);
+        moveCursor(movementFromX + (targetX - movementFromX) * eased,
+                movementFromY + (targetY - movementFromY) * eased);
     }
 
     private record Target(HitObject object, SliderPath sliderPath, SliderTiming sliderTiming) {

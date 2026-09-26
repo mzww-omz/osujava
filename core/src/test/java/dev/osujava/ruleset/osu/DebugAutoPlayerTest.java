@@ -29,8 +29,8 @@ class DebugAutoPlayerTest {
         DebugAutoPlayer auto = new DebugAutoPlayer(difficulty, clock, session);
 
         auto.update();
-        assertEquals(312, auto.cursorX());
-        assertEquals(144, auto.cursorY());
+        assertTrue(auto.cursorX() > 256 && auto.cursorX() < 312);
+        assertTrue(auto.cursorY() > 144 && auto.cursorY() < 500);
         assertEquals(0, session.state().score().count300());
 
         for (long now = 16; now <= 1104; now += 16) {
