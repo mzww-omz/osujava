@@ -54,6 +54,20 @@ buildは次のコマンドで実行します。
 ./gradlew build
 ~~~
 
+実行時依存ライブラリを含む単一の実行可能JARは、次のコマンドで作成できます。
+
+~~~sh
+./gradlew lwjgl3:executableJar
+~~~
+
+`lwjgl3/build/libs/osujava-0.1.0-all.jar` が生成されます。Java 21で次のように起動します。
+
+~~~sh
+java -jar lwjgl3/build/libs/osujava-0.1.0-all.jar
+~~~
+
+Windowsでは `./gradlew` を `gradlew.bat` に置き換えてください。
+
 parser、archiveのパス検証、複数DifficultyのImport、アセット関連付け、Library indexの保存・再読込・破損entryのスキップ、Rulesetの判定、Score/accuracy、Playfield座標変換をJUnit 5で確認します。
 
 ## 構成

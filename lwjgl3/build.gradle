@@ -10,8 +10,29 @@ application {
     mainClass = 'dev.osujava.lwjgl3.Lwjgl3Launcher'
 }
 
+tasks.register('executableJar', Jar) {
+    group = 'build'
+    description = 'Builds a runnable JAR with the desktop runtime dependencies included.'
+    archiveBaseName = 'osujava'
+    archiveVersion = project.version
+    archiveClassifier = 'all'
+
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes 'Main-Class': application.mainClass.get()
+    }
+
+    from sourceSets.main.output
+    from {
+        configurations.runtimeClasspath.collect { file ->
+            file.isDirectory() ? file : zipTree(file)
+        }
+    }
+
+    exclude 'META-INF/*.SF', 'META-INF/*.DSA', 'META-INF/*.RSA', 'META-INF/SIG-*'
+}
+
 run {
     workingDir = rootProject.projectDir
     setIgnoreExitValue(true)
 }
-
