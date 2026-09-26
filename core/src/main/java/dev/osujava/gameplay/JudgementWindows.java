@@ -9,8 +9,9 @@ public record JudgementWindows(double hit300Ms, double hit100Ms, double hit50Ms)
 
     public static JudgementWindows fromOverallDifficulty(double overallDifficulty) {
         double od = Math.max(0, Math.min(10, overallDifficulty));
-        return new JudgementWindows( Math.max(0, 79.5 - 6 * od),
-                Math.max(0, 139.5 - 8 * od), Math.max(0, 199.5 - 10 * od));
+        return new JudgementWindows(Math.max(0, Math.floor(80 - 6 * od) - 0.5),
+                Math.max(0, Math.floor(140 - 8 * od) - 0.5),
+                Math.max(0, Math.floor(200 - 10 * od) - 0.5));
     }
 
     public Judgement judge(double absoluteOffsetMs) {

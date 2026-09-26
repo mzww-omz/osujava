@@ -24,5 +24,9 @@ class TimingAndJudgementTest {
         assertEquals(Judgement.HIT100, windows.judge(80));
         assertEquals(Judgement.HIT50, windows.judge(140));
         assertEquals(Judgement.MISS, windows.judge(150));
+        JudgementWindows fractional = JudgementWindows.fromOverallDifficulty(5.3);
+        assertEquals(47.5, fractional.hit300Ms());
+        assertEquals(96.5, fractional.hit100Ms());
+        assertEquals(146.5, fractional.hit50Ms());
     }
 }
