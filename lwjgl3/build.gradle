@@ -35,5 +35,8 @@ tasks.register('executableJar', Jar) {
 
 run {
     workingDir = rootProject.projectDir
+    if (project.hasProperty('skinDirectory')) {
+        systemProperty 'osujava.skinDirectory', project.property('skinDirectory')
+    }
     setIgnoreExitValue(true)
 }

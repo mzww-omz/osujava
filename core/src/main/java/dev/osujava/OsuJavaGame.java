@@ -13,10 +13,12 @@ import dev.osujava.ui.BeatmapFileChooser;
 import dev.osujava.ui.MainMenuScreen;
 import dev.osujava.ui.theme.SmoothUiFont;
 
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 
 public class OsuJavaGame extends Game {
     private final BeatmapFileChooser fileChooser;
+    private final Path skinDirectory;
     private SpriteBatch batch;
     private ShapeRenderer shapes;
     private BitmapFont font;
@@ -26,7 +28,24 @@ public class OsuJavaGame extends Game {
     private OsuRuleset osuRuleset;
 
     public OsuJavaGame(BeatmapFileChooser fileChooser) {
+        this(fileChooser, configuredSkinDirectory());
+    }
+
+    public OsuJavaGame(BeatmapFileChooser fileChooser, Path skinDirectory) {
         this.fileChooser = fileChooser;
+        this.skinDirectory = skinDirectory;
+    }
+
+    public Path skinDirectory() { return skinDirectory; }
+
+    private static Path configuredSkinDirectory() {
+        String value = System.getProperty("osujava.skinDirectory");
+        if (value == null || value.isBlank()) return null;
+        try {
+            return Path.of(value);
+        } catch (InvalidPathException ignored) {
+            return null;
+        }
     }
 
     @Override

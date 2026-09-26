@@ -22,6 +22,9 @@ import dev.osujava.gameplay.JudgementVisual;
 import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.SliderVisual;
 import dev.osujava.gameplay.SpinnerVisual;
+import dev.osujava.skin.OsuSkinAssets;
+import dev.osujava.skin.OsuSkinAssets.Image;
+import dev.osujava.skin.OsuSkinAssets.SkinTexture;
 
 import java.util.IdentityHashMap;
 import java.util.Iterator;
@@ -40,6 +43,7 @@ public final class GameplayRenderer {
 
     private final OsuJavaGame game;
     private final GameplaySkin visuals;
+    private final OsuSkinAssets skinAssets;
     private final Map<List<BeatmapPoint>, SliderRenderData> sliderRenderData = new IdentityHashMap<>();
     private final GameplayHudRenderer hud;
 
@@ -48,8 +52,13 @@ public final class GameplayRenderer {
     }
 
     public GameplayRenderer(OsuJavaGame game, GameplaySkin visuals) {
+        this(game, visuals, null);
+    }
+
+    public GameplayRenderer(OsuJavaGame game, GameplaySkin visuals, OsuSkinAssets skinAssets) {
         this.game = game;
         this.visuals = visuals;
+        this.skinAssets = skinAssets;
         this.hud = new GameplayHudRenderer(game, visuals);
     }
 
@@ -119,8 +128,38 @@ public final class GameplayRenderer {
                                GameplayState state, PlayfieldViewport viewport) {
         float alpha = (float) GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(),
                 circle.preemptMs(), ApproachTimeCalculator.fadeInMs(circle.preemptMs()));
+        if (drawSkinImage(shapes, Image.HIT_CIRCLE, circle.x(), circle.y(), circle.radius(),
+                visuals.comboColor(circle.comboColorIndex()), alpha, viewport)) return;
         drawCircleBody(shapes, viewport.toScreenX(circle.x()), viewport.toScreenY(circle.y()),
                 viewport.toScreenLength(circle.radius()), visuals.comboColor(circle.comboColorIndex()), alpha);
+    }
+
+    /** Flush at the existing layer boundary so textures and vector fallbacks keep the same draw order. */
+    private boolean drawSkinImage(ShapeRenderer shapes, Image image, double x, double y, double radius,
+                                  Color tint, float alpha, PlayfieldViewport viewport) {
+        SkinTexture asset = skinAssets == null ? null : skinAssets.get(image);
+        if (asset == null) return false;
+        if (alpha <= 0.01f) return true;
+
+        // Legacy circle sprites have a 128-logical-pixel reference diameter. Density is applied
+        // before CS/viewport scaling; padded or non-square images retain their proportions.
+        float scale = viewport.toScreenLength(radius * 2) / 128f;
+        float width = asset.logicalWidth() * scale;
+        float height = asset.logicalHeight() * scale;
+        ShapeRenderer.ShapeType type = shapes.getCurrentType();
+        shapes.end();
+        SpriteBatch batch = game.batch();
+        batch.setColor(tint.r, tint.g, tint.b, tint.a * alpha);
+        batch.begin();
+        batch.draw(asset.texture(), viewport.toScreenX(x) - width / 2,
+                viewport.toScreenY(y) - height / 2, width, height);
+        batch.end();
+        batch.setColor(Color.WHITE);
+        // SpriteBatch.end() disables blending; the resumed shape pass still needs it.
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapes.begin(type);
+        return true;
     }
 
     private void drawSliderBody(ShapeRenderer shapes, SliderVisual slider,
@@ -309,6 +348,11 @@ public final class GameplayRenderer {
     private void drawApproachCircles(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
         for (HitCircleVisual circle : state.circles()) {
+            double progress = GameplayVisualTiming.approachProgress(now, circle.timeMs(), circle.preemptMs());
+            float alpha = (float) GameplayVisualTiming.approachAlpha(now, circle.timeMs(), circle.preemptMs());
+            if (drawSkinImage(shapes, Image.APPROACH_CIRCLE, circle.x(), circle.y(),
+                    GameplayVisualTiming.approachRadius(circle.radius(), progress),
+                    visuals.comboColor(circle.comboColorIndex()), alpha, viewport)) continue;
             drawApproach(shapes, circle.x(), circle.y(), circle.radius(), circle.timeMs(), circle.preemptMs(), now, viewport);
         }
         for (SliderVisual slider : state.sliders()) {
@@ -331,6 +375,9 @@ public final class GameplayRenderer {
         for (HitCircleVisual circle : state.circles()) {
             float alpha = (float) GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(),
                     circle.preemptMs(), ApproachTimeCalculator.fadeInMs(circle.preemptMs()));
+            // osu! legacy overlays keep their source colours, independently of the combo colour.
+            if (drawSkinImage(shapes, Image.HIT_CIRCLE_OVERLAY, circle.x(), circle.y(), circle.radius(),
+                    Color.WHITE, alpha, viewport)) continue;
             drawCircleOverlay(shapes, circle.x(), circle.y(), circle.radius(), alpha, viewport);
         }
         for (SliderVisual slider : state.sliders()) {

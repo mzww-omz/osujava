@@ -18,10 +18,12 @@ import dev.osujava.gameplay.GameClock;
 import dev.osujava.gameplay.GameplaySession;
 import dev.osujava.gameplay.GameplayRunMode;
 import dev.osujava.gameplay.GameplayState;
+import dev.osujava.gameplay.GameplayVisualConfig;
 import dev.osujava.gameplay.MusicGameClock;
 import dev.osujava.ruleset.osu.SliderPath;
 import dev.osujava.ruleset.osu.SliderTiming;
 import dev.osujava.ruleset.osu.DebugAutoPlayer;
+import dev.osujava.skin.OsuSkinAssets;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,6 +37,7 @@ public final class GameplayScreen extends ScreenAdapter {
     private final GameplayRunMode runMode;
     private final DebugAutoPlayer autoPlayer;
     private final GameplayRenderer renderer;
+    private final OsuSkinAssets skinAssets;
     private final GameplayAudioPlayer audioPlayer;
     private final GameplayInputProcessor input;
     private final Music music;
@@ -55,7 +58,8 @@ public final class GameplayScreen extends ScreenAdapter {
         this.set = set;
         this.difficulty = difficulty;
         this.runMode = runMode;
-        this.renderer = new GameplayRenderer(game);
+        this.skinAssets = new OsuSkinAssets(game.skinDirectory());
+        this.renderer = new GameplayRenderer(game, GameplayVisualConfig.defaults(), skinAssets);
         this.audioPlayer = new GameplayAudioPlayer(difficulty.beatmapPath() == null
                 ? null : difficulty.beatmapPath().getParent());
         long lastObjectEnd = 0;
@@ -131,6 +135,7 @@ public final class GameplayScreen extends ScreenAdapter {
 
     @Override
     public void dispose() {
+        skinAssets.dispose();
         audioPlayer.close();
         if (music != null) {
             music.stop();
