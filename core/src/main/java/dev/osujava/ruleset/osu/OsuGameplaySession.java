@@ -17,6 +17,7 @@ import dev.osujava.gameplay.JudgementVisual;
 import dev.osujava.gameplay.JudgementWindows;
 import dev.osujava.gameplay.OsuObjectGeometry;
 import dev.osujava.gameplay.ScoreTracker;
+import dev.osujava.gameplay.SliderNestedVisualTiming;
 import dev.osujava.gameplay.SliderVisual;
 import dev.osujava.gameplay.SpinnerVisual;
 
@@ -402,11 +403,22 @@ public final class OsuGameplaySession implements GameplaySession {
             for (int index = 0; index < slider.events.size(); index++) {
                 SliderEvent event = slider.events.get(index);
                 if (event.type() == SliderEvent.Type.REPEAT) {
+                    int repeatIndex = event.spanIndex();
+                    SliderNestedVisualTiming visualTiming = SliderNestedVisualTiming.endCircle(
+                            slider.object.timeMs(), preemptMs, slider.timing.spanDurationMs(), event.timeMs(),
+                            repeatIndex, ApproachTimeCalculator.fadeInMs(preemptMs), true);
+                    SliderNestedVisualTiming reverseArrowTiming = SliderNestedVisualTiming.reverseArrow(
+                            slider.object.timeMs(), preemptMs, slider.timing.spanDurationMs(), event.timeMs(),
+                            repeatIndex, true);
                     repeats.add(new SliderVisual.RepeatMarker(slider.path.positionAt(event.pathProgress()),
-                            event.spanIndex(), slider.eventJudged[index], event.timeMs()));
+                            repeatIndex, slider.eventJudged[index], event.timeMs(), visualTiming,
+                            reverseArrowTiming));
                 } else if (event.type() == SliderEvent.Type.TICK) {
+                    SliderNestedVisualTiming visualTiming = SliderNestedVisualTiming.tick(
+                            slider.object.timeMs(), preemptMs, slider.timing.spanDurationMs(),
+                            event.spanIndex(), event.timeMs());
                     ticks.add(new SliderVisual.TickMarker(slider.path.positionAt(event.pathProgress()),
-                            event.timeMs(), slider.eventJudged[index], slider.eventHit[index]));
+                            event.timeMs(), slider.eventJudged[index], slider.eventHit[index], visualTiming));
                 }
             }
             ComboInfo combo = comboInfo.getOrDefault(slider.object, new ComboInfo(1, 0));

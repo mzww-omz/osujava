@@ -40,12 +40,32 @@ public record SliderVisual(
         ticks = List.copyOf(ticks);
     }
 
-    public record RepeatMarker(BeatmapPoint position, int spanIndex, boolean judged, double timeMs) {
+    public SliderNestedVisualTiming tailVisualTiming() {
+        int repeatIndex = repeats.size();
+        double spanDurationMs = (endTimeMs - startTimeMs) / (repeatIndex + 1);
+        return SliderNestedVisualTiming.endCircle(startTimeMs, preemptMs, spanDurationMs,
+                endTimeMs, repeatIndex, ApproachTimeCalculator.fadeInMs(preemptMs), true);
+    }
+
+    public record RepeatMarker(BeatmapPoint position, int spanIndex, boolean judged, double timeMs,
+                               SliderNestedVisualTiming visualTiming,
+                               SliderNestedVisualTiming reverseArrowTiming) {
+        public RepeatMarker(BeatmapPoint position, int spanIndex, boolean judged, double timeMs) {
+            this(position, spanIndex, judged, timeMs,
+                    new SliderNestedVisualTiming(timeMs, timeMs, 150),
+                    new SliderNestedVisualTiming(timeMs, timeMs, 150));
+        }
+
         public RepeatMarker(BeatmapPoint position, int spanIndex, boolean judged) {
             this(position, spanIndex, judged, 0);
         }
     }
 
-    public record TickMarker(BeatmapPoint position, double timeMs, boolean judged, boolean hit) {
+    public record TickMarker(BeatmapPoint position, double timeMs, boolean judged, boolean hit,
+                             SliderNestedVisualTiming visualTiming) {
+        public TickMarker(BeatmapPoint position, double timeMs, boolean judged, boolean hit) {
+            this(position, timeMs, judged, hit,
+                    new SliderNestedVisualTiming(timeMs, timeMs, 150));
+        }
     }
 }
