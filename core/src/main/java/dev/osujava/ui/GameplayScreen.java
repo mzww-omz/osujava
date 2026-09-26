@@ -135,6 +135,7 @@ public final class GameplayScreen extends ScreenAdapter {
 
     @Override
     public void dispose() {
+        renderer.dispose();
         skinAssets.dispose();
         audioPlayer.close();
         if (music != null) {

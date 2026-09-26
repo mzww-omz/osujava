@@ -6,10 +6,33 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Small, section-oriented skin.ini reader. Supports hit-circle Fonts and overlay ordering settings. */
-public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber, double legacyVersion) {
+/** Small, section-oriented skin.ini reader. Supports legacy Fonts, General and Slider Body Colours settings. */
+public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber, double legacyVersion, Colours colours) {
+    public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay, double version) {
+        this(fonts, hasIni, overlay, version, Colours.defaults());
+    }
     public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay) { this(fonts, hasIni, overlay, 1); }
     public SkinConfiguration(Fonts fonts, boolean hasIni) { this(fonts, hasIni, true); }
+
+    public record Rgb(float r, float g, float b) { }
+
+    /** Null track means use the HitObject accent colour. */
+    public record Colours(Rgb sliderBorder, Rgb sliderTrackOverride) {
+        public static Colours defaults() { return new Colours(new Rgb(1, 1, 1), null); }
+    }
+
+    private static Rgb parseRgb(String value) {
+        String[] components = value.split(",", -1);
+        if (components.length != 3) return null;
+        int[] rgb = new int[3];
+        try {
+            for (int i = 0; i < 3; i++) {
+                rgb[i] = Integer.parseInt(components[i].trim());
+                if (rgb[i] < 0 || rgb[i] > 255) return null;
+            }
+        } catch (NumberFormatException ignored) { return null; }
+        return new Rgb(rgb[0] / 255f, rgb[1] / 255f, rgb[2] / 255f);
+    }
 
     public record Fonts(String hitCirclePrefix, float hitCircleOverlap) {
         // osu.Game/Skinning/LegacySkinExtensions.cs: GetFontPrefix / GetFontOverlap.
@@ -34,6 +57,8 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
         float overlap = Fonts.defaults().hitCircleOverlap();
         // LegacySkinDecoder.CreateTemplateObject defaults to 1.0; SkinConfiguration.LATEST_VERSION = 2.7.
         double version = 1;
+        Rgb border = Colours.defaults().sliderBorder();
+        Rgb track = null;
         Boolean overlay = null;
         Boolean typoOverlay = null;
         String line;
@@ -66,6 +91,13 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
                     if (key.equalsIgnoreCase("HitCircleOverlayAboveNumer")) typoOverlay = parsed;
                 }
             }
+            if (section.equalsIgnoreCase("Colours")) {
+                if (key.equalsIgnoreCase("SliderBorder")) {
+                    Rgb parsed = parseRgb(value);
+                    border = parsed != null ? parsed : Colours.defaults().sliderBorder();
+                }
+                if (key.equalsIgnoreCase("SliderTrackOverride")) track = parseRgb(value);
+            }
             if (!section.equalsIgnoreCase("Fonts")) continue;
             if (key.equalsIgnoreCase("HitCirclePrefix") && !value.isEmpty()) prefix = value;
             if (key.equalsIgnoreCase("HitCircleOverlap")) {
@@ -78,6 +110,6 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             }
         }
         return new SkinConfiguration(new Fonts(prefix, overlap), true,
-                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version);
+                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track));
     }
 }

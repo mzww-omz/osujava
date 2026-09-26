@@ -80,6 +80,31 @@ class SkinConfigurationTest {
         assertTrue(parse("[Fonts]\nHitCircleOverlayAboveNumber: 0").hitCircleOverlayAboveNumber());
     }
 
+    @Test
+    void parsesSliderColoursWithoutChangingFontsGeneralOrVersion() throws IOException {
+        var c = parse("[Colours]\nSliderBorder: 12, 34, 255 // border\nSliderTrackOverride: 200,0,80\n"
+                + "[Fonts]\nHitCirclePrefix: score\nHitCircleOverlap: 4\n"
+                + "[General]\nVersion: latest\nHitCircleOverlayAboveNumber: 0");
+        assertEquals(new SkinConfiguration.Rgb(12/255f,34/255f,1),c.colours().sliderBorder());
+        assertEquals(new SkinConfiguration.Rgb(200/255f,0,80/255f),c.colours().sliderTrackOverride());
+        assertEquals("score",c.fonts().hitCirclePrefix());
+        assertEquals(4,c.fonts().hitCircleOverlap());
+        assertEquals(2.7,c.legacyVersion());
+        assertFalse(c.hitCircleOverlayAboveNumber());
+    }
+
+    @Test
+    void invalidSliderColoursFallBackToLegacyDefaults() throws IOException {
+        for (String value : new String[]{"", "0,0", "0,0,0,128", "256,0,0", "-1,0,0", "NaN,0,0",
+                "1.5,0,0", "99999999999999999999,0,0", "red"}) {
+            var c = parse("[Colours]\nSliderBorder: " + value + "\nSliderTrackOverride: " + value);
+            assertEquals(SkinConfiguration.Colours.defaults(),c.colours(),value);
+        }
+        assertEquals(SkinConfiguration.Colours.defaults(),parse("[Fonts]\nSliderBorder: 0,0,0").colours());
+        assertEquals(SkinConfiguration.Colours.defaults(),parse("[Colours]\nSliderBorder: 0,0,0\nSliderBorder: bad").colours());
+        assertEquals(new SkinConfiguration.Rgb(0,1,0),parse("[colours]\nsliderborder: 0,255,0").colours().sliderBorder());
+    }
+
     private SkinConfiguration parse(String ini) throws IOException {
         return SkinConfiguration.parse(new StringReader(ini));
     }

@@ -3,6 +3,7 @@ package dev.osujava.ui;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
+import com.badlogic.gdx.graphics.Mesh;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
@@ -20,6 +21,10 @@ import dev.osujava.gameplay.GameplaySkinComponent;
 import dev.osujava.gameplay.GameplayVisualTiming;
 import dev.osujava.gameplay.HitCircleVisual;
 import dev.osujava.ruleset.osu.render.OsuRenderPlan;
+import dev.osujava.ruleset.osu.render.SliderBodyGeometry;
+import dev.osujava.ruleset.osu.render.SliderBodyRenderer;
+import dev.osujava.ruleset.osu.render.LegacySliderColour;
+import dev.osujava.skin.SkinConfiguration;
 import dev.osujava.gameplay.Judgement;
 import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.SliderVisual;
@@ -37,7 +42,6 @@ import java.util.Map;
 /** Draws immutable gameplay snapshots. All object geometry is transformed from osu! playfield space. */
 public final class GameplayRenderer {
     private static final int CIRCLE_SEGMENTS = 36;
-    private static final int BODY_CAP_SEGMENTS = 14;
     private static final double SLIDER_POST_FADE_MS = 150;
     private static final double SPINNER_POST_FADE_MS = 320;
 
@@ -45,6 +49,7 @@ public final class GameplayRenderer {
     private final GameplaySkin visuals;
     private final OsuSkinAssets skinAssets;
     private final Map<List<BeatmapPoint>, SliderRenderData> sliderRenderData = new IdentityHashMap<>();
+    private final SliderBodyRenderer sliderBodies = new SliderBodyRenderer();
     private final GameplayHudRenderer hud;
 
     public GameplayRenderer(OsuJavaGame game) {
@@ -316,39 +321,18 @@ public final class GameplayRenderer {
                 slider.preemptMs(), ApproachTimeCalculator.fadeInMs(slider.preemptMs()));
         double fadeOut = GameplayVisualTiming.fadeOutAlpha(state.currentTimeMs(), slider.endTimeMs(), SLIDER_POST_FADE_MS);
         float alpha = (float) (fadeIn * fadeOut);
-        float radius = viewport.toScreenLength(slider.radius());
         Color comboColor = visuals.comboColor(slider.comboColorIndex());
         double snake = GameplayVisualTiming.sliderSnakeProgress(state.currentTimeMs(),
                 slider.startTimeMs(), slider.preemptMs());
-        drawThickPath(shapes, renderData, viewport, radius * 2.02f, visuals.component(GameplaySkinComponent.SLIDER_BORDER), alpha, snake);
-        drawThickPath(shapes, renderData, viewport, radius * 1.94f, comboColor, alpha, snake);
-        drawThickPath(shapes, renderData, viewport, radius * 1.70f, visuals.component(GameplaySkinComponent.SLIDER_INNER), alpha, snake);
-    }
-
-    private void drawThickPath(ShapeRenderer shapes, SliderRenderData geometry, PlayfieldViewport viewport,
-                               float width, Color color, float alpha, double progress) {
-        double[] points = geometry.points;
-        if (points.length < 2 || progress <= 0) return;
-        setColor(shapes, color, alpha);
-        float firstX = viewport.toScreenX(points[0]);
-        float firstY = viewport.toScreenY(points[1]);
-        float capRadius = width * 0.5f;
-        double limit = geometry.totalDistance * GameplayVisualTiming.clamp(progress);
-        shapes.circle(firstX, firstY, capRadius, BODY_CAP_SEGMENTS);
-        for (int index = 2; index < points.length; index += 2) {
-            int pointIndex = index / 2;
-            double before = geometry.cumulativeDistance[pointIndex - 1];
-            if (before >= limit) break;
-            double segment = geometry.cumulativeDistance[pointIndex] - before;
-            double fraction = segment <= 0 ? 1 : Math.min(1, (limit - before) / segment);
-            float x = viewport.toScreenX(points[index - 2] + (points[index] - points[index - 2]) * fraction);
-            float y = viewport.toScreenY(points[index - 1] + (points[index + 1] - points[index - 1]) * fraction);
-            shapes.rectLine(firstX, firstY, x, y, width);
-            shapes.circle(x, y, capRadius, BODY_CAP_SEGMENTS);
-            firstX = x;
-            firstY = y;
-            if (fraction < 1) break;
-        }
+        var colours = skinAssets == null ? SkinConfiguration.Colours.defaults() : skinAssets.sliderColours();
+        if (alpha <= 0 || snake <= 0 || renderData.geometry.segments().isEmpty()) return;
+        if (renderData.mesh == null) renderData.mesh = SliderBodyRenderer.mesh(renderData.geometry);
+        var type = shapes.getCurrentType();
+        shapes.end();
+        sliderBodies.draw(renderData.mesh, renderData.geometry, snake, slider.radius(),
+                LegacySliderColour.border(colours), LegacySliderColour.track(colours, comboColor), alpha,
+                viewport, shapes.getProjectionMatrix(), game.batch());
+        shapes.begin(type);
     }
 
     private void drawSliderTail(ShapeRenderer shapes, SliderVisual slider,
@@ -647,13 +631,7 @@ public final class GameplayRenderer {
         List<BeatmapPoint> path = slider.pathPoints();
         SliderRenderData data = sliderRenderData.get(path);
         if (data == null) {
-            double[] points = new double[path.size() * 2];
-            int index = 0;
-            for (BeatmapPoint point : path) {
-                points[index++] = point.x();
-                points[index++] = point.y();
-            }
-            data = new SliderRenderData(points);
+            data = new SliderRenderData(new SliderBodyGeometry(path));
             sliderRenderData.put(path, data);
         }
         data.lastUsedTimeMs = now;
@@ -663,25 +641,26 @@ public final class GameplayRenderer {
     private void pruneSliderRenderData(long now) {
         Iterator<SliderRenderData> entries = sliderRenderData.values().iterator();
         while (entries.hasNext()) {
-            if (now - entries.next().lastUsedTimeMs > 5000) entries.remove();
+            var data = entries.next();
+            if (now - data.lastUsedTimeMs > 5000) {
+                data.dispose();
+                entries.remove();
+            }
         }
     }
 
-    private static final class SliderRenderData {
-        private final double[] points;
-        private final double[] cumulativeDistance;
-        private final double totalDistance;
-        private long lastUsedTimeMs;
+    public void dispose() {
+        for (var data : sliderRenderData.values()) data.dispose();
+        sliderRenderData.clear();
+        sliderBodies.dispose();
+    }
 
-        private SliderRenderData(double[] points) {
-            this.points = points;
-            cumulativeDistance = new double[points.length / 2];
-            for (int i = 1; i < cumulativeDistance.length; i++) {
-                cumulativeDistance[i] = cumulativeDistance[i - 1]
-                        + Math.hypot(points[2 * i] - points[2 * i - 2], points[2 * i + 1] - points[2 * i - 1]);
-            }
-            totalDistance = cumulativeDistance.length == 0 ? 0 : cumulativeDistance[cumulativeDistance.length - 1];
-        }
+    private static final class SliderRenderData {
+        private final SliderBodyGeometry geometry;
+        private Mesh mesh;
+        private long lastUsedTimeMs;
+        private SliderRenderData(SliderBodyGeometry geometry) { this.geometry = geometry; }
+        private void dispose() { if (mesh != null) mesh.dispose(); }
     }
 
 }
