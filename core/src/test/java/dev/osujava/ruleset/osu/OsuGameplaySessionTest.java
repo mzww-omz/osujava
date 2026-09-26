@@ -54,6 +54,25 @@ class OsuGameplaySessionTest {
     }
 
     @Test
+    void lateSliderHeadCatchesPassedTicksWithinExpandedFollowArea() {
+        ManualClock clock = new ManualClock();
+        HitObject slider = sliderObject(100, 100, 1000, 280, 1);
+        BeatmapDifficulty denseTicks = new BeatmapDifficulty("Song", "Artist", "Creator", "Normal", 0,
+                "", "", new DifficultySettings(5, 5, 5, 5, 1.4, 10),
+                List.of(new dev.osujava.beatmap.TimingPoint(0, 500, 4, 0, 0, 100, true, 0)),
+                List.of(slider), null, null);
+        OsuGameplaySession session = new OsuGameplaySession(denseTicks, clock,
+                new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+        clock.set(1140);
+        session.click(100, 100);
+        GameplayState state = session.state();
+        assertTrue(state.sliders().getFirst().tracking());
+        assertTrue(state.score().score() > 50, "Passed ticks inside the expanded follow area are recovered");
+        assertEquals(1, state.score().count50());
+        assertEquals(1.0 / 6, state.score().accuracy(), 1e-6);
+    }
+
+    @Test
     void comboColourAdvancesOnNewComboAndAfterSpinnerNotEveryNumber() {
         ManualClock clock = new ManualClock();
         OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(

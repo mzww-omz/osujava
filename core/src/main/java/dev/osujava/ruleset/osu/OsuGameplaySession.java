@@ -140,6 +140,7 @@ public final class OsuGameplaySession implements GameplaySession {
             score.record(judgement);
             if (slider.headHit) emitHitSound(slider.object, now);
             recordVisualJudgement(slider.object, judgement, now);
+            if (slider.headHit) postProcessLateSliderHead(slider, now);
         }
 
         processSliderEvents(now);
@@ -271,24 +272,53 @@ public final class OsuGameplaySession implements GameplaySession {
                         ? SliderEventGenerator.tailJudgementStartTime(slider.timing) : event.timeMs();
                 if (now < dueAt) continue;
                 if (event.type() == SliderEvent.Type.TAIL && hasPendingEarlierEvent(slider, index)) continue;
-                boolean hit = slider.tracking;
-                slider.eventJudged[index] = true;
-                slider.eventHit[index] = hit;
-                Judgement judgement = hit ? Judgement.HIT300 : Judgement.MISS;
-                OsuScoreEvent type = OsuScoreEvent.fromSliderEvent(event.type());
-                score.recordNestedHit(type.baseScore(), hit, type.affectsCombo());
-                if (hit) {
-                    if (event.type() == SliderEvent.Type.TICK) emitAudioCue(now,
-                            OsuHitsoundSamples.sliderTick(timingAt(event.timeMs())), timingAt(event.timeMs()));
-                    else emitHitSound(slider.object, now);
-                }
-                if (event.type() == SliderEvent.Type.TAIL) {
-                    BeatmapPoint tail = slider.path.positionAt(event.pathProgress());
-                    recordVisualJudgement(tail.x(), tail.y(), circleRadius, judgement, now,
-                            JudgementVisual.Kind.SLIDER_TAIL, comboInfo.getOrDefault(slider.object,
-                                    new ComboInfo(1, 0)).colorIndex());
-                }
+                judgeSliderEvent(slider, index, slider.tracking, now);
             }
+        }
+    }
+
+    private void postProcessLateSliderHead(SliderRuntime slider, long now) {
+        if (now <= slider.object.timeMs()) return;
+        BeatmapPoint ball = slider.path.positionAt(slider.timing.progressAt(now));
+        double expandedRadius = circleRadius * SLIDER_FOLLOW_AREA;
+        if (!withinRadius(cursorX, cursorY, ball.x(), ball.y(), expandedRadius)) return;
+
+        boolean allTicksInRange = true;
+        for (int index = 0; index < slider.events.size(); index++) {
+            SliderEvent event = slider.events.get(index);
+            if (event.timeMs() > now) break;
+            BeatmapPoint position = slider.path.positionAt(event.pathProgress());
+            if (!withinRadius(cursorX, cursorY, position.x(), position.y(), expandedRadius)) {
+                allTicksInRange = false;
+                break;
+            }
+        }
+        for (int index = 0; index < slider.events.size(); index++) {
+            SliderEvent event = slider.events.get(index);
+            if (event.timeMs() > now) break;
+            if (!slider.eventJudged[index]) judgeSliderEvent(slider, index, allTicksInRange, now);
+        }
+        slider.tracking = allTicksInRange
+                || withinRadius(cursorX, cursorY, ball.x(), ball.y(), circleRadius);
+    }
+
+    private void judgeSliderEvent(SliderRuntime slider, int index, boolean hit, long now) {
+        SliderEvent event = slider.events.get(index);
+        slider.eventJudged[index] = true;
+        slider.eventHit[index] = hit;
+        Judgement judgement = hit ? Judgement.HIT300 : Judgement.MISS;
+        OsuScoreEvent type = OsuScoreEvent.fromSliderEvent(event.type());
+        score.recordNestedHit(type.baseScore(), hit, type.affectsCombo());
+        if (hit) {
+            if (event.type() == SliderEvent.Type.TICK) emitAudioCue(now,
+                    OsuHitsoundSamples.sliderTick(timingAt(event.timeMs())), timingAt(event.timeMs()));
+            else emitHitSound(slider.object, now);
+        }
+        if (event.type() == SliderEvent.Type.TAIL) {
+            BeatmapPoint tail = slider.path.positionAt(event.pathProgress());
+            recordVisualJudgement(tail.x(), tail.y(), circleRadius, judgement, now,
+                    JudgementVisual.Kind.SLIDER_TAIL, comboInfo.getOrDefault(slider.object,
+                            new ComboInfo(1, 0)).colorIndex());
         }
     }
 
