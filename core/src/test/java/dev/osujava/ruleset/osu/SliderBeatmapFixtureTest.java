@@ -50,7 +50,7 @@ class SliderBeatmapFixtureTest {
 
         HitObject inherited = sliders.getLast();
         assertEquals(19000, inherited.timeMs());
-        assertEquals(714.285714, timing(difficulty, inherited, path(inherited)).durationMs(), 1e-5);
+        assertEquals(178.571429, timing(difficulty, inherited, path(inherited)).durationMs(), 1e-5);
     }
 
     private BeatmapDifficulty parseFixture() throws IOException {

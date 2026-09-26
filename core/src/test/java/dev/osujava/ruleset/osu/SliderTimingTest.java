@@ -9,6 +9,7 @@ import dev.osujava.beatmap.TimingPoint;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,6 +19,7 @@ class SliderTimingTest {
     void calculatesDurationFromRedlineAndSliderMultiplier() {
         SliderTiming timing = timing(280, 1, List.of(new TimingPoint(0, 500, 4, 0, 0, 100, true, 0)));
 
+        assertEquals(0.28, timing.velocity(), 1e-6);
         assertEquals(1000, timing.spanDurationMs(), 1e-6);
         assertEquals(1000, timing.durationMs(), 1e-6);
         assertEquals(2000, timing.endTimeMs(), 1e-6);
@@ -25,16 +27,55 @@ class SliderTimingTest {
 
     @Test
     void inheritedVelocityChangesDurationAndRedlineResetsIt() {
+        SliderTiming normal = timing(280, 1, List.of(
+                new TimingPoint(0, 500, 4, 0, 0, 100, true, 0)));
         SliderTiming fast = timing(280, 1, List.of(
                 new TimingPoint(0, 500, 4, 0, 0, 100, true, 0),
-                new TimingPoint(1000, -50, 4, 0, 0, 100, false, 0)));
+                new TimingPoint(500, -50, 4, 0, 0, 100, false, 0)));
+        SliderTiming slow = timing(280, 1, List.of(
+                new TimingPoint(0, 500, 4, 0, 0, 100, true, 0),
+                new TimingPoint(500, -200, 4, 0, 0, 100, false, 0)));
         SliderTiming reset = timing(280, 1, List.of(
                 new TimingPoint(0, 500, 4, 0, 0, 100, true, 0),
-                new TimingPoint(1000, -50, 4, 0, 0, 100, false, 0),
+                new TimingPoint(500, -50, 4, 0, 0, 100, false, 0),
                 new TimingPoint(1000, 500, 4, 0, 0, 100, true, 0)));
 
-        assertEquals(2000, fast.spanDurationMs(), 1e-6);
+        assertEquals(0.28, normal.velocity(), 1e-6);
+        assertEquals(0.56, fast.velocity(), 1e-6);
+        assertEquals(0.14, slow.velocity(), 1e-6);
+        assertEquals(1000, normal.spanDurationMs(), 1e-6);
+        assertEquals(500, fast.spanDurationMs(), 1e-6);
+        assertEquals(2000, slow.spanDurationMs(), 1e-6);
+        assertTrue(fast.durationMs() < normal.durationMs());
+        assertTrue(normal.durationMs() < slow.durationMs());
+        assertEquals(2000, normal.endTimeMs(), 1e-6);
+        assertEquals(1500, fast.endTimeMs(), 1e-6);
+        assertEquals(3000, slow.endTimeMs(), 1e-6);
+        assertEquals(0.28, reset.velocity(), 1e-6);
         assertEquals(1000, reset.spanDurationMs(), 1e-6);
+        assertEquals(2000, reset.endTimeMs(), 1e-6);
+    }
+
+    @Test
+    void inheritedVelocitiesDriveProgressAndTickSpacing() {
+        List<TimingPoint> redline = List.of(new TimingPoint(0, 500, 4, 0, 0, 100, true, 0));
+        SliderTiming normal = timing(280, 1, redline);
+        SliderTiming fast = timing(280, 1, List.of(
+                redline.getFirst(), new TimingPoint(500, -50, 4, 0, 0, 100, false, 0)));
+        SliderTiming slow = timing(280, 1, List.of(
+                redline.getFirst(), new TimingPoint(500, -200, 4, 0, 0, 100, false, 0)));
+
+        assertEquals(0.5, normal.progressAt(1500), 1e-6);
+        assertEquals(0.5, fast.progressAt(1250), 1e-6);
+        assertEquals(0.5, slow.progressAt(2000), 1e-6);
+        assertEquals(1, fast.progressAt(1500), 1e-6);
+
+        assertEquals(70, normal.tickDistance(), 1e-6);
+        assertEquals(140, fast.tickDistance(), 1e-6);
+        assertEquals(35, slow.tickDistance(), 1e-6);
+        assertTickTimes(normal, 3);
+        assertTickTimes(fast, 1);
+        assertTickTimes(slow, 7);
     }
 
     @Test
@@ -93,10 +134,25 @@ class SliderTimingTest {
 
     private SliderTiming timing(double pathLength, int slides, List<TimingPoint> timingPoints) {
         HitObject object = new HitObject(0, 0, 1000, HitObject.Type.SLIDER, 2, 0,
-                new SliderData(List.of(new SliderData.Segment(SliderData.CurveType.LINEAR, 0,
-                        List.of(new BeatmapPoint(0, 0), new BeatmapPoint(pathLength, 0)))), slides - 1, pathLength));
+                sliderData(pathLength, slides));
         BeatmapDifficulty difficulty = new BeatmapDifficulty("Song", "Artist", "Mapper", "Normal", 0,
                 "", "", new DifficultySettings(5, 5, 5, 5, 1.4, 2), timingPoints, List.of(object), null, null);
         return SliderTiming.calculate(difficulty, object, new SliderPath(0, 0, object.sliderData()));
+    }
+
+    private void assertTickTimes(SliderTiming timing, int expectedCount) {
+        List<SliderEvent> ticks = SliderEventGenerator.generate(timing, new SliderPath(0, 0,
+                        sliderData(280, 1))).stream()
+                .filter(event -> event.type() == SliderEvent.Type.TICK)
+                .toList();
+
+        assertEquals(expectedCount, ticks.size());
+        IntStream.range(0, ticks.size()).forEach(index ->
+                assertEquals(1250 + index * 250, ticks.get(index).timeMs(), 1e-6));
+    }
+
+    private SliderData sliderData(double pathLength, int slides) {
+        return new SliderData(List.of(new SliderData.Segment(SliderData.CurveType.LINEAR, 0,
+                List.of(new BeatmapPoint(0, 0), new BeatmapPoint(pathLength, 0)))), slides - 1, pathLength);
     }
 }

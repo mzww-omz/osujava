@@ -46,7 +46,8 @@ public final class SliderTiming {
 
         double multiplier = difficulty.settings().sliderMultiplier();
         if (!Double.isFinite(multiplier) || multiplier <= 0) multiplier = 1.4;
-        double effectiveBeatLength = beatLength * sliderVelocityMultiplier;
+        // Higher inherited SV scales the redline beat length down in osu!.
+        double effectiveBeatLength = beatLength / sliderVelocityMultiplier;
         double velocity = 100 * multiplier / effectiveBeatLength;
         if (!Double.isFinite(velocity) || velocity <= 0) velocity = 100 * 1.4 / 500;
 
