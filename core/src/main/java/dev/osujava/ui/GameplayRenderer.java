@@ -229,7 +229,7 @@ public final class GameplayRenderer {
         double tailFadeIn = slider.tailVisualTiming().alphaAt(now);
         float tailAlpha = (float) (bodyAlpha * tailFadeIn);
         drawSkinnedCircleBody(shapes, slider.tailPosition().x(), slider.tailPosition().y(),
-                slider.radius() * 0.72, comboColor, tailAlpha, viewport);
+                slider.radius(), comboColor, tailAlpha, viewport);
         for (SliderVisual.RepeatMarker repeat : slider.repeats()) {
             double markerFadeOut = repeatFadeOut(slider, repeat, now);
             float alpha = (float) (bodyAlpha * repeat.visualTiming().alphaAt(now) * markerFadeOut);
@@ -417,10 +417,10 @@ public final class GameplayRenderer {
             Color comboColor = visuals.comboColor(slider.comboColorIndex());
             double tailAlpha = bodyFade * slider.tailVisualTiming().alphaAt(now);
             if (!drawSkinImage(shapes, Image.HIT_CIRCLE_OVERLAY, slider.tailPosition().x(), slider.tailPosition().y(),
-                    slider.radius() * 0.72, Color.WHITE, (float) tailAlpha, viewport)) {
+                    slider.radius(), Color.WHITE, (float) tailAlpha, viewport)) {
                 setColor(shapes, comboColor, (float) tailAlpha * 0.72f);
                 shapes.circle(viewport.toScreenX(slider.tailPosition().x()), viewport.toScreenY(slider.tailPosition().y()),
-                        radius * 0.72f, CIRCLE_SEGMENTS);
+                        radius, CIRCLE_SEGMENTS);
             }
             for (SliderVisual.RepeatMarker repeat : slider.repeats()) {
                 float alpha = (float) (bodyFade * repeat.visualTiming().alphaAt(now)
