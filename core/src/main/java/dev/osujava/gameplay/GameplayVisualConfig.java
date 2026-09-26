@@ -3,7 +3,7 @@ package dev.osujava.gameplay;
 import com.badlogic.gdx.graphics.Color;
 
 /** Small, renderer-only collection of the default osu!standard gameplay visual values. */
-public final class GameplayVisualConfig {
+public final class GameplayVisualConfig implements GameplaySkin {
     private static final GameplayVisualConfig DEFAULT = new GameplayVisualConfig();
 
     private final Color[] comboColors = {
@@ -44,6 +44,33 @@ public final class GameplayVisualConfig {
 
     public static GameplayVisualConfig defaults() {
         return DEFAULT;
+    }
+
+    @Override
+    public Color component(GameplaySkinComponent component) {
+        return switch (component) {
+            case BACKGROUND -> background;
+            case PLAYFIELD_TINT -> playfieldTint;
+            case HITCIRCLE_BORDER -> circleBorder;
+            case HITCIRCLE_OVERLAY -> circleOverlay;
+            case HITCIRCLE_MISS -> circleMiss;
+            case APPROACHCIRCLE -> approachCircle;
+            case SLIDER_BORDER -> sliderBorder;
+            case SLIDER_INNER -> sliderInner;
+            case SLIDERBALL -> sliderBall;
+            case REVERSEARROW -> circleBorder;
+            case FOLLOWCIRCLE_FILL -> followFill;
+            case FOLLOWCIRCLE_BORDER -> followBorder;
+            case SPINNER_FIELD -> spinnerField;
+            case SPINNER_RING -> spinnerRing;
+            case SPINNER_PROGRESS -> spinnerProgress;
+            case SPINNER_COMPLETE -> spinnerComplete;
+            case SPINNER_MISS -> spinnerMiss;
+            case HUD_TEXT -> hudText;
+            case HUD_SECONDARY -> hudSecondary;
+            case HUD_PANEL -> hudPanel;
+            case JUDGEMENT -> judgement300;
+        };
     }
 
     public Color comboColor(int comboColorIndex) {

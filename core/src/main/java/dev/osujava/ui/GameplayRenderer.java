@@ -13,6 +13,8 @@ import dev.osujava.beatmap.BeatmapSet;
 import dev.osujava.gameplay.FollowCircleAnimation;
 import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.GameplayVisualConfig;
+import dev.osujava.gameplay.GameplaySkin;
+import dev.osujava.gameplay.GameplaySkinComponent;
 import dev.osujava.gameplay.GameplayVisualTiming;
 import dev.osujava.gameplay.HitCircleVisual;
 import dev.osujava.gameplay.Judgement;
@@ -37,12 +39,17 @@ public final class GameplayRenderer {
     private static final double SPINNER_POST_FADE_MS = 320;
 
     private final OsuJavaGame game;
-    private final GameplayVisualConfig visuals = GameplayVisualConfig.defaults();
+    private final GameplaySkin visuals;
     private final Map<List<BeatmapPoint>, SliderRenderData> sliderRenderData = new IdentityHashMap<>();
     private final GameplayHudRenderer hud;
 
     public GameplayRenderer(OsuJavaGame game) {
+        this(game, GameplayVisualConfig.defaults());
+    }
+
+    public GameplayRenderer(OsuJavaGame game, GameplaySkin visuals) {
         this.game = game;
+        this.visuals = visuals;
         this.hud = new GameplayHudRenderer(game, visuals);
     }
 
@@ -53,7 +60,8 @@ public final class GameplayRenderer {
 
     public void render(BeatmapSet set, BeatmapDifficulty difficulty, GameplayState state,
                        PlayfieldViewport viewport, Texture background, String notice, BeatmapPoint debugCursor) {
-        Gdx.gl.glClearColor(visuals.background.r, visuals.background.g, visuals.background.b, 1);
+        Color backgroundColor = visuals.component(GameplaySkinComponent.BACKGROUND);
+        Gdx.gl.glClearColor(backgroundColor.r, backgroundColor.g, backgroundColor.b, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         SpriteBatch batch = game.batch();
@@ -68,7 +76,7 @@ public final class GameplayRenderer {
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         ShapeRenderer shapes = game.shapes();
         shapes.begin(ShapeRenderer.ShapeType.Filled);
-        setColor(shapes, visuals.playfieldTint, 1);
+        setColor(shapes, visuals.component(GameplaySkinComponent.PLAYFIELD_TINT), 1);
         shapes.rect(viewport.left(), viewport.bottom(), viewport.width(), viewport.height());
 
         for (SpinnerVisual spinner : state.spinners()) drawSpinnerField(shapes, spinner, state, viewport);
@@ -126,9 +134,9 @@ public final class GameplayRenderer {
         Color comboColor = visuals.comboColor(slider.comboColorIndex());
         double snake = GameplayVisualTiming.sliderSnakeProgress(state.currentTimeMs(),
                 slider.startTimeMs(), slider.preemptMs());
-        drawThickPath(shapes, renderData, viewport, radius * 2.02f, visuals.sliderBorder, alpha, snake);
+        drawThickPath(shapes, renderData, viewport, radius * 2.02f, visuals.component(GameplaySkinComponent.SLIDER_BORDER), alpha, snake);
         drawThickPath(shapes, renderData, viewport, radius * 1.94f, comboColor, alpha, snake);
-        drawThickPath(shapes, renderData, viewport, radius * 1.70f, visuals.sliderInner, alpha, snake);
+        drawThickPath(shapes, renderData, viewport, radius * 1.70f, visuals.component(GameplaySkinComponent.SLIDER_INNER), alpha, snake);
     }
 
     private void drawThickPath(ShapeRenderer shapes, SliderRenderData geometry, PlayfieldViewport viewport,
@@ -175,14 +183,14 @@ public final class GameplayRenderer {
             float x = viewport.toScreenX(repeat.position().x());
             float y = viewport.toScreenY(repeat.position().y());
             drawCircleBody(shapes, x, y, radius * 0.37f,
-                    repeat.judged() ? visuals.sliderInner : comboColor, alpha);
+                    repeat.judged() ? visuals.component(GameplaySkinComponent.SLIDER_INNER) : comboColor, alpha);
         }
         for (SliderVisual.TickMarker tick : slider.ticks()) {
             double appearAt = Math.min(slider.startTimeMs(), tick.timeMs() - slider.preemptMs() * 0.66);
             double tickFade = GameplayVisualTiming.progress(now, appearAt, 150);
             if (tick.judged()) tickFade *= GameplayVisualTiming.fadeOutAlpha(now, tick.timeMs(), 120);
             float tickRadius = radius * (tick.judged() && tick.hit() ? 0.22f : 0.17f);
-            setColor(shapes, tick.judged() && !tick.hit() ? visuals.spinnerMiss : visuals.circleBorder,
+            setColor(shapes, tick.judged() && !tick.hit() ? visuals.component(GameplaySkinComponent.SPINNER_MISS) : visuals.component(GameplaySkinComponent.HITCIRCLE_BORDER),
                     (float) (bodyAlpha * tickFade));
             shapes.circle(viewport.toScreenX(tick.position().x()), viewport.toScreenY(tick.position().y()),
                     tickRadius, 16);
@@ -191,7 +199,7 @@ public final class GameplayRenderer {
         double headFade = slider.headJudged() && slider.headJudgementTimeMs() != Long.MIN_VALUE
                 ? GameplayVisualTiming.fadeOutAlpha(now, slider.headJudgementTimeMs(), CIRCLE_HIT_FADE_MS) : 1;
         float headAlpha = (float) (bodyAlpha * headFade);
-        Color headColor = slider.headJudged() && !slider.headHit() ? visuals.circleMiss : comboColor;
+        Color headColor = slider.headJudged() && !slider.headHit() ? visuals.component(GameplaySkinComponent.HITCIRCLE_MISS) : comboColor;
         drawCircleBody(shapes, viewport.toScreenX(slider.headPosition().x()),
                 viewport.toScreenY(slider.headPosition().y()), radius, headColor, headAlpha);
         for (SliderVisual.RepeatMarker repeat : slider.repeats()) {
@@ -228,9 +236,9 @@ public final class GameplayRenderer {
         float offset = circleRadius * 0.23f;
         float x = centerX - (float) Math.cos(angle) * offset;
         float y = centerY - (float) Math.sin(angle) * offset;
-        setColor(shapes, visuals.circleBorder, alpha);
+        setColor(shapes, visuals.component(GameplaySkinComponent.HITCIRCLE_BORDER), alpha);
         drawArrowTriangle(shapes, x, y, size * 1.18f, angle);
-        setColor(shapes, visuals.sliderInner, alpha);
+        setColor(shapes, visuals.component(GameplaySkinComponent.SLIDER_INNER), alpha);
         drawArrowTriangle(shapes, x, y, size * 0.72f, angle);
     }
 
@@ -258,15 +266,15 @@ public final class GameplayRenderer {
         float followAlpha = (float) data.follow.alphaAt(now) * endFade;
         float followRadius = radius * (float) data.follow.scaleAt(now);
         if (followAlpha > 0.01f) {
-            setColor(shapes, visuals.followFill, followAlpha);
+            setColor(shapes, visuals.component(GameplaySkinComponent.FOLLOWCIRCLE_FILL), followAlpha);
             shapes.circle(x, y, followRadius, CIRCLE_SEGMENTS);
-            setColor(shapes, visuals.followBorder, followAlpha);
+            setColor(shapes, visuals.component(GameplaySkinComponent.FOLLOWCIRCLE_BORDER), followAlpha);
             shapes.circle(x, y, followRadius * 0.98f, CIRCLE_SEGMENTS);
         }
 
         float ballRadius = radius * 0.54f;
         drawCircleBody(shapes, x, y, ballRadius, visuals.comboColor(slider.comboColorIndex()), endFade);
-        setColor(shapes, visuals.sliderBall, endFade * (slider.tracking() ? 0.7f : 0.38f));
+        setColor(shapes, visuals.component(GameplaySkinComponent.SLIDERBALL), endFade * (slider.tracking() ? 0.7f : 0.38f));
         shapes.circle(x, y, ballRadius * 0.48f, CIRCLE_SEGMENTS);
     }
 
@@ -283,18 +291,18 @@ public final class GameplayRenderer {
                 ? GameplayVisualTiming.spinnerCompletionScale(state.currentTimeMs(), spinner.endTimeMs(),
                 spinner.judgement() != Judgement.MISS) : 1;
         float radius = viewport.toScreenLength(spinner.radius() * intro * finish);
-        setColor(shapes, visuals.spinnerField, alpha);
+        setColor(shapes, visuals.component(GameplaySkinComponent.SPINNER_FIELD), alpha);
         shapes.circle(x, y, radius * 1.14f, CIRCLE_SEGMENTS + 12);
-        setColor(shapes, spinner.completionTimeMs() != Long.MIN_VALUE ? visuals.spinnerComplete : visuals.spinnerProgress,
+        setColor(shapes, spinner.completionTimeMs() != Long.MIN_VALUE ? visuals.component(GameplaySkinComponent.SPINNER_COMPLETE) : visuals.component(GameplaySkinComponent.SPINNER_PROGRESS),
                 alpha * 0.18f);
         shapes.circle(x, y, radius * 1.07f, CIRCLE_SEGMENTS + 12);
-        setColor(shapes, visuals.spinnerField, alpha * 0.88f);
+        setColor(shapes, visuals.component(GameplaySkinComponent.SPINNER_FIELD), alpha * 0.88f);
         shapes.circle(x, y, radius * 0.97f, CIRCLE_SEGMENTS + 12);
         float fillRadius = radius * (float) (0.2 + 0.75 * GameplayVisualTiming.clamp(spinner.progress()));
-        setColor(shapes, spinner.completionTimeMs() != Long.MIN_VALUE ? visuals.spinnerComplete : visuals.spinnerProgress,
+        setColor(shapes, spinner.completionTimeMs() != Long.MIN_VALUE ? visuals.component(GameplaySkinComponent.SPINNER_COMPLETE) : visuals.component(GameplaySkinComponent.SPINNER_PROGRESS),
                 alpha * (spinner.tracking() ? 0.40f : 0.20f));
         shapes.circle(x, y, fillRadius, CIRCLE_SEGMENTS + 12);
-        setColor(shapes, visuals.sliderInner, alpha);
+        setColor(shapes, visuals.component(GameplaySkinComponent.SLIDER_INNER), alpha);
         shapes.circle(x, y, radius * (spinner.tracking() ? 0.13f : 0.18f), CIRCLE_SEGMENTS);
     }
 
@@ -315,7 +323,7 @@ public final class GameplayRenderer {
         double progress = GameplayVisualTiming.approachProgress(now, objectTimeMs, preemptMs);
         float alpha = (float) GameplayVisualTiming.approachAlpha(now, objectTimeMs, preemptMs);
         float approachRadius = viewport.toScreenLength(GameplayVisualTiming.approachRadius(radius, progress));
-        setColor(shapes, visuals.approachCircle, alpha);
+        setColor(shapes, visuals.component(GameplaySkinComponent.APPROACHCIRCLE), alpha);
         shapes.circle(viewport.toScreenX(x), viewport.toScreenY(y), approachRadius, CIRCLE_SEGMENTS + 4);
     }
 
@@ -337,10 +345,10 @@ public final class GameplayRenderer {
 
     private void drawCircleOverlay(ShapeRenderer shapes, double x, double y, double radius,
                                    float alpha, PlayfieldViewport viewport) {
-        setColor(shapes, visuals.circleBorder, alpha * 0.65f);
+        setColor(shapes, visuals.component(GameplaySkinComponent.HITCIRCLE_BORDER), alpha * 0.65f);
         shapes.circle(viewport.toScreenX(x), viewport.toScreenY(y),
                 viewport.toScreenLength(radius * 0.98), CIRCLE_SEGMENTS);
-        setColor(shapes, visuals.circleOverlay, alpha);
+        setColor(shapes, visuals.component(GameplaySkinComponent.HITCIRCLE_OVERLAY), alpha);
         shapes.circle(viewport.toScreenX(x), viewport.toScreenY(y),
                 viewport.toScreenLength(radius * 0.73), CIRCLE_SEGMENTS - 4);
     }
@@ -358,7 +366,7 @@ public final class GameplayRenderer {
                     radius * 0.72f, CIRCLE_SEGMENTS);
             for (SliderVisual.RepeatMarker repeat : slider.repeats()) {
                 float alpha = (float) repeatAlpha(slider, repeat, now, (float) bodyFade);
-                setColor(shapes, visuals.circleBorder, alpha);
+                setColor(shapes, visuals.component(GameplaySkinComponent.HITCIRCLE_BORDER), alpha);
                 shapes.circle(viewport.toScreenX(repeat.position().x()), viewport.toScreenY(repeat.position().y()),
                         radius * 0.37f, CIRCLE_SEGMENTS - 8);
             }
@@ -379,16 +387,16 @@ public final class GameplayRenderer {
                     ? GameplayVisualTiming.spinnerCompletionScale(now, spinner.endTimeMs(),
                     spinner.judgement() != Judgement.MISS) : 1;
             float radius = viewport.toScreenLength(spinner.radius() * intro * finish);
-            Color progressColor = spinner.judgement() == Judgement.MISS ? visuals.spinnerMiss
-                    : spinner.completionTimeMs() != Long.MIN_VALUE ? visuals.spinnerComplete : visuals.spinnerProgress;
-            setColor(shapes, visuals.spinnerRing, alpha);
+            Color progressColor = spinner.judgement() == Judgement.MISS ? visuals.component(GameplaySkinComponent.SPINNER_MISS)
+                    : spinner.completionTimeMs() != Long.MIN_VALUE ? visuals.component(GameplaySkinComponent.SPINNER_COMPLETE) : visuals.component(GameplaySkinComponent.SPINNER_PROGRESS);
+            setColor(shapes, visuals.component(GameplaySkinComponent.SPINNER_RING), alpha);
             shapes.circle(centerX, centerY, radius, CIRCLE_SEGMENTS + 12);
             int markers = Math.max(1, Math.min(32, spinner.requiredSpins()));
             for (int i = 0; i < markers; i++) {
                 double angle = Math.PI * 2 * i / markers;
                 float sin = (float) Math.sin(angle);
                 float cos = (float) Math.cos(angle);
-                setColor(shapes, i < spinner.completedSpins() ? visuals.spinnerComplete : visuals.spinnerRing, alpha);
+                setColor(shapes, i < spinner.completedSpins() ? visuals.component(GameplaySkinComponent.SPINNER_COMPLETE) : visuals.component(GameplaySkinComponent.SPINNER_RING), alpha);
                 shapes.line(centerX + cos * radius * 0.87f, centerY + sin * radius * 0.87f,
                         centerX + cos * radius * 0.96f, centerY + sin * radius * 0.96f);
             }
@@ -408,7 +416,7 @@ public final class GameplayRenderer {
             float innerY = centerY + (float) Math.sin(angle) * radius * 0.25f;
             float indicatorX = centerX + (float) Math.cos(angle) * radius * 0.86f;
             float indicatorY = centerY + (float) Math.sin(angle) * radius * 0.86f;
-            setColor(shapes, spinner.tracking() ? visuals.spinnerComplete : visuals.spinnerRing, alpha);
+            setColor(shapes, spinner.tracking() ? visuals.component(GameplaySkinComponent.SPINNER_COMPLETE) : visuals.component(GameplaySkinComponent.SPINNER_RING), alpha);
             shapes.line(innerX, innerY, indicatorX, indicatorY);
         }
     }
@@ -424,12 +432,12 @@ public final class GameplayRenderer {
             if (alpha <= 0) continue;
             double scale = miss ? 1 : GameplayVisualTiming.hitCircleScale(now, judgement.timeMs());
             float radius = viewport.toScreenLength(judgement.radius() * scale);
-            Color fill = miss ? visuals.circleMiss : visuals.comboColor(judgement.comboColorIndex());
+            Color fill = miss ? visuals.component(GameplaySkinComponent.HITCIRCLE_MISS) : visuals.comboColor(judgement.comboColorIndex());
             setColor(shapes, fill, (float) alpha * (miss ? 0.4f : 0.32f));
             shapes.circle(viewport.toScreenX(judgement.x()), viewport.toScreenY(judgement.y()), radius, CIRCLE_SEGMENTS);
             if (!miss && now - judgement.timeMs() < 40) {
                 double flash = GameplayVisualTiming.progress(now, judgement.timeMs(), 40);
-                setColor(shapes, visuals.circleBorder, (float) (0.8 * flash));
+                setColor(shapes, visuals.component(GameplaySkinComponent.HITCIRCLE_BORDER), (float) (0.8 * flash));
                 shapes.circle(viewport.toScreenX(judgement.x()), viewport.toScreenY(judgement.y()),
                         viewport.toScreenLength(judgement.radius()), CIRCLE_SEGMENTS);
             }
@@ -454,9 +462,9 @@ public final class GameplayRenderer {
     private void drawCircleBody(ShapeRenderer shapes, float x, float y, float radius,
                                 Color fill, float alpha) {
         if (alpha <= 0.01f) return;
-        setColor(shapes, visuals.sliderBorder, alpha);
+        setColor(shapes, visuals.component(GameplaySkinComponent.SLIDER_BORDER), alpha);
         shapes.circle(x, y, radius * 1.08f, CIRCLE_SEGMENTS);
-        setColor(shapes, visuals.circleBorder, alpha);
+        setColor(shapes, visuals.component(GameplaySkinComponent.HITCIRCLE_BORDER), alpha);
         shapes.circle(x, y, radius * 0.99f, CIRCLE_SEGMENTS);
         setColor(shapes, fill, alpha);
         shapes.circle(x, y, radius * 0.91f, CIRCLE_SEGMENTS);

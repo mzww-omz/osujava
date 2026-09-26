@@ -8,7 +8,8 @@ import dev.osujava.OsuJavaGame;
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapSet;
 import dev.osujava.gameplay.GameplayState;
-import dev.osujava.gameplay.GameplayVisualConfig;
+import dev.osujava.gameplay.GameplaySkin;
+import dev.osujava.gameplay.GameplaySkinComponent;
 import dev.osujava.gameplay.GameplayVisualTiming;
 import dev.osujava.gameplay.HitCircleVisual;
 import dev.osujava.gameplay.Judgement;
@@ -25,9 +26,9 @@ final class GameplayHudRenderer {
     private static final double JUDGEMENT_FADE_START_MS = 320;
 
     private final OsuJavaGame game;
-    private final GameplayVisualConfig visuals;
+    private final GameplaySkin visuals;
 
-    GameplayHudRenderer(OsuJavaGame game, GameplayVisualConfig visuals) {
+    GameplayHudRenderer(OsuJavaGame game, GameplaySkin visuals) {
         this.game = game;
         this.visuals = visuals;
     }
@@ -36,7 +37,7 @@ final class GameplayHudRenderer {
         float unit = viewport.toScreenLength(1);
         float panelHeight = unit * 50;
         float panelWidth = Math.min(unit * 310, viewport.width() * 0.58f);
-        setColor(shapes, visuals.hudPanel, 1);
+        setColor(shapes, visuals.component(GameplaySkinComponent.HUD_PANEL), 1);
         shapes.rect(viewport.left(), viewport.bottom() + viewport.height() - panelHeight,
                 panelWidth, panelHeight);
         float rightPanelWidth = Math.min(unit * 205, viewport.width() * 0.4f);
@@ -141,18 +142,18 @@ final class GameplayHudRenderer {
                     : spinner.completedSpins() + " / " + spinner.requiredSpins() + " SPINS";
             String progress = Math.round(GameplayVisualTiming.clamp(spinner.progress()) * 100) + "%";
             drawCentered(batch, title, centerX, centerY + viewport.toScreenLength(30), unit * 1.25f,
-                    visuals.hudText, (float) fade);
+                    visuals.component(GameplaySkinComponent.HUD_TEXT), (float) fade);
             drawCentered(batch, spins, centerX, centerY + viewport.toScreenLength(7), unit * 0.86f,
-                    visuals.hudSecondary, (float) fade);
+                    visuals.component(GameplaySkinComponent.HUD_SECONDARY), (float) fade);
             drawCentered(batch, progress, centerX, centerY - viewport.toScreenLength(15), unit * 0.74f,
                     visuals.judgementColor(spinner.judgement() == null ? Judgement.HIT300 : spinner.judgement()),
                     (float) fade);
             String spm = String.format(Locale.ROOT, "%.0f SPM", spinner.spinsPerMinute());
             drawCentered(batch, spm, centerX, centerY - viewport.toScreenLength(41), unit * 0.72f,
-                    visuals.hudSecondary, (float) fade);
+                    visuals.component(GameplaySkinComponent.HUD_SECONDARY), (float) fade);
             if (spinner.bonusScore() > 0) {
                 drawCentered(batch, "+" + spinner.bonusScore(), centerX,
-                        centerY + viewport.toScreenLength(58), unit * 0.72f, visuals.spinnerComplete, (float) fade);
+                        centerY + viewport.toScreenLength(58), unit * 0.72f, visuals.component(GameplaySkinComponent.SPINNER_COMPLETE), (float) fade);
             }
         }
     }
@@ -164,25 +165,25 @@ final class GameplayHudRenderer {
         float left = viewport.left() + unit * 12;
         float top = viewport.bottom() + viewport.height();
         game.font().getData().setScale(uiScale * 0.8f);
-        game.font().setColor(visuals.hudText);
+        game.font().setColor(visuals.component(GameplaySkinComponent.HUD_TEXT));
         game.font().draw(batch, set.title() + "  ·  " + difficulty.version(), left, top - unit * 16);
 
         String score = String.format(Locale.ROOT, "%08d", state.score().score());
         String accuracy = String.format(Locale.ROOT, "%.2f%% ACCURACY", state.score().accuracy() * 100);
         float right = viewport.left() + viewport.width() - unit * 12;
         game.font().getData().setScale(uiScale * 0.92f);
-        game.font().setColor(visuals.hudText);
+        game.font().setColor(visuals.component(GameplaySkinComponent.HUD_TEXT));
         game.font().draw(batch, score, right - measureTextWidth(score, uiScale * 0.92f), top - unit * 16);
         game.font().getData().setScale(uiScale * 0.62f);
-        game.font().setColor(visuals.hudSecondary);
+        game.font().setColor(visuals.component(GameplaySkinComponent.HUD_SECONDARY));
         game.font().draw(batch, accuracy, right - measureTextWidth(accuracy, uiScale * 0.62f), top - unit * 36);
 
         String combo = state.score().combo() + "x";
         game.font().getData().setScale(uiScale * 1.15f);
-        game.font().setColor(visuals.hudText);
+        game.font().setColor(visuals.component(GameplaySkinComponent.HUD_TEXT));
         game.font().draw(batch, combo, left, viewport.bottom() + unit * 12);
         game.font().getData().setScale(uiScale * 0.56f);
-        game.font().setColor(visuals.hudSecondary);
+        game.font().setColor(visuals.component(GameplaySkinComponent.HUD_SECONDARY));
         game.font().draw(batch, "COMBO", left + measureTextWidth(combo, uiScale * 1.15f) + unit * 6,
                 viewport.bottom() + unit * 16);
 
