@@ -51,6 +51,7 @@ public final class GameplayRenderer {
     private final Map<List<BeatmapPoint>, SliderRenderData> sliderRenderData = new IdentityHashMap<>();
     private final SliderBodyRenderer sliderBodies = new SliderBodyRenderer();
     private final GameplayHudRenderer hud;
+    private final GameplayJudgementRenderer judgements;
 
     public GameplayRenderer(OsuJavaGame game) {
         this(game, GameplayVisualConfig.defaults());
@@ -65,6 +66,7 @@ public final class GameplayRenderer {
         this.visuals = visuals;
         this.skinAssets = skinAssets;
         this.hud = new GameplayHudRenderer(game, visuals, skinAssets);
+        this.judgements = new GameplayJudgementRenderer(skinAssets);
     }
 
     public void render(BeatmapSet set, BeatmapDifficulty difficulty, GameplayState state,
@@ -105,6 +107,7 @@ public final class GameplayRenderer {
                 }
                 case JUDGEMENT_BELOW -> {
                     sprites(shapes, () -> {
+                        judgements.draw(batch, state, viewport, false);
                         hud.drawJudgementText(batch, state, viewport);
                         hud.drawSpinnerText(batch, state, viewport);
                     });
@@ -146,7 +149,7 @@ public final class GameplayRenderer {
                     shapeType(shapes, ShapeRenderer.ShapeType.Filled);
                 }
                 case BALL_AND_FOLLOW -> drawSliderBallAndFollow(shapes, slider, state, viewport);
-                case JUDGEMENT_ABOVE -> { /* Reserved judgement layer; no custom expanding ring. */ }
+                case JUDGEMENT_ABOVE -> sprites(shapes, () -> judgements.draw(batch, state, viewport, true));
                 case APPROACH -> {
                     shapeType(shapes, ShapeRenderer.ShapeType.Line);
                     if (command.object() instanceof HitCircleVisual circle && circle.judgement() == null)

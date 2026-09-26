@@ -60,3 +60,11 @@ tasks.register('hudVisualHarness', JavaExec) {
     args project.findProperty('hudOutput') ?: '/tmp/osujava-hud'
     if (project.hasProperty('hudSkin')) args project.property('hudSkin')
 }
+
+tasks.register('judgementVisualHarness', JavaExec) {
+    dependsOn hudHarnessClasses
+    classpath = sourceSets.hudHarness.runtimeClasspath
+    mainClass = 'dev.osujava.ui.LegacyJudgementVisualHarness'
+    systemProperty 'java.awt.headless', 'true'
+    args project.findProperty('judgementOutput') ?: '/tmp/osujava-judgements'
+}

@@ -41,7 +41,7 @@ Follow eventsとnested judgement時刻はGameplayがimmutable snapshotに記録�
 - Slider Bodyの継ぎ目overdraw、gradient、shadow/border/inner colour、bodyの既存150ms fadeやsnaking-outは今回対象外。
 - Reverse Arrowの曲がったpathでのframe deltaによる50ms OutQuint方向平滑化は移植していない。現在visible curveの方向を絶対時刻で決める。snaking-outも今回対象外。
 - animated `sliderfollowcircle` / `sliderscorepoint` のframe列は未対応。今回は静的textureとtransformを扱う。
-- Ballの`sliderb-nd` / `sliderb-spec`、skin設定のtint、lighting texture、Judgement texture/animation、kiai flash、default/Argon固有animationは未対応。
+- Ballの`sliderb-nd` / `sliderb-spec`、skin設定のtint、lighting texture、kiai flash、default/Argon固有animationは未対応。
 - vector fallbackの形状は既存の近似。円形Ballにrotation描画は追加していない。
 
 ## 検証
@@ -49,3 +49,5 @@ Follow eventsとnested judgement時刻はGameplayがimmutable snapshotに記録�
 GPU非依存のangle、Follow event、Circle/number、Arrow、Tickの計算と、Gameplay snapshot・texture resolver・object-local layeringの回帰テストを追加。既存テストも実行し、Gradle buildを確認した。
 
 /tmpの固定clock OpenGL harnessで同一legacy Skin（Version 2.7）を使用し、Circle hit前/直後/+120/+240ms、short/long/fast/slow Slider、snaking、repeat前後、tracking開始、tick直後、break、終了の34枚を取得・画像確認した。harnessと画像はcommitしない。lazer実行画面との同時画像比較は未実施で、lazerとの照合は上記sourceによる。
+
+Judgement texture / animation / particle / proxy layerは [Judgement parity](gameplay-judgement-parity.md) で後続対応した。

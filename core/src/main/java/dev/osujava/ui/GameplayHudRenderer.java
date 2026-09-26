@@ -95,6 +95,8 @@ final class GameplayHudRenderer {
     void drawJudgementText(SpriteBatch batch, GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
         for (JudgementVisual judgement : state.judgementVisuals()) {
+            if (skinAssets != null && skinAssets.judgement(
+                    dev.osujava.ruleset.osu.render.LegacyJudgementAnimation.Result.from(judgement)) != null) continue;
             double age = now - judgement.timeMs();
             if (age < 0 || age > JUDGEMENT_LIFETIME_MS) continue;
             double fade = GameplayVisualTiming.fadeOutAlpha(now, judgement.timeMs() + JUDGEMENT_FADE_START_MS,

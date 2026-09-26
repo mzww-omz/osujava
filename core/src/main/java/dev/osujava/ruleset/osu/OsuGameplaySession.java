@@ -498,7 +498,7 @@ public final class OsuGameplaySession implements GameplaySession {
                     spinner.tracking, spinner.judgement, preemptMs, spinner.rotation.spinsPerMinute(now),
                     spinner.completedAtMs, spinner.bonusScore(), beatmapIndices.get(spinner.object)));
         }
-        judgementVisuals.removeIf(visual -> now - visual.timeMs() > 900);
+        judgementVisuals.removeIf(visual -> now - visual.timeMs() > dev.osujava.ruleset.osu.render.LegacyJudgementAnimation.MAX_LIFETIME_MS);
         Map<Integer, HitObjectVisual> visibleObjects = new HashMap<>();
         visibleCircles.forEach(v -> visibleObjects.put(v.beatmapIndex(), v));
         visibleSliders.forEach(v -> visibleObjects.put(v.beatmapIndex(), v));

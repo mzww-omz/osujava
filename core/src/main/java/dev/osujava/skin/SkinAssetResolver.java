@@ -35,6 +35,18 @@ public final class SkinAssetResolver {
         return resolve("sliderb").map(List::of).orElseGet(List::of);
     }
 
+    /** Legacy GetAnimation: zero-based contiguous frames win over a static PNG. */
+    public List<AssetFile> resolveAnimation(String name) {
+        List<AssetFile> frames = new ArrayList<>();
+        for (int index = 0; ; index++) {
+            var frame = resolve(name + "-" + index);
+            if (frame.isEmpty()) break;
+            frames.add(frame.get());
+        }
+        if (!frames.isEmpty()) return List.copyOf(frames);
+        return resolve(name).map(List::of).orElseGet(List::of);
+    }
+
     /** An incomplete font, absent ini, or unsafe prefix always falls back as a whole. */
     public Optional<List<AssetFile>> resolveHitCircleDigits(SkinConfiguration configuration) {
         if (!configuration.hasIni()) return Optional.empty();

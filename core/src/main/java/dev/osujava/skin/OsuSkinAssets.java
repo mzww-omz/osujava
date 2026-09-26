@@ -1,6 +1,8 @@
 package dev.osujava.skin;
 
 import com.badlogic.gdx.Gdx;
+import dev.osujava.ruleset.osu.render.LegacyJudgementAnimation.Result;
+import dev.osujava.ruleset.osu.render.LegacyJudgementAnimation.Style;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.GdxRuntimeException;
@@ -37,6 +39,10 @@ public final class OsuSkinAssets implements Disposable {
     public enum HudFont { SCORE, COMBO }
     private final EnumMap<HudFont, Map<Character, SkinTexture>> hudFonts = new EnumMap<>(HudFont.class);
     private final Map<SkinAssetResolver.AssetFile, SkinTexture> textureCache = new HashMap<>();
+    public record JudgementAsset(List<SkinTexture> frames, SkinTexture particle, Style style) {
+        public JudgementAsset { frames = List.copyOf(frames); }
+    }
+    private final EnumMap<Result, JudgementAsset> judgements = new EnumMap<>(Result.class);
     private SkinConfiguration configuration = SkinConfiguration.defaults();
 
     public OsuSkinAssets(Path directory) {
@@ -79,6 +85,27 @@ public final class OsuSkinAssets implements Disposable {
                 });
             }
             hudFonts.put(font, Map.copyOf(glyphs));
+        }
+        for (Result result : Result.values()) {
+            if (result == Result.SLIDER_TAIL_HIT && configuration.legacyVersion() >= 2) continue;
+            List<SkinTexture> frames = new ArrayList<>();
+            var files = result == Result.SLIDER_TAIL_HIT ? resolver.resolve(result.image).map(List::of).orElseGet(List::of)
+                    : resolver.resolveAnimation(result.image);
+            boolean failed = false;
+            for (var file : files) {
+                SkinTexture frame = load(file, textureLoader);
+                if (frame == null) { failed = true; break; }
+                frames.add(frame);
+            }
+            if (failed) {
+                for (var frame : frames) disposeIfUnreferenced(frame.texture());
+                continue;
+            }
+            if (frames.isEmpty()) continue;
+            SkinTexture particle = result.particle == null ? null
+                    : resolver.resolve(result.particle).map(file -> load(file, textureLoader)).orElse(null);
+            judgements.put(result, new JudgementAsset(frames, particle,
+                    result == Result.SLIDER_TAIL_HIT ? Style.SLIDER_POINT : particle == null ? Style.OLD : Style.NEW));
         }
         List<SkinTexture> ballFrames = new ArrayList<>();
         for (var file : resolver.resolveSliderBall()) {
@@ -154,12 +181,20 @@ public final class OsuSkinAssets implements Disposable {
         return font == HudFont.SCORE ? configuration.fonts().scoreOverlap() : configuration.fonts().comboOverlap();
     }
 
+    public JudgementAsset judgement(Result result) { return judgements.get(result); }
+    public Style judgementStyle(Result result) {
+        var asset = judgement(result);
+        return asset == null ? Style.FALLBACK : asset.style();
+    }
+
     public List<SkinTexture> sliderBallFrames() { return sliderBallFrames; }
 
     private void disposeIfUnreferenced(Texture texture) {
         if (textures.values().stream().anyMatch(asset -> asset.texture() == texture)
                 || hitCircleDigits.stream().anyMatch(asset -> asset.texture() == texture)
                 || hudFonts.values().stream().flatMap(m -> m.values().stream()).anyMatch(asset -> asset.texture() == texture)
+                || judgements.values().stream().anyMatch(j -> j.frames().stream().anyMatch(a -> a.texture() == texture)
+                        || j.particle() != null && j.particle().texture() == texture)
                 || sliderBallFrames.stream().anyMatch(asset -> asset.texture() == texture)) return;
         textureCache.values().removeIf(asset -> asset != null && asset.texture() == texture);
         if (ownedTextures.remove(texture)) texture.dispose();
@@ -172,6 +207,7 @@ public final class OsuSkinAssets implements Disposable {
         textures.clear();
         textureCache.clear();
         hudFonts.clear();
+        judgements.clear();
         sliderBallFrames = List.of();
         hitCircleDigits = List.of();
     }

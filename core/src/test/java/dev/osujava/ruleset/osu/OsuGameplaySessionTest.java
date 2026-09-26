@@ -22,6 +22,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OsuGameplaySessionTest {
     @Test
+    void judgementVisualSurvivesLegacyFadeAndParticleLifetimeWithoutChangingScore() {
+        ManualClock clock = new ManualClock();
+        var session = new OsuGameplaySession(difficulty(List.of(object(256, 192, 1000, 1))),
+                clock, new dev.osujava.gameplay.JudgementWindows(50, 100, 150));
+        clock.set(1000); session.click(256, 192);
+        var original = session.state().judgementVisuals().getFirst();
+        for (long time : new long[]{1901, 2100, 2499, 2500}) {
+            clock.set(time);
+            assertEquals(original, session.update().judgementVisuals().getFirst());
+            assertEquals(1, session.state().score().count300());
+        }
+        clock.set(2501); assertTrue(session.update().judgementVisuals().isEmpty());
+    }
+
+    @Test
     void hudReceivesEveryInputEventBeforeRenderingAndSnapshotsStayImmutable() {
         ManualClock clock = new ManualClock();
         var session = new OsuGameplaySession(difficulty(List.of(object(100, 100, 1000, 1),
