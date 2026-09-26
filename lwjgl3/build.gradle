@@ -16,6 +16,7 @@ tasks.register('executableJar', Jar) {
     archiveBaseName = 'osujava'
     archiveVersion = project.version
     archiveClassifier = 'all'
+    dependsOn configurations.runtimeClasspath
 
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
