@@ -69,6 +69,14 @@ class SliderTimingTest {
     }
 
     @Test
+    void shortSliderTailLeniencyNeverBeginsBeforeHalfDuration() {
+        SliderTiming shortSlider = timing(14, 1,
+                List.of(new TimingPoint(0, 500, 4, 0, 0, 100, true, 0)));
+        assertEquals(50, shortSlider.durationMs(), 1e-6);
+        assertEquals(1025, SliderEventGenerator.tailJudgementStartTime(shortSlider), 1e-6);
+    }
+
+    @Test
     void zeroDistancePathDoesNotCreateImpossibleRepeatSpans() {
         HitObject object = new HitObject(0, 0, 1000, HitObject.Type.SLIDER, 2, 0,
                 new SliderData(List.of(new SliderData.Segment(SliderData.CurveType.LINEAR, 0,
