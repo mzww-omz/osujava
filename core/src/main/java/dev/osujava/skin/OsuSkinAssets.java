@@ -116,6 +116,7 @@ public final class OsuSkinAssets implements Disposable {
 
     public boolean hasHitCircleDigits() { return hitCircleDigits.size() == 10; }
     public SkinTexture hitCircleDigit(int digit) { return hitCircleDigits.get(digit); }
+    public boolean hitCircleOverlayAboveNumber() { return configuration.hitCircleOverlayAboveNumber(); }
     public float hitCircleOverlap() { return configuration.fonts().hitCircleOverlap(); }
 
     public List<SkinTexture> sliderBallFrames() { return sliderBallFrames; }

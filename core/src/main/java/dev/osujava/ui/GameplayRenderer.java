@@ -17,6 +17,7 @@ import dev.osujava.gameplay.GameplaySkin;
 import dev.osujava.gameplay.GameplaySkinComponent;
 import dev.osujava.gameplay.GameplayVisualTiming;
 import dev.osujava.gameplay.HitCircleVisual;
+import dev.osujava.ruleset.osu.render.OsuRenderPlan;
 import dev.osujava.gameplay.Judgement;
 import dev.osujava.gameplay.JudgementVisual;
 import dev.osujava.gameplay.ApproachTimeCalculator;
@@ -37,7 +38,6 @@ public final class GameplayRenderer {
     private static final int CIRCLE_SEGMENTS = 36;
     private static final int BODY_CAP_SEGMENTS = 14;
     private static final double JUDGEMENT_LIFETIME_MS = 680;
-    private static final double JUDGEMENT_FADE_START_MS = 320;
     private static final double CIRCLE_HIT_FADE_MS = 100;
     private static final double SLIDER_POST_FADE_MS = 150;
     private static final double SPINNER_POST_FADE_MS = 320;
@@ -89,30 +89,122 @@ public final class GameplayRenderer {
         setColor(shapes, visuals.component(GameplaySkinComponent.PLAYFIELD_TINT), 1);
         shapes.rect(viewport.left(), viewport.bottom(), viewport.width(), viewport.height());
 
-        for (SpinnerVisual spinner : state.spinners()) drawSpinnerField(shapes, spinner, state, viewport);
-        for (SliderVisual slider : state.sliders()) drawSliderBody(shapes, slider, state, viewport);
-        for (SliderVisual slider : state.sliders()) drawSliderObjects(shapes, slider, state, viewport);
-        for (HitCircleVisual circle : state.circles()) drawHitCircle(shapes, circle, state, viewport);
-        for (SliderVisual slider : state.sliders()) drawSliderBallAndFollow(shapes, slider, state, viewport);
-        drawJudgementBodies(shapes, state, viewport);
-        hud.drawPanels(shapes, viewport);
+        boolean overlayAboveNumber = skinAssets == null || skinAssets.hitCircleOverlayAboveNumber();
+        for (var command : OsuRenderPlan.create(state, overlayAboveNumber)) {
+            SliderVisual slider = command.object() instanceof SliderVisual v ? v : null;
+            switch (command.piece()) {
+                case SPINNER -> {
+                    drawSpinnerField(shapes, (SpinnerVisual) command.object(), state, viewport);
+                    shapeType(shapes, ShapeRenderer.ShapeType.Line);
+                    drawSpinnerOverlay(shapes, (SpinnerVisual) command.object(), state, viewport);
+                    shapeType(shapes, ShapeRenderer.ShapeType.Filled);
+                }
+                case JUDGEMENT_BELOW -> {
+                    drawJudgementBodies(shapes, state, viewport);
+                    sprites(shapes, () -> {
+                        hud.drawJudgementText(batch, state, viewport);
+                        hud.drawSpinnerText(batch, state, viewport);
+                    });
+                }
+                case CIRCLE_BASE -> drawHitCircle(shapes, (HitCircleVisual) command.object(), state, viewport);
+                case NUMBER -> {
+                    HitCircleVisual circle = (HitCircleVisual) command.object();
+                    sprites(shapes, () -> hud.drawComboNumber(batch, circle.comboNumber(), circle.x(), circle.y(),
+                            circle.radius(), circleAlpha(circle, state), viewport));
+                }
+                case CIRCLE_OVERLAY -> {
+                    HitCircleVisual circle = (HitCircleVisual) command.object();
+                    shapeType(shapes, ShapeRenderer.ShapeType.Line);
+                    drawSkinnedCircleOverlay(shapes, Image.HIT_CIRCLE_OVERLAY, circle.x(), circle.y(),
+                            circle.radius(), circleAlpha(circle, state), viewport);
+                    shapeType(shapes, ShapeRenderer.ShapeType.Filled);
+                }
+                case SLIDER_BODY -> drawSliderBody(shapes, slider, state, viewport);
+                case TAIL_BASE -> drawSliderTail(shapes, slider, state, viewport);
+                case TAIL_OVERLAY -> {
+                    shapeType(shapes, ShapeRenderer.ShapeType.Line);
+                    drawSliderTailOverlay(shapes, slider, state, viewport);
+                    shapeType(shapes, ShapeRenderer.ShapeType.Filled);
+                }
+                case TICKS -> drawSliderTicks(shapes, slider, state, viewport);
+                case REPEATS -> drawSliderRepeats(shapes, slider, state, viewport);
+                case HEAD_BASE -> drawSliderHead(shapes, slider, state, viewport);
+                case REVERSE_ARROWS -> drawSliderArrows(shapes, slider, state, viewport);
+                case HEAD_NUMBER -> {
+                    if (!slider.headJudged()) sprites(shapes, () -> hud.drawComboNumber(batch,
+                            slider.comboNumber(), slider.headPosition().x(), slider.headPosition().y(),
+                            slider.radius(), sliderAlpha(slider, state), viewport));
+                }
+                case HEAD_OVERLAY -> {
+                    shapeType(shapes, ShapeRenderer.ShapeType.Line);
+                    drawSliderHeadOverlay(shapes, slider, state, viewport);
+                    shapeType(shapes, ShapeRenderer.ShapeType.Filled);
+                }
+                case BALL_AND_FOLLOW -> drawSliderBallAndFollow(shapes, slider, state, viewport);
+                case JUDGEMENT_ABOVE -> {
+                    shapeType(shapes, ShapeRenderer.ShapeType.Line);
+                    drawJudgementRings(shapes, state, viewport);
+                    shapeType(shapes, ShapeRenderer.ShapeType.Filled);
+                }
+                case APPROACH -> {
+                    shapeType(shapes, ShapeRenderer.ShapeType.Line);
+                    if (command.object() instanceof HitCircleVisual circle)
+                        drawApproach(shapes, circle.x(), circle.y(), circle.radius(), circle.timeMs(),
+                                circle.preemptMs(), state.currentTimeMs(), visuals.comboColor(circle.comboColorIndex()), viewport);
+                    else if (!slider.headJudged() && state.currentTimeMs() < slider.startTimeMs())
+                        drawApproach(shapes, slider.headPosition().x(), slider.headPosition().y(), slider.radius(),
+                                slider.startTimeMs(), slider.preemptMs(), state.currentTimeMs(),
+                                visuals.comboColor(slider.comboColorIndex()), viewport);
+                    shapeType(shapes, ShapeRenderer.ShapeType.Filled);
+                }
+                case HUD -> {
+                    if (debugCursor != null) {
+                        shapeType(shapes, ShapeRenderer.ShapeType.Line);
+                        drawDebugCursor(shapes, debugCursor, viewport);
+                        shapeType(shapes, ShapeRenderer.ShapeType.Filled);
+                    }
+                    hud.drawPanels(shapes, viewport);
+                    sprites(shapes, () -> hud.draw(batch, set, difficulty, state, viewport, notice));
+                }
+            }
+        }
         shapes.end();
-
-        shapes.begin(ShapeRenderer.ShapeType.Line);
-        drawApproachCircles(shapes, state, viewport);
-        drawCircleOverlays(shapes, state, viewport);
-        drawSliderOverlays(shapes, state, viewport);
-        drawSpinnerOverlays(shapes, state, viewport);
-        drawJudgementRings(shapes, state, viewport);
-        if (debugCursor != null) drawDebugCursor(shapes, debugCursor, viewport);
-        shapes.end();
-
-        batch.begin();
-        hud.draw(batch, set, difficulty, state, viewport, notice);
-        batch.setColor(Color.WHITE);
-        batch.end();
         Gdx.gl.glDisable(GL20.GL_BLEND);
         pruneSliderRenderData(state.currentTimeMs());
+    }
+
+    private void shapeType(ShapeRenderer shapes, ShapeRenderer.ShapeType type) {
+        if (shapes.getCurrentType() == type) return;
+        shapes.end();
+        shapes.begin(type);
+    }
+
+    /** Flushes before changing drawing backend; submission order is the command order. */
+    private void sprites(ShapeRenderer shapes, Runnable draw) {
+        ShapeRenderer.ShapeType type = shapes.getCurrentType();
+        shapes.end();
+        SpriteBatch batch = game.batch();
+        batch.setColor(Color.WHITE);
+        batch.begin();
+        draw.run();
+        batch.end();
+        batch.setColor(Color.WHITE);
+        game.font().setColor(Color.WHITE);
+        game.font().getData().setScale(1f);
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapes.begin(type);
+    }
+
+    private float circleAlpha(HitCircleVisual circle, GameplayState state) {
+        return (float) GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(),
+                circle.preemptMs(), ApproachTimeCalculator.fadeInMs(circle.preemptMs()));
+    }
+
+    private float sliderAlpha(SliderVisual slider, GameplayState state) {
+        return (float) (GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), slider.startTimeMs(),
+                slider.preemptMs(), ApproachTimeCalculator.fadeInMs(slider.preemptMs()))
+                * GameplayVisualTiming.fadeOutAlpha(state.currentTimeMs(), slider.endTimeMs(), SLIDER_POST_FADE_MS));
     }
 
     private void drawDebugCursor(ShapeRenderer shapes, BeatmapPoint cursor, PlayfieldViewport viewport) {
@@ -147,7 +239,7 @@ public final class GameplayRenderer {
         drawCircleOverlay(shapes, x, y, radius, alpha, viewport);
     }
 
-    /** Flush at the existing layer boundary so textures and vector fallbacks keep the same draw order. */
+    /** Draw exactly one texture or fallback at this position in the object-local command sequence. */
     private boolean drawSkinImage(ShapeRenderer shapes, Image image, double x, double y, double radius,
                                   Color tint, float alpha, PlayfieldViewport viewport) {
         SkinTexture asset = skinAssets == null ? null : skinAssets.get(image);
@@ -160,19 +252,12 @@ public final class GameplayRenderer {
         float scale = viewport.toScreenLength(radius * 2) / 128f;
         float width = asset.logicalWidth() * scale;
         float height = asset.logicalHeight() * scale;
-        ShapeRenderer.ShapeType type = shapes.getCurrentType();
-        shapes.end();
-        SpriteBatch batch = game.batch();
-        batch.setColor(tint.r, tint.g, tint.b, tint.a * alpha);
-        batch.begin();
-        batch.draw(asset.texture(), viewport.toScreenX(x) - width / 2,
-                viewport.toScreenY(y) - height / 2, width, height);
-        batch.end();
-        batch.setColor(Color.WHITE);
-        // SpriteBatch.end() disables blending; the resumed shape pass still needs it.
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-        shapes.begin(type);
+        sprites(shapes, () -> {
+            SpriteBatch batch = game.batch();
+            batch.setColor(tint.r, tint.g, tint.b, tint.a * alpha);
+            batch.draw(asset.texture(), viewport.toScreenX(x) - width / 2,
+                    viewport.toScreenY(y) - height / 2, width, height);
+        });
         return true;
     }
 
@@ -218,20 +303,23 @@ public final class GameplayRenderer {
         }
     }
 
-    private void drawSliderObjects(ShapeRenderer shapes, SliderVisual slider,
+    private void drawSliderTail(ShapeRenderer shapes, SliderVisual slider,
                                    GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
-        double fadeIn = GameplayVisualTiming.fadeInProgress(now, slider.startTimeMs(), slider.preemptMs(),
-                ApproachTimeCalculator.fadeInMs(slider.preemptMs()));
-        double sliderFadeOut = GameplayVisualTiming.fadeOutAlpha(now, slider.endTimeMs(), SLIDER_POST_FADE_MS);
-        float bodyAlpha = (float) (fadeIn * sliderFadeOut);
-        float radius = viewport.toScreenLength(slider.radius());
+        float bodyAlpha = sliderAlpha(slider, state);
         Color comboColor = visuals.comboColor(slider.comboColorIndex());
-
         double tailFadeIn = slider.tailVisualTiming().alphaAt(now);
         float tailAlpha = (float) (bodyAlpha * tailFadeIn);
         drawSkinnedCircleBody(shapes, Image.SLIDER_END_CIRCLE, slider.tailPosition().x(), slider.tailPosition().y(),
                 slider.radius(), comboColor, tailAlpha, viewport);
+    }
+
+    private void drawSliderRepeats(ShapeRenderer shapes, SliderVisual slider,
+                                   GameplayState state, PlayfieldViewport viewport) {
+        long now = state.currentTimeMs();
+        float bodyAlpha = sliderAlpha(slider, state);
+        float radius = viewport.toScreenLength(slider.radius());
+        Color comboColor = visuals.comboColor(slider.comboColorIndex());
         for (SliderVisual.RepeatMarker repeat : slider.repeats()) {
             double markerFadeOut = repeatFadeOut(slider, repeat, now);
             float alpha = (float) (bodyAlpha * repeat.visualTiming().alphaAt(now) * markerFadeOut);
@@ -239,7 +327,18 @@ public final class GameplayRenderer {
             float y = viewport.toScreenY(repeat.position().y());
             drawCircleBody(shapes, x, y, radius * 0.37f,
                     repeat.judged() ? visuals.component(GameplaySkinComponent.SLIDER_INNER) : comboColor, alpha);
+            shapeType(shapes, ShapeRenderer.ShapeType.Line);
+            setColor(shapes, visuals.component(GameplaySkinComponent.HITCIRCLE_BORDER), alpha);
+            shapes.circle(x, y, radius * 0.37f, CIRCLE_SEGMENTS - 8);
+            shapeType(shapes, ShapeRenderer.ShapeType.Filled);
         }
+    }
+
+    private void drawSliderTicks(ShapeRenderer shapes, SliderVisual slider,
+                                   GameplayState state, PlayfieldViewport viewport) {
+        long now = state.currentTimeMs();
+        float bodyAlpha = sliderAlpha(slider, state);
+        float radius = viewport.toScreenLength(slider.radius());
         for (SliderVisual.TickMarker tick : slider.ticks()) {
             double tickFade = tick.visualTiming().alphaAt(now);
             if (tick.judged()) tickFade *= GameplayVisualTiming.fadeOutAlpha(now, tick.timeMs(), 120);
@@ -250,12 +349,26 @@ public final class GameplayRenderer {
                     tickRadius, 16);
         }
 
+    }
+
+    private void drawSliderHead(ShapeRenderer shapes, SliderVisual slider,
+                                   GameplayState state, PlayfieldViewport viewport) {
+        long now = state.currentTimeMs();
+        float bodyAlpha = sliderAlpha(slider, state);
+        Color comboColor = visuals.comboColor(slider.comboColorIndex());
         double headFade = slider.headJudged() && slider.headJudgementTimeMs() != Long.MIN_VALUE
                 ? GameplayVisualTiming.fadeOutAlpha(now, slider.headJudgementTimeMs(), CIRCLE_HIT_FADE_MS) : 1;
         float headAlpha = (float) (bodyAlpha * headFade);
         Color headColor = slider.headJudged() && !slider.headHit() ? visuals.component(GameplaySkinComponent.HITCIRCLE_MISS) : comboColor;
         drawSkinnedCircleBody(shapes, Image.SLIDER_START_CIRCLE, slider.headPosition().x(), slider.headPosition().y(),
                 slider.radius(), headColor, headAlpha, viewport);
+    }
+
+    private void drawSliderArrows(ShapeRenderer shapes, SliderVisual slider,
+                                   GameplayState state, PlayfieldViewport viewport) {
+        long now = state.currentTimeMs();
+        float bodyAlpha = sliderAlpha(slider, state);
+        float radius = viewport.toScreenLength(slider.radius());
         for (SliderVisual.RepeatMarker repeat : slider.repeats()) {
             double markerFadeOut = repeatFadeOut(slider, repeat, now);
             float alpha = (float) (bodyAlpha * repeat.reverseArrowTiming().alphaAt(now) * markerFadeOut);
@@ -344,20 +457,14 @@ public final class GameplayRenderer {
         Texture texture = asset.texture();
         var size = LegacySliderBallAnimation.spriteSize(texture.getWidth(), texture.getHeight(),
                 asset.density(), slider.radius(), viewport.scale());
-        ShapeRenderer.ShapeType type = shapes.getCurrentType();
-        shapes.end();
-        SpriteBatch batch = game.batch();
-        // LegacySliderBall defaults to white. skin.ini ball/tint settings are deliberately deferred.
-        batch.setColor(1, 1, 1, alpha);
-        batch.begin();
-        batch.draw(texture, viewport.toScreenX(slider.ballPosition().x()) - size.width() / 2,
-                viewport.toScreenY(slider.ballPosition().y()) - size.height() / 2, size.width(), size.height(),
-                size.u(), size.v(), size.u2(), size.v2());
-        batch.end();
-        batch.setColor(Color.WHITE);
-        Gdx.gl.glEnable(GL20.GL_BLEND);
-        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-        shapes.begin(type);
+        sprites(shapes, () -> {
+            SpriteBatch batch = game.batch();
+            // LegacySliderBall defaults to white; tint/rotation settings remain deferred.
+            batch.setColor(1, 1, 1, alpha);
+            batch.draw(texture, viewport.toScreenX(slider.ballPosition().x()) - size.width() / 2,
+                    viewport.toScreenY(slider.ballPosition().y()) - size.height() / 2, size.width(), size.height(),
+                    size.u(), size.v(), size.u2(), size.v2());
+        });
         return true;
     }
 
@@ -389,19 +496,6 @@ public final class GameplayRenderer {
         shapes.circle(x, y, radius * (spinner.tracking() ? 0.13f : 0.18f), CIRCLE_SEGMENTS);
     }
 
-    private void drawApproachCircles(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
-        long now = state.currentTimeMs();
-        for (HitCircleVisual circle : state.circles()) {
-            drawApproach(shapes, circle.x(), circle.y(), circle.radius(), circle.timeMs(), circle.preemptMs(),
-                    now, visuals.comboColor(circle.comboColorIndex()), viewport);
-        }
-        for (SliderVisual slider : state.sliders()) {
-            if (slider.headJudged() || now >= slider.startTimeMs()) continue;
-            drawApproach(shapes, slider.headPosition().x(), slider.headPosition().y(), slider.radius(),
-                    slider.startTimeMs(), slider.preemptMs(), now, visuals.comboColor(slider.comboColorIndex()), viewport);
-        }
-    }
-
     private void drawApproach(ShapeRenderer shapes, double x, double y, double radius,
                               long objectTimeMs, long preemptMs, long now, Color tint, PlayfieldViewport viewport) {
         double progress = GameplayVisualTiming.approachProgress(now, objectTimeMs, preemptMs);
@@ -413,20 +507,12 @@ public final class GameplayRenderer {
         shapes.circle(viewport.toScreenX(x), viewport.toScreenY(y), approachRadius, CIRCLE_SEGMENTS + 4);
     }
 
-    private void drawCircleOverlays(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
-        for (HitCircleVisual circle : state.circles()) {
-            float alpha = (float) GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(),
-                    circle.preemptMs(), ApproachTimeCalculator.fadeInMs(circle.preemptMs()));
-            drawSkinnedCircleOverlay(shapes, Image.HIT_CIRCLE_OVERLAY, circle.x(), circle.y(), circle.radius(), alpha, viewport);
-        }
-        for (SliderVisual slider : state.sliders()) {
-            double headFade = slider.headJudged() && slider.headJudgementTimeMs() != Long.MIN_VALUE
-                    ? GameplayVisualTiming.fadeOutAlpha(state.currentTimeMs(), slider.headJudgementTimeMs(), CIRCLE_HIT_FADE_MS) : 1;
-            double alpha = GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), slider.startTimeMs(),
-                    slider.preemptMs(), ApproachTimeCalculator.fadeInMs(slider.preemptMs())) * headFade;
-            drawSkinnedCircleOverlay(shapes, Image.SLIDER_START_CIRCLE_OVERLAY, slider.headPosition().x(), slider.headPosition().y(), slider.radius(),
-                    (float) alpha, viewport);
-        }
+    private void drawSliderHeadOverlay(ShapeRenderer shapes, SliderVisual slider,
+                                       GameplayState state, PlayfieldViewport viewport) {
+        double headFade = slider.headJudged() && slider.headJudgementTimeMs() != Long.MIN_VALUE
+                ? GameplayVisualTiming.fadeOutAlpha(state.currentTimeMs(), slider.headJudgementTimeMs(), CIRCLE_HIT_FADE_MS) : 1;
+        drawSkinnedCircleOverlay(shapes, Image.SLIDER_START_CIRCLE_OVERLAY, slider.headPosition().x(),
+                slider.headPosition().y(), slider.radius(), (float) (sliderAlpha(slider, state) * headFade), viewport);
     }
 
     private void drawCircleOverlay(ShapeRenderer shapes, double x, double y, double radius,
@@ -439,77 +525,65 @@ public final class GameplayRenderer {
                 viewport.toScreenLength(radius * 0.73), CIRCLE_SEGMENTS - 4);
     }
 
-    private void drawSliderOverlays(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
+    private void drawSliderTailOverlay(ShapeRenderer shapes, SliderVisual slider,
+                               GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
-        for (SliderVisual slider : state.sliders()) {
-            float radius = viewport.toScreenLength(slider.radius());
-            double bodyFade = GameplayVisualTiming.fadeInProgress(now, slider.startTimeMs(), slider.preemptMs(),
-                    ApproachTimeCalculator.fadeInMs(slider.preemptMs()))
-                    * GameplayVisualTiming.fadeOutAlpha(now, slider.endTimeMs(), SLIDER_POST_FADE_MS);
-            Color comboColor = visuals.comboColor(slider.comboColorIndex());
-            double tailAlpha = bodyFade * slider.tailVisualTiming().alphaAt(now);
-            if (!drawSkinImage(shapes, Image.SLIDER_END_CIRCLE_OVERLAY, slider.tailPosition().x(), slider.tailPosition().y(),
-                    slider.radius(), Color.WHITE, (float) tailAlpha, viewport)) {
-                setColor(shapes, comboColor, (float) tailAlpha * 0.72f);
-                shapes.circle(viewport.toScreenX(slider.tailPosition().x()), viewport.toScreenY(slider.tailPosition().y()),
-                        radius, CIRCLE_SEGMENTS);
-            }
-            for (SliderVisual.RepeatMarker repeat : slider.repeats()) {
-                float alpha = (float) (bodyFade * repeat.visualTiming().alphaAt(now)
-                        * repeatFadeOut(slider, repeat, now));
-                setColor(shapes, visuals.component(GameplaySkinComponent.HITCIRCLE_BORDER), alpha);
-                shapes.circle(viewport.toScreenX(repeat.position().x()), viewport.toScreenY(repeat.position().y()),
-                        radius * 0.37f, CIRCLE_SEGMENTS - 8);
-            }
+        float radius = viewport.toScreenLength(slider.radius());
+        double bodyFade = sliderAlpha(slider, state);
+        Color comboColor = visuals.comboColor(slider.comboColorIndex());
+        double tailAlpha = bodyFade * slider.tailVisualTiming().alphaAt(now);
+        if (!drawSkinImage(shapes, Image.SLIDER_END_CIRCLE_OVERLAY, slider.tailPosition().x(), slider.tailPosition().y(),
+                slider.radius(), Color.WHITE, (float) tailAlpha, viewport)) {
+            setColor(shapes, comboColor, (float) tailAlpha * 0.72f);
+            shapes.circle(viewport.toScreenX(slider.tailPosition().x()), viewport.toScreenY(slider.tailPosition().y()),
+                    radius, CIRCLE_SEGMENTS);
         }
     }
 
-    private void drawSpinnerOverlays(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
+    private void drawSpinnerOverlay(ShapeRenderer shapes, SpinnerVisual spinner, GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
-        for (SpinnerVisual spinner : state.spinners()) {
-            double fadeIn = GameplayVisualTiming.fadeInProgress(now, spinner.startTimeMs(), spinner.preemptMs(),
-                    ApproachTimeCalculator.fadeInMs(spinner.preemptMs()));
-            double fadeOut = GameplayVisualTiming.fadeOutAlpha(now, spinner.endTimeMs(), SPINNER_POST_FADE_MS);
-            float alpha = (float) (fadeIn * fadeOut);
-            float centerX = viewport.toScreenX(spinner.centerX());
-            float centerY = viewport.toScreenY(spinner.centerY());
-            double intro = GameplayVisualTiming.spinnerIntroScale(now, spinner.startTimeMs(), spinner.preemptMs());
-            double finish = now >= spinner.endTimeMs()
-                    ? GameplayVisualTiming.spinnerCompletionScale(now, spinner.endTimeMs(),
-                    spinner.judgement() != Judgement.MISS) : 1;
-            float radius = viewport.toScreenLength(spinner.radius() * intro * finish);
-            Color progressColor = spinner.judgement() == Judgement.MISS ? visuals.component(GameplaySkinComponent.SPINNER_MISS)
-                    : spinner.completionTimeMs() != Long.MIN_VALUE ? visuals.component(GameplaySkinComponent.SPINNER_COMPLETE) : visuals.component(GameplaySkinComponent.SPINNER_PROGRESS);
-            setColor(shapes, visuals.component(GameplaySkinComponent.SPINNER_RING), alpha);
-            shapes.circle(centerX, centerY, radius, CIRCLE_SEGMENTS + 12);
-            int markers = Math.max(1, Math.min(32, spinner.requiredSpins()));
-            for (int i = 0; i < markers; i++) {
-                double angle = Math.PI * 2 * i / markers;
-                float sin = (float) Math.sin(angle);
-                float cos = (float) Math.cos(angle);
-                setColor(shapes, i < spinner.completedSpins() ? visuals.component(GameplaySkinComponent.SPINNER_COMPLETE) : visuals.component(GameplaySkinComponent.SPINNER_RING), alpha);
-                shapes.line(centerX + cos * radius * 0.87f, centerY + sin * radius * 0.87f,
-                        centerX + cos * radius * 0.96f, centerY + sin * radius * 0.96f);
-            }
-            double progress = GameplayVisualTiming.clamp(spinner.progress());
-            if (progress > 0) {
-                setColor(shapes, progressColor, alpha);
-                int segments = Math.max(1, (int) Math.ceil(72 * progress));
-                for (int stroke = 0; stroke < 5; stroke++) {
-                    shapes.arc(centerX, centerY, radius * 1.045f - stroke * 1.7f, 90,
-                            (float) (360 * progress), segments);
-                }
-            }
-
-            // Gameplay angles use osu!'s downward-positive Y axis; the viewport is upward-positive.
-            double angle = Math.toRadians(-spinner.rotationDegrees());
-            float innerX = centerX + (float) Math.cos(angle) * radius * 0.25f;
-            float innerY = centerY + (float) Math.sin(angle) * radius * 0.25f;
-            float indicatorX = centerX + (float) Math.cos(angle) * radius * 0.86f;
-            float indicatorY = centerY + (float) Math.sin(angle) * radius * 0.86f;
-            setColor(shapes, spinner.tracking() ? visuals.component(GameplaySkinComponent.SPINNER_COMPLETE) : visuals.component(GameplaySkinComponent.SPINNER_RING), alpha);
-            shapes.line(innerX, innerY, indicatorX, indicatorY);
+        double fadeIn = GameplayVisualTiming.fadeInProgress(now, spinner.startTimeMs(), spinner.preemptMs(),
+                ApproachTimeCalculator.fadeInMs(spinner.preemptMs()));
+        double fadeOut = GameplayVisualTiming.fadeOutAlpha(now, spinner.endTimeMs(), SPINNER_POST_FADE_MS);
+        float alpha = (float) (fadeIn * fadeOut);
+        float centerX = viewport.toScreenX(spinner.centerX());
+        float centerY = viewport.toScreenY(spinner.centerY());
+        double intro = GameplayVisualTiming.spinnerIntroScale(now, spinner.startTimeMs(), spinner.preemptMs());
+        double finish = now >= spinner.endTimeMs()
+                ? GameplayVisualTiming.spinnerCompletionScale(now, spinner.endTimeMs(),
+                spinner.judgement() != Judgement.MISS) : 1;
+        float radius = viewport.toScreenLength(spinner.radius() * intro * finish);
+        Color progressColor = spinner.judgement() == Judgement.MISS ? visuals.component(GameplaySkinComponent.SPINNER_MISS)
+                : spinner.completionTimeMs() != Long.MIN_VALUE ? visuals.component(GameplaySkinComponent.SPINNER_COMPLETE) : visuals.component(GameplaySkinComponent.SPINNER_PROGRESS);
+        setColor(shapes, visuals.component(GameplaySkinComponent.SPINNER_RING), alpha);
+        shapes.circle(centerX, centerY, radius, CIRCLE_SEGMENTS + 12);
+        int markers = Math.max(1, Math.min(32, spinner.requiredSpins()));
+        for (int i = 0; i < markers; i++) {
+            double angle = Math.PI * 2 * i / markers;
+            float sin = (float) Math.sin(angle);
+            float cos = (float) Math.cos(angle);
+            setColor(shapes, i < spinner.completedSpins() ? visuals.component(GameplaySkinComponent.SPINNER_COMPLETE) : visuals.component(GameplaySkinComponent.SPINNER_RING), alpha);
+            shapes.line(centerX + cos * radius * 0.87f, centerY + sin * radius * 0.87f,
+                    centerX + cos * radius * 0.96f, centerY + sin * radius * 0.96f);
         }
+        double progress = GameplayVisualTiming.clamp(spinner.progress());
+        if (progress > 0) {
+            setColor(shapes, progressColor, alpha);
+            int segments = Math.max(1, (int) Math.ceil(72 * progress));
+            for (int stroke = 0; stroke < 5; stroke++) {
+                shapes.arc(centerX, centerY, radius * 1.045f - stroke * 1.7f, 90,
+                        (float) (360 * progress), segments);
+            }
+        }
+
+        // Gameplay angles use osu!'s downward-positive Y axis; the viewport is upward-positive.
+        double angle = Math.toRadians(-spinner.rotationDegrees());
+        float innerX = centerX + (float) Math.cos(angle) * radius * 0.25f;
+        float innerY = centerY + (float) Math.sin(angle) * radius * 0.25f;
+        float indicatorX = centerX + (float) Math.cos(angle) * radius * 0.86f;
+        float indicatorY = centerY + (float) Math.sin(angle) * radius * 0.86f;
+        setColor(shapes, spinner.tracking() ? visuals.component(GameplaySkinComponent.SPINNER_COMPLETE) : visuals.component(GameplaySkinComponent.SPINNER_RING), alpha);
+        shapes.line(innerX, innerY, indicatorX, indicatorY);
     }
 
     private void drawJudgementBodies(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {

@@ -68,7 +68,7 @@ ZIPのcentral directoryと各entryのサイズ・CRCを検証し、絶対パス�
 
 `OsuSkinAssets` はScreen作成時にTextureを一度読み込み、GameplayScreen終了時にdisposeします。数字Textureも同じ管理に含めます。色設定の `GameplaySkin` と画像ファイル解決の `SkinAssetResolver` は別責務です。Slider始点・終点はhitcircle画像を共有し、始点のApproach Circleも対応します。終点の既存サイズ・出現タイミングは維持します。Slider専用始点・終点画像とSlider Ballも対応します。
 
-HitCircleとSlider始点のcombo numberは、Skin直下の `skin.ini` の `[Fonts]` から `HitCirclePrefix` と `HitCircleOverlap` だけを読みます。省略時はそれぞれ `default` と `-2` です（[osu!lazer LegacySkinExtensions](https://github.com/ppy/osu/blob/master/osu.Game/Skinning/LegacySkinExtensions.cs)）。他のFonts項目、Colours、Slider・Cursor設定、Versionによる挙動差、hitsound設定は解析しません。
+HitCircleとSlider始点のcombo numberは、Skin直下の `skin.ini` の `[Fonts]` から `HitCirclePrefix` と `HitCircleOverlap` を読みます。省略時はそれぞれ `default` と `-2` です（[osu!lazer LegacySkinExtensions](https://github.com/ppy/osu/blob/master/osu.Game/Skinning/LegacySkinExtensions.cs)）。`[General]` の `HitCircleOverlayAboveNumber`（typo互換 `HitCircleOverlayAboveNumer`）も対応し、既定はoverlayがnumberより上です。正規名があればtypo名より優先します。他のFonts項目、Colours、Slider・Cursor設定、Versionによる挙動差、hitsound設定は解析しません。
 
 数字は `<prefix>-0` ～ `<prefix>-9` を各々 `name@2x.png` → `name.png` の順で探索し、densityで割ったnative logical width/heightを使います。桁のadvanceは `width - overlap`（正値で重なり、負値で間隔が広がる）で、数字全体をCircle中央に配置します。画像のアスペクト比を維持し、倍率は `0.8 × radius / 64 × viewport scale` です（[OsuLegacySkinTransformer](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Skinning/Legacy/OsuLegacySkinTransformer.cs)、[DrawableHitCircle](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Objects/Drawables/DrawableHitCircle.cs)、[OsuHitObject](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Objects/OsuHitObject.cs)）。Slider終点には数字を表示しません。
 
@@ -115,3 +115,5 @@ parser、archiveのパス検証、複数DifficultyのImport、アセット関連
 - core: Beatmapモデル、parser、Importer、Library、Game Clock、Ruleset、Gameplay判定と画面
 - lwjgl3: desktop launcherとファイル選択ダイアログ
 - docs/architecture.md: データの流れと各層の責務
+
+Gameplayの重なり描画はobject単位のrender queueで管理します。depth、Slider内proxy、Approach Circle / Judgement layerの参照元と検証内容は[描画順の設計記録](docs/gameplay-layering.md)を参照してください。

@@ -24,7 +24,31 @@ public record SliderVisual(
         long headJudgementTimeMs,
         int comboColorIndex,
         List<TickMarker> ticks,
+        double velocity,
+        int beatmapIndex) implements HitObjectVisual {
+    public SliderVisual(List<BeatmapPoint> pathPoints,
+        BeatmapPoint headPosition,
+        BeatmapPoint tailPosition,
+        BeatmapPoint ballPosition,
+        List<RepeatMarker> repeats,
+        double radius,
+        double approachRadius,
+        double progress,
+        long startTimeMs,
+        double endTimeMs,
+        boolean headJudged,
+        boolean headHit,
+        boolean tracking,
+        long preemptMs,
+        int comboNumber,
+        long headJudgementTimeMs,
+        int comboColorIndex,
+        List<TickMarker> ticks,
         double velocity) {
+        this(pathPoints, headPosition, tailPosition, ballPosition, repeats, radius, approachRadius,
+                progress, startTimeMs, endTimeMs, headJudged, headHit, tracking, preemptMs, comboNumber,
+                headJudgementTimeMs, comboColorIndex, ticks, velocity, -1);
+    }
 
     public SliderVisual(List<BeatmapPoint> pathPoints, BeatmapPoint headPosition, BeatmapPoint tailPosition,
                         BeatmapPoint ballPosition, List<RepeatMarker> repeats, double radius,

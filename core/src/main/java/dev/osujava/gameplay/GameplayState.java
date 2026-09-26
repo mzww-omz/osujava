@@ -4,7 +4,26 @@ import java.util.List;
 
 public record GameplayState(long currentTimeMs, List<HitCircleVisual> circles, List<SliderVisual> sliders,
                             List<SpinnerVisual> spinners, ScoreState score, boolean completed,
-                            List<JudgementVisual> judgementVisuals) {
+                            List<JudgementVisual> judgementVisuals, List<HitObjectVisual> drawOrder) {
+    public GameplayState(long currentTimeMs, List<HitCircleVisual> circles, List<SliderVisual> sliders,
+                         List<SpinnerVisual> spinners, ScoreState score, boolean completed,
+                         List<JudgementVisual> judgementVisuals) {
+        this(currentTimeMs, circles, sliders, spinners, score, completed, judgementVisuals,
+                defaultDrawOrder(circles, sliders, spinners));
+    }
+
+    // Compatibility for hand-built snapshots. Live sessions supply the precomputed beatmap order.
+    private static List<HitObjectVisual> defaultDrawOrder(List<HitCircleVisual> circles,
+            List<SliderVisual> sliders, List<SpinnerVisual> spinners) {
+        var objects = new java.util.ArrayList<HitObjectVisual>();
+        objects.addAll(circles);
+        objects.addAll(sliders);
+        objects.addAll(spinners);
+        objects.sort(java.util.Comparator.comparingLong(HitObjectVisual::startTimeMs).reversed()
+                .thenComparing(java.util.Comparator.comparingInt(HitObjectVisual::beatmapIndex).reversed()));
+        return objects;
+    }
+
     public GameplayState(long currentTimeMs, List<HitCircleVisual> circles, List<SliderVisual> sliders,
                          List<SpinnerVisual> spinners, ScoreState score, boolean completed) {
         this(currentTimeMs, circles, sliders, spinners, score, completed, List.of());
@@ -24,5 +43,6 @@ public record GameplayState(long currentTimeMs, List<HitCircleVisual> circles, L
         sliders = List.copyOf(sliders);
         spinners = List.copyOf(spinners);
         judgementVisuals = List.copyOf(judgementVisuals);
+        drawOrder = List.copyOf(drawOrder);
     }
 }

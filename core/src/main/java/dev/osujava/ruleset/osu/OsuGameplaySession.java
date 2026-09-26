@@ -10,6 +10,7 @@ import dev.osujava.gameplay.GameplayAudioCue;
 import dev.osujava.gameplay.GameInputAction;
 import dev.osujava.gameplay.GameplaySession;
 import dev.osujava.gameplay.GameplayState;
+import dev.osujava.gameplay.HitObjectVisual;
 import dev.osujava.gameplay.GameplayVisualTiming;
 import dev.osujava.gameplay.HitCircleVisual;
 import dev.osujava.gameplay.Judgement;
@@ -26,6 +27,9 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.stream.IntStream;
 import java.util.Map;
 
 /** osu!standard gameplay rules for HitCircles, Sliders, and Spinners. */
@@ -51,8 +55,16 @@ public final class OsuGameplaySession implements GameplaySession {
     private double cursorY;
     private final EnumSet<GameInputAction> pressedActions = EnumSet.noneOf(GameInputAction.class);
     private GameplayState state;
+    private final Map<HitObject, Integer> beatmapIndices = new IdentityHashMap<>();
+    private final List<Integer> visualOrder;
 
     public OsuGameplaySession(BeatmapDifficulty difficulty, GameClock clock, JudgementWindows windows) {
+        for (int i = 0; i < difficulty.hitObjects().size(); i++)
+            beatmapIndices.put(difficulty.hitObjects().get(i), i);
+        // HitObjectContainer.Compare: descending StartTime, then reverse child insertion ID.
+        this.visualOrder = IntStream.range(0, difficulty.hitObjects().size()).boxed()
+                .sorted(Comparator.<Integer>comparingLong(i -> difficulty.hitObjects().get(i).timeMs()).reversed()
+                        .thenComparing(Comparator.reverseOrder())).toList();
         this.clock = clock;
         this.timingPoints = difficulty.timingPoints();
         this.windows = windows;
@@ -387,7 +399,7 @@ public final class OsuGameplaySession implements GameplaySession {
             ComboInfo combo = comboInfo.getOrDefault(circle, new ComboInfo(1, 0));
             visibleCircles.add(new HitCircleVisual(position.x(), position.y(), circleRadius,
                     GameplayVisualTiming.approachRadius(circleRadius, progress), circle.timeMs(),
-                    preemptMs, combo.number(), combo.colorIndex()));
+                    preemptMs, combo.number(), combo.colorIndex(), beatmapIndices.get(circle)));
         }
 
         List<SliderVisual> visibleSliders = new ArrayList<>();
@@ -427,7 +439,7 @@ public final class OsuGameplaySession implements GameplaySession {
                     ball, repeats, circleRadius, GameplayVisualTiming.approachRadius(circleRadius, approachProgress), progress,
                     slider.object.timeMs(), slider.timing.endTimeMs(), slider.headJudged, slider.headHit,
                     slider.tracking, preemptMs, combo.number(),
-                    slider.headJudgementTimeMs, combo.colorIndex(), ticks, slider.timing.velocity()));
+                    slider.headJudgementTimeMs, combo.colorIndex(), ticks, slider.timing.velocity(), beatmapIndices.get(slider.object)));
         }
 
         List<SpinnerVisual> visibleSpinners = new ArrayList<>();
@@ -439,11 +451,20 @@ public final class OsuGameplaySession implements GameplaySession {
                     spinner.rotation.totalRotationDegrees(), spinner.rotation.completedSpins(),
                     spinner.requirements.spinsRequired(), spinner.object.timeMs(), spinner.object.endTimeMs(),
                     spinner.tracking, spinner.judgement, preemptMs, spinner.rotation.spinsPerMinute(now),
-                    spinner.completedAtMs, spinner.bonusScore()));
+                    spinner.completedAtMs, spinner.bonusScore(), beatmapIndices.get(spinner.object)));
         }
         judgementVisuals.removeIf(visual -> now - visual.timeMs() > 900);
+        Map<Integer, HitObjectVisual> visibleObjects = new HashMap<>();
+        visibleCircles.forEach(v -> visibleObjects.put(v.beatmapIndex(), v));
+        visibleSliders.forEach(v -> visibleObjects.put(v.beatmapIndex(), v));
+        visibleSpinners.forEach(v -> visibleObjects.put(v.beatmapIndex(), v));
+        List<HitObjectVisual> drawOrder = new ArrayList<>();
+        for (int index : visualOrder) {
+            HitObjectVisual visual = visibleObjects.get(index);
+            if (visual != null) drawOrder.add(visual);
+        }
         return new GameplayState(now, visibleCircles, visibleSliders, visibleSpinners, score.snapshot(),
-                allJudged(), judgementVisuals);
+                allJudged(), judgementVisuals, drawOrder);
     }
 
     private void recordVisualJudgement(HitObject object, Judgement judgement, double timeMs) {

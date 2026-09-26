@@ -8,14 +8,12 @@ import dev.osujava.OsuJavaGame;
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapSet;
 import dev.osujava.gameplay.GameplayState;
+import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.GameplaySkin;
 import dev.osujava.gameplay.GameplaySkinComponent;
 import dev.osujava.gameplay.GameplayVisualTiming;
-import dev.osujava.gameplay.HitCircleVisual;
 import dev.osujava.gameplay.Judgement;
 import dev.osujava.gameplay.JudgementVisual;
-import dev.osujava.gameplay.ApproachTimeCalculator;
-import dev.osujava.gameplay.SliderVisual;
 import dev.osujava.gameplay.SpinnerVisual;
 import dev.osujava.skin.HitCircleNumberLayout;
 import dev.osujava.skin.OsuSkinAssets;
@@ -52,31 +50,12 @@ final class GameplayHudRenderer {
 
     void draw(SpriteBatch batch, BeatmapSet set, BeatmapDifficulty difficulty,
               GameplayState state, PlayfieldViewport viewport, String notice) {
-        drawComboNumbers(batch, state, viewport);
-        drawJudgementText(batch, state, viewport);
-        drawSpinnerText(batch, state, viewport);
         drawHud(batch, set, difficulty, state, viewport, notice);
         game.font().setColor(Color.WHITE);
         game.font().getData().setScale(1f);
     }
 
-    private void drawComboNumbers(SpriteBatch batch, GameplayState state, PlayfieldViewport viewport) {
-        for (HitCircleVisual circle : state.circles()) {
-            drawComboNumber(batch, circle.comboNumber(), circle.x(), circle.y(), circle.radius(),
-                    GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(), circle.preemptMs(),
-                            ApproachTimeCalculator.fadeInMs(circle.preemptMs())),
-                    viewport);
-        }
-        for (SliderVisual slider : state.sliders()) {
-            if (slider.headJudged()) continue;
-            double alpha = GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), slider.startTimeMs(),
-                    slider.preemptMs(), ApproachTimeCalculator.fadeInMs(slider.preemptMs()));
-            drawComboNumber(batch, slider.comboNumber(), slider.headPosition().x(), slider.headPosition().y(),
-                    slider.radius(), alpha, viewport);
-        }
-    }
-
-    private void drawComboNumber(SpriteBatch batch, int comboNumber, double x, double y,
+    void drawComboNumber(SpriteBatch batch, int comboNumber, double x, double y,
                                  double logicalRadius, double alpha, PlayfieldViewport viewport) {
         if (alpha <= 0.01) return;
         if (skinAssets != null && skinAssets.hasHitCircleDigits()) {
@@ -116,7 +95,7 @@ final class GameplayHudRenderer {
         batch.setColor(Color.WHITE);
     }
 
-    private void drawJudgementText(SpriteBatch batch, GameplayState state, PlayfieldViewport viewport) {
+    void drawJudgementText(SpriteBatch batch, GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
         for (JudgementVisual judgement : state.judgementVisuals()) {
             double age = now - judgement.timeMs();
@@ -150,7 +129,7 @@ final class GameplayHudRenderer {
         };
     }
 
-    private void drawSpinnerText(SpriteBatch batch, GameplayState state, PlayfieldViewport viewport) {
+    void drawSpinnerText(SpriteBatch batch, GameplayState state, PlayfieldViewport viewport) {
         for (SpinnerVisual spinner : state.spinners()) {
             long now = state.currentTimeMs();
             if (now < spinner.startTimeMs() - spinner.preemptMs()

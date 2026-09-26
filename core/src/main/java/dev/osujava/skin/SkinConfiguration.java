@@ -6,8 +6,10 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Small, section-oriented skin.ini reader. Only hit-circle Fonts settings are supported. */
-public record SkinConfiguration(Fonts fonts, boolean hasIni) {
+/** Small, section-oriented skin.ini reader. Supports hit-circle Fonts and overlay ordering settings. */
+public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber) {
+    public SkinConfiguration(Fonts fonts, boolean hasIni) { this(fonts, hasIni, true); }
+
     public record Fonts(String hitCirclePrefix, float hitCircleOverlap) {
         // osu.Game/Skinning/LegacySkinExtensions.cs: GetFontPrefix / GetFontOverlap.
         public static Fonts defaults() { return new Fonts("default", -2f); }
@@ -29,6 +31,8 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni) {
         String section = "";
         String prefix = Fonts.defaults().hitCirclePrefix();
         float overlap = Fonts.defaults().hitCircleOverlap();
+        Boolean overlay = null;
+        Boolean typoOverlay = null;
         String line;
         while ((line = reader.readLine()) != null) {
             // UTF-8 BOM and legacy // comments, including comments after values.
@@ -42,9 +46,17 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni) {
                 continue;
             }
             int separator = line.indexOf(':');
-            if (!section.equalsIgnoreCase("Fonts") || separator < 0) continue;
+            if (separator < 0) continue;
             String key = line.substring(0, separator).trim();
             String value = line.substring(separator + 1).trim();
+            if (section.equalsIgnoreCase("General")) {
+                Boolean parsed = value.equals("1") ? Boolean.TRUE : value.equals("0") ? Boolean.FALSE : null;
+                if (parsed != null) {
+                    if (key.equalsIgnoreCase("HitCircleOverlayAboveNumber")) overlay = parsed;
+                    if (key.equalsIgnoreCase("HitCircleOverlayAboveNumer")) typoOverlay = parsed;
+                }
+            }
+            if (!section.equalsIgnoreCase("Fonts")) continue;
             if (key.equalsIgnoreCase("HitCirclePrefix") && !value.isEmpty()) prefix = value;
             if (key.equalsIgnoreCase("HitCircleOverlap")) {
                 try {
@@ -55,6 +67,7 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni) {
                 }
             }
         }
-        return new SkinConfiguration(new Fonts(prefix, overlap), true);
+        return new SkinConfiguration(new Fonts(prefix, overlap), true,
+                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true);
     }
 }

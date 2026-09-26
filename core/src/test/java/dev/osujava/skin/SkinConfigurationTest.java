@@ -55,6 +55,21 @@ class SkinConfigurationTest {
         }
     }
 
+    @Test
+    void overlayDefaultsAboveNumberAndSupportsTypoWithCanonicalPrecedence() throws IOException {
+        assertTrue(SkinConfiguration.defaults().hitCircleOverlayAboveNumber());
+        assertTrue(parse("[General]\nName: Test").hitCircleOverlayAboveNumber());
+        assertFalse(parse("[General]\nHitCircleOverlayAboveNumber: 0").hitCircleOverlayAboveNumber());
+        assertFalse(parse("[General]\nHitCircleOverlayAboveNumer: 0").hitCircleOverlayAboveNumber());
+        for (String settings : new String[]{
+                "HitCircleOverlayAboveNumer: 0\nHitCircleOverlayAboveNumber: 1",
+                "HitCircleOverlayAboveNumber: 1\nHitCircleOverlayAboveNumer: 0"})
+            assertTrue(parse("[General]\n" + settings).hitCircleOverlayAboveNumber());
+        assertFalse(parse("[General]\nHitCircleOverlayAboveNumber: broken\nHitCircleOverlayAboveNumer: 0")
+                .hitCircleOverlayAboveNumber());
+        assertTrue(parse("[Fonts]\nHitCircleOverlayAboveNumber: 0").hitCircleOverlayAboveNumber());
+    }
+
     private SkinConfiguration parse(String ini) throws IOException {
         return SkinConfiguration.parse(new StringReader(ini));
     }
