@@ -1,5 +1,7 @@
 package dev.osujava.gameplay;
 
+import java.util.List;
+
 public interface GameplaySession {
     GameplayState update();
 
@@ -22,4 +24,8 @@ public interface GameplaySession {
     void finish();
 
     GameplayState state();
+
+    default List<GameplayAudioCue> drainAudioCues() {
+        return List.of();
+    }
 }

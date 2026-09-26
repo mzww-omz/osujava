@@ -35,6 +35,7 @@ public final class GameplayScreen extends ScreenAdapter {
     private final GameplayRunMode runMode;
     private final DebugAutoPlayer autoPlayer;
     private final GameplayRenderer renderer;
+    private final GameplayAudioPlayer audioPlayer;
     private final GameplayInputProcessor input;
     private final Music music;
     private final Texture background;
@@ -55,6 +56,8 @@ public final class GameplayScreen extends ScreenAdapter {
         this.difficulty = difficulty;
         this.runMode = runMode;
         this.renderer = new GameplayRenderer(game);
+        this.audioPlayer = new GameplayAudioPlayer(difficulty.beatmapPath() == null
+                ? null : difficulty.beatmapPath().getParent());
         long lastObjectEnd = 0;
         for (HitObject object : difficulty.hitObjects()) {
             if (object.type() == HitObject.Type.CIRCLE) {
@@ -113,6 +116,7 @@ public final class GameplayScreen extends ScreenAdapter {
         input.setViewport(viewport);
         if (autoPlayer != null) autoPlayer.update();
         GameplayState state = session.update();
+        audioPlayer.play(session.drainAudioCues());
         if (autoPlayer != null) autoPlayer.afterSessionUpdate();
         if (clock.finished()) {
             session.finish();
@@ -127,6 +131,7 @@ public final class GameplayScreen extends ScreenAdapter {
 
     @Override
     public void dispose() {
+        audioPlayer.close();
         if (music != null) {
             music.stop();
             music.dispose();

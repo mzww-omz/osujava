@@ -3,8 +3,10 @@ package dev.osujava.ruleset.osu;
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapPoint;
 import dev.osujava.beatmap.HitObject;
+import dev.osujava.beatmap.TimingPoint;
 import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.GameClock;
+import dev.osujava.gameplay.GameplayAudioCue;
 import dev.osujava.gameplay.GameInputAction;
 import dev.osujava.gameplay.GameplaySession;
 import dev.osujava.gameplay.GameplayState;
@@ -38,6 +40,8 @@ public final class OsuGameplaySession implements GameplaySession {
     private final Map<HitObject, ComboInfo> comboInfo;
     private final OsuStacking stacking;
     private final List<JudgementVisual> judgementVisuals = new ArrayList<>();
+    private final List<GameplayAudioCue> audioCues = new ArrayList<>();
+    private final List<TimingPoint> timingPoints;
     private final JudgementWindows windows;
     private final ScoreTracker score = new ScoreTracker();
     private final long preemptMs;
@@ -49,6 +53,7 @@ public final class OsuGameplaySession implements GameplaySession {
 
     public OsuGameplaySession(BeatmapDifficulty difficulty, GameClock clock, JudgementWindows windows) {
         this.clock = clock;
+        this.timingPoints = difficulty.timingPoints();
         this.windows = windows;
         this.preemptMs = ApproachTimeCalculator.preemptMs(difficulty.settings().approachRate());
         this.circleRadius = OsuObjectGeometry.radius(difficulty.settings().circleSize());
@@ -120,6 +125,7 @@ public final class OsuGameplaySession implements GameplaySession {
             judgedCircles[circleCandidate.index()] = true;
             Judgement judgement = windows.judge(circleCandidate.offsetMs());
             score.record(judgement);
+            emitHitSound(circles.get(circleCandidate.index()), now);
             recordVisualJudgement(circles.get(circleCandidate.index()), judgement, now);
         } else if (sliderCandidate != null && candidateObject == sliders.get(sliderCandidate.index()).object) {
             SliderRuntime slider = sliders.get(sliderCandidate.index());
@@ -130,6 +136,7 @@ public final class OsuGameplaySession implements GameplaySession {
             slider.requiresHeadAction = pressedActions.contains(other(action));
             Judgement judgement = windows.judge(sliderCandidate.offsetMs());
             score.record(judgement);
+            emitHitSound(slider.object, now);
             recordVisualJudgement(slider.object, judgement, now);
         }
 
@@ -192,6 +199,13 @@ public final class OsuGameplaySession implements GameplaySession {
     @Override
     public GameplayState state() {
         return state;
+    }
+
+    @Override
+    public List<GameplayAudioCue> drainAudioCues() {
+        List<GameplayAudioCue> pending = List.copyOf(audioCues);
+        audioCues.clear();
+        return pending;
     }
 
     private Candidate bestCircleCandidate(double x, double y, long now) {
@@ -258,6 +272,11 @@ public final class OsuGameplaySession implements GameplaySession {
                 Judgement judgement = hit ? Judgement.HIT300 : Judgement.MISS;
                 OsuScoreEvent type = OsuScoreEvent.fromSliderEvent(event.type());
                 score.recordNestedHit(type.baseScore(), hit, type.affectsCombo());
+                if (hit) {
+                    if (event.type() == SliderEvent.Type.TICK) emitAudioCue(now,
+                            OsuHitsoundSamples.sliderTick(timingAt(event.timeMs())), timingAt(event.timeMs()));
+                    else emitHitSound(slider.object, now);
+                }
                 if (event.type() == SliderEvent.Type.TAIL) {
                     BeatmapPoint tail = slider.path.positionAt(event.pathProgress());
                     recordVisualJudgement(tail.x(), tail.y(), circleRadius, judgement, now);
@@ -277,9 +296,11 @@ public final class OsuGameplaySession implements GameplaySession {
                 spinner.scoredSpins++;
                 if (spinner.scoredSpins <= spinner.requirements.spinsRequiredForBonus()) {
                     score.recordBonusScore(OsuScoreEvent.SPINNER_SPIN.baseScore());
+                    emitAudioCue(now, OsuHitsoundSamples.spinnerSpin(timingAt(now), false), timingAt(now));
                 } else if (spinner.scoredSpins <= spinner.requirements.spinsRequiredForBonus()
                         + spinner.requirements.maximumBonusSpins()) {
                     score.recordBonusScore(OsuScoreEvent.SPINNER_BONUS.baseScore());
+                    emitAudioCue(now, OsuHitsoundSamples.spinnerSpin(timingAt(now), true), timingAt(now));
                 }
             }
         }
@@ -294,6 +315,7 @@ public final class OsuGameplaySession implements GameplaySession {
                     : progress > 0.75 ? Judgement.HIT50
                     : Judgement.MISS;
             score.record(spinner.judgement);
+            if (spinner.judgement != Judgement.MISS) emitHitSound(spinner.object, now);
             recordVisualJudgement(spinner.object, spinner.judgement, spinner.object.endTimeMs());
             spinner.tracking = false;
         }
@@ -378,6 +400,24 @@ public final class OsuGameplaySession implements GameplaySession {
     private void recordVisualJudgement(HitObject object, Judgement judgement, double timeMs) {
         BeatmapPoint position = stacking.position(object);
         recordVisualJudgement(position.x(), position.y(), circleRadius, judgement, timeMs);
+    }
+
+    private void emitHitSound(HitObject object, double timeMs) {
+        TimingPoint timing = timingAt(object.timeMs());
+        emitAudioCue(timeMs, OsuHitsoundSamples.hit(object.hitSound(), timing), timing);
+    }
+
+    private void emitAudioCue(double timeMs, List<String> samples, TimingPoint timing) {
+        audioCues.add(new GameplayAudioCue(Math.round(timeMs), samples, OsuHitsoundSamples.volume(timing)));
+    }
+
+    private TimingPoint timingAt(double timeMs) {
+        TimingPoint active = null;
+        for (TimingPoint point : timingPoints) {
+            if (point.timeMs() > timeMs) break;
+            active = point;
+        }
+        return active;
     }
 
     private void recordVisualJudgement(double x, double y, double radius, Judgement judgement, double timeMs) {
