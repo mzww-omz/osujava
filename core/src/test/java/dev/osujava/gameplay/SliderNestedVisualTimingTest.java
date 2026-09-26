@@ -58,7 +58,7 @@ class SliderNestedVisualTimingTest {
                 List.of(new SliderVisual.RepeatMarker(point, 0, false, 2_000),
                         new SliderVisual.RepeatMarker(point, 1, false, 3_000)),
                 50, 200, 0, 1_000, 4_000, false, false, false,
-                1_200, 1, Long.MIN_VALUE, 0, List.of());
+                1_200, 1, Long.MIN_VALUE, 0, List.of(), 0.15);
         assertEquals(2_000, slider.tailVisualTiming().lifetimeStartTimeMs(), 1e-9,
                 "the final tail uses its actual index after all repeat markers");
     }

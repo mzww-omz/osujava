@@ -22,6 +22,31 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OsuGameplaySessionTest {
     @Test
+    void sliderSnapshotExposesTimingVelocityWithoutChangingMovementOrRepeat() {
+        for (double inheritedBeatLength : new double[]{-1000, -100, -50}) {
+            HitObject object = sliderObject(100, 192, 1000, 280, 2);
+            BeatmapDifficulty map = new BeatmapDifficulty("Song", "Artist", "Creator", "Normal", 0, "", "",
+                    new DifficultySettings(5, 5, 5, 5, 1.4, 1),
+                    List.of(new dev.osujava.beatmap.TimingPoint(0, 500, 4, 0, 0, 100, true, 0),
+                            new dev.osujava.beatmap.TimingPoint(0, inheritedBeatLength, 4, 0, 0, 100, false, 0)),
+                    List.of(object), null, null);
+            SliderPath path = new SliderPath(object.x(), object.y(), object.sliderData());
+            SliderTiming timing = SliderTiming.calculate(map, object, path);
+            ManualClock clock = new ManualClock();
+            OsuGameplaySession session = new OsuGameplaySession(map, clock,
+                    new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+            for (double spansElapsed : new double[]{0.25, 0.75, 1, 1.25, 1.75}) {
+                clock.set((long) (1000 + timing.spanDurationMs() * spansElapsed));
+                var snapshot = session.update().sliders().getFirst();
+                assertEquals(timing.velocity(), snapshot.velocity());
+                assertEquals(timing.progressAt(clock.nowMs()), snapshot.progress());
+                assertEquals(path.positionAt(timing.progressAt(clock.nowMs())), snapshot.ballPosition());
+                assertEquals(timing.endTimeMs(), snapshot.endTimeMs());
+            }
+        }
+    }
+
+    @Test
     void earlyClickWithinMissWindowJudgesMissWithoutPlayingHitSound() {
         ManualClock clock = new ManualClock();
         OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(object(256, 192, 1000, 1))),

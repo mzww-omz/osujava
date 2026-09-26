@@ -23,6 +23,7 @@ import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.SliderVisual;
 import dev.osujava.gameplay.SpinnerVisual;
 import dev.osujava.skin.OsuSkinAssets;
+import dev.osujava.skin.LegacySliderBallAnimation;
 import dev.osujava.skin.OsuSkinAssets.Image;
 import dev.osujava.skin.OsuSkinAssets.SkinTexture;
 
@@ -324,10 +325,40 @@ public final class GameplayRenderer {
             shapes.circle(x, y, followRadius * 0.98f, CIRCLE_SEGMENTS);
         }
 
+        if (drawSkinSliderBall(shapes, slider, now, endFade, viewport)) return;
         float ballRadius = radius * 0.54f;
         drawCircleBody(shapes, x, y, ballRadius, visuals.comboColor(slider.comboColorIndex()), endFade);
         setColor(shapes, visuals.component(GameplaySkinComponent.SLIDERBALL), endFade * (slider.tracking() ? 0.7f : 0.38f));
         shapes.circle(x, y, ballRadius * 0.48f, CIRCLE_SEGMENTS);
+    }
+
+    private boolean drawSkinSliderBall(ShapeRenderer shapes, SliderVisual slider, long now,
+                                       float alpha, PlayfieldViewport viewport) {
+        if (skinAssets == null) return false;
+        List<SkinTexture> frames = skinAssets.sliderBallFrames();
+        int index = LegacySliderBallAnimation.frameIndex(frames.size(), now,
+                slider.startTimeMs(), slider.preemptMs(), slider.velocity());
+        if (index < 0) return false;
+        if (alpha <= 0.01f) return true;
+        SkinTexture asset = frames.get(index);
+        Texture texture = asset.texture();
+        var size = LegacySliderBallAnimation.spriteSize(texture.getWidth(), texture.getHeight(),
+                asset.density(), slider.radius(), viewport.scale());
+        ShapeRenderer.ShapeType type = shapes.getCurrentType();
+        shapes.end();
+        SpriteBatch batch = game.batch();
+        // LegacySliderBall defaults to white. skin.ini ball/tint settings are deliberately deferred.
+        batch.setColor(1, 1, 1, alpha);
+        batch.begin();
+        batch.draw(texture, viewport.toScreenX(slider.ballPosition().x()) - size.width() / 2,
+                viewport.toScreenY(slider.ballPosition().y()) - size.height() / 2, size.width(), size.height(),
+                size.u(), size.v(), size.u2(), size.v2());
+        batch.end();
+        batch.setColor(Color.WHITE);
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+        shapes.begin(type);
+        return true;
     }
 
     private void drawSpinnerField(ShapeRenderer shapes, SpinnerVisual spinner,

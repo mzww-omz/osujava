@@ -8,8 +8,11 @@ import com.badlogic.gdx.utils.GdxRuntimeException;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumMap;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Function;
 
 /** Render-thread-owned textures, loaded once per gameplay screen, independently of GameplaySkin colours. */
@@ -25,6 +28,8 @@ public final class OsuSkinAssets implements Disposable {
     }
 
     private final EnumMap<Image, SkinTexture> textures = new EnumMap<>(Image.class);
+    private final Set<Texture> ownedTextures = Collections.newSetFromMap(new IdentityHashMap<>());
+    private List<SkinTexture> sliderBallFrames = List.of();
     private List<SkinTexture> hitCircleDigits = List.of();
     private SkinConfiguration configuration = SkinConfiguration.defaults();
 
@@ -51,13 +56,24 @@ public final class OsuSkinAssets implements Disposable {
             for (var file : files) {
                 SkinTexture texture = load(file, textureLoader);
                 if (texture == null) {
-                    for (SkinTexture digit : loaded) digit.texture().dispose();
+                    for (SkinTexture digit : loaded) disposeIfUnreferenced(digit.texture());
                     return;
                 }
                 loaded.add(texture);
             }
             hitCircleDigits = List.copyOf(loaded);
         });
+        List<SkinTexture> ballFrames = new ArrayList<>();
+        for (var file : resolver.resolveSliderBall()) {
+            SkinTexture frame = load(file, textureLoader);
+            if (frame == null) {
+                // A broken animation falls back as a whole; never skip or substitute frames.
+                for (SkinTexture loaded : ballFrames) disposeIfUnreferenced(loaded.texture());
+                return;
+            }
+            ballFrames.add(frame);
+        }
+        sliderBallFrames = List.copyOf(ballFrames);
     }
 
     private SkinTexture load(SkinAssetResolver.AssetFile file,
@@ -65,10 +81,11 @@ public final class OsuSkinAssets implements Disposable {
         Texture texture = null;
         try {
             texture = textureLoader.apply(file);
+            ownedTextures.add(texture);
             texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
             return new SkinTexture(texture, file);
         } catch (GdxRuntimeException | IllegalArgumentException e) {
-            if (texture != null) texture.dispose();
+            if (texture != null) disposeIfUnreferenced(texture);
             logFallback("Could not load " + file.path() + "; using existing drawing fallback.", e);
         }
         return null;
@@ -101,11 +118,21 @@ public final class OsuSkinAssets implements Disposable {
     public SkinTexture hitCircleDigit(int digit) { return hitCircleDigits.get(digit); }
     public float hitCircleOverlap() { return configuration.fonts().hitCircleOverlap(); }
 
+    public List<SkinTexture> sliderBallFrames() { return sliderBallFrames; }
+
+    private void disposeIfUnreferenced(Texture texture) {
+        if (textures.values().stream().anyMatch(asset -> asset.texture() == texture)
+                || hitCircleDigits.stream().anyMatch(asset -> asset.texture() == texture)
+                || sliderBallFrames.stream().anyMatch(asset -> asset.texture() == texture)) return;
+        if (ownedTextures.remove(texture)) texture.dispose();
+    }
+
     @Override
     public void dispose() {
-        for (SkinTexture asset : textures.values()) asset.texture().dispose();
+        for (Texture texture : ownedTextures) texture.dispose();
+        ownedTextures.clear();
         textures.clear();
-        for (SkinTexture digit : hitCircleDigits) digit.texture().dispose();
+        sliderBallFrames = List.of();
         hitCircleDigits = List.of();
     }
 

@@ -23,6 +23,18 @@ public final class SkinAssetResolver {
         return Files.isRegularFile(standard) ? Optional.of(new AssetFile(standard, 1)) : Optional.empty();
     }
 
+    /** Legacy GetTextures("sliderb", animatable=true, separator=""): animation wins. */
+    public List<AssetFile> resolveSliderBall() {
+        List<AssetFile> frames = new ArrayList<>();
+        for (int index = 0; ; index++) {
+            var frame = resolve("sliderb" + index);
+            if (frame.isEmpty()) break;
+            frames.add(frame.get());
+        }
+        if (!frames.isEmpty()) return List.copyOf(frames);
+        return resolve("sliderb").map(List::of).orElseGet(List::of);
+    }
+
     /** An incomplete font, absent ini, or unsafe prefix always falls back as a whole. */
     public Optional<List<AssetFile>> resolveHitCircleDigits(SkinConfiguration configuration) {
         if (!configuration.hasIni()) return Optional.empty();

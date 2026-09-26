@@ -427,7 +427,7 @@ public final class OsuGameplaySession implements GameplaySession {
                     ball, repeats, circleRadius, GameplayVisualTiming.approachRadius(circleRadius, approachProgress), progress,
                     slider.object.timeMs(), slider.timing.endTimeMs(), slider.headJudged, slider.headHit,
                     slider.tracking, preemptMs, combo.number(),
-                    slider.headJudgementTimeMs, combo.colorIndex(), ticks));
+                    slider.headJudgementTimeMs, combo.colorIndex(), ticks, slider.timing.velocity()));
         }
 
         List<SpinnerVisual> visibleSpinners = new ArrayList<>();

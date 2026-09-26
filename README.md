@@ -66,13 +66,19 @@ ZIPのcentral directoryと各entryのサイズ・CRCを検証し、絶対パス�
 
 色付けと基準サイズはosu!lazerの [LegacyMainCirclePiece](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Skinning/Legacy/LegacyMainCirclePiece.cs)、[LegacyApproachCircle](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Skinning/Legacy/LegacyApproachCircle.cs) を参照しています。
 
-`OsuSkinAssets` はScreen作成時にTextureを一度読み込み、GameplayScreen終了時にdisposeします。数字Textureも同じ管理に含めます。色設定の `GameplaySkin` と画像ファイル解決の `SkinAssetResolver` は別責務です。Slider始点・終点はhitcircle画像を共有し、始点のApproach Circleも対応します。終点の既存サイズ・出現タイミングは維持します。Slider専用画像、Slider ballなどのSkinは未対応です。
+`OsuSkinAssets` はScreen作成時にTextureを一度読み込み、GameplayScreen終了時にdisposeします。数字Textureも同じ管理に含めます。色設定の `GameplaySkin` と画像ファイル解決の `SkinAssetResolver` は別責務です。Slider始点・終点はhitcircle画像を共有し、始点のApproach Circleも対応します。終点の既存サイズ・出現タイミングは維持します。Slider専用始点・終点画像とSlider Ballも対応します。
 
 HitCircleとSlider始点のcombo numberは、Skin直下の `skin.ini` の `[Fonts]` から `HitCirclePrefix` と `HitCircleOverlap` だけを読みます。省略時はそれぞれ `default` と `-2` です（[osu!lazer LegacySkinExtensions](https://github.com/ppy/osu/blob/master/osu.Game/Skinning/LegacySkinExtensions.cs)）。他のFonts項目、Colours、Slider・Cursor設定、Versionによる挙動差、hitsound設定は解析しません。
 
 数字は `<prefix>-0` ～ `<prefix>-9` を各々 `name@2x.png` → `name.png` の順で探索し、densityで割ったnative logical width/heightを使います。桁のadvanceは `width - overlap`（正値で重なり、負値で間隔が広がる）で、数字全体をCircle中央に配置します。画像のアスペクト比を維持し、倍率は `0.8 × radius / 64 × viewport scale` です（[OsuLegacySkinTransformer](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Skinning/Legacy/OsuLegacySkinTransformer.cs)、[DrawableHitCircle](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Objects/Drawables/DrawableHitCircle.cs)、[OsuHitObject](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Objects/OsuHitObject.cs)）。Slider終点には数字を表示しません。
 
 Skin未指定、skin.iniなし・読み込み失敗、数字の一部不足・読み込み失敗ではcombo number全体を既存フォント描画へfallbackします。custom prefixとdefault画像の混在は行いません。prefixはディレクトリ直下のbasename（英数字・Unicode文字・空白・`_`・`-`）に限定し、パス指定はfallbackします。
+
+Slider Ballは `sliderb0.png` からのanimationを `sliderb.png` より優先します。各frameは `@2x.png` → `.png` の順で解決し、0から最初の欠番までの連番のみ使用します。frame 0がなければ静止画像を使い、画像なし・読み込み失敗ではBall全体を既存ベクター描画へ戻します。利用可能なSkin BallにベクターBallは重ねません。frameはScreen作成時に一度ロードし、共有Textureもidentityで管理して1回だけdisposeします。
+
+animationは `max(0.15 / SliderTiming.velocity() × 1000/60, 1000/60)` ms/frameでloopします。共通Gameplay時刻と `startTime - preempt` を基準に直接frame番号を求め、deltaは積算しません。native pixel sizeをdensityで割り、`radius / 64 × viewport scale` を掛けます。縦横を同じ倍率で描画し、lazerと同じく384論理pixelを越える画像は各軸の中央をcropします。色は白（元画像の色）で、`[Colours] SliderBall`、`AllowSliderBallTint`、combo/accent tintは未対応です。位置・path・progress・repeat・判定・Autoは既存処理を使います。
+
+解決・timing・サイズの根拠はosu!lazerの [OsuLegacySkinTransformer](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Skinning/Legacy/OsuLegacySkinTransformer.cs)、[LegacySliderBall](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Skinning/Legacy/LegacySliderBall.cs)、[LegacySkinExtensions](https://github.com/ppy/osu/blob/master/osu.Game/Skinning/LegacySkinExtensions.cs)、[DrawableSlider](https://github.com/ppy/osu/blob/master/osu.Game.Rulesets.Osu/Objects/Drawables/DrawableSlider.cs)を確認しています。`sliderb-nd`、`sliderb-spec`、`sliderfollowcircle`等は今回対象外です。
 
 Importしたファイルはユーザーのホームディレクトリ下の.osujava/libraryへ展開・コピーします。Library indexも同じ場所へ保存され、アプリ起動時に読み込みます。Importした譜面は再起動後もSong Selectに表示され、そのままGameplayを開始できます。同一beatmap setをもう一度Importすると、既存のローカルデータとindex entryを更新します。保存方式とset識別方法は[docs/architecture.md](docs/architecture.md)を参照してください。
 

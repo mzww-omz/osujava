@@ -21,6 +21,120 @@ class OsuSkinAssetsTest {
     @TempDir Path directory;
 
     @Test
+    void staticBallLoadsOnceAndDisposesOnce() throws IOException {
+        Files.createFile(directory.resolve("sliderb.png"));
+        var texture = new TestTexture();
+        var assets = new OsuSkinAssets(directory, file -> texture);
+        assertEquals(1, assets.sliderBallFrames().size());
+        assertEquals(directory.resolve("sliderb.png"), assets.sliderBallFrames().getFirst().file().path());
+        assets.dispose();
+        assets.dispose();
+        assertTrue(assets.sliderBallFrames().isEmpty());
+        assertEquals(1, texture.disposals);
+    }
+
+    @Test
+    void animationFramesAreReusedAndEveryFrameIsDisposedExactlyOnce() throws IOException {
+        for (int frame = 0; frame < 4; frame++) Files.createFile(directory.resolve("sliderb" + frame + "@2x.png"));
+        List<TestTexture> loaded = new ArrayList<>();
+        var assets = new OsuSkinAssets(directory, file -> {
+            var texture = new TestTexture();
+            loaded.add(texture);
+            return texture;
+        });
+        assertEquals(4, assets.sliderBallFrames().size());
+        for (int i = 0; i < 1000; i++) {
+            var frame = assets.sliderBallFrames().get(i % 4);
+            assertSame(loaded.get(i % 4), frame.texture());
+            assertEquals(2, frame.density());
+        }
+        assertEquals(4, loaded.size());
+        assets.dispose();
+        assets.dispose();
+        assertTrue(loaded.stream().allMatch(texture -> texture.disposals == 1));
+    }
+
+    @ParameterizedTest
+    @ValueSource(ints = {0, 1, 3})
+    void brokenAnimationFallsBackAsWholeAndDisposesPartialFrames(int brokenFrame) throws IOException {
+        Files.createFile(directory.resolve("hitcircle.png"));
+        Files.createFile(directory.resolve("sliderb.png"));
+        for (int frame = 0; frame < 4; frame++) Files.createFile(directory.resolve("sliderb" + frame + ".png"));
+        List<TestTexture> loaded = new ArrayList<>();
+        var assets = new OsuSkinAssets(directory, file -> {
+            if (file.path().getFileName().toString().equals("sliderb" + brokenFrame + ".png")) {
+                throw new GdxRuntimeException("Broken frame");
+            }
+            assertNotEquals("sliderb.png", file.path().getFileName().toString());
+            var texture = new TestTexture();
+            loaded.add(texture);
+            return texture;
+        });
+        assertTrue(assets.sliderBallFrames().isEmpty());
+        assertNotNull(assets.get(Image.HIT_CIRCLE));
+        assertEquals(brokenFrame + 1, loaded.size());
+        assertEquals(0, loaded.getFirst().disposals);
+        assertTrue(loaded.subList(1, loaded.size()).stream().allMatch(texture -> texture.disposals == 1));
+        assets.dispose();
+        assets.dispose();
+        assertTrue(loaded.stream().allMatch(texture -> texture.disposals == 1));
+    }
+
+    @Test
+    void absentOrBrokenStaticBallKeepsVectorFallback() throws IOException {
+        var absent = new OsuSkinAssets(null, file -> { fail("No textures expected"); return null; });
+        assertTrue(absent.sliderBallFrames().isEmpty());
+        Files.createFile(directory.resolve("sliderb.png"));
+        var broken = new OsuSkinAssets(directory, file -> { throw new GdxRuntimeException("Broken PNG"); });
+        assertTrue(broken.sliderBallFrames().isEmpty());
+        absent.dispose();
+        broken.dispose();
+    }
+
+    @Test
+    void failureAfterTextureCreationDisposesFailedAndPartialFramesOnce() throws IOException {
+        Files.createFile(directory.resolve("sliderb0.png"));
+        Files.createFile(directory.resolve("sliderb1@2x.png"));
+        var first = new TestTexture();
+        var broken = new TestTexture() {
+            @Override public void setFilter(TextureFilter min, TextureFilter mag) {
+                throw new GdxRuntimeException("Could not initialize texture");
+            }
+        };
+        var assets = new OsuSkinAssets(directory, file -> file.density() == 2 ? broken : first);
+        assertTrue(assets.sliderBallFrames().isEmpty());
+        assertEquals(1, first.disposals);
+        assertEquals(1, broken.disposals);
+        assets.dispose();
+        assets.dispose();
+        assertEquals(1, first.disposals);
+        assertEquals(1, broken.disposals);
+    }
+
+    @Test
+    void sharedTextureIdentityIsNeverDisposedTwiceEvenDuringFailure() throws IOException {
+        Files.createFile(directory.resolve("hitcircle.png"));
+        Files.createFile(directory.resolve("sliderb0.png"));
+        Files.createFile(directory.resolve("sliderb1.png"));
+        var texture = new TestTexture();
+        var initial = texture;
+        var assets = new OsuSkinAssets(directory, file -> initial);
+        assets.dispose();
+        assets.dispose();
+        assertEquals(1, texture.disposals);
+
+        var shared = new TestTexture();
+        assets = new OsuSkinAssets(directory, file -> {
+            if (file.path().getFileName().toString().equals("sliderb1.png")) throw new GdxRuntimeException("Broken frame");
+            return shared;
+        });
+        assertTrue(assets.sliderBallFrames().isEmpty());
+        assertEquals(0, shared.disposals); // Still owned by the hitcircle.
+        assets.dispose();
+        assertEquals(1, shared.disposals);
+    }
+
+    @Test
     void headAndTailUseSeparatePrefixesWithoutChangingHitCircles() throws IOException {
         for (String name : new String[]{"hitcircle", "hitcircleoverlay", "sliderstartcircle",
                 "sliderstartcircleoverlay", "sliderendcircle", "sliderendcircleoverlay"}) {

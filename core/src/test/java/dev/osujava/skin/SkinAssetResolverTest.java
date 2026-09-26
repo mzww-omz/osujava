@@ -13,6 +13,39 @@ class SkinAssetResolverTest {
     @TempDir Path directory;
 
     @Test
+    void sliderBallAnimationWinsUsesNumericOrderAndPerFrameDensity() throws IOException {
+        Files.createFile(directory.resolve("sliderb.png"));
+        for (int frame = 0; frame < 12; frame++) Files.createFile(directory.resolve("sliderb" + frame + ".png"));
+        Files.createFile(directory.resolve("sliderb0@2x.png"));
+        Files.createFile(directory.resolve("sliderb9@2x.png"));
+        var frames = new SkinAssetResolver(directory).resolveSliderBall();
+        assertEquals(12, frames.size());
+        for (int frame = 0; frame < 12; frame++) {
+            boolean retina = frame == 0 || frame == 9;
+            assertEquals(directory.resolve("sliderb" + frame + (retina ? "@2x" : "") + ".png"), frames.get(frame).path());
+            assertEquals(retina ? 2 : 1, frames.get(frame).density());
+        }
+        Files.delete(directory.resolve("sliderb3.png"));
+        assertEquals(3, new SkinAssetResolver(directory).resolveSliderBall().size());
+        Files.delete(directory.resolve("sliderb0.png"));
+        Files.delete(directory.resolve("sliderb0@2x.png"));
+        assertEquals(directory.resolve("sliderb.png"), new SkinAssetResolver(directory).resolveSliderBall().getFirst().path());
+    }
+
+    @Test
+    void staticBallAndMissingBallResolveSafely() throws IOException {
+        var resolver = new SkinAssetResolver(directory);
+        assertTrue(resolver.resolveSliderBall().isEmpty());
+        assertTrue(new SkinAssetResolver(null).resolveSliderBall().isEmpty());
+        Files.createFile(directory.resolve("sliderb2.png"));
+        assertTrue(resolver.resolveSliderBall().isEmpty());
+        Files.createFile(directory.resolve("sliderb.png"));
+        assertEquals(directory.resolve("sliderb.png"), resolver.resolveSliderBall().getFirst().path());
+        Files.createFile(directory.resolve("sliderb@2x.png"));
+        assertEquals(2, resolver.resolveSliderBall().getFirst().density());
+    }
+
+    @Test
     void prefersHighResolutionAndPreservesDensity() throws IOException {
         Files.createFile(directory.resolve("hitcircle.png"));
         Path highResolution = Files.createFile(directory.resolve("hitcircle@2x.png"));

@@ -23,7 +23,8 @@ public record SliderVisual(
         int comboNumber,
         long headJudgementTimeMs,
         int comboColorIndex,
-        List<TickMarker> ticks) {
+        List<TickMarker> ticks,
+        double velocity) {
 
     public SliderVisual(List<BeatmapPoint> pathPoints, BeatmapPoint headPosition, BeatmapPoint tailPosition,
                         BeatmapPoint ballPosition, List<RepeatMarker> repeats, double radius,
@@ -31,7 +32,7 @@ public record SliderVisual(
                         boolean headJudged, boolean headHit, boolean tracking) {
         this(pathPoints, headPosition, tailPosition, ballPosition, repeats, radius, approachRadius,
                 progress, startTimeMs, endTimeMs, headJudged, headHit, tracking, 600, 1, Long.MIN_VALUE,
-                0, List.of());
+                0, List.of(), 0.15);
     }
 
     public SliderVisual {
