@@ -15,7 +15,28 @@ public final class GameplayVisualTiming {
     }
 
     public static double approachRadius(double objectRadius, double progress) {
-        return objectRadius * (2.5 - 1.5 * clamp(progress));
+        return objectRadius * (4 - 3 * clamp(progress));
+    }
+
+    /** DrawableHitCircle starts at alpha 0 and reaches 0.9 by twice TimeFadeIn. */
+    public static double approachAlpha(double currentTimeMs, double objectTimeMs, double preemptMs) {
+        double start = objectTimeMs - preemptMs;
+        double duration = Math.min(ApproachTimeCalculator.fadeInMs(preemptMs) * 2, preemptMs);
+        double alpha = 0.9 * progress(currentTimeMs, start, duration);
+        if (currentTimeMs >= objectTimeMs) alpha *= fadeOutAlpha(currentTimeMs, objectTimeMs, 50);
+        return alpha;
+    }
+
+    /** Default MainCirclePiece grows to 1.5 over 400 ms after a hit. */
+    public static double hitCircleScale(double currentTimeMs, double hitTimeMs) {
+        double progress = progress(currentTimeMs, hitTimeMs, 400);
+        return 1 + 0.5 * (1 - (1 - progress) * (1 - progress));
+    }
+
+    /** Default MainCirclePiece fades its explosion over 800 ms after a 40 ms flash. */
+    public static double hitCircleAlpha(double currentTimeMs, double hitTimeMs) {
+        if (currentTimeMs < hitTimeMs) return 0;
+        return fadeOutAlpha(currentTimeMs, hitTimeMs + 40, 800);
     }
 
     public static double fadeInProgress(double currentTimeMs, double objectTimeMs,

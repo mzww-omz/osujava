@@ -17,6 +17,7 @@ import dev.osujava.gameplay.GameplayVisualTiming;
 import dev.osujava.gameplay.HitCircleVisual;
 import dev.osujava.gameplay.Judgement;
 import dev.osujava.gameplay.JudgementVisual;
+import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.SliderVisual;
 import dev.osujava.gameplay.SpinnerVisual;
 
@@ -31,7 +32,7 @@ public final class GameplayRenderer {
     private static final int BODY_CAP_SEGMENTS = 14;
     private static final double JUDGEMENT_LIFETIME_MS = 680;
     private static final double JUDGEMENT_FADE_START_MS = 320;
-    private static final double CIRCLE_HIT_FADE_MS = 180;
+    private static final double CIRCLE_HIT_FADE_MS = 100;
     private static final double SLIDER_POST_FADE_MS = 150;
     private static final double SPINNER_POST_FADE_MS = 150;
 
@@ -75,7 +76,7 @@ public final class GameplayRenderer {
         for (SliderVisual slider : state.sliders()) drawSliderObjects(shapes, slider, state, viewport);
         for (HitCircleVisual circle : state.circles()) drawHitCircle(shapes, circle, state, viewport);
         for (SliderVisual slider : state.sliders()) drawSliderBallAndFollow(shapes, slider, state, viewport);
-        drawJudgementMissBodies(shapes, state, viewport);
+        drawJudgementBodies(shapes, state, viewport);
         hud.drawPanels(shapes, viewport);
         shapes.end();
 
@@ -109,7 +110,7 @@ public final class GameplayRenderer {
     private void drawHitCircle(ShapeRenderer shapes, HitCircleVisual circle,
                                GameplayState state, PlayfieldViewport viewport) {
         float alpha = (float) GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(),
-                circle.preemptMs(), 180);
+                circle.preemptMs(), ApproachTimeCalculator.fadeInMs(circle.preemptMs()));
         drawCircleBody(shapes, viewport.toScreenX(circle.x()), viewport.toScreenY(circle.y()),
                 viewport.toScreenLength(circle.radius()), visuals.comboColor(circle.comboNumber()), alpha);
     }
@@ -118,7 +119,7 @@ public final class GameplayRenderer {
                                 GameplayState state, PlayfieldViewport viewport) {
         SliderRenderData renderData = renderData(slider, state.currentTimeMs());
         double fadeIn = GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), slider.startTimeMs(),
-                slider.preemptMs(), 180);
+                slider.preemptMs(), ApproachTimeCalculator.fadeInMs(slider.preemptMs()));
         double fadeOut = GameplayVisualTiming.fadeOutAlpha(state.currentTimeMs(), slider.endTimeMs(), SLIDER_POST_FADE_MS);
         float alpha = (float) (fadeIn * fadeOut);
         float radius = viewport.toScreenLength(slider.radius());
@@ -152,7 +153,8 @@ public final class GameplayRenderer {
     private void drawSliderObjects(ShapeRenderer shapes, SliderVisual slider,
                                    GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
-        double fadeIn = GameplayVisualTiming.fadeInProgress(now, slider.startTimeMs(), slider.preemptMs(), 180);
+        double fadeIn = GameplayVisualTiming.fadeInProgress(now, slider.startTimeMs(), slider.preemptMs(),
+                ApproachTimeCalculator.fadeInMs(slider.preemptMs()));
         double fadeOut = GameplayVisualTiming.fadeOutAlpha(now, slider.endTimeMs(), SLIDER_POST_FADE_MS);
         float bodyAlpha = (float) (fadeIn * fadeOut);
         float radius = viewport.toScreenLength(slider.radius());
@@ -254,7 +256,7 @@ public final class GameplayRenderer {
     private void drawSpinnerField(ShapeRenderer shapes, SpinnerVisual spinner,
                                   GameplayState state, PlayfieldViewport viewport) {
         double fadeIn = GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), spinner.startTimeMs(),
-                spinner.preemptMs(), 180);
+                spinner.preemptMs(), ApproachTimeCalculator.fadeInMs(spinner.preemptMs()));
         double fadeOut = GameplayVisualTiming.fadeOutAlpha(state.currentTimeMs(), spinner.endTimeMs(), SPINNER_POST_FADE_MS);
         float alpha = (float) (fadeIn * fadeOut);
         float x = viewport.toScreenX(spinner.centerX());
@@ -285,8 +287,7 @@ public final class GameplayRenderer {
     private void drawApproach(ShapeRenderer shapes, double x, double y, double radius,
                               long objectTimeMs, long preemptMs, long now, PlayfieldViewport viewport) {
         double progress = GameplayVisualTiming.approachProgress(now, objectTimeMs, preemptMs);
-        double fadeIn = GameplayVisualTiming.fadeInProgress(now, objectTimeMs, preemptMs, 180);
-        float alpha = (float) (0.84 * fadeIn);
+        float alpha = (float) GameplayVisualTiming.approachAlpha(now, objectTimeMs, preemptMs);
         float approachRadius = viewport.toScreenLength(GameplayVisualTiming.approachRadius(radius, progress));
         setColor(shapes, visuals.approachCircle, alpha);
         shapes.circle(viewport.toScreenX(x), viewport.toScreenY(y), approachRadius, CIRCLE_SEGMENTS + 4);
@@ -295,14 +296,14 @@ public final class GameplayRenderer {
     private void drawCircleOverlays(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
         for (HitCircleVisual circle : state.circles()) {
             float alpha = (float) GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(),
-                    circle.preemptMs(), 180);
+                    circle.preemptMs(), ApproachTimeCalculator.fadeInMs(circle.preemptMs()));
             drawCircleOverlay(shapes, circle.x(), circle.y(), circle.radius(), alpha, viewport);
         }
         for (SliderVisual slider : state.sliders()) {
             double headFade = slider.headJudged() && slider.headJudgementTimeMs() != Long.MIN_VALUE
                     ? GameplayVisualTiming.fadeOutAlpha(state.currentTimeMs(), slider.headJudgementTimeMs(), CIRCLE_HIT_FADE_MS) : 1;
             double alpha = GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), slider.startTimeMs(),
-                    slider.preemptMs(), 180) * headFade;
+                    slider.preemptMs(), ApproachTimeCalculator.fadeInMs(slider.preemptMs())) * headFade;
             drawCircleOverlay(shapes, slider.headPosition().x(), slider.headPosition().y(), slider.radius(),
                     (float) alpha, viewport);
         }
@@ -322,7 +323,8 @@ public final class GameplayRenderer {
         long now = state.currentTimeMs();
         for (SliderVisual slider : state.sliders()) {
             float radius = viewport.toScreenLength(slider.radius());
-            double bodyFade = GameplayVisualTiming.fadeInProgress(now, slider.startTimeMs(), slider.preemptMs(), 180)
+            double bodyFade = GameplayVisualTiming.fadeInProgress(now, slider.startTimeMs(), slider.preemptMs(),
+                    ApproachTimeCalculator.fadeInMs(slider.preemptMs()))
                     * GameplayVisualTiming.fadeOutAlpha(now, slider.endTimeMs(), SLIDER_POST_FADE_MS);
             Color comboColor = visuals.comboColor(slider.comboNumber());
             setColor(shapes, comboColor, (float) bodyFade * 0.72f);
@@ -340,7 +342,8 @@ public final class GameplayRenderer {
     private void drawSpinnerOverlays(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
         for (SpinnerVisual spinner : state.spinners()) {
-            double fadeIn = GameplayVisualTiming.fadeInProgress(now, spinner.startTimeMs(), spinner.preemptMs(), 180);
+            double fadeIn = GameplayVisualTiming.fadeInProgress(now, spinner.startTimeMs(), spinner.preemptMs(),
+                    ApproachTimeCalculator.fadeInMs(spinner.preemptMs()));
             double fadeOut = GameplayVisualTiming.fadeOutAlpha(now, spinner.endTimeMs(), SPINNER_POST_FADE_MS);
             float alpha = (float) (fadeIn * fadeOut);
             float centerX = viewport.toScreenX(spinner.centerX());
@@ -371,15 +374,16 @@ public final class GameplayRenderer {
         }
     }
 
-    private void drawJudgementMissBodies(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
+    private void drawJudgementBodies(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
         for (JudgementVisual judgement : state.judgementVisuals()) {
-            if (judgement.judgement() != Judgement.MISS) continue;
-            double alpha = GameplayVisualTiming.fadeOutAlpha(now, judgement.timeMs(), 220);
+            boolean miss = judgement.judgement() == Judgement.MISS;
+            double alpha = miss ? GameplayVisualTiming.fadeOutAlpha(now, judgement.timeMs(), 100)
+                    : GameplayVisualTiming.hitCircleAlpha(now, judgement.timeMs());
             if (alpha <= 0) continue;
-            double age = GameplayVisualTiming.progress(now, judgement.timeMs(), 220);
-            float radius = viewport.toScreenLength(judgement.radius() * (1 + 0.08 * age));
-            setColor(shapes, visuals.circleMiss, (float) alpha * 0.4f);
+            double scale = miss ? 1 : GameplayVisualTiming.hitCircleScale(now, judgement.timeMs());
+            float radius = viewport.toScreenLength(judgement.radius() * scale);
+            setColor(shapes, miss ? visuals.circleMiss : visuals.circleBorder, (float) alpha * (miss ? 0.4f : 0.2f));
             shapes.circle(viewport.toScreenX(judgement.x()), viewport.toScreenY(judgement.y()), radius, CIRCLE_SEGMENTS);
         }
     }

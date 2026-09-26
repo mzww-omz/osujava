@@ -13,6 +13,7 @@ import dev.osujava.gameplay.GameplayVisualTiming;
 import dev.osujava.gameplay.HitCircleVisual;
 import dev.osujava.gameplay.Judgement;
 import dev.osujava.gameplay.JudgementVisual;
+import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.SliderVisual;
 import dev.osujava.gameplay.SpinnerVisual;
 
@@ -57,13 +58,14 @@ final class GameplayHudRenderer {
     private void drawComboNumbers(SpriteBatch batch, GameplayState state, PlayfieldViewport viewport) {
         for (HitCircleVisual circle : state.circles()) {
             drawComboNumber(batch, circle.comboNumber(), circle.x(), circle.y(), circle.radius(),
-                    GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(), circle.preemptMs(), 180),
+                    GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(), circle.preemptMs(),
+                            ApproachTimeCalculator.fadeInMs(circle.preemptMs())),
                     viewport);
         }
         for (SliderVisual slider : state.sliders()) {
             if (slider.headJudged()) continue;
             double alpha = GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), slider.startTimeMs(),
-                    slider.preemptMs(), 180);
+                    slider.preemptMs(), ApproachTimeCalculator.fadeInMs(slider.preemptMs()));
             drawComboNumber(batch, slider.comboNumber(), slider.headPosition().x(), slider.headPosition().y(),
                     slider.radius(), alpha, viewport);
         }
@@ -126,7 +128,8 @@ final class GameplayHudRenderer {
             long now = state.currentTimeMs();
             if (now < spinner.startTimeMs() - spinner.preemptMs()
                     || now > spinner.endTimeMs() + 150) continue;
-            double fade = GameplayVisualTiming.fadeInProgress(now, spinner.startTimeMs(), spinner.preemptMs(), 180)
+            double fade = GameplayVisualTiming.fadeInProgress(now, spinner.startTimeMs(), spinner.preemptMs(),
+                    ApproachTimeCalculator.fadeInMs(spinner.preemptMs()))
                     * GameplayVisualTiming.fadeOutAlpha(now, spinner.endTimeMs(), 150);
             float unit = viewport.toScreenLength(1);
             float centerX = viewport.toScreenX(spinner.centerX());

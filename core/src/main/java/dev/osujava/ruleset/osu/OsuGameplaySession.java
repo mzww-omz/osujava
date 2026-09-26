@@ -12,6 +12,7 @@ import dev.osujava.gameplay.HitCircleVisual;
 import dev.osujava.gameplay.Judgement;
 import dev.osujava.gameplay.JudgementVisual;
 import dev.osujava.gameplay.JudgementWindows;
+import dev.osujava.gameplay.OsuObjectGeometry;
 import dev.osujava.gameplay.ScoreTracker;
 import dev.osujava.gameplay.SliderVisual;
 import dev.osujava.gameplay.SpinnerVisual;
@@ -49,7 +50,7 @@ public final class OsuGameplaySession implements GameplaySession {
         this.clock = clock;
         this.windows = windows;
         this.preemptMs = ApproachTimeCalculator.preemptMs(difficulty.settings().approachRate());
-        this.circleRadius = Math.max(10, 54.4 - 4.48 * difficulty.settings().circleSize());
+        this.circleRadius = OsuObjectGeometry.radius(difficulty.settings().circleSize());
         this.comboNumbers = comboNumbers(difficulty.hitObjects());
         this.circles = difficulty.hitObjects().stream()
                 .filter(object -> object.type() == HitObject.Type.CIRCLE)
@@ -303,7 +304,7 @@ public final class OsuGameplaySession implements GameplaySession {
             }
             visibleSliders.add(new SliderVisual(slider.path.sampledPoints(),
                     new BeatmapPoint(slider.object.x(), slider.object.y()), slider.path.positionAt(slider.timing.endProgress()),
-                    ball, repeats, circleRadius, circleRadius * (2.5 - 1.5 * approachProgress), progress,
+                    ball, repeats, circleRadius, GameplayVisualTiming.approachRadius(circleRadius, approachProgress), progress,
                     slider.object.timeMs(), slider.timing.endTimeMs(), slider.headJudged, slider.headHit,
                     slider.tracking, preemptMs, comboNumbers.getOrDefault(slider.object, 1),
                     slider.headJudgementTimeMs));

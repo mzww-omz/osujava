@@ -12,9 +12,24 @@ class GameplayVisualTimingTest {
         assertEquals(0, GameplayVisualTiming.approachProgress(400, 1000, 600));
         assertEquals(0.5, GameplayVisualTiming.approachProgress(700, 1000, 600));
         assertEquals(1, GameplayVisualTiming.approachProgress(1000, 1000, 600));
-        assertEquals(175, GameplayVisualTiming.approachRadius(100, 0.5));
+        assertEquals(250, GameplayVisualTiming.approachRadius(100, 0.5));
         assertEquals(0, GameplayVisualTiming.fadeInProgress(400, 1000, 600, 180));
         assertEquals(1, GameplayVisualTiming.fadeInProgress(580, 1000, 600, 180));
+    }
+
+    @Test
+    void lazerApproachFadeAndHitTransformsFollowBeatmapTime() {
+        assertEquals(0, GameplayVisualTiming.approachAlpha(-200, 1000, 1200));
+        assertEquals(0.45, GameplayVisualTiming.approachAlpha(200, 1000, 1200), 1e-9);
+        assertEquals(0.9, GameplayVisualTiming.approachAlpha(1000, 1000, 1200), 1e-9);
+        assertEquals(0.45, GameplayVisualTiming.approachAlpha(1025, 1000, 1200), 1e-9);
+        assertEquals(0, GameplayVisualTiming.approachAlpha(1050, 1000, 1200));
+        assertEquals(4, GameplayVisualTiming.approachRadius(1, 0));
+        assertEquals(1, GameplayVisualTiming.approachRadius(1, 1));
+        assertEquals(1.375, GameplayVisualTiming.hitCircleScale(1200, 1000), 1e-9);
+        assertEquals(1.5, GameplayVisualTiming.hitCircleScale(1400, 1000), 1e-9);
+        assertEquals(1, GameplayVisualTiming.hitCircleAlpha(1040, 1000));
+        assertEquals(0, GameplayVisualTiming.hitCircleAlpha(1840, 1000));
     }
 
     @Test
