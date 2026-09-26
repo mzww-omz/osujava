@@ -279,7 +279,9 @@ public final class OsuGameplaySession implements GameplaySession {
                 }
                 if (event.type() == SliderEvent.Type.TAIL) {
                     BeatmapPoint tail = slider.path.positionAt(event.pathProgress());
-                    recordVisualJudgement(tail.x(), tail.y(), circleRadius, judgement, now);
+                    recordVisualJudgement(tail.x(), tail.y(), circleRadius, judgement, now,
+                            JudgementVisual.Kind.SLIDER_TAIL, comboInfo.getOrDefault(slider.object,
+                                    new ComboInfo(1, 0)).colorIndex());
                 }
             }
         }
@@ -399,7 +401,14 @@ public final class OsuGameplaySession implements GameplaySession {
 
     private void recordVisualJudgement(HitObject object, Judgement judgement, double timeMs) {
         BeatmapPoint position = stacking.position(object);
-        recordVisualJudgement(position.x(), position.y(), circleRadius, judgement, timeMs);
+        JudgementVisual.Kind kind = switch (object.type()) {
+            case CIRCLE -> JudgementVisual.Kind.CIRCLE;
+            case SLIDER -> JudgementVisual.Kind.SLIDER_HEAD;
+            case SPINNER -> JudgementVisual.Kind.SPINNER;
+            default -> JudgementVisual.Kind.CIRCLE;
+        };
+        recordVisualJudgement(position.x(), position.y(), circleRadius, judgement, timeMs,
+                kind, comboInfo.getOrDefault(object, new ComboInfo(1, 0)).colorIndex());
     }
 
     private void emitHitSound(HitObject object, double timeMs) {
@@ -420,8 +429,10 @@ public final class OsuGameplaySession implements GameplaySession {
         return active;
     }
 
-    private void recordVisualJudgement(double x, double y, double radius, Judgement judgement, double timeMs) {
-        judgementVisuals.add(new JudgementVisual(x, y, radius, judgement, (long) Math.round(timeMs)));
+    private void recordVisualJudgement(double x, double y, double radius, Judgement judgement, double timeMs,
+                                       JudgementVisual.Kind kind, int comboColorIndex) {
+        judgementVisuals.add(new JudgementVisual(x, y, radius, judgement, (long) Math.round(timeMs),
+                kind, comboColorIndex));
     }
 
     private Map<HitObject, ComboInfo> comboInformation(List<HitObject> hitObjects) {

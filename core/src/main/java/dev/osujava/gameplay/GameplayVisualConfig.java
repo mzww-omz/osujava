@@ -19,7 +19,7 @@ public final class GameplayVisualConfig {
     public final Color circleBorder = new Color(0.96f, 0.94f, 1f, 0.96f);
     public final Color circleOverlay = new Color(1f, 1f, 1f, 0.16f);
     public final Color circleMiss = new Color(0.54f, 0.5f, 0.61f, 1);
-    public final Color approachCircle = new Color(1f, 1f, 1f, 0.84f);
+    public final Color approachCircle = new Color(1f, 1f, 1f, 1f);
     public final Color sliderBorder = new Color(0.075f, 0.065f, 0.11f, 0.94f);
     public final Color sliderRim = new Color(0.94f, 0.9f, 1f, 0.9f);
     public final Color sliderInner = new Color(0.17f, 0.13f, 0.23f, 0.92f);

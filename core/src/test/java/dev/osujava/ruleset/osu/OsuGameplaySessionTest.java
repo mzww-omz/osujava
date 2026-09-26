@@ -9,6 +9,7 @@ import dev.osujava.gameplay.GameClock;
 import dev.osujava.gameplay.GameInputAction;
 import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.Judgement;
+import dev.osujava.gameplay.JudgementVisual;
 import dev.osujava.gameplay.ScoreState;
 import dev.osujava.beatmap.SliderData;
 import org.junit.jupiter.api.Test;
@@ -68,6 +69,7 @@ class OsuGameplaySessionTest {
         session.press(GameInputAction.LEFT, 300, 100);
         assertEquals(1, session.state().score().count300());
         assertEquals(1, session.state().score().misses());
+        assertEquals(JudgementVisual.Kind.CIRCLE, session.state().judgementVisuals().getLast().kind());
     }
     @Test
     void tracksHeldSpinnerRotationAndJudgesItAtItsEndTime() {

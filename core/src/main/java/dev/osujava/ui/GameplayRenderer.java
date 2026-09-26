@@ -416,14 +416,23 @@ public final class GameplayRenderer {
     private void drawJudgementBodies(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
         for (JudgementVisual judgement : state.judgementVisuals()) {
+            if (judgement.kind() != JudgementVisual.Kind.CIRCLE
+                    && judgement.kind() != JudgementVisual.Kind.SLIDER_HEAD) continue;
             boolean miss = judgement.judgement() == Judgement.MISS;
             double alpha = miss ? GameplayVisualTiming.fadeOutAlpha(now, judgement.timeMs(), 100)
                     : GameplayVisualTiming.hitCircleAlpha(now, judgement.timeMs());
             if (alpha <= 0) continue;
             double scale = miss ? 1 : GameplayVisualTiming.hitCircleScale(now, judgement.timeMs());
             float radius = viewport.toScreenLength(judgement.radius() * scale);
-            setColor(shapes, miss ? visuals.circleMiss : visuals.circleBorder, (float) alpha * (miss ? 0.4f : 0.2f));
+            Color fill = miss ? visuals.circleMiss : visuals.comboColor(judgement.comboColorIndex());
+            setColor(shapes, fill, (float) alpha * (miss ? 0.4f : 0.32f));
             shapes.circle(viewport.toScreenX(judgement.x()), viewport.toScreenY(judgement.y()), radius, CIRCLE_SEGMENTS);
+            if (!miss && now - judgement.timeMs() < 40) {
+                double flash = GameplayVisualTiming.progress(now, judgement.timeMs(), 40);
+                setColor(shapes, visuals.circleBorder, (float) (0.8 * flash));
+                shapes.circle(viewport.toScreenX(judgement.x()), viewport.toScreenY(judgement.y()),
+                        viewport.toScreenLength(judgement.radius()), CIRCLE_SEGMENTS);
+            }
         }
     }
 
