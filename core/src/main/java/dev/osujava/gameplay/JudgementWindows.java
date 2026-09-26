@@ -1,6 +1,7 @@
 package dev.osujava.gameplay;
 
 public record JudgementWindows(double hit300Ms, double hit100Ms, double hit50Ms) {
+    public static final double MISS_WINDOW_MS = 400;
     public JudgementWindows {
         if (hit300Ms < 0 || hit100Ms < hit300Ms || hit50Ms < hit100Ms) {
             throw new IllegalArgumentException("Judgement windows must be non-negative and ordered");

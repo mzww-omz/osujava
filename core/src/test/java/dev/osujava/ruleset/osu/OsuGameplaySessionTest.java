@@ -22,6 +22,38 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OsuGameplaySessionTest {
     @Test
+    void earlyClickWithinMissWindowJudgesMissWithoutPlayingHitSound() {
+        ManualClock clock = new ManualClock();
+        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(object(256, 192, 1000, 1))),
+                clock, new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+        clock.set(599);
+        session.click(256, 192);
+        assertEquals(0, session.state().score().misses());
+        session.pointerReleased();
+        clock.set(800);
+        session.click(256, 192);
+        assertEquals(1, session.state().score().misses());
+        assertTrue(session.state().completed());
+        assertTrue(session.drainAudioCues().isEmpty());
+    }
+
+    @Test
+    void sliderCanRecoverNestedTickAfterEarlyHeadMiss() {
+        ManualClock clock = new ManualClock();
+        OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(sliderObject(100, 100, 1000, 280, 1))),
+                clock, new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
+        clock.set(800);
+        session.click(100, 100);
+        assertFalse(session.state().sliders().getFirst().headHit());
+        clock.set(1500);
+        session.pointerMoved(240, 100);
+        GameplayState recovered = session.update();
+        assertTrue(recovered.sliders().getFirst().tracking());
+        assertEquals(30, recovered.score().score());
+        assertEquals(1, recovered.score().misses());
+    }
+
+    @Test
     void comboColourAdvancesOnNewComboAndAfterSpinnerNotEveryNumber() {
         ManualClock clock = new ManualClock();
         OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(
@@ -41,7 +73,7 @@ class OsuGameplaySessionTest {
         OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(sliderObject(100, 100, 1000, 280, 1))),
                 clock, new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
         clock.set(800);
-        session.press(GameInputAction.LEFT, 100, 100);
+        session.press(GameInputAction.LEFT, 0, 0);
         clock.set(1000);
         session.press(GameInputAction.RIGHT, 100, 100);
         assertTrue(session.state().sliders().getFirst().headHit());

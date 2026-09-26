@@ -125,18 +125,20 @@ public final class OsuGameplaySession implements GameplaySession {
             judgedCircles[circleCandidate.index()] = true;
             Judgement judgement = windows.judge(circleCandidate.offsetMs());
             score.record(judgement);
-            emitHitSound(circles.get(circleCandidate.index()), now);
+            if (judgement != Judgement.MISS) emitHitSound(circles.get(circleCandidate.index()), now);
             recordVisualJudgement(circles.get(circleCandidate.index()), judgement, now);
         } else if (sliderCandidate != null && candidateObject == sliders.get(sliderCandidate.index()).object) {
             SliderRuntime slider = sliders.get(sliderCandidate.index());
             slider.headJudged = true;
-            slider.headHit = true;
             slider.headJudgementTimeMs = now;
-            slider.headAction = action;
-            slider.requiresHeadAction = pressedActions.contains(other(action));
             Judgement judgement = windows.judge(sliderCandidate.offsetMs());
+            slider.headHit = judgement != Judgement.MISS;
+            if (slider.headHit) {
+                slider.headAction = action;
+                slider.requiresHeadAction = pressedActions.contains(other(action));
+            }
             score.record(judgement);
-            emitHitSound(slider.object, now);
+            if (slider.headHit) emitHitSound(slider.object, now);
             recordVisualJudgement(slider.object, judgement, now);
         }
 
@@ -215,7 +217,9 @@ public final class OsuGameplaySession implements GameplaySession {
             HitObject circle = circles.get(index);
             double offset = Math.abs((double) now - circle.timeMs());
             BeatmapPoint position = stacking.position(circle);
-            if (offset > windows.hit50Ms() || !withinRadius(x, y, position.x(), position.y(), circleRadius)) continue;
+            if (now < circle.timeMs() - JudgementWindows.MISS_WINDOW_MS
+                    || now > circle.timeMs() + windows.hit50Ms()
+                    || !withinRadius(x, y, position.x(), position.y(), circleRadius)) continue;
             if (best == null || circle.timeMs() < circles.get(best.index()).timeMs()) best = new Candidate(index, offset);
         }
         return best;
@@ -227,7 +231,8 @@ public final class OsuGameplaySession implements GameplaySession {
             SliderRuntime slider = sliders.get(index);
             if (slider.headJudged) continue;
             double offset = Math.abs((double) now - slider.object.timeMs());
-            if (offset > windows.hit50Ms()
+            if (now < slider.object.timeMs() - JudgementWindows.MISS_WINDOW_MS
+                    || now > slider.object.timeMs() + windows.hit50Ms()
                     || !withinRadius(x, y, stacking.position(slider.object).x(),
                     stacking.position(slider.object).y(), circleRadius)) continue;
             if (best == null || slider.object.timeMs() < sliders.get(best.index()).object.timeMs()) best = new Candidate(index, offset);
