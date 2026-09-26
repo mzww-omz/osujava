@@ -76,7 +76,8 @@ public final class BeatmapFileParser {
                 decimal(difficultyValues.get("overalldifficulty"), 5),
                 decimal(difficultyValues.get("approachrate"), decimal(difficultyValues.get("overalldifficulty"), 5)),
                 decimal(difficultyValues.get("slidermultiplier"), 1.4),
-                decimal(difficultyValues.get("slidertickrate"), 1));
+                decimal(difficultyValues.get("slidertickrate"), 1),
+                decimal(general.get("stackleniency"), 0.7), formatVersion);
 
         List<TimingPoint> timingPoints = parseTimingPoints(timingLines);
         List<HitObject> hitObjects = parseHitObjects(objectLines);

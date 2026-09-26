@@ -22,6 +22,7 @@ public final class DebugAutoPlayer {
     private final GameClock clock;
     private final GameplaySession session;
     private final List<Target> targets;
+    private final OsuStacking stacking;
     private final long preemptMs;
     private final double hit50Ms;
     private int targetIndex;
@@ -35,11 +36,14 @@ public final class DebugAutoPlayer {
         Objects.requireNonNull(difficulty, "difficulty");
         this.clock = Objects.requireNonNull(clock, "clock");
         this.session = Objects.requireNonNull(session, "session");
+        this.stacking = new OsuStacking(difficulty);
         List<Target> ordered = new ArrayList<>();
         for (HitObject object : difficulty.hitObjects()) {
             if (object.type() == HitObject.Type.CIRCLE) ordered.add(new Target(object, null, null));
             else if (object.type() == HitObject.Type.SLIDER && object.sliderData() != null) {
-                SliderPath path = new SliderPath(object.x(), object.y(), object.sliderData());
+                BeatmapPoint offset = stacking.offset(object);
+                SliderPath path = new SliderPath(object.x(), object.y(), object.sliderData())
+                        .translated(offset.x(), offset.y());
                 ordered.add(new Target(object, path, SliderTiming.calculate(difficulty, object, path)));
             } else if (object.type() == HitObject.Type.SPINNER) ordered.add(new Target(object, null, null));
         }
@@ -94,7 +98,8 @@ public final class DebugAutoPlayer {
     private void updateCircle(Target target, long now) {
         HitObject object = target.object();
         if (now < object.timeMs() - preemptMs) return;
-        moveCursor(object.x(), object.y());
+        BeatmapPoint position = stacking.position(object);
+        moveCursor(position.x(), position.y());
         if (now < object.timeMs()) return;
 
         session.click(cursorX, cursorY);
@@ -106,7 +111,8 @@ public final class DebugAutoPlayer {
         HitObject object = target.object();
         if (!targetStarted) {
             if (now < object.timeMs() - preemptMs) return;
-            moveCursor(object.x(), object.y());
+            BeatmapPoint position = stacking.position(object);
+            moveCursor(position.x(), position.y());
             if (now < object.timeMs()) return;
             session.click(cursorX, cursorY);
             targetStarted = true;

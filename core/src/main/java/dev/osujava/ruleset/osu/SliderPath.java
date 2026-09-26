@@ -16,6 +16,15 @@ public final class SliderPath {
     private final double[] cumulativeDistance;
     private final double distance;
 
+    private SliderPath(List<BeatmapPoint> points) {
+        this.points = List.copyOf(points);
+        cumulativeDistance = new double[points.size()];
+        for (int i = 1; i < points.size(); i++) {
+            cumulativeDistance[i] = cumulativeDistance[i - 1] + distance(points.get(i - 1), points.get(i));
+        }
+        distance = cumulativeDistance[cumulativeDistance.length - 1];
+    }
+
     public SliderPath(double startX, double startY, SliderData data) {
         List<BeatmapPoint> sampled = new ArrayList<>();
         for (SliderData.Segment segment : data.segments()) {
@@ -49,6 +58,11 @@ public final class SliderPath {
     /** Sampled points are useful to render the same geometry that progress uses. */
     public List<BeatmapPoint> sampledPoints() {
         return points;
+    }
+
+    public SliderPath translated(double dx, double dy) {
+        if (dx == 0 && dy == 0) return this;
+        return new SliderPath(points.stream().map(point -> new BeatmapPoint(point.x() + dx, point.y() + dy)).toList());
     }
 
     /** Returns a position at normalized arc-length progress. Values outside [0, 1] are clamped. */
