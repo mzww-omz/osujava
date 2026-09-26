@@ -29,8 +29,6 @@ import java.util.Map;
 public final class OsuGameplaySession implements GameplaySession {
     private static final double SLIDER_FOLLOW_AREA = 2.4;
     private static final double SPINNER_ACTIVE_RADIUS = 160;
-    private static final int SPINNER_SMALL_BONUS_SCORE = 10;
-    private static final int SPINNER_LARGE_BONUS_SCORE = 50;
 
     private final GameClock clock;
     private final List<HitObject> circles;
@@ -182,7 +180,8 @@ public final class OsuGameplaySession implements GameplaySession {
             for (int index = 0; index < slider.events.size(); index++) {
                 if (!slider.eventJudged[index]) {
                     slider.eventJudged[index] = true;
-                    score.record(Judgement.MISS);
+                    OsuScoreEvent type = OsuScoreEvent.fromSliderEvent(slider.events.get(index).type());
+                    score.recordNestedHit(type.baseScore(), false, type.affectsCombo());
                 }
             }
         }
@@ -257,7 +256,8 @@ public final class OsuGameplaySession implements GameplaySession {
                 slider.eventJudged[index] = true;
                 slider.eventHit[index] = hit;
                 Judgement judgement = hit ? Judgement.HIT300 : Judgement.MISS;
-                score.record(judgement);
+                OsuScoreEvent type = OsuScoreEvent.fromSliderEvent(event.type());
+                score.recordNestedHit(type.baseScore(), hit, type.affectsCombo());
                 if (event.type() == SliderEvent.Type.TAIL) {
                     BeatmapPoint tail = slider.path.positionAt(event.pathProgress());
                     recordVisualJudgement(tail.x(), tail.y(), circleRadius, judgement, now);
@@ -274,10 +274,10 @@ public final class OsuGameplaySession implements GameplaySession {
             while (spinner.scoredSpins < completedSpins) {
                 spinner.scoredSpins++;
                 if (spinner.scoredSpins <= spinner.requirements.spinsRequiredForBonus()) {
-                    score.recordBonusScore(SPINNER_SMALL_BONUS_SCORE);
+                    score.recordBonusScore(OsuScoreEvent.SPINNER_SPIN.baseScore());
                 } else if (spinner.scoredSpins <= spinner.requirements.spinsRequiredForBonus()
                         + spinner.requirements.maximumBonusSpins()) {
-                    score.recordBonusScore(SPINNER_LARGE_BONUS_SCORE);
+                    score.recordBonusScore(OsuScoreEvent.SPINNER_BONUS.baseScore());
                 }
             }
         }

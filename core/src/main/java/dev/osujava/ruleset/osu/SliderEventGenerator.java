@@ -45,6 +45,7 @@ public final class SliderEventGenerator {
 
     /** Earliest time at which lazer accepts tracking judgement for the Slider tail. */
     public static double tailJudgementStartTime(SliderTiming timing) {
-        return Math.max(timing.startTimeMs(), timing.endTimeMs() - TAIL_LENIENCY_MS);
+        return Math.max(timing.startTimeMs() + timing.durationMs() / 2,
+                timing.endTimeMs() - TAIL_LENIENCY_MS);
     }
 }

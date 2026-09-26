@@ -72,7 +72,8 @@ class DebugAutoPlayerTest {
         assertTrue(auto.finished());
         assertFalse(auto.primaryPressed());
         assertTrue(result.completed());
-        assertEquals(5, result.score().count300(), "Head, two ticks, repeat, and tail use standard Slider tracking");
+        assertEquals(1, result.score().count300(), "Nested slider events do not count as circle judgements");
+        assertEquals(540, result.score().score());
         assertEquals(0, result.score().misses());
         assertEquals(1, result.score().accuracy(), 1e-6);
         assertFalse(result.sliders().getFirst().tracking());
@@ -134,7 +135,7 @@ class DebugAutoPlayerTest {
         GameplayState result = session.state();
         assertTrue(auto.finished());
         assertTrue(result.completed());
-        assertEquals(5, result.score().count300());
+        assertEquals(3, result.score().count300());
         assertEquals(0, result.score().misses());
         assertEquals(1, result.score().accuracy(), 1e-6);
         assertTrue(result.score().score() > 0);

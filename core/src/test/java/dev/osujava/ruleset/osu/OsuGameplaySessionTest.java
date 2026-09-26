@@ -224,25 +224,26 @@ class OsuGameplaySessionTest {
 
         clock.set(1500);
         session.pointerMoved(240, 100);
-        assertEquals(600, session.update().score().score());
+        assertEquals(330, session.update().score().score());
         clock.set(2000);
         session.pointerMoved(380, 100);
-        assertEquals(900, session.update().score().score());
+        assertEquals(360, session.update().score().score());
         clock.set(2500);
         session.pointerMoved(240, 100);
-        assertEquals(1200, session.update().score().score());
+        assertEquals(390, session.update().score().score());
         clock.set(2964);
         session.pointerMoved(110.08, 100);
         GameplayState complete = session.update();
 
         assertTrue(complete.completed());
-        assertEquals(1500, complete.score().score());
+        assertEquals(540, complete.score().score());
         assertEquals(1, complete.score().accuracy(), 1e-6);
-        assertEquals(5, complete.score().count300());
+        assertEquals(1, complete.score().count300());
+        assertEquals(5, complete.score().combo());
     }
 
     @Test
-    void sliderTrackingLossMissesNestedEventsAndReducesAccuracy() {
+    void sliderTrackingLossBreaksComboWithoutChangingCircleAccuracy() {
         ManualClock clock = new ManualClock();
         OsuGameplaySession session = new OsuGameplaySession(difficulty(List.of(sliderObject(100, 100, 1000, 280, 2))), clock,
                 new dev.osujava.gameplay.JudgementWindows(49.5, 99.5, 149.5));
@@ -254,8 +255,9 @@ class OsuGameplaySessionTest {
         GameplayState state = session.update();
 
         assertEquals(1, state.score().count300());
-        assertEquals(1, state.score().misses());
-        assertEquals(0.5, state.score().accuracy(), 1e-6);
+        assertEquals(0, state.score().misses());
+        assertEquals(0, state.score().combo());
+        assertEquals(1, state.score().accuracy(), 1e-6);
     }
 
     @Test
@@ -272,8 +274,9 @@ class OsuGameplaySessionTest {
         GameplayState state = session.update();
 
         assertFalse(state.sliders().getFirst().tracking());
-        assertEquals(1, state.score().misses());
-        assertEquals(0.5, state.score().accuracy(), 1e-6);
+        assertEquals(0, state.score().misses());
+        assertEquals(0, state.score().combo());
+        assertEquals(1, state.score().accuracy(), 1e-6);
     }
 
     @Test
@@ -302,7 +305,7 @@ class OsuGameplaySessionTest {
                 .filter(event -> event.type() == SliderEvent.Type.TICK && event.timeMs() <= clock.nowMs())
                 .count();
 
-        assertEquals(1 + ticksDueAtLeniencyStart, atLeniencyStart.score().count300(),
+        assertEquals(300 + 30 * ticksDueAtLeniencyStart, atLeniencyStart.score().score(),
                 "The tail must wait while an earlier tick is still pending");
 
         clock.set((long) Math.ceil(timing.endTimeMs() - 17));
@@ -311,8 +314,8 @@ class OsuGameplaySessionTest {
         session.pointerMoved(ball.x(), ball.y());
         GameplayState afterLastTick = session.update();
 
-        assertEquals(1 + events.stream().filter(event -> event.type() == SliderEvent.Type.TICK).count() + 1,
-                afterLastTick.score().count300());
+        assertEquals(300 + 30 * events.stream().filter(event -> event.type() == SliderEvent.Type.TICK).count() + 150,
+                afterLastTick.score().score());
         assertTrue(afterLastTick.completed());
     }
 

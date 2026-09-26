@@ -42,6 +42,18 @@ public final class ScoreTracker {
         score += bonusScore;
     }
 
+    /** A typed ruleset event can contribute score and combo without entering circle accuracy statistics. */
+    public void recordNestedHit(int baseScore, boolean hit, boolean affectsCombo) {
+        if (baseScore < 0) throw new IllegalArgumentException("baseScore cannot be negative");
+        if (hit) {
+            score += baseScore;
+            if (affectsCombo) combo++;
+        } else if (affectsCombo) {
+            combo = 0;
+        }
+        maxCombo = Math.max(maxCombo, combo);
+    }
+
     public ScoreState snapshot() {
         int total = judgedObjects;
         double accuracy = total == 0 ? 1.0 : (double) earnedAccuracy / (300 * total);

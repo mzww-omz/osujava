@@ -36,4 +36,20 @@ class ScoreTrackerTest {
         assertEquals(1, result.misses());
         assertEquals(0.375, result.accuracy());
     }
+
+    @Test
+    void nestedHitAndMissAffectComboButNotCircleAccuracy() {
+        ScoreTracker tracker = new ScoreTracker();
+        tracker.record(Judgement.HIT300);
+        tracker.recordNestedHit(30, true, true);
+        tracker.recordNestedHit(150, false, true);
+
+        ScoreState result = tracker.snapshot();
+        assertEquals(330, result.score());
+        assertEquals(0, result.combo());
+        assertEquals(2, result.maxCombo());
+        assertEquals(1, result.count300());
+        assertEquals(0, result.misses());
+        assertEquals(1, result.accuracy());
+    }
 }
