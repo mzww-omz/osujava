@@ -1,6 +1,6 @@
 # osu!standard Gameplay 差分調査
 
-比較対象は手元の `~/osu/osu` の `osu.Game.Rulesets.Osu` と、この repository の Gameplay 実装。重要度は体感への影響、難易度は現行設計での変更量を示す。`R` = `core/src/main/java/dev/osujava/ruleset/osu/`、`G` = `core/src/main/java/dev/osujava/gameplay/`、`U` = `core/src/main/java/dev/osujava/ui/`、`B` = `core/src/main/java/dev/osujava/beatmap/`。
+比較対象は手元の `~/osu/osu` の `osu.Game.Rulesets.Osu` と、改善着手前の osujava Gameplay 実装。重要度は体感への影響、難易度は現行設計での変更量を示す。`R` = `core/src/main/java/dev/osujava/ruleset/osu/`、`G` = `core/src/main/java/dev/osujava/gameplay/`、`U` = `core/src/main/java/dev/osujava/ui/`、`B` = `core/src/main/java/dev/osujava/beatmap/`。
 
 | 項目 | osujava 現状 | lazer の実装 | 差 | 重要度 | 難易度 | 主な修正対象 |
 |---|---|---|---|---|---|---|
@@ -28,3 +28,19 @@
 5. audio sample と texture skin の導入。ここは beatmap sample 情報と asset 管理を小分けに実装する。
 
 参照した主な lazer source: `Objects/OsuHitObject.cs`, `Objects/Drawables/DrawableHitCircle.cs`, `Objects/Drawables/DrawableSlider.cs`, `Objects/Drawables/SliderInputManager.cs`, `Objects/Drawables/DrawableSpinner.cs`, `Beatmaps/OsuBeatmapProcessor.cs`, `UI/OsuPlayfield.cs`, `UI/StartTimeOrderedHitPolicy.cs`, `Replays/OsuAutoGenerator.cs`, `Skinning/Default/MainCirclePiece.cs`, `Skinning/Default/DefaultApproachCircle.cs`, `osu.Game/Rulesets/Objects/SliderEventGenerator.cs`, `osu.Game/Rulesets/Objects/Legacy/LegacyRulesetExtensions.cs`。
+
+## 今回反映した内容
+
+- AR/CS、approach circle 4→1 と 0→0.9 の fade、circle hit/miss の visual timing、fractional OD の判定窓。
+- 左右の logical action、先押し action による slider hold の抑制、start-time 順の hit policy、400 ms の早打ち MISS。
+- v6 以降と旧譜面の stacking。描画、当たり判定、Debug Auto cursor、slider path に同じ offset を使用。
+- slider body の snaking、tick/repeat/tail、遅い head hit 後の tick 回復、短い slider の tail leniency。nested event を score/accuracy の型別処理へ移行。
+- spinner の requirement に基づく completion/bonus、SPM と visual feedback、Debug Auto の移動補間。
+- 譜面フォルダ内の標準 hitsound sample の再生と、sample 不在時の生成 click。renderer から分離した audio cue と skin component lookup。
+
+## 残る差
+
+- default/Argon の texture、gradient、shader、explosion、follow point は近似表示。`GameplaySkin` は component 色の差し替え口であり、texture asset のロードまでは扱わない。
+- `.osu` の custom filename、slider edge sample sets、継続する sliding/spinning 音、skin の default samples は未対応。現在は timing point の bank/index/volume と top-level HitSound flags を使用する。
+- slider path は sampled polyline。lazer の全曲線・距離・replay 互換性を保証しない。ScoreProcessor 全体、health、mod、replay generation も対象外。
+- JUnit の pure logic test と Gradle build は通過。実譜面を使った GPU 上での目視 timing 確認は継続課題。
