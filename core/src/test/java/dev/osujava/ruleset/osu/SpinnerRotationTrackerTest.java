@@ -75,6 +75,18 @@ class SpinnerRotationTrackerTest {
         assertEquals(7, tracker.completedSpins());
     }
 
+    @Test
+    void recentSpinRateUsesClockTimeAndFallsToZeroWithoutMovement() {
+        SpinnerRotationTracker tracker = trackerAtAngle(0, 0);
+        for (int step = 1; step <= 4; step++) {
+            double angle = Math.toRadians(step * 90.0);
+            tracker.moveCursor(CENTER_X + Math.cos(angle) * RADIUS,
+                    CENTER_Y + Math.sin(angle) * RADIUS, step * 100, true);
+        }
+        assertEquals(120, tracker.spinsPerMinute(400), 1e-6);
+        assertEquals(0, tracker.spinsPerMinute(901), 1e-6);
+    }
+
     private SpinnerRotationTracker trackerAtAngle(double angleDegrees, double timeMs) {
         SpinnerRotationTracker tracker = new SpinnerRotationTracker(CENTER_X, CENTER_Y);
         tracker.moveCursor(pointX(angleDegrees), pointY(angleDegrees), timeMs, false);

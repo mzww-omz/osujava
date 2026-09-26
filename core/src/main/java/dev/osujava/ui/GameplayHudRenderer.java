@@ -127,25 +127,33 @@ final class GameplayHudRenderer {
         for (SpinnerVisual spinner : state.spinners()) {
             long now = state.currentTimeMs();
             if (now < spinner.startTimeMs() - spinner.preemptMs()
-                    || now > spinner.endTimeMs() + 150) continue;
+                    || now > spinner.endTimeMs() + 320) continue;
             double fade = GameplayVisualTiming.fadeInProgress(now, spinner.startTimeMs(), spinner.preemptMs(),
                     ApproachTimeCalculator.fadeInMs(spinner.preemptMs()))
-                    * GameplayVisualTiming.fadeOutAlpha(now, spinner.endTimeMs(), 150);
+                    * GameplayVisualTiming.fadeOutAlpha(now, spinner.endTimeMs(), 320);
             float unit = viewport.toScreenLength(1);
             float centerX = viewport.toScreenX(spinner.centerX());
             float centerY = viewport.toScreenY(spinner.centerY());
-            String title = spinner.judgement() == null ? "SPIN!"
+            String title = spinner.judgement() == null
+                    ? spinner.completionTimeMs() != Long.MIN_VALUE ? "CLEAR!" : "SPIN!"
                     : spinner.judgement() == Judgement.MISS ? "MISSED" : "COMPLETE";
             String spins = spinner.requiredSpins() == 0 ? "CLEAR"
                     : spinner.completedSpins() + " / " + spinner.requiredSpins() + " SPINS";
             String progress = Math.round(GameplayVisualTiming.clamp(spinner.progress()) * 100) + "%";
-            drawCentered(batch, title, centerX, centerY + viewport.toScreenLength(10), unit * 1.25f,
+            drawCentered(batch, title, centerX, centerY + viewport.toScreenLength(30), unit * 1.25f,
                     visuals.hudText, (float) fade);
-            drawCentered(batch, spins, centerX, centerY - viewport.toScreenLength(11), unit * 0.86f,
+            drawCentered(batch, spins, centerX, centerY + viewport.toScreenLength(7), unit * 0.86f,
                     visuals.hudSecondary, (float) fade);
-            drawCentered(batch, progress, centerX, centerY - viewport.toScreenLength(28), unit * 0.74f,
+            drawCentered(batch, progress, centerX, centerY - viewport.toScreenLength(15), unit * 0.74f,
                     visuals.judgementColor(spinner.judgement() == null ? Judgement.HIT300 : spinner.judgement()),
                     (float) fade);
+            String spm = String.format(Locale.ROOT, "%.0f SPM", spinner.spinsPerMinute());
+            drawCentered(batch, spm, centerX, centerY - viewport.toScreenLength(41), unit * 0.72f,
+                    visuals.hudSecondary, (float) fade);
+            if (spinner.bonusScore() > 0) {
+                drawCentered(batch, "+" + spinner.bonusScore(), centerX,
+                        centerY + viewport.toScreenLength(58), unit * 0.72f, visuals.spinnerComplete, (float) fade);
+            }
         }
     }
 

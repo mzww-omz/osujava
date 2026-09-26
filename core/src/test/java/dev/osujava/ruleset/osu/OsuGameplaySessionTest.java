@@ -130,7 +130,7 @@ class OsuGameplaySessionTest {
         rotateClockwise(session, clock, 16, 1000);
         clock.set(4000);
         session.update();
-        clock.set(4151);
+        clock.set(4321);
         GameplayState cleaned = session.update();
         assertTrue(cleaned.spinners().isEmpty());
         assertFalse(cleaned.completed());

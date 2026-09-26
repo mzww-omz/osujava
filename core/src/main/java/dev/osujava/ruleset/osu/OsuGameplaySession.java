@@ -271,6 +271,8 @@ public final class OsuGameplaySession implements GameplaySession {
             spinner.tracking = !pressedActions.isEmpty() && now >= spinner.object.timeMs() && now < spinner.object.endTimeMs();
             spinner.rotation.moveCursor(cursorX, cursorY, now, spinner.tracking);
             int completedSpins = spinner.rotation.completedSpins();
+            if (spinner.completedAtMs == Long.MIN_VALUE && now >= spinner.object.timeMs()
+                    && spinner.progress() >= 1) spinner.completedAtMs = now;
             while (spinner.scoredSpins < completedSpins) {
                 spinner.scoredSpins++;
                 if (spinner.scoredSpins <= spinner.requirements.spinsRequiredForBonus()) {
@@ -360,12 +362,13 @@ public final class OsuGameplaySession implements GameplaySession {
         List<SpinnerVisual> visibleSpinners = new ArrayList<>();
         for (SpinnerRuntime spinner : spinners) {
             double spawnAt = spinner.object.timeMs() - preemptMs;
-            if (now < spawnAt || now > spinner.object.endTimeMs() + 150) continue;
+            if (now < spawnAt || now > spinner.object.endTimeMs() + 320) continue;
             visibleSpinners.add(new SpinnerVisual(spinner.object.x(), spinner.object.y(), SPINNER_ACTIVE_RADIUS,
                     spinner.progress(), spinner.rotation.visualRotationDegrees(),
                     spinner.rotation.totalRotationDegrees(), spinner.rotation.completedSpins(),
                     spinner.requirements.spinsRequired(), spinner.object.timeMs(), spinner.object.endTimeMs(),
-                    spinner.tracking, spinner.judgement, preemptMs));
+                    spinner.tracking, spinner.judgement, preemptMs, spinner.rotation.spinsPerMinute(now),
+                    spinner.completedAtMs, spinner.bonusScore()));
         }
         judgementVisuals.removeIf(visual -> now - visual.timeMs() > 900);
         return new GameplayState(now, visibleCircles, visibleSliders, visibleSpinners, score.snapshot(),
@@ -493,11 +496,19 @@ public final class OsuGameplaySession implements GameplaySession {
         private int scoredSpins;
         private boolean tracking;
         private Judgement judgement;
+        private long completedAtMs = Long.MIN_VALUE;
 
         private SpinnerRuntime(HitObject object, double overallDifficulty) {
             this.object = object;
             this.requirements = SpinnerRequirements.calculate(object.durationMs(), overallDifficulty);
             this.rotation = new SpinnerRotationTracker(object.x(), object.y());
+        }
+
+        private long bonusScore() {
+            int small = Math.min(scoredSpins, requirements.spinsRequiredForBonus());
+            int large = Math.min(Math.max(0, scoredSpins - small), requirements.maximumBonusSpins());
+            return (long) small * OsuScoreEvent.SPINNER_SPIN.baseScore()
+                    + (long) large * OsuScoreEvent.SPINNER_BONUS.baseScore();
         }
 
         private double progress() {

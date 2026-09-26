@@ -34,7 +34,7 @@ public final class GameplayRenderer {
     private static final double JUDGEMENT_FADE_START_MS = 320;
     private static final double CIRCLE_HIT_FADE_MS = 100;
     private static final double SLIDER_POST_FADE_MS = 150;
-    private static final double SPINNER_POST_FADE_MS = 150;
+    private static final double SPINNER_POST_FADE_MS = 320;
 
     private final OsuJavaGame game;
     private final GameplayVisualConfig visuals = GameplayVisualConfig.defaults();
@@ -278,15 +278,24 @@ public final class GameplayRenderer {
         float alpha = (float) (fadeIn * fadeOut);
         float x = viewport.toScreenX(spinner.centerX());
         float y = viewport.toScreenY(spinner.centerY());
-        float radius = viewport.toScreenLength(spinner.radius());
+        double intro = GameplayVisualTiming.spinnerIntroScale(state.currentTimeMs(), spinner.startTimeMs(), spinner.preemptMs());
+        double finish = state.currentTimeMs() >= spinner.endTimeMs()
+                ? GameplayVisualTiming.spinnerCompletionScale(state.currentTimeMs(), spinner.endTimeMs(),
+                spinner.judgement() != Judgement.MISS) : 1;
+        float radius = viewport.toScreenLength(spinner.radius() * intro * finish);
         setColor(shapes, visuals.spinnerField, alpha);
-        shapes.circle(x, y, radius * 1.1f, CIRCLE_SEGMENTS + 12);
-        setColor(shapes, visuals.spinnerRing, alpha * 0.25f);
-        shapes.circle(x, y, radius * 0.92f, CIRCLE_SEGMENTS + 12);
+        shapes.circle(x, y, radius * 1.14f, CIRCLE_SEGMENTS + 12);
+        setColor(shapes, spinner.completionTimeMs() != Long.MIN_VALUE ? visuals.spinnerComplete : visuals.spinnerProgress,
+                alpha * 0.18f);
+        shapes.circle(x, y, radius * 1.07f, CIRCLE_SEGMENTS + 12);
         setColor(shapes, visuals.spinnerField, alpha * 0.88f);
-        shapes.circle(x, y, radius * 0.84f, CIRCLE_SEGMENTS + 12);
-        setColor(shapes, spinner.tracking() ? visuals.followFill : visuals.sliderInner, alpha * 0.9f);
-        shapes.circle(x, y, radius * 0.19f, CIRCLE_SEGMENTS);
+        shapes.circle(x, y, radius * 0.97f, CIRCLE_SEGMENTS + 12);
+        float fillRadius = radius * (float) (0.2 + 0.75 * GameplayVisualTiming.clamp(spinner.progress()));
+        setColor(shapes, spinner.completionTimeMs() != Long.MIN_VALUE ? visuals.spinnerComplete : visuals.spinnerProgress,
+                alpha * (spinner.tracking() ? 0.40f : 0.20f));
+        shapes.circle(x, y, fillRadius, CIRCLE_SEGMENTS + 12);
+        setColor(shapes, visuals.sliderInner, alpha);
+        shapes.circle(x, y, radius * (spinner.tracking() ? 0.13f : 0.18f), CIRCLE_SEGMENTS);
     }
 
     private void drawApproachCircles(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
@@ -365,11 +374,24 @@ public final class GameplayRenderer {
             float alpha = (float) (fadeIn * fadeOut);
             float centerX = viewport.toScreenX(spinner.centerX());
             float centerY = viewport.toScreenY(spinner.centerY());
-            float radius = viewport.toScreenLength(spinner.radius());
+            double intro = GameplayVisualTiming.spinnerIntroScale(now, spinner.startTimeMs(), spinner.preemptMs());
+            double finish = now >= spinner.endTimeMs()
+                    ? GameplayVisualTiming.spinnerCompletionScale(now, spinner.endTimeMs(),
+                    spinner.judgement() != Judgement.MISS) : 1;
+            float radius = viewport.toScreenLength(spinner.radius() * intro * finish);
             Color progressColor = spinner.judgement() == Judgement.MISS ? visuals.spinnerMiss
-                    : spinner.judgement() != null ? visuals.spinnerComplete : visuals.spinnerProgress;
+                    : spinner.completionTimeMs() != Long.MIN_VALUE ? visuals.spinnerComplete : visuals.spinnerProgress;
             setColor(shapes, visuals.spinnerRing, alpha);
             shapes.circle(centerX, centerY, radius, CIRCLE_SEGMENTS + 12);
+            int markers = Math.max(1, Math.min(32, spinner.requiredSpins()));
+            for (int i = 0; i < markers; i++) {
+                double angle = Math.PI * 2 * i / markers;
+                float sin = (float) Math.sin(angle);
+                float cos = (float) Math.cos(angle);
+                setColor(shapes, i < spinner.completedSpins() ? visuals.spinnerComplete : visuals.spinnerRing, alpha);
+                shapes.line(centerX + cos * radius * 0.87f, centerY + sin * radius * 0.87f,
+                        centerX + cos * radius * 0.96f, centerY + sin * radius * 0.96f);
+            }
             double progress = GameplayVisualTiming.clamp(spinner.progress());
             if (progress > 0) {
                 setColor(shapes, progressColor, alpha);

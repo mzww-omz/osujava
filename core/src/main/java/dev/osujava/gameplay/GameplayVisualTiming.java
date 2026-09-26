@@ -32,6 +32,18 @@ public final class GameplayVisualTiming {
         return progress(currentTimeMs, startTimeMs - preemptMs, preemptMs / 3);
     }
 
+    public static double spinnerIntroScale(double currentTimeMs, double startTimeMs, double preemptMs) {
+        double spawn = startTimeMs - preemptMs;
+        if (currentTimeMs < spawn + preemptMs / 2) return 0;
+        double p = easeOutQuint(progress(currentTimeMs, spawn + preemptMs / 2, preemptMs / 2));
+        return 0.2 + 0.8 * p;
+    }
+
+    public static double spinnerCompletionScale(double currentTimeMs, double endTimeMs, boolean hit) {
+        double p = progress(currentTimeMs, endTimeMs, 320);
+        return hit ? 1 + 0.2 * p : 1 - 0.2 * p;
+    }
+
     /** Default MainCirclePiece grows to 1.5 over 400 ms after a hit. */
     public static double hitCircleScale(double currentTimeMs, double hitTimeMs) {
         double progress = progress(currentTimeMs, hitTimeMs, 400);

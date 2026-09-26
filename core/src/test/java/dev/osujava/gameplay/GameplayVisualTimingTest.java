@@ -33,6 +33,11 @@ class GameplayVisualTimingTest {
         assertEquals(0, GameplayVisualTiming.sliderSnakeProgress(-200, 1000, 1200));
         assertEquals(0.5, GameplayVisualTiming.sliderSnakeProgress(0, 1000, 1200));
         assertEquals(1, GameplayVisualTiming.sliderSnakeProgress(200, 1000, 1200));
+        assertEquals(0, GameplayVisualTiming.spinnerIntroScale(0, 1000, 1200));
+        assertEquals(0.2, GameplayVisualTiming.spinnerIntroScale(400, 1000, 1200));
+        assertEquals(1, GameplayVisualTiming.spinnerIntroScale(1000, 1000, 1200));
+        assertEquals(1.2, GameplayVisualTiming.spinnerCompletionScale(1320, 1000, true));
+        assertEquals(0.8, GameplayVisualTiming.spinnerCompletionScale(1320, 1000, false));
     }
 
     @Test
