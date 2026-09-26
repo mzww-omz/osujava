@@ -34,7 +34,9 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
         return new Rgb(rgb[0] / 255f, rgb[1] / 255f, rgb[2] / 255f);
     }
 
-    public record Fonts(String hitCirclePrefix, float hitCircleOverlap) {
+    public record Fonts(String hitCirclePrefix, float hitCircleOverlap, String scorePrefix, float scoreOverlap,
+                        String comboPrefix, float comboOverlap) {
+        public Fonts(String prefix, float overlap) { this(prefix, overlap, "score", 0, "score", 0); }
         // osu.Game/Skinning/LegacySkinExtensions.cs: GetFontPrefix / GetFontOverlap.
         public static Fonts defaults() { return new Fonts("default", -2f); }
     }
@@ -55,6 +57,8 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
         String section = "";
         String prefix = Fonts.defaults().hitCirclePrefix();
         float overlap = Fonts.defaults().hitCircleOverlap();
+        String scorePrefix = "score", comboPrefix = "score";
+        float scoreOverlap = 0, comboOverlap = 0;
         // LegacySkinDecoder.CreateTemplateObject defaults to 1.0; SkinConfiguration.LATEST_VERSION = 2.7.
         double version = 1;
         Rgb border = Colours.defaults().sliderBorder();
@@ -100,16 +104,23 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             }
             if (!section.equalsIgnoreCase("Fonts")) continue;
             if (key.equalsIgnoreCase("HitCirclePrefix") && !value.isEmpty()) prefix = value;
-            if (key.equalsIgnoreCase("HitCircleOverlap")) {
+            if (key.equalsIgnoreCase("ScorePrefix") && !value.isEmpty()) scorePrefix = value;
+            if (key.equalsIgnoreCase("ComboPrefix") && !value.isEmpty()) comboPrefix = value;
+            if (key.equalsIgnoreCase("HitCircleOverlap") || key.equalsIgnoreCase("ScoreOverlap")
+                    || key.equalsIgnoreCase("ComboOverlap")) {
                 try {
                     float parsed = Float.parseFloat(value);
-                    if (Float.isFinite(parsed)) overlap = parsed;
+                    if (Float.isFinite(parsed)) {
+                        if (key.equalsIgnoreCase("HitCircleOverlap")) overlap = parsed;
+                        else if (key.equalsIgnoreCase("ScoreOverlap")) scoreOverlap = parsed;
+                        else comboOverlap = parsed;
+                    }
                 } catch (NumberFormatException ignored) {
                     // Malformed optional settings retain their previous/default value.
                 }
             }
         }
-        return new SkinConfiguration(new Fonts(prefix, overlap), true,
+        return new SkinConfiguration(new Fonts(prefix, overlap, scorePrefix, scoreOverlap, comboPrefix, comboOverlap), true,
                 overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track));
     }
 }

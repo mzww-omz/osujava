@@ -51,6 +51,18 @@ public final class SkinAssetResolver {
         return Optional.of(List.copyOf(digits));
     }
 
+    /** LegacySpriteText lookup names; HUD fonts do not require skin.ini to exist. */
+    public Optional<AssetFile> resolveHudGlyph(String prefix, char character) {
+        String suffix = switch (character) {
+            case '.' -> "dot";
+            case ',' -> "comma";
+            case '%' -> "percent";
+            default -> String.valueOf(character);
+        };
+        try { return resolve(prefix + "-" + suffix); }
+        catch (IllegalArgumentException e) { return Optional.empty(); }
+    }
+
     public record AssetFile(Path path, int density) {
         public float logicalSize(int pixels) {
             return (float) pixels / density;

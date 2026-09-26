@@ -12,6 +12,8 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -32,6 +34,9 @@ public final class OsuSkinAssets implements Disposable {
     private final Set<Texture> ownedTextures = Collections.newSetFromMap(new IdentityHashMap<>());
     private List<SkinTexture> sliderBallFrames = List.of();
     private List<SkinTexture> hitCircleDigits = List.of();
+    public enum HudFont { SCORE, COMBO }
+    private final EnumMap<HudFont, Map<Character, SkinTexture>> hudFonts = new EnumMap<>(HudFont.class);
+    private final Map<SkinAssetResolver.AssetFile, SkinTexture> textureCache = new HashMap<>();
     private SkinConfiguration configuration = SkinConfiguration.defaults();
 
     public OsuSkinAssets(Path directory) {
@@ -64,6 +69,17 @@ public final class OsuSkinAssets implements Disposable {
             }
             hitCircleDigits = List.copyOf(loaded);
         });
+        for (HudFont font : HudFont.values()) {
+            String prefix = font == HudFont.SCORE ? configuration.fonts().scorePrefix() : configuration.fonts().comboPrefix();
+            Map<Character, SkinTexture> glyphs = new HashMap<>();
+            for (char character : "0123456789.,%x".toCharArray()) {
+                resolver.resolveHudGlyph(prefix, character).ifPresent(file -> {
+                    SkinTexture texture = load(file, textureLoader);
+                    if (texture != null) glyphs.put(character, texture);
+                });
+            }
+            hudFonts.put(font, Map.copyOf(glyphs));
+        }
         List<SkinTexture> ballFrames = new ArrayList<>();
         for (var file : resolver.resolveSliderBall()) {
             SkinTexture frame = load(file, textureLoader);
@@ -79,16 +95,20 @@ public final class OsuSkinAssets implements Disposable {
 
     private SkinTexture load(SkinAssetResolver.AssetFile file,
                              Function<SkinAssetResolver.AssetFile, Texture> textureLoader) {
+        if (textureCache.containsKey(file)) return textureCache.get(file);
         Texture texture = null;
         try {
             texture = textureLoader.apply(file);
             ownedTextures.add(texture);
             texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-            return new SkinTexture(texture, file);
+            SkinTexture asset = new SkinTexture(texture, file);
+            textureCache.put(file, asset);
+            return asset;
         } catch (GdxRuntimeException | IllegalArgumentException e) {
             if (texture != null) disposeIfUnreferenced(texture);
             logFallback("Could not load " + file.path() + "; using existing drawing fallback.", e);
         }
+        textureCache.put(file, null); // Cache failed lookups too when score/combo share a prefix.
         return null;
     }
 
@@ -122,12 +142,26 @@ public final class OsuSkinAssets implements Disposable {
     public double legacyVersion() { return configuration.legacyVersion(); }
     public float hitCircleOverlap() { return configuration.fonts().hitCircleOverlap(); }
 
+    public SkinTexture hudGlyph(HudFont font, char character) {
+        return hudFonts.getOrDefault(font, Map.of()).get(character);
+    }
+    public boolean hasHudText(HudFont font, String text) {
+        if (font == HudFont.SCORE && hudGlyph(font, '5') == null) return false;
+        for (char character : text.toCharArray()) if (hudGlyph(font, character) == null) return false;
+        return true;
+    }
+    public float hudOverlap(HudFont font) {
+        return font == HudFont.SCORE ? configuration.fonts().scoreOverlap() : configuration.fonts().comboOverlap();
+    }
+
     public List<SkinTexture> sliderBallFrames() { return sliderBallFrames; }
 
     private void disposeIfUnreferenced(Texture texture) {
         if (textures.values().stream().anyMatch(asset -> asset.texture() == texture)
                 || hitCircleDigits.stream().anyMatch(asset -> asset.texture() == texture)
+                || hudFonts.values().stream().flatMap(m -> m.values().stream()).anyMatch(asset -> asset.texture() == texture)
                 || sliderBallFrames.stream().anyMatch(asset -> asset.texture() == texture)) return;
+        textureCache.values().removeIf(asset -> asset != null && asset.texture() == texture);
         if (ownedTextures.remove(texture)) texture.dispose();
     }
 
@@ -136,6 +170,8 @@ public final class OsuSkinAssets implements Disposable {
         for (Texture texture : ownedTextures) texture.dispose();
         ownedTextures.clear();
         textures.clear();
+        textureCache.clear();
+        hudFonts.clear();
         sliderBallFrames = List.of();
         hitCircleDigits = List.of();
     }

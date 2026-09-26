@@ -13,6 +13,22 @@ class SkinAssetResolverTest {
     @TempDir Path directory;
 
     @Test
+    void hudUsesVerifiedSuffixesAndPrefers2xWithoutRequiringIni() throws IOException {
+        for (String suffix : new String[]{"0", "5", "dot", "percent", "x"}) {
+            Files.createFile(directory.resolve("custom-" + suffix + ".png"));
+            Files.createFile(directory.resolve("custom-" + suffix + "@2x.png"));
+        }
+        var resolver = new SkinAssetResolver(directory);
+        for (char c : "05.%x".toCharArray()) {
+            var file = resolver.resolveHudGlyph("custom", c).orElseThrow();
+            assertEquals(2, file.density());
+            assertEquals(20, file.logicalSize(40));
+        }
+        assertTrue(resolver.resolveHudGlyph("../escape", '0').isEmpty());
+        assertTrue(resolver.resolveHudGlyph("missing", 'x').isEmpty());
+    }
+
+    @Test
     void sliderBallAnimationWinsUsesNumericOrderAndPerFrameDensity() throws IOException {
         Files.createFile(directory.resolve("sliderb.png"));
         for (int frame = 0; frame < 12; frame++) Files.createFile(directory.resolve("sliderb" + frame + ".png"));

@@ -14,6 +14,25 @@ class SkinConfigurationTest {
     @TempDir Path directory;
 
     @Test
+    void hudFontsHaveIndependentPrefixesOverlapsAndDefaults() throws IOException {
+        var defaults = SkinConfiguration.defaults().fonts();
+        assertEquals("score", defaults.scorePrefix());
+        assertEquals("score", defaults.comboPrefix());
+        assertEquals(0, defaults.scoreOverlap());
+        assertEquals(0, defaults.comboOverlap());
+        var fonts = parse("[Fonts]\nHitCirclePrefix: circles\nHitCircleOverlap: -3\n"
+                + "ScorePrefix: numbers\nScoreOverlap: 2.5\nComboPrefix: counter\nComboOverlap: -1\n").fonts();
+        assertEquals("circles", fonts.hitCirclePrefix());
+        assertEquals(-3, fonts.hitCircleOverlap());
+        assertEquals("numbers", fonts.scorePrefix());
+        assertEquals(2.5, fonts.scoreOverlap());
+        assertEquals("counter", fonts.comboPrefix());
+        assertEquals(-1, fonts.comboOverlap());
+        for (String bad : new String[]{"NaN", "Infinity", "bad", ""})
+            assertEquals(defaults, parse("[Fonts]\nScoreOverlap: " + bad + "\nComboOverlap: " + bad).fonts());
+    }
+
+    @Test
     void legacyVersionUsesLazerDecoderDefaultsAndLatestConstant() throws IOException {
         assertEquals(1, parse("[General]\n").legacyVersion());
         assertEquals(1, SkinConfiguration.defaults().legacyVersion());
@@ -43,7 +62,7 @@ class SkinConfigurationTest {
 
     @Test
     void missingFontsSettingsInExistingIniUseDefaults() throws IOException {
-        var configuration = parse("[General]\nName: Test\n[Fonts]\nScorePrefix: ignored\nComboPrefix: ignored\n");
+        var configuration = parse("[General]\nName: Test\n[Fonts]\n");
         assertEquals(SkinConfiguration.Fonts.defaults(), configuration.fonts());
         assertTrue(configuration.hasIni());
     }

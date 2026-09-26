@@ -21,6 +21,53 @@ class OsuSkinAssetsTest {
     @TempDir Path directory;
 
     @Test
+    void hudFontsShareTexturesWithEachOtherAndHitcircleFontAndDisposeOnce() throws IOException {
+        Files.writeString(directory.resolve("skin.ini"), "[Fonts]\nHitCirclePrefix: score\nScoreOverlap: 2\nComboOverlap: -3");
+        for (char c : "0123456789.%x".toCharArray()) {
+            String suffix = c == '.' ? "dot" : c == '%' ? "percent" : String.valueOf(c);
+            Files.createFile(directory.resolve("score-" + suffix + "@2x.png"));
+        }
+        List<TestTexture> loaded = new ArrayList<>();
+        var assets = new OsuSkinAssets(directory, file -> {
+            var texture = new TestTexture(); loaded.add(texture); return texture;
+        });
+        assertEquals(13, loaded.size());
+        assertTrue(assets.hasHudText(OsuSkinAssets.HudFont.SCORE, "100.00%"));
+        assertTrue(assets.hasHudText(OsuSkinAssets.HudFont.COMBO, "100x"));
+        assertSame(assets.hitCircleDigit(5), assets.hudGlyph(OsuSkinAssets.HudFont.SCORE, '5'));
+        assertSame(assets.hudGlyph(OsuSkinAssets.HudFont.SCORE, '5'), assets.hudGlyph(OsuSkinAssets.HudFont.COMBO, '5'));
+        assertEquals(16, assets.hudGlyph(OsuSkinAssets.HudFont.SCORE, '5').logicalWidth());
+        assertEquals(2, assets.hudOverlap(OsuSkinAssets.HudFont.SCORE));
+        assertEquals(-3, assets.hudOverlap(OsuSkinAssets.HudFont.COMBO));
+        for (int i = 0; i < 100; i++) assets.hudGlyph(OsuSkinAssets.HudFont.SCORE, '5');
+        assertEquals(13, loaded.size());
+        assets.dispose(); assets.dispose();
+        assertTrue(loaded.stream().allMatch(t -> t.disposals == 1));
+    }
+
+    @Test
+    void hudWithoutIniUsesScoreAssetsAndMissingOrBrokenGlyphAllowsReadableFallback() throws IOException {
+        Files.createFile(directory.resolve("score-0.png"));
+        Files.createFile(directory.resolve("score-5.png"));
+        Files.createFile(directory.resolve("score-x.png"));
+        var attempts = new java.util.HashMap<Path, Integer>();
+        var assets = new OsuSkinAssets(directory, file -> {
+            attempts.merge(file.path(), 1, Integer::sum);
+            if (file.path().getFileName().toString().equals("score-x.png")) throw new GdxRuntimeException("broken");
+            return new TestTexture();
+        });
+        assertTrue(assets.hasHudText(OsuSkinAssets.HudFont.SCORE, "00000000"));
+        assertFalse(assets.hasHudText(OsuSkinAssets.HudFont.SCORE, "100.00%"));
+        assertFalse(assets.hasHudText(OsuSkinAssets.HudFont.COMBO, "0x"));
+        assertNull(assets.hudGlyph(OsuSkinAssets.HudFont.COMBO, 'x'));
+        assertTrue(attempts.values().stream().allMatch(count -> count == 1));
+        assets.dispose();
+        var absent = new OsuSkinAssets(null, file -> { fail("Unexpected load"); return null; });
+        assertFalse(absent.hasHudText(OsuSkinAssets.HudFont.SCORE, "00000000"));
+        absent.dispose();
+    }
+
+    @Test
     void reverseArrowFollowAndTickReuseDensityResolverAndDisposeOnce() throws IOException {
         for (String name : List.of("reversearrow", "sliderfollowcircle", "sliderscorepoint")) {
             Files.createFile(directory.resolve(name + ".png"));
