@@ -164,8 +164,8 @@ public final class GameplayRenderer {
                         drawDebugCursor(shapes, debugCursor, viewport);
                         shapeType(shapes, ShapeRenderer.ShapeType.Filled);
                     }
-                    hud.drawPanels(shapes, viewport);
-                    sprites(shapes, () -> hud.draw(batch, set, difficulty, state, viewport, notice));
+                    hud.drawSongProgress(shapes, state);
+                    sprites(shapes, () -> hud.draw(batch, state, viewport, notice));
                 }
             }
         }

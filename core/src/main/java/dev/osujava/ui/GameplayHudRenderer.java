@@ -4,9 +4,11 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.graphics.GL20;
+import dev.osujava.skin.LegacyHudLayout;
+import dev.osujava.skin.OsuSkinAssets.HudFont;
 import dev.osujava.OsuJavaGame;
-import dev.osujava.beatmap.BeatmapDifficulty;
-import dev.osujava.beatmap.BeatmapSet;
 import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.GameplaySkin;
@@ -28,29 +30,24 @@ final class GameplayHudRenderer {
     private final OsuJavaGame game;
     private final GameplaySkin visuals;
     private final OsuSkinAssets skinAssets;
+    private final float bitmapCapHeight;
+    private final LegacyHudLayout initialScore, initialAccuracy;
+    private final float comboOriginHeight;
 
     GameplayHudRenderer(OsuJavaGame game, GameplaySkin visuals, OsuSkinAssets skinAssets) {
         this.game = game;
         this.visuals = visuals;
         this.skinAssets = skinAssets;
+        this.bitmapCapHeight = game.font().getData().capHeight / game.font().getData().scaleY;
+        // DefaultSkinComponentsContainer applies relative positions once after LoadComplete.
+        this.initialScore = layout(LegacyHudLayout.scoreText(0), HudFont.SCORE, true);
+        this.initialAccuracy = layout(LegacyHudLayout.accuracyText(1), HudFont.SCORE, true);
+        this.comboOriginHeight = layout("0x", HudFont.COMBO, false).height();
     }
 
-    void drawPanels(ShapeRenderer shapes, PlayfieldViewport viewport) {
-        float unit = viewport.toScreenLength(1);
-        float panelHeight = unit * 50;
-        float panelWidth = Math.min(unit * 310, viewport.width() * 0.58f);
-        setColor(shapes, visuals.component(GameplaySkinComponent.HUD_PANEL), 1);
-        shapes.rect(viewport.left(), viewport.bottom() + viewport.height() - panelHeight,
-                panelWidth, panelHeight);
-        float rightPanelWidth = Math.min(unit * 205, viewport.width() * 0.4f);
-        shapes.rect(viewport.left() + viewport.width() - rightPanelWidth,
-                viewport.bottom() + viewport.height() - panelHeight, rightPanelWidth, panelHeight);
-        shapes.rect(viewport.left(), viewport.bottom(), Math.min(unit * 205, viewport.width() * 0.4f), unit * 37);
-    }
-
-    void draw(SpriteBatch batch, BeatmapSet set, BeatmapDifficulty difficulty,
-              GameplayState state, PlayfieldViewport viewport, String notice) {
-        drawHud(batch, set, difficulty, state, viewport, notice);
+    void draw(SpriteBatch batch, GameplayState state, PlayfieldViewport viewport, String notice) {
+        drawHud(batch, state);
+        drawNotice(batch, viewport, notice);
         game.font().setColor(Color.WHITE);
         game.font().getData().setScale(1f);
     }
@@ -163,40 +160,107 @@ final class GameplayHudRenderer {
         }
     }
 
-    private void drawHud(SpriteBatch batch, BeatmapSet set, BeatmapDifficulty difficulty,
-                         GameplayState state, PlayfieldViewport viewport, String notice) {
-        float unit = viewport.toScreenLength(1);
-        float uiScale = Math.max(0.72f, Math.min(1.45f, unit));
-        float left = viewport.left() + unit * 12;
-        float top = viewport.bottom() + viewport.height();
-        game.font().getData().setScale(uiScale * 0.8f);
-        game.font().setColor(visuals.component(GameplaySkinComponent.HUD_TEXT));
-        game.font().draw(batch, set.title() + "  ·  " + difficulty.version(), left, top - unit * 16);
+    private LegacyHudLayout layout(String text, HudFont font, boolean fixed) {
+        boolean skinned = skinAssets != null && skinAssets.hasHudText(font, text);
+        return LegacyHudLayout.create(text, character -> {
+            if (skinned) {
+                var glyph = skinAssets.hudGlyph(font, character);
+                return new LegacyHudLayout.Size(glyph.logicalWidth(), glyph.logicalHeight());
+            }
+            // No built-in legacy image pack: coherent readable bitmap fallback per counter.
+            var glyph = game.font().getData().getGlyph(character);
+            float scale = 40 / bitmapCapHeight;
+            return new LegacyHudLayout.Size(glyph == null ? 0 : glyph.xadvance * scale, 40);
+        }, skinned ? skinAssets.hudOverlap(font) : 0, fixed);
+    }
 
-        String score = String.format(Locale.ROOT, "%08d", state.score().score());
-        String accuracy = String.format(Locale.ROOT, "%.2f%% ACCURACY", state.score().accuracy() * 100);
-        float right = viewport.left() + viewport.width() - unit * 12;
-        game.font().getData().setScale(uiScale * 0.92f);
-        game.font().setColor(visuals.component(GameplaySkinComponent.HUD_TEXT));
-        game.font().draw(batch, score, right - measureTextWidth(score, uiScale * 0.92f), top - unit * 16);
-        game.font().getData().setScale(uiScale * 0.62f);
-        game.font().setColor(visuals.component(GameplaySkinComponent.HUD_SECONDARY));
-        game.font().draw(batch, accuracy, right - measureTextWidth(accuracy, uiScale * 0.62f), top - unit * 36);
+    private void drawHud(SpriteBatch batch, GameplayState state) {
+        var visual = state.hud();
+        LegacyHudLayout score = layout(LegacyHudLayout.scoreText(visual.score()), HudFont.SCORE, true);
+        LegacyHudLayout accuracy = layout(LegacyHudLayout.accuracyText(visual.accuracy()), HudFont.SCORE, true);
+        LegacyHudPlacement placement = LegacyHudPlacement.fit(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), initialScore, initialAccuracy);
+        float unit = placement.unit();
+        float scale = unit * LegacyHudPlacement.SCORE_SCALE;
+        drawText(batch, score, HudFont.SCORE, placement.scoreRight() - score.width() * scale,
+                placement.scoreTop(), scale, 1);
+        scale = unit * LegacyHudPlacement.ACCURACY_SCALE;
+        drawText(batch, accuracy, HudFont.SCORE, placement.accuracyRight() - accuracy.width() * scale,
+                placement.accuracyTop(), scale, 1);
+        LegacyHudLayout combo = layout(visual.combo() + "x", HudFont.COMBO, false);
+        float base = unit * LegacyHudPlacement.COMBO_SCALE;
+        drawText(batch, combo, HudFont.COMBO, placement.comboLeft(),
+                LegacyHudPlacement.comboTop(placement.comboBottom(), comboOriginHeight, base, (float) visual.comboScale()),
+                base * (float) visual.comboScale(), (float) visual.comboAlpha());
+        LegacyHudLayout pop = layout(visual.popCombo() + "x", HudFont.COMBO, false);
+        batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
+        drawText(batch, pop, HudFont.COMBO, placement.comboLeft() - 3 * base * (float) visual.popScale(),
+                LegacyHudPlacement.comboTop(placement.comboBottom(), comboOriginHeight, base, (float) visual.popScale()),
+                base * (float) visual.popScale(), (float) visual.popAlpha());
+        batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+    }
 
-        String combo = state.score().combo() + "x";
-        game.font().getData().setScale(uiScale * 1.15f);
-        game.font().setColor(visuals.component(GameplaySkinComponent.HUD_TEXT));
-        game.font().draw(batch, combo, left, viewport.bottom() + unit * 12);
-        game.font().getData().setScale(uiScale * 0.56f);
-        game.font().setColor(visuals.component(GameplaySkinComponent.HUD_SECONDARY));
-        game.font().draw(batch, "COMBO", left + measureTextWidth(combo, uiScale * 1.15f) + unit * 6,
-                viewport.bottom() + unit * 16);
-
-        if (notice != null && !notice.isBlank()) {
-            game.font().getData().setScale(uiScale * 0.72f);
-            game.font().setColor(1f, 0.82f, 0.62f, 1);
-            game.font().draw(batch, notice, viewport.left() + unit * 12, viewport.bottom() + unit * 57);
+    private void drawText(SpriteBatch batch, LegacyHudLayout layout, HudFont font,
+                          float left, float top, float scale, float alpha) {
+        if (alpha <= 0) return;
+        boolean skinned = skinAssets != null && skinAssets.hasHudText(font, layout.text());
+        batch.setColor(1, 1, 1, alpha);
+        for (var glyph : layout.glyphs()) {
+            float x = left + glyph.x() * scale;
+            if (skinned) {
+                batch.draw(skinAssets.hudGlyph(font, glyph.character()).texture(), x,
+                        top - (glyph.y() + glyph.height()) * scale, glyph.width() * scale, glyph.height() * scale);
+            } else {
+                float bitmapScale = scale * 40 / bitmapCapHeight;
+                game.font().getData().setScale(bitmapScale);
+                game.font().setColor(1, 1, 1, alpha);
+                game.font().draw(batch, String.valueOf(glyph.character()), x, top);
+            }
         }
+        batch.setColor(Color.WHITE);
+    }
+
+    /** Shape pass in the existing foremost HUD layer. No fake audio duration is used. */
+    void drawSongProgress(ShapeRenderer shapes, GameplayState state) {
+        if (state.songProgress() == null) return;
+        var placement = LegacyHudPlacement.fit(Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), initialScore, initialAccuracy);
+        float unit = placement.unit();
+        float x = placement.progressRight() - 16.5f * unit, y = placement.progressCentreY();
+        var progress = state.songProgress().at(state.currentTimeMs());
+        float opacity = (float) state.songProgress().alphaAt(state.currentTimeMs());
+        double fraction = progress.intro() ? 1 - progress.progress() : progress.progress();
+        if (progress.intro()) shapes.setColor(199 / 255f, 1, 47 / 255f, 153 / 255f * opacity);
+        else shapes.setColor(1, 1, 1, 153 / 255f * opacity);
+        double direction = progress.intro() ? 1 : -1;
+        for (int i = 0; i < Math.ceil(fraction * 96); i++) {
+            double a = Math.PI / 2 + direction * i * Math.PI * 2 / 96;
+            double b = Math.PI / 2 + direction * Math.min(i + 1, fraction * 96) * Math.PI * 2 / 96;
+            float radius = 33 * 0.92f / 2 * unit;
+            shapes.triangle(x, y, x + (float) Math.cos(a) * radius, y + (float) Math.sin(a) * radius,
+                    x + (float) Math.cos(b) * radius, y + (float) Math.sin(b) * radius);
+        }
+        shapes.setColor(1, 1, 1, opacity);
+        // CircularContainer's 33px outer diameter and 2px border, with a 4px centre dot.
+        for (int i = 0; i < 96; i++) {
+            double a = i * Math.PI * 2 / 96, b = (i + 1) * Math.PI * 2 / 96;
+            float outer = 16.5f * unit, inner = 14.5f * unit;
+            float ax = x + (float) Math.cos(a) * outer, ay = y + (float) Math.sin(a) * outer;
+            float bx = x + (float) Math.cos(b) * outer, by = y + (float) Math.sin(b) * outer;
+            float cx = x + (float) Math.cos(a) * inner, cy = y + (float) Math.sin(a) * inner;
+            float dx = x + (float) Math.cos(b) * inner, dy = y + (float) Math.sin(b) * inner;
+            shapes.triangle(ax, ay, bx, by, cx, cy);
+            shapes.triangle(bx, by, dx, dy, cx, cy);
+        }
+        shapes.circle(x, y, 2 * unit, 24);
+
+    }
+
+    /** Operational notices are separate from the legacy counters. */
+    private void drawNotice(SpriteBatch batch, PlayfieldViewport viewport, String notice) {
+        if (notice == null || notice.isBlank()) return;
+        float unit = viewport.toScreenLength(1);
+        game.font().getData().setScale(unit * 0.6f);
+        game.font().setColor(1f, 0.82f, 0.62f, 1);
+        game.font().draw(batch, notice, viewport.left() + unit * 12, viewport.bottom() + unit * 57);
     }
 
     private void drawCentered(SpriteBatch batch, String text, float centerX, float baseline,
@@ -217,7 +281,4 @@ final class GameplayHudRenderer {
         return width;
     }
 
-    private void setColor(ShapeRenderer shapes, Color color, float alphaMultiplier) {
-        shapes.setColor(color.r, color.g, color.b, color.a * alphaMultiplier);
-    }
 }

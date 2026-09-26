@@ -43,3 +43,20 @@ run {
     }
     setIgnoreExitValue(true)
 }
+
+// Compile the opt-in visual harness during checks, but never launch it during build/test.
+sourceSets {
+    hudHarness {
+        java.srcDir 'src/hudHarness/java'
+        compileClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+check.dependsOn hudHarnessClasses
+tasks.register('hudVisualHarness', JavaExec) {
+    dependsOn hudHarnessClasses
+    classpath = sourceSets.hudHarness.runtimeClasspath
+    mainClass = 'dev.osujava.ui.LegacyHudVisualHarness'
+    args project.findProperty('hudOutput') ?: '/tmp/osujava-hud'
+    if (project.hasProperty('hudSkin')) args project.property('hudSkin')
+}

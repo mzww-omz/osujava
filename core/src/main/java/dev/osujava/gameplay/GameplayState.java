@@ -4,7 +4,14 @@ import java.util.List;
 
 public record GameplayState(long currentTimeMs, List<HitCircleVisual> circles, List<SliderVisual> sliders,
                             List<SpinnerVisual> spinners, ScoreState score, boolean completed,
-                            List<JudgementVisual> judgementVisuals, List<HitObjectVisual> drawOrder) {
+                            List<JudgementVisual> judgementVisuals, List<HitObjectVisual> drawOrder,
+                            LegacyHudVisual hud, LegacySongProgress songProgress) {
+    public GameplayState(long time, List<HitCircleVisual> circles, List<SliderVisual> sliders,
+                         List<SpinnerVisual> spinners, ScoreState score, boolean completed,
+                         List<JudgementVisual> judgements, List<HitObjectVisual> order) {
+        this(time, circles, sliders, spinners, score, completed, judgements, order,
+                LegacyHudVisual.immediate(score), null);
+    }
     public GameplayState(long currentTimeMs, List<HitCircleVisual> circles, List<SliderVisual> sliders,
                          List<SpinnerVisual> spinners, ScoreState score, boolean completed,
                          List<JudgementVisual> judgementVisuals) {

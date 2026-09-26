@@ -22,6 +22,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OsuGameplaySessionTest {
     @Test
+    void hudReceivesEveryInputEventBeforeRenderingAndSnapshotsStayImmutable() {
+        ManualClock clock = new ManualClock();
+        var session = new OsuGameplaySession(difficulty(List.of(object(100, 100, 1000, 1),
+                object(300, 100, 1000, 1), sliderObject(100, 192, 2000, 280, 1))),
+                clock, new dev.osujava.gameplay.JudgementWindows(50, 100, 150));
+        assertEquals(1000, session.state().songProgress().firstHitTime());
+        assertEquals(3000, session.state().songProgress().lastHitTime());
+        clock.set(1000);
+        session.click(100, 100);
+        var frozen = session.state();
+        session.click(300, 100);
+        assertEquals(2, session.state().score().combo());
+        assertEquals(1, session.state().hud().combo());
+        assertEquals(2, session.state().hud().popCombo());
+        clock.set(1210);
+        assertEquals(2, session.update().hud().combo());
+        assertEquals(1.1, session.state().hud().comboScale(), 1e-12);
+        assertEquals(300, frozen.score().score());
+        assertEquals(0, frozen.hud().score());
+        assertEquals(0, frozen.hud().combo());
+    }
+
+    @Test
     void followSnapshotDistinguishesReleaseFromMissAndSchedulesSuccessfulTailEnd() {
         ManualClock clock = new ManualClock();
         var session = new OsuGameplaySession(difficulty(List.of(sliderObject(100, 100, 1000, 280, 1))),
