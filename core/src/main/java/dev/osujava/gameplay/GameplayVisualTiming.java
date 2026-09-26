@@ -44,16 +44,39 @@ public final class GameplayVisualTiming {
         return hit ? 1 + 0.2 * p : 1 - 0.2 * p;
     }
 
-    /** Default MainCirclePiece grows to 1.5 over 400 ms after a hit. */
+    /** LegacyMainCirclePiece: 240 ms linear fade and Easing.Out (quadratic) growth. */
     public static double hitCircleScale(double currentTimeMs, double hitTimeMs) {
-        double progress = progress(currentTimeMs, hitTimeMs, 400);
-        return 1 + 0.5 * (1 - (1 - progress) * (1 - progress));
+        return 1 + 0.4 * easeOut(progress(currentTimeMs, hitTimeMs, 240));
     }
 
-    /** Default MainCirclePiece fades its explosion over 800 ms after a 40 ms flash. */
     public static double hitCircleAlpha(double currentTimeMs, double hitTimeMs) {
-        if (currentTimeMs < hitTimeMs) return 0;
-        return fadeOutAlpha(currentTimeMs, hitTimeMs + 40, 800);
+        return currentTimeMs < hitTimeMs ? 0 : fadeOutAlpha(currentTimeMs, hitTimeMs, 240);
+    }
+
+    public static double hitCircleNumberScale(double currentTimeMs, double hitTimeMs, double legacyVersion) {
+        return legacyVersion > 1 ? 1 : hitCircleScale(currentTimeMs, hitTimeMs);
+    }
+
+    public static double hitCircleNumberAlpha(double currentTimeMs, double hitTimeMs, double legacyVersion) {
+        return fadeOutAlpha(currentTimeMs, hitTimeMs, legacyVersion > 1 ? 60 : 240);
+    }
+
+    /** DrawableHitCircle miss transform. */
+    public static double hitCircleMissAlpha(double currentTimeMs, double hitTimeMs) {
+        return fadeOutAlpha(currentTimeMs, hitTimeMs, 100);
+    }
+
+    public static double easeOut(double progress) {
+        double p = clamp(progress);
+        return p * (2 - p);
+    }
+
+    /** osu-framework DefaultEasingFunction.OutElasticHalf, including endpoint correction. */
+    public static double easeOutElasticHalf(double progress) {
+        double p = clamp(progress);
+        double c = 2 * Math.PI / 0.3;
+        double offset = Math.pow(2, -10) * Math.sin((0.5 - 0.3 / 4) * c);
+        return Math.pow(2, -10 * p) * Math.sin((0.5 * p - 0.3 / 4) * c) + 1 - offset * p;
     }
 
     public static double fadeInProgress(double currentTimeMs, double objectTimeMs,

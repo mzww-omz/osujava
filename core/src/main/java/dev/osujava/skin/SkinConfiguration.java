@@ -7,7 +7,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Small, section-oriented skin.ini reader. Supports hit-circle Fonts and overlay ordering settings. */
-public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber) {
+public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber, double legacyVersion) {
+    public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay) { this(fonts, hasIni, overlay, 1); }
     public SkinConfiguration(Fonts fonts, boolean hasIni) { this(fonts, hasIni, true); }
 
     public record Fonts(String hitCirclePrefix, float hitCircleOverlap) {
@@ -31,6 +32,8 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
         String section = "";
         String prefix = Fonts.defaults().hitCirclePrefix();
         float overlap = Fonts.defaults().hitCircleOverlap();
+        // LegacySkinDecoder.CreateTemplateObject defaults to 1.0; SkinConfiguration.LATEST_VERSION = 2.7.
+        double version = 1;
         Boolean overlay = null;
         Boolean typoOverlay = null;
         String line;
@@ -50,6 +53,13 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             String key = line.substring(0, separator).trim();
             String value = line.substring(separator + 1).trim();
             if (section.equalsIgnoreCase("General")) {
+                if (key.equalsIgnoreCase("Version")) {
+                    if (value.equals("latest")) version = 2.7;
+                    else if (value.matches("[0-9]+(?:\\.[0-9]*)?")) {
+                        double parsedVersion = Double.parseDouble(value);
+                        if (Double.isFinite(parsedVersion)) version = parsedVersion;
+                    }
+                }
                 Boolean parsed = value.equals("1") ? Boolean.TRUE : value.equals("0") ? Boolean.FALSE : null;
                 if (parsed != null) {
                     if (key.equalsIgnoreCase("HitCircleOverlayAboveNumber")) overlay = parsed;
@@ -68,6 +78,6 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             }
         }
         return new SkinConfiguration(new Fonts(prefix, overlap), true,
-                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true);
+                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version);
     }
 }

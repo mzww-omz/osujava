@@ -14,6 +14,16 @@ class SkinConfigurationTest {
     @TempDir Path directory;
 
     @Test
+    void legacyVersionUsesLazerDecoderDefaultsAndLatestConstant() throws IOException {
+        assertEquals(1, parse("[General]\n").legacyVersion());
+        assertEquals(1, SkinConfiguration.defaults().legacyVersion());
+        assertEquals(2.7, parse("[General]\nVersion: latest\n").legacyVersion());
+        assertEquals(2.5, parse("[General]\nVersion: 2.5\n").legacyVersion());
+        assertEquals(1, parse("[General]\nVersion: malformed\n").legacyVersion());
+        assertEquals(1, parse("[Fonts]\nVersion: 2.5\n").legacyVersion());
+    }
+
+    @Test
     void absentIniUsesLegacyDefaultsButDisablesSkinNumbers() throws IOException {
         var configuration = SkinConfiguration.read(directory);
         assertEquals("default", configuration.fonts().hitCirclePrefix());

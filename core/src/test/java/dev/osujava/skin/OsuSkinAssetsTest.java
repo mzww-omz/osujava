@@ -21,6 +21,28 @@ class OsuSkinAssetsTest {
     @TempDir Path directory;
 
     @Test
+    void reverseArrowFollowAndTickReuseDensityResolverAndDisposeOnce() throws IOException {
+        for (String name : List.of("reversearrow", "sliderfollowcircle", "sliderscorepoint")) {
+            Files.createFile(directory.resolve(name + ".png"));
+            Files.createFile(directory.resolve(name + "@2x.png"));
+        }
+        Files.writeString(directory.resolve("skin.ini"), "[General]\nVersion: 2.5\n");
+        List<TestTexture> loaded = new ArrayList<>();
+        var assets = new OsuSkinAssets(directory, file -> {
+            var texture = new TestTexture();
+            loaded.add(texture);
+            return texture;
+        });
+        for (Image image : List.of(Image.REVERSE_ARROW, Image.SLIDER_FOLLOW_CIRCLE, Image.SLIDER_TICK)) {
+            assertEquals(2, assets.get(image).density());
+            assertSame(assets.get(image), assets.get(image));
+        }
+        assertEquals(2.5, assets.legacyVersion());
+        assets.dispose();
+        assertTrue(loaded.stream().allMatch(texture -> texture.disposals == 1));
+    }
+
+    @Test
     void staticBallLoadsOnceAndDisposesOnce() throws IOException {
         Files.createFile(directory.resolve("sliderb.png"));
         var texture = new TestTexture();

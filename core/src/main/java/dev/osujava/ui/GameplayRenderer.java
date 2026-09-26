@@ -5,6 +5,8 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import dev.osujava.gameplay.SliderNestedAnimation;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import dev.osujava.OsuJavaGame;
 import dev.osujava.beatmap.BeatmapDifficulty;
@@ -19,7 +21,6 @@ import dev.osujava.gameplay.GameplayVisualTiming;
 import dev.osujava.gameplay.HitCircleVisual;
 import dev.osujava.ruleset.osu.render.OsuRenderPlan;
 import dev.osujava.gameplay.Judgement;
-import dev.osujava.gameplay.JudgementVisual;
 import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.SliderVisual;
 import dev.osujava.gameplay.SpinnerVisual;
@@ -37,8 +38,6 @@ import java.util.Map;
 public final class GameplayRenderer {
     private static final int CIRCLE_SEGMENTS = 36;
     private static final int BODY_CAP_SEGMENTS = 14;
-    private static final double JUDGEMENT_LIFETIME_MS = 680;
-    private static final double CIRCLE_HIT_FADE_MS = 100;
     private static final double SLIDER_POST_FADE_MS = 150;
     private static final double SPINNER_POST_FADE_MS = 320;
 
@@ -100,7 +99,6 @@ public final class GameplayRenderer {
                     shapeType(shapes, ShapeRenderer.ShapeType.Filled);
                 }
                 case JUDGEMENT_BELOW -> {
-                    drawJudgementBodies(shapes, state, viewport);
                     sprites(shapes, () -> {
                         hud.drawJudgementText(batch, state, viewport);
                         hud.drawSpinnerText(batch, state, viewport);
@@ -110,13 +108,14 @@ public final class GameplayRenderer {
                 case NUMBER -> {
                     HitCircleVisual circle = (HitCircleVisual) command.object();
                     sprites(shapes, () -> hud.drawComboNumber(batch, circle.comboNumber(), circle.x(), circle.y(),
-                            circle.radius(), circleAlpha(circle, state), viewport));
+                            circle.radius() * numberScale(circle.judgement(), circle.judgementTimeMs(), state.currentTimeMs()),
+                            numberAlpha(circle.judgement(), circle.judgementTimeMs(), state.currentTimeMs(), circleInitialAlpha(circle, state)), viewport));
                 }
                 case CIRCLE_OVERLAY -> {
                     HitCircleVisual circle = (HitCircleVisual) command.object();
                     shapeType(shapes, ShapeRenderer.ShapeType.Line);
                     drawSkinnedCircleOverlay(shapes, Image.HIT_CIRCLE_OVERLAY, circle.x(), circle.y(),
-                            circle.radius(), circleAlpha(circle, state), viewport);
+                            circle.radius() * circleScale(circle, state), circleAlpha(circle, state), viewport);
                     shapeType(shapes, ShapeRenderer.ShapeType.Filled);
                 }
                 case SLIDER_BODY -> drawSliderBody(shapes, slider, state, viewport);
@@ -131,9 +130,10 @@ public final class GameplayRenderer {
                 case HEAD_BASE -> drawSliderHead(shapes, slider, state, viewport);
                 case REVERSE_ARROWS -> drawSliderArrows(shapes, slider, state, viewport);
                 case HEAD_NUMBER -> {
-                    if (!slider.headJudged()) sprites(shapes, () -> hud.drawComboNumber(batch,
+                    sprites(shapes, () -> hud.drawComboNumber(batch,
                             slider.comboNumber(), slider.headPosition().x(), slider.headPosition().y(),
-                            slider.radius(), sliderAlpha(slider, state), viewport));
+                            slider.radius() * numberScale(headJudgement(slider), slider.headJudgementTimeMs(), state.currentTimeMs()),
+                            numberAlpha(headJudgement(slider), slider.headJudgementTimeMs(), state.currentTimeMs(), headInitialAlpha(slider, state)), viewport));
                 }
                 case HEAD_OVERLAY -> {
                     shapeType(shapes, ShapeRenderer.ShapeType.Line);
@@ -141,17 +141,13 @@ public final class GameplayRenderer {
                     shapeType(shapes, ShapeRenderer.ShapeType.Filled);
                 }
                 case BALL_AND_FOLLOW -> drawSliderBallAndFollow(shapes, slider, state, viewport);
-                case JUDGEMENT_ABOVE -> {
-                    shapeType(shapes, ShapeRenderer.ShapeType.Line);
-                    drawJudgementRings(shapes, state, viewport);
-                    shapeType(shapes, ShapeRenderer.ShapeType.Filled);
-                }
+                case JUDGEMENT_ABOVE -> { /* Reserved judgement layer; no custom expanding ring. */ }
                 case APPROACH -> {
                     shapeType(shapes, ShapeRenderer.ShapeType.Line);
-                    if (command.object() instanceof HitCircleVisual circle)
+                    if (command.object() instanceof HitCircleVisual circle && circle.judgement() == null)
                         drawApproach(shapes, circle.x(), circle.y(), circle.radius(), circle.timeMs(),
                                 circle.preemptMs(), state.currentTimeMs(), visuals.comboColor(circle.comboColorIndex()), viewport);
-                    else if (!slider.headJudged() && state.currentTimeMs() < slider.startTimeMs())
+                    else if (slider != null && !slider.headJudged() && state.currentTimeMs() < slider.startTimeMs())
                         drawApproach(shapes, slider.headPosition().x(), slider.headPosition().y(), slider.radius(),
                                 slider.startTimeMs(), slider.preemptMs(), state.currentTimeMs(),
                                 visuals.comboColor(slider.comboColorIndex()), viewport);
@@ -196,9 +192,55 @@ public final class GameplayRenderer {
         shapes.begin(type);
     }
 
+    private float circleInitialAlpha(HitCircleVisual circle, GameplayState state) {
+        boolean hit = circle.judgement() != null && circle.judgement() != Judgement.MISS;
+        return (float) GameplayVisualTiming.fadeInProgress(hit ? circle.judgementTimeMs() : state.currentTimeMs(),
+                circle.timeMs(), circle.preemptMs(), ApproachTimeCalculator.fadeInMs(circle.preemptMs()));
+    }
+
     private float circleAlpha(HitCircleVisual circle, GameplayState state) {
-        return (float) GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(),
-                circle.preemptMs(), ApproachTimeCalculator.fadeInMs(circle.preemptMs()));
+        return circleInitialAlpha(circle, state)
+                * (float) judgementAlpha(circle.judgement(), circle.judgementTimeMs(), state.currentTimeMs());
+    }
+
+    private double circleScale(HitCircleVisual circle, GameplayState state) {
+        return judgementScale(circle.judgement(), circle.judgementTimeMs(), state.currentTimeMs());
+    }
+
+    private Judgement headJudgement(SliderVisual slider) {
+        return !slider.headJudged() ? null : slider.headHit() ? Judgement.HIT300 : Judgement.MISS;
+    }
+
+    private double judgementScale(Judgement judgement, double time, long now) {
+        return judgement == null || judgement == Judgement.MISS ? 1 : GameplayVisualTiming.hitCircleScale(now, time);
+    }
+
+    private double judgementAlpha(Judgement judgement, double time, long now) {
+        return judgement == null ? 1 : judgement == Judgement.MISS
+                ? GameplayVisualTiming.hitCircleMissAlpha(now, time) : GameplayVisualTiming.hitCircleAlpha(now, time);
+    }
+
+    private double numberScale(Judgement judgement, double time, long now) {
+        return judgement == null || judgement == Judgement.MISS ? 1
+                : GameplayVisualTiming.hitCircleNumberScale(now, time, skinAssets == null ? 1 : skinAssets.legacyVersion());
+    }
+
+    private float numberAlpha(Judgement judgement, double time, long now, float initialAlpha) {
+        if (judgement == null) return initialAlpha;
+        return initialAlpha * (float) (judgement == Judgement.MISS ? GameplayVisualTiming.hitCircleMissAlpha(now, time)
+                : GameplayVisualTiming.hitCircleNumberAlpha(now, time, skinAssets == null ? 1 : skinAssets.legacyVersion()));
+    }
+
+    private float headInitialAlpha(SliderVisual slider, GameplayState state) {
+        return (float) (GameplayVisualTiming.fadeInProgress(slider.headJudged() && slider.headHit()
+                        ? slider.headJudgementTimeMs() : state.currentTimeMs(), slider.startTimeMs(),
+                slider.preemptMs(), ApproachTimeCalculator.fadeInMs(slider.preemptMs()))
+                * GameplayVisualTiming.fadeOutAlpha(state.currentTimeMs(), slider.endTimeMs(), 240));
+    }
+
+    private float headAlpha(SliderVisual slider, GameplayState state) {
+        return headInitialAlpha(slider, state)
+                * (float) judgementAlpha(headJudgement(slider), slider.headJudgementTimeMs(), state.currentTimeMs());
     }
 
     private float sliderAlpha(SliderVisual slider, GameplayState state) {
@@ -219,10 +261,9 @@ public final class GameplayRenderer {
 
     private void drawHitCircle(ShapeRenderer shapes, HitCircleVisual circle,
                                GameplayState state, PlayfieldViewport viewport) {
-        float alpha = (float) GameplayVisualTiming.fadeInProgress(state.currentTimeMs(), circle.timeMs(),
-                circle.preemptMs(), ApproachTimeCalculator.fadeInMs(circle.preemptMs()));
-        drawSkinnedCircleBody(shapes, Image.HIT_CIRCLE, circle.x(), circle.y(), circle.radius(),
-                visuals.comboColor(circle.comboColorIndex()), alpha, viewport);
+        drawSkinnedCircleBody(shapes, Image.HIT_CIRCLE, circle.x(), circle.y(),
+                circle.radius() * circleScale(circle, state), visuals.comboColor(circle.comboColorIndex()),
+                circleAlpha(circle, state), viewport);
     }
 
     private void drawSkinnedCircleBody(ShapeRenderer shapes, Image image, double x, double y, double radius,
@@ -242,6 +283,11 @@ public final class GameplayRenderer {
     /** Draw exactly one texture or fallback at this position in the object-local command sequence. */
     private boolean drawSkinImage(ShapeRenderer shapes, Image image, double x, double y, double radius,
                                   Color tint, float alpha, PlayfieldViewport viewport) {
+        return drawSkinImage(shapes, image, x, y, radius, tint, alpha, 0, viewport);
+    }
+
+    private boolean drawSkinImage(ShapeRenderer shapes, Image image, double x, double y, double radius,
+                                  Color tint, float alpha, double rotationDegrees, PlayfieldViewport viewport) {
         SkinTexture asset = skinAssets == null ? null : skinAssets.get(image);
         // A missing overlay for a dedicated slider prefix is intentionally an empty layer.
         if (asset == null) return skinAssets != null && skinAssets.hasDedicatedSliderCircle(image);
@@ -250,13 +296,15 @@ public final class GameplayRenderer {
         // Legacy circle sprites have a 128-logical-pixel reference diameter. Density is applied
         // before CS/viewport scaling; padded or non-square images retain their proportions.
         float scale = viewport.toScreenLength(radius * 2) / 128f;
+        if (image == Image.SLIDER_FOLLOW_CIRCLE) scale *= 0.5f;
         float width = asset.logicalWidth() * scale;
         float height = asset.logicalHeight() * scale;
         sprites(shapes, () -> {
             SpriteBatch batch = game.batch();
             batch.setColor(tint.r, tint.g, tint.b, tint.a * alpha);
             batch.draw(asset.texture(), viewport.toScreenX(x) - width / 2,
-                    viewport.toScreenY(y) - height / 2, width, height);
+                    viewport.toScreenY(y) - height / 2, width / 2, height / 2, width, height,
+                    1, 1, (float) -rotationDegrees, 0, 0, asset.texture().getWidth(), asset.texture().getHeight(), false, false);
         });
         return true;
     }
@@ -337,41 +385,33 @@ public final class GameplayRenderer {
     private void drawSliderTicks(ShapeRenderer shapes, SliderVisual slider,
                                    GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
-        float bodyAlpha = sliderAlpha(slider, state);
-        float radius = viewport.toScreenLength(slider.radius());
         for (SliderVisual.TickMarker tick : slider.ticks()) {
-            double tickFade = tick.visualTiming().alphaAt(now);
-            if (tick.judged()) tickFade *= GameplayVisualTiming.fadeOutAlpha(now, tick.timeMs(), 120);
-            float tickRadius = radius * (tick.judged() && tick.hit() ? 0.22f : 0.17f);
-            setColor(shapes, tick.judged() && !tick.hit() ? visuals.component(GameplaySkinComponent.SPINNER_MISS) : visuals.component(GameplaySkinComponent.HITCIRCLE_BORDER),
-                    (float) (bodyAlpha * tickFade));
+            double scale = SliderNestedAnimation.tickScale(now, tick.visualTiming(), tick.judged(), tick.hit(), tick.judgementTimeMs());
+            float alpha = (float) (SliderNestedAnimation.tickAlpha(now, tick.visualTiming(), tick.judged(), tick.judgementTimeMs())
+                    * GameplayVisualTiming.fadeOutAlpha(now, slider.endTimeMs(), 240));
+            if (drawSkinImage(shapes, Image.SLIDER_TICK, tick.position().x(), tick.position().y(),
+                    slider.radius() * scale, Color.WHITE, alpha, viewport)) continue;
+            setColor(shapes, visuals.component(GameplaySkinComponent.HITCIRCLE_BORDER), alpha);
             shapes.circle(viewport.toScreenX(tick.position().x()), viewport.toScreenY(tick.position().y()),
-                    tickRadius, 16);
+                    viewport.toScreenLength(slider.radius() * 16 / 128 * scale), 16);
         }
-
     }
 
     private void drawSliderHead(ShapeRenderer shapes, SliderVisual slider,
                                    GameplayState state, PlayfieldViewport viewport) {
-        long now = state.currentTimeMs();
-        float bodyAlpha = sliderAlpha(slider, state);
-        Color comboColor = visuals.comboColor(slider.comboColorIndex());
-        double headFade = slider.headJudged() && slider.headJudgementTimeMs() != Long.MIN_VALUE
-                ? GameplayVisualTiming.fadeOutAlpha(now, slider.headJudgementTimeMs(), CIRCLE_HIT_FADE_MS) : 1;
-        float headAlpha = (float) (bodyAlpha * headFade);
-        Color headColor = slider.headJudged() && !slider.headHit() ? visuals.component(GameplaySkinComponent.HITCIRCLE_MISS) : comboColor;
         drawSkinnedCircleBody(shapes, Image.SLIDER_START_CIRCLE, slider.headPosition().x(), slider.headPosition().y(),
-                slider.radius(), headColor, headAlpha, viewport);
+                slider.radius() * judgementScale(headJudgement(slider), slider.headJudgementTimeMs(), state.currentTimeMs()),
+                visuals.comboColor(slider.comboColorIndex()), headAlpha(slider, state), viewport);
     }
 
     private void drawSliderArrows(ShapeRenderer shapes, SliderVisual slider,
                                    GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
-        float bodyAlpha = sliderAlpha(slider, state);
+        float parentAlpha = (float) GameplayVisualTiming.fadeOutAlpha(now, slider.endTimeMs(), 240);
         float radius = viewport.toScreenLength(slider.radius());
         for (SliderVisual.RepeatMarker repeat : slider.repeats()) {
             double markerFadeOut = repeatFadeOut(slider, repeat, now);
-            float alpha = (float) (bodyAlpha * repeat.reverseArrowTiming().alphaAt(now) * markerFadeOut);
+            float alpha = (float) (parentAlpha * repeat.reverseArrowTiming().alphaAt(now) * markerFadeOut);
             drawReverseArrow(shapes, slider, repeat, viewport.toScreenX(repeat.position().x()),
                     viewport.toScreenY(repeat.position().y()), radius, alpha, now, viewport);
         }
@@ -379,29 +419,27 @@ public final class GameplayRenderer {
 
     private double repeatFadeOut(SliderVisual slider, SliderVisual.RepeatMarker repeat, long now) {
         double spanDuration = Math.max(1, (slider.endTimeMs() - slider.startTimeMs()) / (slider.repeats().size() + 1));
-        return GameplayVisualTiming.fadeOutAlpha(now, repeat.timeMs(), Math.min(300, spanDuration));
+        return repeat.judged() ? SliderNestedAnimation.repeatAlpha(now, repeat.judgementTimeMs(), spanDuration, repeat.hit())
+                : now >= repeat.timeMs() ? 0 : 1;
     }
 
     private void drawReverseArrow(ShapeRenderer shapes, SliderVisual slider, SliderVisual.RepeatMarker repeat,
                                   float centerX, float centerY, float circleRadius, float alpha,
                                   long now, PlayfieldViewport viewport) {
         if (alpha <= 0.01f || slider.pathPoints().size() < 2) return;
-        SliderRenderData geometry = renderData(slider, now);
-        double[] points = geometry.points;
-        boolean atEnd = repeat.spanIndex() % 2 == 0;
-        int start = atEnd ? points.length - 4 : 0;
-        int end = atEnd ? points.length - 2 : 2;
-        double dx = points[end] - points[start];
-        double dy = points[end + 1] - points[start + 1];
-        if (atEnd) {
-            dx = -dx;
-            dy = -dy;
-        }
-        double angle = Math.atan2(-dy, dx);
-        float size = circleRadius * 0.24f;
-        float offset = circleRadius * 0.23f;
-        float x = centerX - (float) Math.cos(angle) * offset;
-        float y = centerY - (float) Math.sin(angle) * offset;
+        boolean oldSkin = skinAssets != null && skinAssets.legacyVersion() <= 1;
+        double spanDuration = (slider.endTimeMs() - slider.startTimeMs()) / (slider.repeats().size() + 1);
+        double animationStart = repeat.visualTiming().lifetimeStartTimeMs();
+        double scale = SliderNestedAnimation.arrowScale(now, animationStart, repeat.judgementTimeMs(),
+                spanDuration, repeat.judged() && repeat.hit(), oldSkin);
+        double degrees = repeat.rotationDegrees() + SliderNestedAnimation.arrowWobble(
+                repeat.judged() && repeat.hit() ? repeat.judgementTimeMs() : now, animationStart, oldSkin);
+        if (drawSkinImage(shapes, Image.REVERSE_ARROW, repeat.position().x(), repeat.position().y(),
+                slider.radius() * scale, Color.WHITE, alpha, degrees, viewport)) return;
+        double angle = Math.toRadians(-degrees);
+        float size = circleRadius * 0.24f * (float) scale;
+        float x = centerX;
+        float y = centerY;
         setColor(shapes, visuals.component(GameplaySkinComponent.HITCIRCLE_BORDER), alpha);
         drawArrowTriangle(shapes, x, y, size * 1.18f, angle);
         setColor(shapes, visuals.component(GameplaySkinComponent.SLIDER_INNER), alpha);
@@ -421,27 +459,28 @@ public final class GameplayRenderer {
     private void drawSliderBallAndFollow(ShapeRenderer shapes, SliderVisual slider,
                                          GameplayState state, PlayfieldViewport viewport) {
         long now = state.currentTimeMs();
-        SliderRenderData data = renderData(slider, now);
-        data.follow.update(slider.tracking(), now, slider.endTimeMs());
-        if (now < slider.startTimeMs() || now > slider.endTimeMs() + SLIDER_POST_FADE_MS) return;
-        float endFade = (float) GameplayVisualTiming.fadeOutAlpha(now, slider.endTimeMs(), SLIDER_POST_FADE_MS);
+        if (now < slider.startTimeMs() || now > slider.endTimeMs() + 240) return;
+        var follow = FollowCircleAnimation.at(slider.followEvents(), now, slider.endTimeMs());
         float x = viewport.toScreenX(slider.ballPosition().x());
         float y = viewport.toScreenY(slider.ballPosition().y());
         float radius = viewport.toScreenLength(slider.radius());
-
-        float followAlpha = (float) data.follow.alphaAt(now) * endFade;
-        float followRadius = radius * (float) data.follow.scaleAt(now);
-        if (followAlpha > 0.01f) {
-            setColor(shapes, visuals.component(GameplaySkinComponent.FOLLOWCIRCLE_FILL), followAlpha);
-            shapes.circle(x, y, followRadius, CIRCLE_SEGMENTS);
+        float followAlpha = (float) (follow.alpha() * GameplayVisualTiming.fadeOutAlpha(now, slider.endTimeMs(), 240));
+        float followRadius = radius * (float) follow.scale();
+        if (followAlpha > 0.01f && !drawSkinImage(shapes, Image.SLIDER_FOLLOW_CIRCLE,
+                slider.ballPosition().x(), slider.ballPosition().y(), slider.radius() * follow.scale(),
+                Color.WHITE, followAlpha, viewport)) {
+            shapeType(shapes, ShapeRenderer.ShapeType.Line);
             setColor(shapes, visuals.component(GameplaySkinComponent.FOLLOWCIRCLE_BORDER), followAlpha);
-            shapes.circle(x, y, followRadius * 0.98f, CIRCLE_SEGMENTS);
+            shapes.circle(x, y, followRadius, CIRCLE_SEGMENTS);
+            shapeType(shapes, ShapeRenderer.ShapeType.Filled);
         }
 
-        if (drawSkinSliderBall(shapes, slider, now, endFade, viewport)) return;
+        // LegacySliderBall instantly disappears at the actual slider end.
+        if (now >= slider.endTimeMs()) return;
+        if (drawSkinSliderBall(shapes, slider, now, 1, viewport)) return;
         float ballRadius = radius * 0.54f;
-        drawCircleBody(shapes, x, y, ballRadius, visuals.comboColor(slider.comboColorIndex()), endFade);
-        setColor(shapes, visuals.component(GameplaySkinComponent.SLIDERBALL), endFade * (slider.tracking() ? 0.7f : 0.38f));
+        drawCircleBody(shapes, x, y, ballRadius, visuals.comboColor(slider.comboColorIndex()), 1);
+        setColor(shapes, visuals.component(GameplaySkinComponent.SLIDERBALL), slider.tracking() ? 0.7f : 0.38f);
         shapes.circle(x, y, ballRadius * 0.48f, CIRCLE_SEGMENTS);
     }
 
@@ -459,11 +498,15 @@ public final class GameplayRenderer {
                 asset.density(), slider.radius(), viewport.scale());
         sprites(shapes, () -> {
             SpriteBatch batch = game.batch();
-            // LegacySliderBall defaults to white; tint/rotation settings remain deferred.
+            // LegacySliderBall defaults to white. Rotation is gameplay-supplied visual data.
             batch.setColor(1, 1, 1, alpha);
-            batch.draw(texture, viewport.toScreenX(slider.ballPosition().x()) - size.width() / 2,
-                    viewport.toScreenY(slider.ballPosition().y()) - size.height() / 2, size.width(), size.height(),
-                    size.u(), size.v(), size.u2(), size.v2());
+            TextureRegion region = new TextureRegion(texture);
+            // TextureRegion stores top/bottom V in the reverse order of the raw SpriteBatch UV overload.
+            region.setRegion(size.u(), size.v2(), size.u2(), size.v());
+            batch.draw(region, viewport.toScreenX(slider.ballPosition().x()) - size.width() / 2,
+                    viewport.toScreenY(slider.ballPosition().y()) - size.height() / 2,
+                    size.width() / 2, size.height() / 2, size.width(), size.height(), 1, 1,
+                    (float) -slider.ballRotationDegrees());
         });
         return true;
     }
@@ -509,10 +552,9 @@ public final class GameplayRenderer {
 
     private void drawSliderHeadOverlay(ShapeRenderer shapes, SliderVisual slider,
                                        GameplayState state, PlayfieldViewport viewport) {
-        double headFade = slider.headJudged() && slider.headJudgementTimeMs() != Long.MIN_VALUE
-                ? GameplayVisualTiming.fadeOutAlpha(state.currentTimeMs(), slider.headJudgementTimeMs(), CIRCLE_HIT_FADE_MS) : 1;
         drawSkinnedCircleOverlay(shapes, Image.SLIDER_START_CIRCLE_OVERLAY, slider.headPosition().x(),
-                slider.headPosition().y(), slider.radius(), (float) (sliderAlpha(slider, state) * headFade), viewport);
+                slider.headPosition().y(), slider.radius() * judgementScale(headJudgement(slider),
+                        slider.headJudgementTimeMs(), state.currentTimeMs()), headAlpha(slider, state), viewport);
     }
 
     private void drawCircleOverlay(ShapeRenderer shapes, double x, double y, double radius,
@@ -586,44 +628,6 @@ public final class GameplayRenderer {
         shapes.line(innerX, innerY, indicatorX, indicatorY);
     }
 
-    private void drawJudgementBodies(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
-        long now = state.currentTimeMs();
-        for (JudgementVisual judgement : state.judgementVisuals()) {
-            if (judgement.kind() != JudgementVisual.Kind.CIRCLE
-                    && judgement.kind() != JudgementVisual.Kind.SLIDER_HEAD) continue;
-            boolean miss = judgement.judgement() == Judgement.MISS;
-            double alpha = miss ? GameplayVisualTiming.fadeOutAlpha(now, judgement.timeMs(), 100)
-                    : GameplayVisualTiming.hitCircleAlpha(now, judgement.timeMs());
-            if (alpha <= 0) continue;
-            double scale = miss ? 1 : GameplayVisualTiming.hitCircleScale(now, judgement.timeMs());
-            float radius = viewport.toScreenLength(judgement.radius() * scale);
-            Color fill = miss ? visuals.component(GameplaySkinComponent.HITCIRCLE_MISS) : visuals.comboColor(judgement.comboColorIndex());
-            setColor(shapes, fill, (float) alpha * (miss ? 0.4f : 0.32f));
-            shapes.circle(viewport.toScreenX(judgement.x()), viewport.toScreenY(judgement.y()), radius, CIRCLE_SEGMENTS);
-            if (!miss && now - judgement.timeMs() < 40) {
-                double flash = GameplayVisualTiming.progress(now, judgement.timeMs(), 40);
-                setColor(shapes, visuals.component(GameplaySkinComponent.HITCIRCLE_BORDER), (float) (0.8 * flash));
-                shapes.circle(viewport.toScreenX(judgement.x()), viewport.toScreenY(judgement.y()),
-                        viewport.toScreenLength(judgement.radius()), CIRCLE_SEGMENTS);
-            }
-        }
-    }
-
-    private void drawJudgementRings(ShapeRenderer shapes, GameplayState state, PlayfieldViewport viewport) {
-        long now = state.currentTimeMs();
-        for (JudgementVisual judgement : state.judgementVisuals()) {
-            double ageMs = now - judgement.timeMs();
-            if (ageMs < 0 || ageMs > JUDGEMENT_LIFETIME_MS) continue;
-            double progress = GameplayVisualTiming.progress(now, judgement.timeMs(), JUDGEMENT_LIFETIME_MS);
-            double eased = GameplayVisualTiming.easeOutQuint(progress);
-            double alpha = GameplayVisualTiming.fadeOutAlpha(now, judgement.timeMs(), JUDGEMENT_LIFETIME_MS);
-            float ringRadius = viewport.toScreenLength(judgement.radius() * (0.72 + 0.72 * eased));
-            setColor(shapes, visuals.judgementColor(judgement.judgement()), (float) alpha);
-            shapes.circle(viewport.toScreenX(judgement.x()), viewport.toScreenY(judgement.y()), ringRadius,
-                    CIRCLE_SEGMENTS);
-        }
-    }
-
     private void drawCircleBody(ShapeRenderer shapes, float x, float y, float radius,
                                 Color fill, float alpha) {
         if (alpha <= 0.01f) return;
@@ -667,7 +671,6 @@ public final class GameplayRenderer {
         private final double[] points;
         private final double[] cumulativeDistance;
         private final double totalDistance;
-        private final FollowCircleAnimation follow = new FollowCircleAnimation();
         private long lastUsedTimeMs;
 
         private SliderRenderData(double[] points) {

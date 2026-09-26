@@ -25,7 +25,9 @@ public record SliderVisual(
         int comboColorIndex,
         List<TickMarker> ticks,
         double velocity,
-        int beatmapIndex) implements HitObjectVisual {
+        int beatmapIndex,
+        double ballRotationDegrees,
+        List<FollowCircleAnimation.Event> followEvents) implements HitObjectVisual {
     public SliderVisual(List<BeatmapPoint> pathPoints,
         BeatmapPoint headPosition,
         BeatmapPoint tailPosition,
@@ -47,7 +49,7 @@ public record SliderVisual(
         double velocity) {
         this(pathPoints, headPosition, tailPosition, ballPosition, repeats, radius, approachRadius,
                 progress, startTimeMs, endTimeMs, headJudged, headHit, tracking, preemptMs, comboNumber,
-                headJudgementTimeMs, comboColorIndex, ticks, velocity, -1);
+                headJudgementTimeMs, comboColorIndex, ticks, velocity, -1, 0, List.of());
     }
 
     public SliderVisual(List<BeatmapPoint> pathPoints, BeatmapPoint headPosition, BeatmapPoint tailPosition,
@@ -63,6 +65,7 @@ public record SliderVisual(
         pathPoints = List.copyOf(pathPoints);
         repeats = List.copyOf(repeats);
         ticks = List.copyOf(ticks);
+        followEvents = List.copyOf(followEvents);
     }
 
     public SliderNestedVisualTiming tailVisualTiming() {
@@ -74,11 +77,12 @@ public record SliderVisual(
 
     public record RepeatMarker(BeatmapPoint position, int spanIndex, boolean judged, double timeMs,
                                SliderNestedVisualTiming visualTiming,
-                               SliderNestedVisualTiming reverseArrowTiming) {
+                               SliderNestedVisualTiming reverseArrowTiming, boolean hit, double judgementTimeMs,
+                               double rotationDegrees) {
         public RepeatMarker(BeatmapPoint position, int spanIndex, boolean judged, double timeMs) {
             this(position, spanIndex, judged, timeMs,
                     new SliderNestedVisualTiming(timeMs, timeMs, 150),
-                    new SliderNestedVisualTiming(timeMs, timeMs, 150));
+                    new SliderNestedVisualTiming(timeMs, timeMs, 150), false, timeMs, 0);
         }
 
         public RepeatMarker(BeatmapPoint position, int spanIndex, boolean judged) {
@@ -87,10 +91,10 @@ public record SliderVisual(
     }
 
     public record TickMarker(BeatmapPoint position, double timeMs, boolean judged, boolean hit,
-                             SliderNestedVisualTiming visualTiming) {
+                             SliderNestedVisualTiming visualTiming, double judgementTimeMs) {
         public TickMarker(BeatmapPoint position, double timeMs, boolean judged, boolean hit) {
             this(position, timeMs, judged, hit,
-                    new SliderNestedVisualTiming(timeMs, timeMs, 150));
+                    new SliderNestedVisualTiming(timeMs, timeMs, 150), timeMs);
         }
     }
 }

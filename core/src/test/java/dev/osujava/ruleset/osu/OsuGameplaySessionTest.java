@@ -22,6 +22,54 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OsuGameplaySessionTest {
     @Test
+    void followSnapshotDistinguishesReleaseFromMissAndSchedulesSuccessfulTailEnd() {
+        ManualClock clock = new ManualClock();
+        var session = new OsuGameplaySession(difficulty(List.of(sliderObject(100, 100, 1000, 280, 1))),
+                clock, new dev.osujava.gameplay.JudgementWindows(50, 100, 150));
+        clock.set(1000);
+        session.press(GameInputAction.LEFT, 100, 100);
+        var pressed = session.state().sliders().getFirst();
+        assertEquals(dev.osujava.gameplay.FollowCircleAnimation.Kind.PRESS, pressed.followEvents().getFirst().kind());
+        clock.set(1200);
+        session.release(GameInputAction.LEFT);
+        var released = session.update().sliders().getFirst();
+        assertEquals(dev.osujava.gameplay.FollowCircleAnimation.Kind.RELEASE, released.followEvents().getLast().kind());
+        assertEquals(2, dev.osujava.gameplay.FollowCircleAnimation.at(released.followEvents(), 1300, released.endTimeMs()).scale());
+        clock.set(1500);
+        var missed = session.update().sliders().getFirst();
+        assertEquals(dev.osujava.gameplay.FollowCircleAnimation.Kind.BREAK, missed.followEvents().getLast().kind());
+        assertTrue(pressed.followEvents().size() < missed.followEvents().size(), "Older snapshots stay immutable");
+        clock.set(1700);
+        session.press(GameInputAction.LEFT, 296, 100);
+        clock.set(1964);
+        session.pointerMoved(380, 100);
+        var tail = session.update().sliders().getFirst();
+        assertEquals(dev.osujava.gameplay.FollowCircleAnimation.Kind.END, tail.followEvents().getLast().kind());
+        assertEquals(2000, tail.followEvents().getLast().timeMs());
+    }
+
+    @Test
+    void circleHitAndMissKeepTheirOwnPiecesUntilAnimationEnds() {
+        ManualClock clock = new ManualClock();
+        var session = new OsuGameplaySession(difficulty(List.of(object(256, 192, 1000, 1))),
+                clock, new dev.osujava.gameplay.JudgementWindows(50, 100, 150));
+        clock.set(1000);
+        session.click(256, 192);
+        assertEquals(Judgement.HIT300, session.state().circles().getFirst().judgement());
+        clock.set(1120);
+        assertEquals(1000, session.update().circles().getFirst().judgementTimeMs());
+        clock.set(1241);
+        assertTrue(session.update().circles().isEmpty());
+        session = new OsuGameplaySession(difficulty(List.of(object(256, 192, 2000, 1))),
+                clock, new dev.osujava.gameplay.JudgementWindows(50, 100, 150));
+        clock.set(2200);
+        assertEquals(Judgement.MISS, session.update().circles().getFirst().judgement());
+        assertEquals(2150, session.state().circles().getFirst().judgementTimeMs());
+        clock.set(2251);
+        assertTrue(session.update().circles().isEmpty());
+    }
+
+    @Test
     void sliderSnapshotExposesTimingVelocityWithoutChangingMovementOrRepeat() {
         for (double inheritedBeatLength : new double[]{-1000, -100, -50}) {
             HitObject object = sliderObject(100, 192, 1000, 280, 2);
@@ -426,7 +474,7 @@ class OsuGameplaySessionTest {
         session.pointerMoved(200, 100);
         session.update();
 
-        clock.set(1508);
+        clock.set(1598);
         GameplayState betweenSliders = session.update();
         assertTrue(betweenSliders.sliders().stream().noneMatch(slider -> slider.startTimeMs() == 1000));
         assertTrue(betweenSliders.sliders().stream().anyMatch(slider -> slider.startTimeMs() == 1600));
@@ -440,7 +488,7 @@ class OsuGameplaySessionTest {
         assertTrue(secondFinished.completed());
         assertEquals(1, secondFinished.score().accuracy(), 1e-6);
 
-        clock.set(2108);
+        clock.set(2198);
         GameplayState cleanedUp = session.update();
         assertTrue(cleanedUp.sliders().isEmpty());
         assertTrue(cleanedUp.completed());

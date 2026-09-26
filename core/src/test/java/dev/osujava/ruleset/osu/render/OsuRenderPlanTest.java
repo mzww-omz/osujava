@@ -10,6 +10,22 @@ import static dev.osujava.ruleset.osu.render.OsuRenderPlan.Piece.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class OsuRenderPlanTest {
+    @Test void animatingHitCircleStaysInObjectLocalOrderWithNeighbouringSlider() {
+        long[] now = {1000};
+        var session = new OsuGameplaySession(map(List.of(circle(1000, 256), slider(1100, 256, 2))),
+                () -> now[0], new JudgementWindows(50, 100, 150));
+        session.click(256, 192);
+        for (long t : new long[]{1000, 1120, 1240}) {
+            now[0] = t;
+            var state = session.update();
+            assertContiguous(objects(state, true));
+            assertContiguous(objects(state, false));
+            assertEquals(Judgement.HIT300, state.circles().getFirst().judgement());
+            assertEquals(List.of(CIRCLE_BASE, NUMBER, CIRCLE_OVERLAY), objects(state, true).stream()
+                    .filter(c -> c.object() instanceof HitCircleVisual).map(OsuRenderPlan.Command::piece).toList());
+        }
+    }
+
     @Test void samePositionCirclesKeepBaseNumberOverlayContiguous() {
         var state = snapshot(List.of(circle(1000, 256), circle(1100, 256)), 900);
         var commands = objects(state, true);

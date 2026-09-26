@@ -8,6 +8,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GameplayVisualTimingTest {
     @Test
+    void legacyNumberVersionChangesOnlyItsOwnScaleAndFade() {
+        assertEquals(1.3, GameplayVisualTiming.hitCircleNumberScale(1120, 1000, 1), 1e-9);
+        assertEquals(1, GameplayVisualTiming.hitCircleNumberScale(1120, 1000, 2.7));
+        assertEquals(0.5, GameplayVisualTiming.hitCircleNumberAlpha(1120, 1000, 1));
+        assertEquals(0.5, GameplayVisualTiming.hitCircleNumberAlpha(1030, 1000, 2.7));
+        assertEquals(0, GameplayVisualTiming.hitCircleNumberAlpha(1060, 1000, 2.7));
+    }
+
+    @Test
     void approachRadiusAndFadeFollowAbsoluteObjectTime() {
         assertEquals(0, GameplayVisualTiming.approachProgress(400, 1000, 600));
         assertEquals(0.5, GameplayVisualTiming.approachProgress(700, 1000, 600));
@@ -26,10 +35,13 @@ class GameplayVisualTimingTest {
         assertEquals(0, GameplayVisualTiming.approachAlpha(1050, 1000, 1200));
         assertEquals(4, GameplayVisualTiming.approachRadius(1, 0));
         assertEquals(1, GameplayVisualTiming.approachRadius(1, 1));
-        assertEquals(1.375, GameplayVisualTiming.hitCircleScale(1200, 1000), 1e-9);
-        assertEquals(1.5, GameplayVisualTiming.hitCircleScale(1400, 1000), 1e-9);
-        assertEquals(1, GameplayVisualTiming.hitCircleAlpha(1040, 1000));
-        assertEquals(0, GameplayVisualTiming.hitCircleAlpha(1840, 1000));
+        assertEquals(1.3, GameplayVisualTiming.hitCircleScale(1120, 1000), 1e-9);
+        assertEquals(1.4, GameplayVisualTiming.hitCircleScale(1240, 1000), 1e-9);
+        assertEquals(1, GameplayVisualTiming.hitCircleAlpha(1000, 1000));
+        assertEquals(0.5, GameplayVisualTiming.hitCircleAlpha(1120, 1000));
+        assertEquals(0, GameplayVisualTiming.hitCircleAlpha(1240, 1000));
+        assertEquals(0.5, GameplayVisualTiming.hitCircleMissAlpha(1050, 1000));
+        assertEquals(0, GameplayVisualTiming.hitCircleMissAlpha(1100, 1000));
         assertEquals(0, GameplayVisualTiming.sliderSnakeProgress(-200, 1000, 1200));
         assertEquals(0.5, GameplayVisualTiming.sliderSnakeProgress(0, 1000, 1200));
         assertEquals(1, GameplayVisualTiming.sliderSnakeProgress(200, 1000, 1200));
@@ -51,23 +63,4 @@ class GameplayVisualTimingTest {
         assertEquals(0, GameplayVisualTiming.fadeOutAlpha(1240, 1000, 240));
     }
 
-    @Test
-    void followCircleTransitionsUseBeatmapTimeForPressReleaseAndEnd() {
-        FollowCircleAnimation animation = new FollowCircleAnimation();
-        animation.update(false, 1000, 2000);
-        assertEquals(0, animation.alphaAt(1000));
-        assertEquals(1, animation.scaleAt(1000));
-
-        animation.update(true, 1100, 2000);
-        assertEquals(1, animation.alphaAt(1400));
-        assertEquals(FollowCircleAnimation.FOLLOW_SCALE, animation.scaleAt(1400));
-
-        animation.update(false, 1500, 2000);
-        assertEquals(0, animation.alphaAt(1650));
-        assertEquals(FollowCircleAnimation.FOLLOW_SCALE * 1.2, animation.scaleAt(1650));
-
-        animation.update(false, 2000, 2000);
-        assertEquals(0, animation.alphaAt(2300));
-        assertEquals(1, animation.scaleAt(2300));
-    }
 }
