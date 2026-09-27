@@ -1,5 +1,7 @@
 # SongSelect carousel interaction
 
+Historical Phase 1/2 report. Current geometry, composition and compatibility policy are documented in [Phase 2.5](songselect-stable-alignment.md).
+
 The carousel replaces selected-relative row placement with content coordinates and a scrolling viewport. Legacy skin resolution, ownership, `skin.ini`, text colours and Random/Back assets remain in `SongSelectSkinAssets`; Gameplay and GameClock are unchanged.
 
 ## Responsibilities

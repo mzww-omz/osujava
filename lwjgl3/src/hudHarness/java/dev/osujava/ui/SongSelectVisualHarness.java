@@ -88,6 +88,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         "phase2-wide", "phase2-missing-star", "phase2-broken-star", "phase2-high-star",
                         "phase2-v22", "phase2-thumbnail-fade", "phase2-default-fallback", "phase2-broken-thumbnail", "phase2-single", "phase2-many", "phase2-long-set"))
                     scenes.add(new Scene(size[0],size[1],size[2],name));
+            for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
+                for (String name : List.of("phase25-reference-greylooks", "phase25-reference-modern",
+                        "phase25-legacy-a", "phase25-legacy-b", "phase25-collapsed", "phase25-expanded",
+                        "phase25-selected", "phase25-sibling", "phase25-hover", "phase25-no-motion",
+                        "phase25-long-title", "phase25-unicode", "phase25-fallback", "phase25-rating-none",
+                        "phase25-rating-3", "phase25-rating-5", "phase25-rating-7", "phase25-rating-high",
+                        "phase25-thumbnail-missing", "phase25-thumbnail-wide", "phase25-thumbnail-tall",
+                        "phase25-large-library-modern", "phase25-large-library-modern-rated", "phase25-chrome-full", "phase25-chrome-bottom-cookie", "phase25-chrome-top", "phase25-chrome-rankings"))
+                    scenes.add(new Scene(size[0],size[1],size[2],name));
         } catch (Exception e) { throw new RuntimeException(e); }
     }
 
@@ -146,7 +155,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
         var library = new BeatmapLibrary();
-        int setCount = scene.name.equals("greylooks-large-library") ? 1000 : 7;
+        int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern")) ? 1000 : 7;
         boolean phase2 = scene.name.startsWith("phase2");
         var ratings = new IdentityHashMap<BeatmapDifficulty, OptionalDouble>();
         for (int i = 0; i < setCount; i++) {
@@ -157,8 +166,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             Path image = artwork;
             if (phase2 && i == 3) {
                 title = switch (scene.name) {
-                    case "phase2-long-english" -> "A Very Long Song Title That Keeps Going Beyond the Visible Carousel into a Beautiful Night";
-                    case "phase2-japanese" -> "夜明けの星空と夢の続きを描く物語";
+                    case "phase25-long-title", "phase2-long-english" -> "A Very Long Song Title That Keeps Going Beyond the Visible Carousel into a Beautiful Night";
+                    case "phase25-unicode", "phase2-japanese" -> "夜明けの星空と夢の続きを描く物語";
                     case "phase2-chinese" -> "夜空中最亮的星与漫长旅程的回忆";
                     case "phase2-korean" -> "별빛 아래 우리들의 아름다운 이야기";
                     case "phase2-symbols" -> "Starlight ✦ ∞ → Café e\u0301 👩‍🚀";
@@ -167,10 +176,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 if (scene.name.equals("phase2-long-mapper")) mapper = "A mapper with a remarkably long name 星の旅人 별빛 创作者";
                 if (scene.name.equals("phase2-long-difficulty")) version = "The Never Ending Journey Across the Constellations — 星の彼方への冒険 ";
                 image = switch (scene.name) {
-                    case "phase2-missing-thumbnail" -> output.resolve("missing-artwork.png");
+                    case "phase25-thumbnail-missing", "phase2-missing-thumbnail" -> output.resolve("missing-artwork.png");
                     case "phase2-broken-thumbnail" -> output.resolve("broken-artwork.png");
-                    case "phase2-portrait" -> portrait;
-                    case "phase2-wide" -> wide;
+                    case "phase25-thumbnail-tall", "phase2-portrait" -> portrait;
+                    case "phase25-thumbnail-wide", "phase2-wide" -> wide;
                     default -> artwork;
                 };
             }
@@ -183,11 +192,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 diffs.add(diff);
                 double rating = switch (scene.name) {
                     case "phase2-low-rating" -> .65;
-                    case "phase2-five-stars" -> 5;
-                    case "phase2-high-rating" -> 12.84;
+                    case "phase2-five-stars", "phase25-rating-5" -> 5.42;
+                    case "phase25-rating-3" -> 3.35;
+                    case "phase25-rating-7" -> 7.65;
+                    case "phase2-high-rating", "phase25-rating-high" -> 12.84;
                     default -> difficulty == 1 ? 5.42 : new double[]{1.25, 5.42, 6.75, 10.25}[difficulty % 4];
                 };
-                if (phase2 && !scene.name.equals("phase2-no-rating")) ratings.put(diff, OptionalDouble.of(rating));
+                if (phase2 && !scene.name.equals("phase2-no-rating") && !scene.name.equals("phase25-rating-none") && !scene.name.equals("phase25-large-library-modern")) ratings.put(diff, OptionalDouble.of(rating));
             }
             library.add(new BeatmapSet("set" + i,title,"Local artist",mapper,null,image,diffs,List.of()));
         }
@@ -204,7 +215,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "phase2-broken-star" -> new SkinAssetResolver(output.resolve("fixtures/star-broken"));
             case "phase2-high-star" -> new SkinAssetResolver(output.resolve("fixtures/star-high"));
             case "phase2-default-fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), null);
-            case "phase2-v22" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/star-high"), null);
+            case "phase25-large-library-modern", "phase25-large-library-modern-rated", "phase25-reference-modern", "phase25-rating-3", "phase25-rating-5", "phase25-rating-7",
+                    "phase25-rating-high", "phase25-rating-none", "phase25-thumbnail-missing", "phase25-thumbnail-wide",
+                    "phase25-thumbnail-tall", "phase25-chrome-full", "phase25-hover", "phase2-thumbnail-fade", "phase2-missing-thumbnail",
+                    "phase2-portrait", "phase2-wide", "phase2-broken-thumbnail", "phase2-v22" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/star-high"), null);
             default -> scene.name.startsWith("greylooks") || phase2 ? SkinAssetResolver.withBundledDefault(null,null)
                     : new SkinAssetResolver(output.resolve("fixtures").resolve(scene.name));
         };
@@ -217,10 +231,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         var screen = new SongSelectScreen(game,preferredSet,preferredDifficulty,assets, diff -> ratings.getOrDefault(diff, OptionalDouble.empty()));
         var fb = new FrameBuffer(Pixmap.Format.RGBA8888,scene.width * scene.density,scene.height * scene.density,false);
         try {
-            screen.show(); screen.resize(scene.width,scene.height);
+            screen.show();
+            screen.legacyThumbnailPreview(scene.name.equals("phase25-legacy-b"));
+            screen.resize(scene.width,scene.height);
             fb.begin();
             for (int frame = 0; frame < 40; frame++) screen.render(1f / 60);
-            if (scene.name.equals("phase2-hover")) {
+            if ((scene.name.equals("phase2-hover") || scene.name.equals("phase25-hover"))) {
                 pointerRow(screen,carousel(screen).rows().stream().filter(r -> r.entry.difficultyIndex() == 1).findFirst().orElseThrow().entry.setIndex(),2,pointer,layout,scene.height);
                 for (int frame = 0; frame < 60; frame++) screen.render(1f / 60);
             }
@@ -292,12 +308,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             capture(fb,name);
             assertRenderedBounds(screen,layout);
             assertScrollSettled(screen,name);
-            if (scene.name.equals("greylooks-large-library")) {
+            if (setCount > 7) {
                 profileMotion(carousel(screen),name);
                 profileRender(screen, name);
             }
             // Wheel scenes intentionally leave selection behind. A real difficulty change restores it.
-            if (scene.name.contains("scroll") || scene.name.equals("greylooks-large-library")) {
+            if (scene.name.contains("scroll") || setCount > 7) {
                 processor[0].keyDown(Input.Keys.RIGHT); pointer[0] = 40;
                 for (int frame = 0; frame < 90; frame++) screen.render(1f/60);
             }
@@ -350,7 +366,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for (Object item : ((Map<?, ?>)field.get(screen)).values()) {
                 var content = (SongSelectRowPresentation.Content)item;
                 if (scene.equals("phase2-no-rating") && content.stars().present()) throw new AssertionError("Invented rating");
-                if (content.stars().count() > 7) throw new AssertionError("Unbounded stars");
+                if (content.stars().count() > 9) throw new AssertionError("Unbounded stars");
             }
             if (assets.starTexture() == null) throw new AssertionError("Missing procedural star fallback");
             if (scene.equals("phase2-v22")) {
@@ -425,7 +441,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 if (Math.abs(x - model.renderX(row,layout.width())) > .001f
                         || Math.abs(y - model.renderY(row,layout.height() - 62)) > .001f)
                     throw new AssertionError("Draw snapshot diverged from motion bounds");
-                if (!Float.isFinite(x) || !Float.isFinite(y) || x < layout.width() * .52f || x > layout.width() * .74f)
+                if (!Float.isFinite(x) || !Float.isFinite(y) || x < layout.width() * .50f || x > layout.width() * .70f)
                     throw new AssertionError("Invalid row bounds");
             }
         } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }

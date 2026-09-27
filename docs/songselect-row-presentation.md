@@ -1,5 +1,7 @@
 # Song Select Phase 2: row presentation
 
+Historical Phase 1/2 report. Current geometry, composition and compatibility policy are documented in [Phase 2.5](songselect-stable-alignment.md).
+
 Phase 2 changes row contents, not carousel physics. `SongSelectCarousel` is unchanged: viewport/scroll velocity, velocity influence, selection spacing/spring, expansion/reveal, hover suppression and final render bounds retain Phase 1 behavior. The selected Set still becomes all its difficulties; there is no additional selected parent card. Renderer and hit testing continue using the same visible snapshots and selected-row priority.
 
 ## Content and geometry

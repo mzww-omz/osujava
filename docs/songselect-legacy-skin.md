@@ -1,5 +1,7 @@
 # SongSelect Legacy skin support
 
+Historical Phase 1/2 report. Current geometry, composition and compatibility policy are documented in [Phase 2.5](songselect-stable-alignment.md).
+
 SongSelect retains its existing selection/navigation semantics and now uses the independent [content/viewport carousel model](songselect-carousel.md). `SongSelectSkinAssets` owns UI textures; `OsuSkinAssets` remains gameplay-only. Skin images are visuals, while osujava owns layout and hitboxes.
 
 ## Assets
