@@ -1,5 +1,7 @@
 package dev.osujava;
 
+import dev.osujava.score.LocalScoreStore;
+
 import com.badlogic.gdx.Game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
@@ -36,6 +38,7 @@ public class OsuJavaGame extends Game {
     private BitmapFont font;
     private SmoothUiFont smoothFont;
     private BeatmapLibrary library;
+    private LocalScoreStore localScores = new LocalScoreStore();
     private BeatmapArchiveImporter importer;
     private OsuRuleset osuRuleset;
     private final AudioVolumes audioVolumes = new AudioVolumes();
@@ -99,6 +102,7 @@ public class OsuJavaGame extends Game {
         Path libraryRoot = localDataRoot().resolve("library");
         library = new BeatmapLibrary(new PropertiesBeatmapLibraryStorage(libraryRoot));
         importer = new BeatmapArchiveImporter(libraryRoot);
+        localScores = new LocalScoreStore(localDataRoot().resolve("scores"));
         osuRuleset = new OsuRuleset();
         navigate(new MainMenuScreen(this));
     }
@@ -144,6 +148,8 @@ public class OsuJavaGame extends Game {
     }
 
     public SmoothUiFont smoothFont() { return smoothFont; }
+
+    public LocalScoreStore localScores() { return localScores; }
 
     public BeatmapLibrary library() {
         return library;

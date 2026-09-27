@@ -1,5 +1,10 @@
 package dev.osujava.ui;
 
+import dev.osujava.score.LocalScore;
+import dev.osujava.score.DifficultyIdentity;
+import java.util.UUID;
+import java.time.Instant;
+
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.audio.Music;
@@ -36,6 +41,8 @@ public final class GameplayScreen extends ScreenAdapter {
     private final GameClock clock;
     private final GameplaySession session;
     private final GameplayRunMode runMode;
+    private final UUID playId = UUID.randomUUID();
+    private boolean resultFinalized;
     private final DebugAutoPlayer autoPlayer;
     private final GameplayRenderer renderer;
     private final GameplayCursorRenderer cursorRenderer;
@@ -149,8 +156,13 @@ public final class GameplayScreen extends ScreenAdapter {
         GameplayState state = session.update();
         audioPlayer.play(session.drainAudioCues());
         if (autoPlayer != null) autoPlayer.afterSessionUpdate();
-        if (clock.finished()) {
+        if (clock.finished() && !resultFinalized) {
+            resultFinalized = true;
             session.finish();
+            var identity = DifficultyIdentity.of(set.id(), difficulty);
+            if (identity != null && runMode == GameplayRunMode.MANUAL)
+                game.localScores().save(new LocalScore(playId, identity,
+                        Instant.now().toEpochMilli(), session.state().score()), runMode);
             game.navigate(new ResultsScreen(game, set, difficulty, session.state().score(), runMode));
             return;
         }
