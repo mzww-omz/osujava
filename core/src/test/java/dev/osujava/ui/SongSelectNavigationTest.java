@@ -18,12 +18,14 @@ class SongSelectNavigationTest {
     private final BeatmapLibrary library = new BeatmapLibrary();
     private SongSelectScreen screen;
     private int importRequests;
+    private boolean shift;
 
     @BeforeEach void setup() {
         oldInput = Gdx.input;
         Gdx.input = (Input) Proxy.newProxyInstance(Input.class.getClassLoader(),new Class[]{Input.class},(p,m,a) -> switch(m.getName()) {
             case "setInputProcessor" -> { processor = (InputProcessor)a[0]; yield null; }
             case "getInputProcessor" -> processor;
+            case "isKeyPressed" -> shift && ((int)a[0] == Input.Keys.SHIFT_LEFT || (int)a[0] == Input.Keys.SHIFT_RIGHT);
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
         for (String title : List.of("Alpha", "Beta", "Gamma")) {
@@ -226,6 +228,57 @@ class SongSelectNavigationTest {
             }
         }
         assertFalse(((UiNavigation)field("outgoing")).pending());
+    }
+
+    @Test void shiftF2WalksBackDuringSearchAndGrouping() throws Exception {
+        open("Alpha",1);
+        key(Input.Keys.F2); screen.browserMode(SongBrowserModel.Sort.ARTIST,SongBrowserModel.Group.ARTIST);
+        shift = true; key(Input.Keys.F2); selected(0,1,"Alpha-hard.png");
+        shift = false;
+        for (char c : "Artist".toCharArray()) processor.keyTyped(c);
+        int before = (int)field("selectedSetIndex"); key(Input.Keys.F2); assertNotEquals(before,field("selectedSetIndex"));
+        shift = true; key(Input.Keys.F2); assertEquals(before,field("selectedSetIndex"));
+        assertTrue((boolean)field("searchActive"));
+    }
+    @Test void unicodeBackspaceRemovesWholeCodePointAndSearchClearRestoresSelection() throws Exception {
+        open("Gamma",1);
+        for(char c : "Alpha".toCharArray()) processor.keyTyped(c);
+        selected(0,0,"Alpha-easy.png");
+        for(int i=0;i<5;i++)key(Input.Keys.BACKSPACE);
+        selected(2,1,"Gamma-hard.png");
+        for(char c : "𠮷".toCharArray())processor.keyTyped(c);
+        key(Input.Keys.BACKSPACE); assertEquals("",field("search"));
+    }
+    @Test void controlsPreserveDifficultyAndHeadersAreNeverClickable() throws Exception {
+        open("Beta",1); screen.resize(1280,720);
+        screen.browserMode(SongBrowserModel.Sort.BPM,SongBrowserModel.Group.CREATOR);
+        selected(1,1,"Beta-hard.png"); settle(); screen.resize(1280,720);
+        var hit = SongSelectScreen.class.getDeclaredMethod("rowHit",Class.forName("dev.osujava.ui.SongSelectScreen$Row"),float.class,float.class); hit.setAccessible(true);
+        for(Object row : (List<?>)field("visibleRows")) if ((int)rowValue(row,"setIndex") < 0)
+            assertFalse((boolean)hit.invoke(screen,row,(float)rowValue(row,"x")+20,(float)rowValue(row,"y")+40));
+        key(Input.Keys.ENTER); assertTrue(((UiNavigation)field("outgoing")).pending());
+        selected(1,1,"Beta-hard.png");
+    }
+    @Test void zeroResultsHaveNoCookieOrMetadataPlayTarget() throws Exception {
+        open("Beta",1);
+        for(char c : "missing".toCharArray())processor.keyTyped(c);
+        var selected = SongSelectScreen.class.getDeclaredMethod("selectedDifficulty"); selected.setAccessible(true);
+        assertNull(selected.invoke(screen)); key(Input.Keys.ESCAPE); key(Input.Keys.ENTER);
+        assertFalse(((UiNavigation)field("outgoing")).pending());
+    }
+
+    @Test void modeChangeDrawSnapshotMatchesCarouselImmediately() throws Exception {
+        var alpha = library.all().getFirst();
+        library.add(new BeatmapSet(alpha.id(),alpha.title(),"Zulu",alpha.creator(),alpha.audioPath(),alpha.backgroundPath(),alpha.difficulties(),alpha.assets()));
+        open("Beta",1); screen.resize(1280,720); settle();
+        screen.browserMode(SongBrowserModel.Sort.BPM,SongBrowserModel.Group.ARTIST);
+        var motion = carousel();
+        for(Object snapshot : (List<?>)field("visibleRows")) {
+            int set = (int)rowValue(snapshot,"setIndex"), diff = (int)rowValue(snapshot,"difficultyIndex");
+            float x = (float)rowValue(snapshot,"x"), y = (float)rowValue(snapshot,"y");
+            assertTrue(motion.rows().stream().anyMatch(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff
+                    && Math.abs(motion.renderX(r,1280)-x) < .001f && Math.abs(motion.renderY(r,658)-y) < .001f));
+        }
     }
 
 }

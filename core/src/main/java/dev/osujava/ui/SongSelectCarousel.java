@@ -7,7 +7,9 @@ import java.util.Map;
 
 /** UI-only content coordinates (downwards), viewport and transient visual offsets. */
 final class SongSelectCarousel {
-    record Entry(String key, int setIndex, int difficultyIndex) { }
+    record Entry(String key, int setIndex, int difficultyIndex) {
+        boolean header() { return setIndex < 0; }
+    }
     static final class Row {
         final Entry entry;
         final float logicalY;
@@ -65,7 +67,9 @@ final class SongSelectCarousel {
         float logicalY = viewportHeight / 2;
         for (int i = 0; i < entries.size(); i++) {
             Entry entry = entries.get(i);
-            if (i > 0) logicalY += (entries.get(i - 1).difficultyIndex() >= 0 && entry.difficultyIndex() >= 0
+            if (i > 0 && (entry.header() || entries.get(i - 1).header()))
+                logicalY += rowStep * (entry.header() && entries.get(i - 1).header() ? .38f : .69f);
+            else if (i > 0) logicalY += (entries.get(i - 1).difficultyIndex() >= 0 && entry.difficultyIndex() >= 0
                     && entries.get(i - 1).setIndex() == entry.setIndex()) ? childStep : rowStep;
             Row row = new Row(entry, logicalY);
             row.groupAmount = !initialized && entry.difficultyIndex() >= 0 ? 1 : 0;
@@ -129,6 +133,14 @@ final class SongSelectCarousel {
         selectedKey = key;
         Row selected = byKey.get(key);
         scrollTarget = clamp(selected == null ? scrollOffset : selected.logicalY - viewportHeight / 2);
+    }
+
+    /** Reordering has no spatial correspondence: discard row travel and center selection. */
+    void reordered() {
+        for (Row row : rows) { row.expansionY = 0; row.expansionVelocityY = 0; }
+        Row selected = byKey.get(selectedKey);
+        scrollTarget = clamp(selected == null ? 0 : selected.logicalY - viewportHeight / 2);
+        scrollVelocity = 0;
     }
 
     /** Wheel browsing moves the viewport independently of selection and Set expansion. */
