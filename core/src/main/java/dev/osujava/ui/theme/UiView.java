@@ -139,6 +139,10 @@ public final class UiView {
         textSmooth(value, x, baseline, width, scale, color, Align.left);
     }
 
+    public void textSmoothBold(String value, float x, float baseline, float width, float scale, Color color) {
+        game.smoothFont().draw(game.batch(), value, x, baseline, width, scale, color, Align.left, true);
+    }
+
     public void cover(float opacity) {
         if (opacity <= 0) return;
         beginShapes();

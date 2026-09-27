@@ -11,7 +11,6 @@ import java.awt.FontMetrics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
-import java.awt.font.FontRenderContext;
 import java.util.LinkedHashMap;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,7 +19,6 @@ import java.util.Map;
 public final class SmoothUiFont implements AutoCloseable {
     private static final int OVERSAMPLE = 2;
     private static final int LIMIT = 256;
-    private static final FontRenderContext MEASURE = new FontRenderContext(null, true, true);
     private final LinkedHashMap<String, Label> labels = new LinkedHashMap<>(300, .75f, true);
     private final LinkedHashMap<String, String> fittedLabels = new LinkedHashMap<>(300, .75f, true);
     private final Map<Integer, Font> fonts = new HashMap<>();
@@ -29,12 +27,19 @@ public final class SmoothUiFont implements AutoCloseable {
 
     public void draw(SpriteBatch batch, String text, float x, float baseline, float maxWidth,
                      float scale, Color color, int align) {
+        draw(batch, text, x, baseline, maxWidth, scale, color, align, false);
+    }
+
+    public void draw(SpriteBatch batch, String text, float x, float baseline, float maxWidth,
+                     float scale, Color color, int align, boolean bold) {
         if (text == null || text.isEmpty() || maxWidth <= 0) return;
         int size = Math.max(10, Math.round(17 * scale * OVERSAMPLE));
-        Font font = fonts.computeIfAbsent(size, px -> new Font("SansSerif", Font.PLAIN, px));
-        String fitKey = size + ":" + Math.round(maxWidth * OVERSAMPLE) + ":" + text;
-        String fitted = fittedLabels.computeIfAbsent(fitKey, unused -> fit(text, font, maxWidth * OVERSAMPLE));
-        Label label = labels.computeIfAbsent(size + ":" + fitted, ignored -> rasterize(fitted, font));
+        Font font = fonts.computeIfAbsent(size * 2 + (bold ? 1 : 0), key -> new Font("SansSerif", bold ? Font.BOLD : Font.PLAIN, size));
+        int fitWidth = Math.max(0, (int) Math.floor(maxWidth * OVERSAMPLE) - 4);
+        String fitKey = size + ":" + bold + ":" + fitWidth + ":" + text;
+        String fitted = fittedLabels.computeIfAbsent(fitKey, unused -> UiTextFit.fit(text, font, fitWidth));
+        if (fitted.isEmpty()) return;
+        Label label = labels.computeIfAbsent(size + ":" + bold + ":" + fitted, ignored -> rasterize(fitted, font));
         float drawX = align == Align.center ? x + (maxWidth - label.width()) / 2
                 : align == Align.right ? x + maxWidth - label.width() : x;
         batch.setColor(color);
@@ -48,20 +53,14 @@ public final class SmoothUiFont implements AutoCloseable {
         if (fittedLabels.size() > 512) fittedLabels.remove(fittedLabels.entrySet().iterator().next().getKey());
     }
 
-    private String fit(String text, Font font, float maxPixels) {
-        if (font.getStringBounds(text, MEASURE).getWidth() <= maxPixels) return text;
-        String suffix = "…";
-        int end = text.length();
-        while (end > 0 && font.getStringBounds(text.substring(0, end) + suffix, MEASURE).getWidth() > maxPixels) end--;
-        return end == 0 ? suffix : text.substring(0, end) + suffix;
-    }
-
     private Label rasterize(String text, Font font) {
         BufferedImage measure = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
         Graphics2D metricsGraphics = measure.createGraphics();
+        metricsGraphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        metricsGraphics.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
         metricsGraphics.setFont(font);
         FontMetrics metrics = metricsGraphics.getFontMetrics();
-        int width = Math.max(2, metrics.stringWidth(text) + 4);
+        int width = Math.max(2, (int) Math.ceil(font.getStringBounds(text, metricsGraphics.getFontRenderContext()).getWidth()) + 4);
         int height = metrics.getHeight() + 4;
         int descent = metrics.getDescent();
         metricsGraphics.dispose();

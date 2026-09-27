@@ -2,6 +2,7 @@ package dev.osujava.skin;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import java.io.IOException;
@@ -34,6 +35,7 @@ public final class SongSelectSkinAssets implements Disposable {
 
     private final EnumMap<Image, SkinTexture> textures = new EnumMap<>(Image.class);
     private final Set<Texture> owned = Collections.newSetFromMap(new IdentityHashMap<>());
+    private Texture fallbackStar;
     private SkinConfiguration configuration = SkinConfiguration.defaults();
 
     public SongSelectSkinAssets(Path directory, Path fallbackDirectory) {
@@ -76,9 +78,35 @@ public final class SongSelectSkinAssets implements Disposable {
     public SkinTexture get(Image image) { return textures.get(image); }
     public SkinConfiguration configuration() { return configuration; }
 
+    /** Resolver candidates always win; this small UI glyph is created once if all are absent/corrupt. */
+    public Texture starTexture() {
+        SkinTexture asset = get(Image.STAR);
+        if (asset != null) return asset.texture();
+        return fallbackStar;
+    }
+
+    public void prepareStarFallback() {
+        if (get(Image.STAR) != null || fallbackStar != null) return;
+        Pixmap pixels = new Pixmap(40, 40, Pixmap.Format.RGBA8888);
+        pixels.setColor(1, 1, 1, 1);
+        int[] x = new int[10], y = new int[10];
+        for (int i = 0; i < 10; i++) {
+            double angle = -Math.PI / 2 + i * Math.PI / 5;
+            double radius = i % 2 == 0 ? 18 : 8;
+            x[i] = 20 + (int) Math.round(Math.cos(angle) * radius);
+            y[i] = 20 + (int) Math.round(Math.sin(angle) * radius);
+        }
+        for (int i = 0; i < 10; i++) pixels.fillTriangle(20, 20, x[i], y[i], x[(i + 1) % 10], y[(i + 1) % 10]);
+        fallbackStar = new Texture(pixels);
+        pixels.dispose();
+        fallbackStar.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        owned.add(fallbackStar);
+    }
+
     @Override public void dispose() {
         for (Texture texture : owned) texture.dispose();
         owned.clear();
         textures.clear();
+        fallbackStar = null;
     }
 }

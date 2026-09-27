@@ -142,6 +142,34 @@ class SongSelectSkinAssetsTest {
         bundled.dispose();
     }
 
+    @Test void malformedStarTriesNormalThenFallbackAndKeepsProviderPriority() throws Exception {
+        Path fallback = Files.createDirectory(directory.resolve("fallback"));
+        Files.createFile(directory.resolve("star@2x.png"));
+        Files.createFile(directory.resolve("star.png"));
+        Files.createFile(fallback.resolve("star@2x.png"));
+        var good = new TestTexture(40, 40);
+        var assets = new SongSelectSkinAssets(new SkinAssetResolver(directory, fallback), file -> {
+            if (file.density() == 2 && !file.fallback()) throw new GdxRuntimeException("Corrupt star");
+            return good;
+        });
+        assertEquals(directory.resolve("star.png"), assets.get(Image.STAR).file().path());
+        assertSame(good, assets.starTexture()); assets.dispose();
+        var fallbackAssets = new SongSelectSkinAssets(new SkinAssetResolver(directory, fallback), file -> {
+            if (!file.fallback()) throw new GdxRuntimeException("Corrupt star");
+            return new TestTexture(40, 40);
+        });
+        assertEquals(fallback.resolve("star@2x.png"), fallbackAssets.get(Image.STAR).file().path());
+        assertEquals(20, fallbackAssets.get(Image.STAR).logicalWidth()); fallbackAssets.dispose();
+    }
+
+    @Test void missingAndMalformedStarLeaveProceduralFallbackAvailableToRenderer() throws Exception {
+        var missing = new SongSelectSkinAssets(new SkinAssetResolver(directory), file -> { fail(); return null; });
+        assertNull(missing.starTexture()); missing.dispose();
+        Files.writeString(directory.resolve("star.png"), "not a PNG");
+        var broken = new SongSelectSkinAssets(new SkinAssetResolver(directory), file -> { throw new GdxRuntimeException("Decode failed"); });
+        assertNull(broken.get(Image.STAR)); assertNull(broken.starTexture()); broken.dispose();
+    }
+
     private static class TestTexture extends Texture {
         int disposals;
         final int width, height;
