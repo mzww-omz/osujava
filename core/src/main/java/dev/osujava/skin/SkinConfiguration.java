@@ -9,7 +9,14 @@ import java.util.List;
 import java.util.TreeMap;
 
 /** Small, section-oriented skin.ini reader. Supports legacy Fonts, General, cursor, slider and Spinner settings. */
-public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber, double legacyVersion, Colours colours, Cursor cursor, Spinner spinner) {
+public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber, double legacyVersion, Colours colours, Cursor cursor, Spinner spinner, SongSelect songSelect) {
+    /** Null optional colours retain the existing SongSelect palette. */
+    public record SongSelect(Rgb activeText, Rgb inactiveText) {
+        public static SongSelect defaults() { return new SongSelect(null, null); }
+    }
+    public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay, double version, Colours colours, Cursor cursor, Spinner spinner) {
+        this(fonts, hasIni, overlay, version, colours, cursor, spinner, SongSelect.defaults());
+    }
     public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay, double version, Colours colours, Cursor cursor) {
         this(fonts, hasIni, overlay, version, colours, cursor, Spinner.defaults());
     }
@@ -81,6 +88,7 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
         double version = 1;
         Rgb border = Colours.defaults().sliderBorder();
         Rgb track = null;
+        Rgb activeText = null, inactiveText = null;
         var comboColours = new TreeMap<Integer, Rgb>();
         boolean allowSliderBallTint = false;
         boolean centre = true, rotate = true, expand = true, trailRotate = true, noBlink = false;
@@ -125,6 +133,14 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
                 }
             }
             if (section.equalsIgnoreCase("Colours")) {
+                if (key.equalsIgnoreCase("SongSelectActiveText")) {
+                    Rgb parsed = parseRgb(value);
+                    if (parsed != null) activeText = parsed;
+                }
+                if (key.equalsIgnoreCase("SongSelectInactiveText")) {
+                    Rgb parsed = parseRgb(value);
+                    if (parsed != null) inactiveText = parsed;
+                }
                 if (key.matches("(?i)Combo[1-8]")) {
                     Rgb parsed = parseRgb(value);
                     if (parsed != null) comboColours.put(Integer.parseInt(key.substring(5)), parsed);
@@ -158,6 +174,6 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             }
         }
         return new SkinConfiguration(new Fonts(prefix, overlap, scorePrefix, scoreOverlap, comboPrefix, comboOverlap), true,
-                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track, List.copyOf(comboColours.values()), allowSliderBallTint), new Cursor(centre, rotate, expand, trailRotate), new Spinner(noBlink, spinnerBackground));
+                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track, List.copyOf(comboColours.values()), allowSliderBallTint), new Cursor(centre, rotate, expand, trailRotate), new Spinner(noBlink, spinnerBackground), new SongSelect(activeText, inactiveText));
     }
 }

@@ -133,3 +133,12 @@ tasks.register('volumeHudVisualHarness', JavaExec) {
     systemProperty 'java.awt.headless', 'true'
     args project.findProperty('volumeHudOutput') ?: '/tmp/osujava-volume-hud'
 }
+
+// Production SongSelect with Greylooks and partial/malformed skins at 720p, 1080p and Retina density.
+tasks.register('songSelectVisualHarness', JavaExec) {
+    dependsOn hudHarnessClasses
+    classpath = sourceSets.hudHarness.runtimeClasspath
+    mainClass = 'dev.osujava.ui.SongSelectVisualHarness'
+    systemProperty 'java.awt.headless', 'true'
+    args project.findProperty('songSelectOutput') ?: '/tmp/osujava-songselect'
+}

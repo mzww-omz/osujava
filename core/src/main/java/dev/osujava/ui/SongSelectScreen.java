@@ -5,7 +5,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.graphics.GL20;
 import dev.osujava.OsuJavaGame;
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapSet;
@@ -14,6 +14,9 @@ import dev.osujava.beatmap.TimingPoint;
 import dev.osujava.gameplay.GameplayRunMode;
 import dev.osujava.library.BeatmapImportException;
 import dev.osujava.library.ImportResult;
+import dev.osujava.skin.SkinConfiguration;
+import dev.osujava.skin.SongSelectSkinAssets;
+import dev.osujava.skin.SongSelectSkinAssets.Image;
 import dev.osujava.ui.theme.UiLayout;
 import dev.osujava.ui.theme.UiNavigation;
 import dev.osujava.ui.theme.UiTheme;
@@ -27,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 public final class SongSelectScreen extends ScreenAdapter {
     private static final Color TOP = new Color(.025f, .022f, .045f, .68f);
@@ -40,6 +44,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private static final Color SELECTED = new Color(.96f, .95f, .98f, .98f);
     private static final Color DARK_TEXT = new Color(.14f, .10f, .18f, 1f);
     private static final Color THUMB_FALLBACK = new Color(.23f, .20f, .31f, 1f);
+    private static final Color RANDOM_DISABLED = new Color(.5f, .5f, .5f, .5f);
     private static final Color BACK_PINK = new Color(.83f, .28f, .55f, 1f);
 
     private static final class Metrics {
@@ -57,6 +62,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         static final float BACK_WIDTH = 110;
         static final float IMPORT_X = 116;
         static final float IMPORT_WIDTH = 170;
+        static final float RANDOM_X = 298;
+        static final float RANDOM_WIDTH = 92;
         static final float ROW_TITLE_SCALE = .84f;
         static final float ROW_DETAIL_SCALE = .66f;
         static final float ROW_MODE_SCALE = .62f;
@@ -65,6 +72,10 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     private final OsuJavaGame game;
     private final UiView view;
+    private SongSelectSkinAssets skin;
+    private Color activeText = DARK_TEXT, inactiveText;
+    private float randomFade, randomPulse;
+    private final Color randomOverlayTint = new Color(Color.WHITE);
     private final UiTransition entrance = new UiTransition();
     private final UiNavigation outgoing = new UiNavigation();
     private final BeatmapThumbnails thumbnails = new BeatmapThumbnails();
@@ -91,7 +102,13 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     public SongSelectScreen(OsuJavaGame game) { this(game, null, 0); }
     public SongSelectScreen(OsuJavaGame game, String preferredSetId, int preferredDifficulty) {
+        this(game, preferredSetId, preferredDifficulty, null);
+    }
+
+    /** The capture harness can supply a resolver with no bundled fallback. */
+    SongSelectScreen(OsuJavaGame game, String preferredSetId, int preferredDifficulty, SongSelectSkinAssets skin) {
         this.game = game;
+        this.skin = skin;
         view = new UiView(game);
         sets = sortedSets();
         if (preferredSetId != null) {
@@ -104,6 +121,12 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     @Override public void show() {
+        // GL is absent in navigation-only unit tests. No textures are loaded in render().
+        if (skin == null && Gdx.gl != null) skin = new SongSelectSkinAssets(game.skinDirectory(), game.skinFallbackDirectory());
+        if (skin != null) {
+            activeText = textColor(skin.configuration().songSelect().activeText(), DARK_TEXT);
+            inactiveText = textColor(skin.configuration().songSelect().inactiveText(), null);
+        }
         selectBackground();
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override public boolean keyDown(int key) {
@@ -119,6 +142,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 }
                 if (key == Input.Keys.ESCAPE) { goBack(); return true; }
                 if (key == Input.Keys.I) { requestImport(); return true; }
+                if (key == Input.Keys.F2) { randomize(); return true; }
                 if (key == Input.Keys.F6) { startSelectedPlay(GameplayRunMode.DEBUG_AUTO); return true; }
                 if (key == Input.Keys.ENTER || key == Input.Keys.SPACE) { playSelected(); return true; }
                 if (key == Input.Keys.UP) { advance(-1); return true; }
@@ -177,6 +201,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             if (px >= searchX && px <= searchX + searchW && py >= top + 4 && py <= top + 29) searchActive = true;
             else if (py < bottom && px < Metrics.BACK_WIDTH) { goBack(); return; }
             else if (py < bottom && px >= Metrics.IMPORT_X && px < Metrics.IMPORT_X + Metrics.IMPORT_WIDTH) { requestImport(); }
+            else if (randomHit(px, py)) { searchActive = false; randomize(); }
             else if (selectedDifficulty() != null && playCookie.hit(px, py)) { playSelected(); return; }
             else { searchActive = false; handleRowClick(px, py); }
         }
@@ -184,31 +209,52 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.clear();
         backgroundFade = Math.min(1, backgroundFade + Math.max(0, delta) / .22f);
         view.background(thumbnails.get(backgroundPath), .72f * backgroundFade);
+        randomPulse = Math.max(0, randomPulse - Math.max(0, delta));
+        boolean randomEnabled = !visibleRows.isEmpty() && !importing && !outgoing.pending();
+        float fadeTarget = randomEnabled && (randomHit(px, py) || randomPulse > 0) ? 1 : 0;
+        float fadeStep = Math.max(0, delta) / .14f;
+        randomFade += Math.max(-fadeStep, Math.min(fadeStep, fadeTarget - randomFade));
         view.beginShapes();
         view.box(0, 0, layout.width(), layout.height(), 0, DIM);
-        view.box(0, top, layout.width(), layout.height() - top, 0, TOP);
+        if (!has(Image.TOP)) view.box(0, top, layout.width(), layout.height() - top, 0, TOP);
         view.box(0, bottom, layout.width() * .32f, top - bottom, 0, LEFT);
-        view.box(0, 0, layout.width(), bottom, 0, BOTTOM);
-        view.box(0, 0, Metrics.BACK_WIDTH, bottom, 0, BACK_PINK);
-        view.box(Metrics.IMPORT_X, 0, Metrics.IMPORT_WIDTH, bottom, 0, OTHER);
-        view.box(searchX, top + 4, searchW, 25, 0, searchActive ? SIBLING : LEFT);
-        drawRowShapes(layout, px, py);
-        if (selectedDifficulty() != null) {
-            playCookie.drawShape(view, seconds, playCookie.hit(px, py), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
-        }
-        if (toastSeconds > 0) view.box(18, bottom + 12, Math.min(450, layout.width() * .42f), 35, 0, BOTTOM);
+        if (!has(Image.BOTTOM)) view.box(0, 0, layout.width(), bottom, 0, BOTTOM);
         view.endShapes();
         view.beginText();
-        drawThumbnails();
-        drawRowText();
+        skinImage(Image.TOP, 0, top, layout.width(), layout.height() - top, Color.WHITE);
+        skinImage(Image.BOTTOM, 0, 0, layout.width(), bottom, Color.WHITE);
+        view.endText();
+        view.beginShapes();
+        if (!has(Image.BACK)) view.box(0, 0, Metrics.BACK_WIDTH, bottom, 0, BACK_PINK);
+        view.box(Metrics.IMPORT_X, 0, Metrics.IMPORT_WIDTH, bottom, 0, OTHER);
+        if (!has(Image.RANDOM)) view.box(Metrics.RANDOM_X, 0, Metrics.RANDOM_WIDTH, bottom, 0,
+                !randomEnabled ? LEFT : randomFade > 0 ? SIBLING_HOVER : OTHER);
+        view.box(searchX, top + 4, searchW, 25, 0, searchActive ? SIBLING : LEFT);
+        if (toastSeconds > 0) view.box(18, bottom + 12, Math.min(450, layout.width() * .42f), 35, 0, BOTTOM);
+        view.endShapes();
+        drawRows(layout, px, py);
+        if (selectedDifficulty() != null) {
+            view.beginShapes();
+            playCookie.drawShape(view, seconds, playCookie.hit(px, py), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
+            view.endShapes();
+        }
+        view.beginText();
+        // Fit Back into logical bounds regardless of transparent pixels or image dimensions.
+        skinImageFit(Image.BACK, 0, 0, Metrics.BACK_WIDTH, bottom, Color.WHITE);
+        Color randomTint = randomEnabled ? Color.WHITE : RANDOM_DISABLED;
+        skinImageFit(Image.RANDOM, Metrics.RANDOM_X, 0, Metrics.RANDOM_WIDTH, bottom, randomTint);
+        if (has(Image.RANDOM) && randomEnabled) skinImageOverlay(Image.RANDOM, Image.RANDOM_OVER, Metrics.RANDOM_X, 0,
+                Metrics.RANDOM_WIDTH, bottom, randomOverlayTint.set(1, 1, 1, randomFade));
         drawMetadata(layout);
         drawRanking(layout);
         view.textSmooth("LOCAL SETS  ·  TITLE", layout.width() * .58f, top + 11, 235, .72f, UiTheme.TEXT);
         view.textSmooth(search.isEmpty() ? "Search beatmaps" : search + (searchActive ? "|" : ""),
                 searchX + 9, top + 11, searchW - 18, .75f, search.isEmpty() ? UiTheme.MUTED : UiTheme.TEXT);
-        view.textSmooth("‹  back", 12, 11, 96, 1.0f, UiTheme.TEXT);
+        if (!has(Image.BACK)) view.textSmooth("‹  back", 12, 11, 96, 1.0f, UiTheme.TEXT);
         view.textSmooth("Import .osz / .osu", 126, 11, 151, .75f, UiTheme.TEXT);
-        view.textSmooth(sets.size() + " local sets", 305, 11, 250, .72f, UiTheme.MUTED);
+        if (!has(Image.RANDOM)) view.textSmooth("F2 Random", Metrics.RANDOM_X + 7, 11,
+                Metrics.RANDOM_WIDTH - 14, .70f, !randomEnabled ? UiTheme.MUTED : UiTheme.TEXT);
+        view.textSmooth(sets.size() + " local sets", 405, 11, 160, .72f, UiTheme.MUTED);
         view.textSmooth("F6  DEBUG AUTO", layout.width() - 145, 11, 132, .62f, UiTheme.MUTED);
         if (selectedDifficulty() != null) playCookie.drawText(view, Metrics.COOKIE_TEXT_SCALE);
         if (toastSeconds > 0) view.textSmooth(toast, 27, bottom + 34, Math.min(430, layout.width() * .4f), UiTheme.META, toastColor);
@@ -218,7 +264,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.cover(outgoing.opacity());
     }
 
-    @Override public void dispose() { closed = true; thumbnails.close(); }
+    @Override public void dispose() { closed = true; thumbnails.close(); if (skin != null) skin.dispose(); }
 
     private void calculateLayout(UiLayout layout) {
         bottom = Metrics.TOOLBAR_HEIGHT;
@@ -269,51 +315,94 @@ public final class SongSelectScreen extends ScreenAdapter {
         return result;
     }
 
-    private void drawRowShapes(UiLayout layout, float px, float py) {
-        for (Row row : visibleRows) if (!row.selected()) drawRowShape(row, px, py);
-        for (Row row : visibleRows) if (row.selected()) drawRowShape(row, px, py);
-        if (visibleRows.isEmpty()) view.box(layout.width() * .59f, bottom + 155, layout.width() * .38f, 66, 0, LEFT);
+    private boolean has(Image image) { return skin != null && skin.get(image) != null; }
+
+    private void skinImage(Image image, float x, float y, float w, float h, Color tint) {
+        if (!has(image)) return;
+        game.batch().setColor(tint);
+        game.batch().draw(skin.get(image).texture(), x, y, w, h);
+        game.batch().setColor(Color.WHITE);
     }
 
-    private void drawRowShape(Row row, float px, float py) {
+    private void skinImageFit(Image image, float x, float y, float w, float h, Color tint) {
+        if (!has(image)) return;
+        var asset = skin.get(image);
+        float scale = Math.min(w / asset.logicalWidth(), h / asset.logicalHeight());
+        float width = asset.logicalWidth() * scale, height = asset.logicalHeight() * scale;
+        skinImage(image, x + (w - width) / 2, y, width, height, tint);
+    }
+
+    private void skinImageOverlay(Image normal, Image overlay, float x, float y, float w, float h, Color tint) {
+        var asset = skin.get(normal);
+        float scale = Math.min(w / asset.logicalWidth(), h / asset.logicalHeight());
+        float width = asset.logicalWidth() * scale, height = asset.logicalHeight() * scale;
+        skinImage(overlay, x + (w - width) / 2, y, width, height, tint);
+    }
+
+    private static Color textColor(SkinConfiguration.Rgb rgb, Color fallback) {
+        return rgb == null ? fallback : new Color(rgb.r(), rgb.g(), rgb.b(), 1);
+    }
+
+    private float thumbnailWidth() {
+        // Wiki v2.2+ ratio, adapted to the existing row height; old skins retain our original layout.
+        return has(Image.MENU_BUTTON_BACKGROUND) && skin.configuration().legacyVersion() >= 2.2
+                ? Metrics.THUMB_HEIGHT * 115f / 85f : Metrics.THUMB_WIDTH;
+    }
+
+    private void drawRows(UiLayout layout, float px, float py) {
+        // Crop the carousel to its existing logical area, including partially visible rows.
+        float scaleX = Gdx.graphics.getBackBufferWidth() / layout.width();
+        float scaleY = Gdx.graphics.getBackBufferHeight() / layout.height();
+        Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
+        Gdx.gl.glScissor(0, Math.round(bottom * scaleY), Math.round(layout.width() * scaleX), Math.round((top - bottom) * scaleY));
+        try {
+            for (Row row : visibleRows) if (!row.selected()) drawRow(row, px, py);
+            for (Row row : visibleRows) if (row.selected()) drawRow(row, px, py);
+        } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
+        if (visibleRows.isEmpty()) {
+            view.beginShapes();
+            view.box(layout.width() * .59f, bottom + 155, layout.width() * .38f, 66, 0, LEFT);
+            view.endShapes();
+            view.beginText();
+            view.textSmooth(search.isEmpty() ? "Import a beatmap to begin" : "No matching beatmaps",
+                    searchX - 220, bottom + 196, 410, UiTheme.BODY, UiTheme.TEXT);
+            view.endText();
+        }
+    }
+
+    private void drawRow(Row row, float px, float py) {
         boolean hover = rowHit(row, px, py);
         Color color = row.selected() ? SELECTED : row.sibling()
                 ? hover ? SIBLING_HOVER : SIBLING : hover ? OTHER_HOVER : OTHER;
         float x = row.x() - (hover && !row.selected() ? 7 : 0), y = row.y();
-        view.quad(x, y, x + row.width(), y, x + row.width(), y + row.height(), x + 9, y + row.height(), color);
-        view.box(x + Metrics.THUMB_X, y + Metrics.THUMB_Y, Metrics.THUMB_WIDTH, Metrics.THUMB_HEIGHT, 0, THUMB_FALLBACK);
-    }
-
-    private void drawThumbnails() {
-        for (Row row : visibleRows) if (!row.selected()) drawThumbnail(row);
-        for (Row row : visibleRows) if (row.selected()) drawThumbnail(row);
-    }
-
-    private void drawThumbnail(Row row) {
+        if (has(Image.MENU_BUTTON_BACKGROUND)) {
+            view.beginText();
+            skinImage(Image.MENU_BUTTON_BACKGROUND, x, y, row.width(), row.height(), color);
+            view.endText();
+        } else {
+            view.beginShapes();
+            view.quad(x, y, x + row.width(), y, x + row.width(), y + row.height(), x + 9, y + row.height(), color);
+            view.endShapes();
+        }
+        view.beginShapes();
+        view.box(x + Metrics.THUMB_X, y + Metrics.THUMB_Y, thumbnailWidth(), Metrics.THUMB_HEIGHT, 0, THUMB_FALLBACK);
+        view.endShapes();
         BeatmapSet set = sets.get(row.setIndex());
         BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : set.difficulties().get(0);
         Path path = diff.backgroundPath() != null ? diff.backgroundPath() : set.backgroundPath();
-        Texture texture = thumbnails.get(path);
-        view.imageCover(texture, row.x() + Metrics.THUMB_X, row.y() + Metrics.THUMB_Y,
-                Metrics.THUMB_WIDTH, Metrics.THUMB_HEIGHT);
-    }
-
-    private void drawRowText() {
-        if (visibleRows.isEmpty()) {
-            view.textSmooth(search.isEmpty() ? "Import a beatmap to begin" : "No matching beatmaps",
-                    searchX - 220, bottom + 196, 410, UiTheme.BODY, UiTheme.TEXT);
-            return;
-        }
-        for (Row row : visibleRows) if (!row.selected()) drawRowLabel(row);
-        for (Row row : visibleRows) if (row.selected()) drawRowLabel(row);
+        view.beginText();
+        view.imageCover(thumbnails.get(path), x + Metrics.THUMB_X, y + Metrics.THUMB_Y, thumbnailWidth(), Metrics.THUMB_HEIGHT);
+        drawRowLabel(new Row(row.setIndex(), row.difficultyIndex(), row.selected(), row.sibling(), x, y, row.width(), row.height()));
+        view.endText();
     }
 
     private void drawRowLabel(Row row) {
         BeatmapSet set = sets.get(row.setIndex());
         BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : null;
-        Color primary = row.selected() ? DARK_TEXT : UiTheme.TEXT;
-        Color secondary = row.selected() ? DARK_TEXT : UiTheme.MUTED;
-        float x = row.x() + 118, w = Math.max(60, row.width() - 136);
+        Color primary = row.selected() ? activeText : inactiveText != null ? inactiveText : UiTheme.TEXT;
+        Color secondary = row.selected() ? activeText : inactiveText != null ? inactiveText : UiTheme.MUTED;
+        float textOffset = Metrics.THUMB_X + thumbnailWidth() + 13;
+        float x = row.x() + textOffset, w = Math.max(60, row.width() - textOffset - 18);
         view.textSmooth(set.artist() + " - " + set.title(), x, row.y() + 50, w, Metrics.ROW_TITLE_SCALE, primary);
         view.textSmooth(diff == null ? set.creator() + "  ·  " + set.difficulties().size() + " difficulties"
                         : "[" + diff.version() + "]  mapped by " + set.creator(),
@@ -370,6 +459,21 @@ public final class SongSelectScreen extends ScreenAdapter {
             return;
         }
     }
+    private boolean randomHit(float x, float y) {
+        return y >= 0 && y < bottom && x >= Metrics.RANDOM_X && x < Metrics.RANDOM_X + Metrics.RANDOM_WIDTH;
+    }
+
+    private void randomize() {
+        if (importing || outgoing.pending()) return;
+        String query = search.toLowerCase(Locale.ROOT).strip();
+        List<Integer> candidates = new ArrayList<>();
+        for (int i = 0; i < sets.size(); i++) if (matches(sets.get(i), query)) candidates.add(i);
+        if (candidates.isEmpty()) return;
+        if (candidates.size() > 1) candidates.remove(Integer.valueOf(selectedSetIndex));
+        selectSet(candidates.get(ThreadLocalRandom.current().nextInt(candidates.size())));
+        randomPulse = .20f;
+    }
+
     private void advance(int direction) {
         if (direction == 0) return;
         BeatmapSet current = selectedSet();

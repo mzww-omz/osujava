@@ -195,10 +195,10 @@ key-press-2.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for 
 key-press-3.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 key-press-4.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 lighting.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
-menu-back.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	70f9d2987f3e06bf13390e408f9daa157ef381009219decfb8d0922c50adb40d
-menu-back@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	24701700fb4b1716e7b500d07117912a54cb29cb9bc95c3fdd5743dcedae313a
-menu-button-background.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	bda225d5996979904363b08721eff24e17b233fb017d98bb1f28d547734b9cf5
-menu-button-background@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	8d82a9bd8e643b887495e838491784ae296801e8875c2bbb8532bc3ee310f092
+menu-back.png	songselect	yes	SongSelect visual; shared resolver, logical layout bounds and procedural fallback	70f9d2987f3e06bf13390e408f9daa157ef381009219decfb8d0922c50adb40d
+menu-back@2x.png	songselect	yes	SongSelect visual; shared resolver, logical layout bounds and procedural fallback	24701700fb4b1716e7b500d07117912a54cb29cb9bc95c3fdd5743dcedae313a
+menu-button-background.png	songselect	yes	SongSelect visual; shared resolver, logical layout bounds and procedural fallback	bda225d5996979904363b08721eff24e17b233fb017d98bb1f28d547734b9cf5
+menu-button-background@2x.png	songselect	yes	SongSelect visual; shared resolver, logical layout bounds and procedural fallback	8d82a9bd8e643b887495e838491784ae296801e8875c2bbb8532bc3ee310f092
 menuback.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	f7a56e3f64ee7b80e589dc7572b30ffeb2d571f2e1a70df0110ced34eccfe28c
 menuclick.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 menuhit.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	e092163a15b87023b0ab9c3e3bb4bed5c6e6ff212a5d9716639b6ee884a77106
@@ -366,22 +366,22 @@ selection-mod-suddendeath.png	unused	yes (reserved)	Menu/song select/results/pau
 selection-mod-suddendeath@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	9bd4c0356eed36cb5fe1ce8ba9a3e66f2399cd705a54c7dd95ab0e01bd204bcc
 selection-mod-target.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	f5826eb7e0590f773c1d17c5cd4f5e49f0c17770172c2538e778910368ace754
 selection-mod-target@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	db22b03b3212ce1240795760596dd6b4b55897537b8affef4326bf5b7d62f803
-selection-mode-over.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	3019a170055fc82b0dc1aaacbc5146c4ce0cf9106b595d70e0d9a800a5bc3cb0
-selection-mode-over@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	7522780ffa33dc1f5a1d5c96cb849e9cebc4064acc48dd90e5c2f14abf3ab74e
-selection-mode.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	c483b38f5c254d2703104aa89bfad7c61162497711c1b44408f4aa36834f6094
-selection-mode@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	f57e3608d46fc7af4de6d691bf298648d33001feb27ad4d1e42fae32ebda5ac8
-selection-mods-over.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	3d23d8c4483fa607fd89a5c458d68487776ea226f9ec04598d2ab56c165b3c21
-selection-mods-over@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	a7bcdf5a85a892e4dcb681c8ab49ca3ece658df3060bbbc93028d3af9e15d343
-selection-mods.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	ea07a0e26201f36abb93c0e680088744741e8046711df2557022724f59895ca6
-selection-mods@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	aa7bfd179052a1260403c3b3225adebbac0d8bcc155df01ff8bd8d83a58fde76
-selection-options-over.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	998dfac4e101521144845244253a63cc803ea28967c227a0e2bc1dca76a0e8b5
-selection-options-over@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	77b102208563e829978561566452d8afdbfafeeb5ef9f034fe766adc3c786b42
-selection-options.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	00fcf32f14c050aeb69dc6d885059bb6e604e2edfe5d5b6d81ceb1dbd61bb883
-selection-options@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	29de16b37acb30a33c161b33b5633c434d2564889ffa468e370d86626661ad56
-selection-random-over.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	61bfd3dfbfebe0db5e7e9048936aa2141f2f5b4564f77ab26f41a35a69d22095
-selection-random-over@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	4e489f7fb2f08382b71a01cc04dc49020f4a3ce1a28b2dcf51d116c4fa91417f
-selection-random.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	e832433c23d9f3f47d4adb3e45371a96341eaebf47884bb433e25b0f6ad6506e
-selection-random@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	def7b182bf05b8b9e43cc8329a1be9e310f95fa8e932eb3c761fafacf5efdc90
+selection-mode-over.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	3019a170055fc82b0dc1aaacbc5146c4ce0cf9106b595d70e0d9a800a5bc3cb0
+selection-mode-over@2x.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	7522780ffa33dc1f5a1d5c96cb849e9cebc4064acc48dd90e5c2f14abf3ab74e
+selection-mode.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	c483b38f5c254d2703104aa89bfad7c61162497711c1b44408f4aa36834f6094
+selection-mode@2x.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	f57e3608d46fc7af4de6d691bf298648d33001feb27ad4d1e42fae32ebda5ac8
+selection-mods-over.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	3d23d8c4483fa607fd89a5c458d68487776ea226f9ec04598d2ab56c165b3c21
+selection-mods-over@2x.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	a7bcdf5a85a892e4dcb681c8ab49ca3ece658df3060bbbc93028d3af9e15d343
+selection-mods.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	ea07a0e26201f36abb93c0e680088744741e8046711df2557022724f59895ca6
+selection-mods@2x.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	aa7bfd179052a1260403c3b3225adebbac0d8bcc155df01ff8bd8d83a58fde76
+selection-options-over.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	998dfac4e101521144845244253a63cc803ea28967c227a0e2bc1dca76a0e8b5
+selection-options-over@2x.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	77b102208563e829978561566452d8afdbfafeeb5ef9f034fe766adc3c786b42
+selection-options.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	00fcf32f14c050aeb69dc6d885059bb6e604e2edfe5d5b6d81ceb1dbd61bb883
+selection-options@2x.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	29de16b37acb30a33c161b33b5633c434d2564889ffa468e370d86626661ad56
+selection-random-over.png	songselect	yes	SongSelect visual; shared resolver, logical layout bounds and procedural fallback	61bfd3dfbfebe0db5e7e9048936aa2141f2f5b4564f77ab26f41a35a69d22095
+selection-random-over@2x.png	songselect	yes	SongSelect visual; shared resolver, logical layout bounds and procedural fallback	4e489f7fb2f08382b71a01cc04dc49020f4a3ce1a28b2dcf51d116c4fa91417f
+selection-random.png	songselect	yes	SongSelect visual; shared resolver, logical layout bounds and procedural fallback	e832433c23d9f3f47d4adb3e45371a96341eaebf47884bb433e25b0f6ad6506e
+selection-random@2x.png	songselect	yes	SongSelect visual; shared resolver, logical layout bounds and procedural fallback	def7b182bf05b8b9e43cc8329a1be9e310f95fa8e932eb3c761fafacf5efdc90
 selection-tab.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	5c707cb8bda1ffb586e554643f2dc32fd77545262b275d2b10c12e96ee988da1
 selection-tab@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	cdd6dbe71de912eca166917297a6a7942e385136813b4f57ce7769703b45cc8c
 skin.ini	configuration	yes	Original ini, including ignored sections	318b47746ee20707596e4b35de811be4a7f8a9355dc7448410a4629dd2180f79
@@ -411,10 +411,10 @@ soft-hitwhistle.wav	common sound	yes	Skin fallback hitsounds (beatmap samples re
 soft-sliderslide.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 soft-slidertick.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	102d2b11ecd8c25320b601eaf5e50358e05f11f276e3b23a11bfd5a3202fc47d
 soft-sliderwhistle.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-songselect-bottom.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	527c09b36cf794b6521bf5d10157d77594a3f7abdc6c35b3429e479aeef49def
-songselect-bottom@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	970347b2d88853b1d30d92918d2848fd9ba0301e63ad4a65f7558394ef3e0e7f
-songselect-top.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	48200ff8e4f2025a7e9c242df9399814e233fc38bdd928ba2f47ba558907d06e
-songselect-top@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	6447edfbafc5bcbefc8c1a836cdd0e546c78061706b6d9501886a9de5ed886cf
+songselect-bottom.png	songselect	yes	SongSelect visual; shared resolver, logical layout bounds and procedural fallback	527c09b36cf794b6521bf5d10157d77594a3f7abdc6c35b3429e479aeef49def
+songselect-bottom@2x.png	songselect	yes	SongSelect visual; shared resolver, logical layout bounds and procedural fallback	970347b2d88853b1d30d92918d2848fd9ba0301e63ad4a65f7558394ef3e0e7f
+songselect-top.png	songselect	yes	SongSelect visual; shared resolver, logical layout bounds and procedural fallback	48200ff8e4f2025a7e9c242df9399814e233fc38bdd928ba2f47ba558907d06e
+songselect-top@2x.png	songselect	yes	SongSelect visual; shared resolver, logical layout bounds and procedural fallback	6447edfbafc5bcbefc8c1a836cdd0e546c78061706b6d9501886a9de5ed886cf
 spinner-approachcircle.png	standard	yes	Currently supported gameplay sprite	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
 spinner-background.png	standard	yes	Currently supported gameplay sprite	adf14d3b018c59b4da61fa4f819415098f1be92860d01ba54ae9f3f121345256
 spinner-background@2x.png	standard	yes	Currently supported gameplay sprite	0961e6126be129d86ca0113213c10bb808078dd0de12f874a7168b13cc9aabcf
@@ -429,9 +429,9 @@ spinner-spin.png	standard	yes	Currently supported gameplay sprite	da82622f883aa3
 spinner-spin@2x.png	standard	yes	Currently supported gameplay sprite	729c7c12dc77db586e0c2a9fe72f37fb50a04e74bfc1f6775107dc790df852af
 spinner-warning.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	25d37ca4e85a4005fb43dd7228b39d72110257d49b418ecbcf4f880cad722a46
 spinner-warning@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	e857061b2c418f5f9e6a76ab6bad43349c7aa49d8213f9ebbbdf09c7e6f842b3
-star.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	53c0c92d2745e1a5cf0592438ec9d8de20c0884904ad6b38f3c35f7806f2c8e8
+star.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	53c0c92d2745e1a5cf0592438ec9d8de20c0884904ad6b38f3c35f7806f2c8e8
 star2.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
-star@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	6ac3c68b1715db4c73d33b60d7de0245f501da01ebdd23d18a9f77f463b0b689
+star@2x.png	songselect asset support	yes (reserved)	SongSelect holder resolves this asset; not displayed until its feature/data exists	6ac3c68b1715db4c73d33b60d7de0245f501da01ebdd23d18a9f77f463b0b689
 taiko-bar-left.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	8e586a4ee98e7410c1f0147a13283f7ce3128fd44886569066dcf1192c3549e3
 taiko-bar-left@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	ce2d8f8e2952097bf32bd6fd76a84f9d4e1220425cf69eb346e81144a3ebfa24
 taiko-bar-right-glow.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	6b1b33bb99cba12b646ff686b5d15539aef3b4995626775e6e3c200928b53ea6
