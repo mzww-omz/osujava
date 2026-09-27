@@ -8,6 +8,8 @@ import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.PixmapIO;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
+import com.badlogic.gdx.graphics.g2d.Batch;
+import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.math.Matrix4;
@@ -17,6 +19,7 @@ import dev.osujava.gameplay.*;
 import dev.osujava.ruleset.osu.OsuGameplaySession;
 import dev.osujava.skin.OsuSkinAssets;
 import dev.osujava.skin.SkinImporter;
+import dev.osujava.skin.LegacyHudLayout;
 import static dev.osujava.skin.OsuSkinAssets.Image.*;
 import static dev.osujava.ruleset.osu.render.LegacySpinnerAnimation.*;
 import java.awt.BasicStroke;
@@ -38,8 +41,17 @@ public final class LegacySpinnerVisualHarness extends ApplicationAdapter {
             0xff911eb4,0xff46f0f0,0xfff032e6,0xffbcf60c,0xfffabebe};
     private static final int RPM = 0xfff125b1;
     private static final int TOP = 0xff177d97, BOTTOM = 0xff9d6e13, LEFT = 0xff195d2d, RIGHT = 0xff7149a1;
+    private final Set<Path> noBitmapSkins = new HashSet<>();
+    private final Set<Path> ckSkins = new HashSet<>();
+    private static class TrackingFont extends BitmapFont {
+        int draws;
+        @Override public GlyphLayout draw(Batch batch, CharSequence text, float x, float y) {
+            draws++;
+            return super.draw(batch, text, x, y);
+        }
+    }
     private final Path output;
-    private SpriteBatch batch; private ShapeRenderer shapes; private BitmapFont font;
+    private SpriteBatch batch; private ShapeRenderer shapes; private TrackingFont font;
     private OsuJavaGame game; private OsuSkinAssets assets; private GameplayRenderer renderer;
     private int index; private boolean resizing; private final List<String> results = new ArrayList<>();
     private LegacySpinnerVisualHarness(Path output) { this.output = output; }
@@ -50,7 +62,7 @@ public final class LegacySpinnerVisualHarness extends ApplicationAdapter {
         new Lwjgl3Application(new LegacySpinnerVisualHarness(Path.of(args[0])), config);
     }
     @Override public void create() {
-        batch = new SpriteBatch(); shapes = new ShapeRenderer(); font = new BitmapFont();
+        batch = new SpriteBatch(); shapes = new ShapeRenderer(); font = new TrackingFont();
         game = new OsuJavaGame(null) {
             @Override public BitmapFont font() { return font; }
             @Override public SpriteBatch batch() { return batch; }
@@ -107,6 +119,21 @@ public final class LegacySpinnerVisualHarness extends ApplicationAdapter {
             Files.writeString(brokenRpm.resolve("spinner-rpm.png"),"broken PNG");
             checks.put(brokenRpm,new Check(692,1,false,true,null));
             add("qa-broken-rpm",brokenRpm,.5,3000,Long.MIN_VALUE);
+            Path nested = pixelFixture("qa-nested-fonts",692,2,true,null);
+            Files.createDirectories(nested.resolve("Assets/score"));
+            for (int n=0;n<10;n++) Files.move(nested.resolve("score-"+n+"@2x.png"),nested.resolve("Assets/score/score-"+n+"@2x.png"),StandardCopyOption.REPLACE_EXISTING);
+            for (String suffix : List.of("dot","comma","percent","x")) image(nested.resolve("Assets/score"),"score-"+suffix,24,32,2,0xffeeeeee,suffix.equals("x")?"x":"%");
+            Files.writeString(nested.resolve("skin.ini"),"[General]\nSpinnerNoBlink: 1\n[Fonts]\nHitCirclePrefix: Assets/score/score\nScorePrefix: Assets/score/score\nComboPrefix: Assets/score/score\nScoreOverlap: 10\n");
+            noBitmapSkins.add(nested);
+            add("qa-nested-fonts",nested,.5,3000,Long.MIN_VALUE);
+            String ckArchive = System.getProperty("osujava.spinnerCkSkinArchive");
+            if (ckArchive != null) {
+                Path ck = new SkinImporter(output.resolve("ck-skins")).importFile(Path.of(ckArchive));
+                noBitmapSkins.add(ck);ckSkins.add(ck);
+                for (int[] size : new int[][]{{1024,768},{1280,720},{600,800}})
+                    scenes.add(new Scenario("real-ck-"+size[0]+"x"+size[1],ck,.5,3000,Long.MIN_VALUE,size[0],size[1],false));
+                scenes.add(new Scenario("real-ck-session",ck,0,3800,Long.MIN_VALUE,1024,768,true));
+            }
             // Explicitly import the reported real skin; gameplay still reads only the local directory.
             String reportedArchive = System.getProperty("osujava.spinnerReportedSkinArchive");
             if (reportedArchive != null) {
@@ -202,6 +229,7 @@ public final class LegacySpinnerVisualHarness extends ApplicationAdapter {
         results.add(scene.name + " pixels=identical logical=" + Gdx.graphics.getWidth() + "x" + Gdx.graphics.getHeight()
                 + " framebuffer=" + Gdx.graphics.getBackBufferWidth() + "x" + Gdx.graphics.getBackBufferHeight());
         if (checks.containsKey(scene.skin)) assertPieces(scene, state, first);
+        if (ckSkins.contains(scene.skin)) assertCk(scene,state,first);
         if (++index == scenes.size()) {
             try { Files.write(output.resolve("results.txt"), results); } catch (Exception e) { throw new RuntimeException(e); }
             Gdx.app.exit(); return;
@@ -236,7 +264,52 @@ public final class LegacySpinnerVisualHarness extends ApplicationAdapter {
         int width = Gdx.graphics.getWidth(), height = Gdx.graphics.getHeight();
         var projection = new Matrix4().setToOrtho2D(0, 0, width, height);
         batch.setProjectionMatrix(projection); shapes.setProjectionMatrix(projection);
+        font.draws=0;
         renderer.render(null, null, state, PlayfieldViewport.fit(width, height), null, "");
+        if(noBitmapSkins.contains(scenes.get(index).skin) && font.draws!=0)
+            throw new AssertionError("Skin counters used BitmapFont fallback: "+scenes.get(index).name+" draws="+font.draws);
+    }
+    private void assertCk(Scenario scene, GameplayState state, byte[] pixels) {
+        if(assets.spinnerStyle()!=Style.OLD || !assets.hasHitCircleDigits()
+                || !assets.hasHudText(OsuSkinAssets.HudFont.SCORE,"0123456789.,%")
+                || !assets.hasHudText(OsuSkinAssets.HudFont.COMBO,"0123456789x"))
+            throw new AssertionError("ck skin fonts/body failed to load");
+        for(var family:OsuSkinAssets.HudFont.values())for(char ch:"0123456789".toCharArray()) {
+            var glyph=assets.hudGlyph(family,ch);
+            if(glyph.density()!=2 || !glyph.file().path().toString().contains("/Assets/"))
+                throw new AssertionError("ck nested @2x font not used");
+        }
+        var scoreSix=assets.hudGlyph(OsuSkinAssets.HudFont.SCORE,'6');
+        if(scoreSix.logicalWidth()!=30 || scoreSix.logicalHeight()!=40
+                || assets.hitCircleDigit(1).logicalWidth()!=50 || assets.hitCircleDigit(1).logicalHeight()!=50)
+            throw new AssertionError("ck @2x font logical dimensions changed");
+        if(assets.diagnostic(SPINNER_METRE).status()!=OsuSkinAssets.LoadStatus.MISSING
+                || assets.diagnostic(SPINNER_RPM).status()!=OsuSkinAssets.LoadStatus.LOADED
+                || assets.get(SPINNER_RPM).logicalWidth()!=1 || assets.get(SPINNER_RPM).logicalHeight()!=1)
+            throw new AssertionError("ck intentional missing/transparent pieces changed");
+        var spinner=state.spinners().getFirst();
+        var layout=LegacyHudLayout.create(spmText(spinner.spinsPerMinute()),ch->{
+            var glyph=assets.hudGlyph(OsuSkinAssets.HudFont.SCORE,ch);
+            return new LegacyHudLayout.Size(glyph.logicalWidth(),glyph.logicalHeight());
+        },assets.hudOverlap(OsuSkinAssets.HudFont.SCORE),false);
+        var c=LegacySpinnerCoordinates.fit(scene.width,scene.height);
+        float unit=c.length(SPRITE_SCALE*.9), top=c.y(448+spmOffset(spinner,state.currentTimeMs()));
+        long spmPixels=countArea(pixels,scene,c.x(400)-layout.width()*unit,top-layout.height()*unit,c.x(400),top,0xfff9f8ed);
+        long hudPixels=countArea(pixels,scene,scene.width*.5f,scene.height*.8f,scene.width,scene.height,0xfff9f8ed);
+        if(spmPixels==0 || hudPixels==0)throw new AssertionError("ck skin-text pixels missing: "+scene.name);
+        results.add("ASSERT "+scene.name+" bitmapDraws=0 spmSkinPixels="+spmPixels+" hudSkinPixels="+hudPixels
+                +" progress="+spinner.progress()+" spm="+spinner.spinsPerMinute()+" scoreGlyph="+assets.hudGlyph(OsuSkinAssets.HudFont.SCORE,'6').file());
+    }
+    private static long countArea(byte[] pixels, Scenario scene,float left,float bottom,float right,float top,int color) {
+        int w=Gdx.graphics.getBackBufferWidth(),h=Gdx.graphics.getBackBufferHeight();
+        float dx=(float)w/scene.width,dy=(float)h/scene.height;long count=0;
+        for(int y=Math.max(0,(int)(bottom*dy));y<Math.min(h,(int)(top*dy));y++)
+            for(int x=Math.max(0,(int)(left*dx));x<Math.min(w,(int)(right*dx));x++) {
+                int i=(y*w+x)*4;
+                int rgba=(pixels[i]&255)<<24|(pixels[i+1]&255)<<16|(pixels[i+2]&255)<<8|(pixels[i+3]&255);
+                if(matches(rgba,color,1))count++;
+            }
+        return count;
     }
     private void assertPieces(Scenario scene, GameplayState state, byte[] fullFrame) {
         Check check = checks.get(scene.skin); SpinnerVisual spinner = state.spinners().getFirst();

@@ -219,3 +219,44 @@ Gameplayのrotation、SPM、required spins、score、judgement、audioは変更�
 実Skinの回帰検証は任意の `-PspinnerReportedSkinArchive=/Users/agemizu/Documents/default.osk` をharnessへ追加する。
 これは報告されたNEW・metre/rpm欠落のdefault.oskを検証する専用ケースであり、すべてのSkinへ同じ期待値を適用するものではない。
 未指定の通常harnessはユーザーのHOMEやSkinに依存せず、生成fixtureだけで実行する。
+
+
+## ck.oskの文字表示修正 (2026-09-27)
+
+前回のck.osk調査ではmetre/rpmの有無だけを確認し、font prefixの解決失敗を見落としていた。
+実archiveのskin.iniは次の相対prefixを指定し、各フォント画像もそのdirectoryに存在する。
+
+- HitCirclePrefix: `Assets/default/default` (overlap 15)
+- ScorePrefix: `Assets/score/score` (overlap 10)
+- ComboPrefix: `Assets/combo/combo` (overlap 10)
+
+resolverのbasename検証がslashを一律拒否していたため、正常なサブディレクトリ付きprefixでも画像を取得できず、HUD/HitCircleは標準BitmapFontへfallback、LegacySpinnerのSPM/bonusはglyphを省略していた。
+[lazer LegacySkinExtensions.GetFontPrefix](https://github.com/ppy/osu/blob/master/osu.Game/Skinning/LegacySkinExtensions.cs)と
+[LegacySpriteText.LegacyGlyphStore.Get](https://github.com/ppy/osu/blob/master/osu.Game/Skinning/LegacySpriteText.cs)を直接確認。
+lazerは設定されたprefixへcharacter suffixを付けてISkin.GetTextureへ渡し、directory付きprefixを消去しない。
+
+SkinAssetResolverは各path componentを検証する方式に変更。安全なskin-relative directoryを許可し、absolute、`..`、`.`、空component、Windows drive/backslashは拒否する。
+providerごとに@2x→normal、custom→fallbackの優先順位を維持。
+ネストしたfallback画像のproviderを親directoryの一致で推定せず、解決時のAssetFileにfallback由来を記録する。
+Import側のarchive検証は変更せず、GameplayはImport済みdirectoryを読む。
+
+標準harnessにnested-prefix fixtureを追加し、全counterの描画でBitmapFont.draw呼び出しが0であることをassert。
+実ck.oskは `./gradlew :lwjgl3:spinnerVisualHarness -PspinnerCkSkinArchive=/Users/agemizu/ck.osk` で検証。
+Import後にHitCircle全10glyph、Score全10glyphとdot/comma/percent、Combo全10glyphとxが解決し、@2xが優先された。
+score-6@2xは60×80 pixel→30×40 logical、default-1@2xは100×100 pixel→50×50 logical。
+全Skin counterで標準BitmapFont.drawは0回。HUDとSPMの期待領域から実Skin固有のcream色をframebufferでassertした。
+
+| ck scene | SPM Skin pixel | HUD Skin pixel | BitmapFont.draw |
+| --- | --- | --- | --- |
+| 1024×768 | 460 | 5612 | 0 |
+| 1280×720 | 388 | 4776 | 0 |
+| 600×800 | 173 | 1919 | 0 |
+| 実OsuGameplaySession (SPM≈630) | 1021 | 5570 | 0 |
+
+実Retinaのframebufferはlogicalの2倍。captureは `/tmp/osujava-spinner/real-ck-*.png`。
+文字の修正は既存rendererを変えず、Skin内画像の解決修正で実現した。
+ck.oskのmetre欠落、rpm/spin/approach等の透明1×1指定はそのまま維持する。
+rotation、SPM、required spins、判定、score、hitsoundの計算は変更なし。
+
+検証: `:core:test` 281 tests、標準spinner harness 164 snapshots / 57追加検証、ck指定時168 snapshots / 61追加検証、Gradle build。
+前回のdefault.osk専用ケースも引き続き独立したopt-inとして利用可能。

@@ -12,6 +12,33 @@ import static org.junit.jupiter.api.Assertions.*;
 class SkinAssetResolverTest {
     @TempDir Path directory;
 
+    @Test void nestedFontPrefixesKeepProviderPriorityAndDensity() throws IOException {
+        Path fallback = Files.createDirectories(directory.resolve("fallback/Assets/score")).getParent().getParent();
+        Path own = Files.createDirectories(directory.resolve("Assets/score"));
+        Files.createFile(own.resolve("score-5.png"));
+        Files.createFile(fallback.resolve("Assets/score/score-5@2x.png"));
+        Files.createFile(fallback.resolve("Assets/score/score-6@2x.png"));
+        var resolver = new SkinAssetResolver(directory, fallback);
+        var five = resolver.resolveHudGlyph("Assets/score/score", '5').orElseThrow();
+        assertEquals(own.resolve("score-5.png"), five.path());
+        assertEquals(1, five.density());
+        assertFalse(resolver.isFallback(five));
+        var six = resolver.resolveHudGlyph("Assets/score/score", '6').orElseThrow();
+        assertEquals(fallback.resolve("Assets/score/score-6@2x.png"), six.path());
+        assertEquals(2, six.density());
+        assertTrue(resolver.isFallback(six));
+    }
+
+    @Test void nestedPrefixesStillRejectAbsoluteTraversalAndWindowsPaths() {
+        var resolver = new SkinAssetResolver(directory);
+        for (String prefix : new String[]{"../score", "Assets/../score", "Assets/./score", "/Assets/score",
+                "Assets//score", "C:/Assets/score", "C:\\Assets\\score", "Assets\\score"}) {
+            assertThrows(IllegalArgumentException.class, () -> resolver.resolve(prefix + "-5"), prefix);
+            assertTrue(resolver.resolveHudGlyph(prefix, '5').isEmpty(), prefix);
+        }
+        assertThrows(IllegalArgumentException.class, () -> resolver.resolve("Assets/score/"));
+    }
+
     @Test
     void hudUsesVerifiedSuffixesAndPrefers2xWithoutRequiringIni() throws IOException {
         for (String suffix : new String[]{"0", "5", "dot", "percent", "x"}) {
@@ -140,7 +167,7 @@ class SkinAssetResolverTest {
     }
 
     @Test
-    void customPrefixNeverMixesWithDefaultDigitsAndRejectsPaths() throws IOException {
+    void customPrefixNeverMixesWithDefaultDigitsAndRejectsUnsafePaths() throws IOException {
         for (int digit = 0; digit < 10; digit++) Files.createFile(directory.resolve("default-" + digit + ".png"));
         var resolver = new SkinAssetResolver(directory);
         for (String prefix : new String[]{"score", "../default", "/default", "C:\\default"}) {

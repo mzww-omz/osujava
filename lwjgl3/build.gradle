@@ -89,4 +89,7 @@ tasks.register('spinnerVisualHarness', JavaExec) {
     if (project.hasProperty('spinnerReportedSkinArchive')) {
         systemProperty 'osujava.spinnerReportedSkinArchive', project.property('spinnerReportedSkinArchive')
     }
+    if (project.hasProperty('spinnerCkSkinArchive')) {
+        systemProperty 'osujava.spinnerCkSkinArchive', project.property('spinnerCkSkinArchive')
+    }
 }

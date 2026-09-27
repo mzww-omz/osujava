@@ -18,6 +18,29 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class OsuSkinAssetsTest {
+    @Test void ckStyleNestedPrefixesLoadAllThreeSkinFonts() throws IOException {
+        Files.writeString(directory.resolve("skin.ini"), "[Fonts]\nHitCirclePrefix: Assets/default/default\nHitCircleOverlap: 15\n"
+                + "ScorePrefix: Assets/score/score\nScoreOverlap: 10\nComboPrefix: Assets/combo/combo\nComboOverlap: 10\n");
+        for (String family : List.of("default", "score", "combo")) {
+            Path folder = Files.createDirectories(directory.resolve("Assets/" + family));
+            String characters = family.equals("score") ? "0123456789.,%" : family.equals("combo") ? "0123456789x" : "0123456789";
+            for (char c : characters.toCharArray()) {
+                String suffix = c == '.' ? "dot" : c == ',' ? "comma" : c == '%' ? "percent" : String.valueOf(c);
+                Files.createFile(folder.resolve(family + "-" + suffix + ".png"));
+                Files.createFile(folder.resolve(family + "-" + suffix + "@2x.png"));
+            }
+        }
+        var assets = new OsuSkinAssets(directory, file -> new TestTexture());
+        assertTrue(assets.hasHitCircleDigits());
+        assertTrue(assets.hasHudText(OsuSkinAssets.HudFont.SCORE, "0123456789.,%"));
+        assertTrue(assets.hasHudText(OsuSkinAssets.HudFont.COMBO, "123x"));
+        assertEquals(2, assets.hitCircleDigit(5).density());
+        assertEquals(directory.resolve("Assets/score/score-5@2x.png"), assets.hudGlyph(OsuSkinAssets.HudFont.SCORE, '5').file().path());
+        assertEquals(directory.resolve("Assets/combo/combo-x@2x.png"), assets.hudGlyph(OsuSkinAssets.HudFont.COMBO, 'x').file().path());
+        assertEquals(15, assets.hitCircleOverlap());
+        assertEquals(10, assets.hudOverlap(OsuSkinAssets.HudFont.SCORE));
+        assets.dispose();
+    }
     @Test void diagnosticsDistinguishMissingBrokenAndLoadedSpinnerPieces() throws IOException {
         Files.createFile(directory.resolve("spinner-background.png"));
         Files.createFile(directory.resolve("spinner-metre@2x.png"));

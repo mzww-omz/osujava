@@ -22,21 +22,23 @@ public final class SkinAssetResolver {
     }
 
     public Optional<AssetFile> resolve(String name) {
-        if (!name.matches("[\\p{L}\\p{N}_ -]+")) throw new IllegalArgumentException("Expected a skin image basename");
-        return resolveIn(directory, name).or(() -> resolveIn(fallbackDirectory, name));
+        // Font prefixes may include skin-relative directories (e.g. Assets/score/score).
+        // Validate each component; absolute paths, dot segments, empty segments and Windows paths remain invalid.
+        if (!name.matches("[\\p{L}\\p{N}_ -]+(?:/[\\p{L}\\p{N}_ -]+)*"))
+            throw new IllegalArgumentException("Expected a skin-relative image basename");
+        return resolveIn(directory, name, false).or(() -> resolveIn(fallbackDirectory, name, true));
     }
 
-    private Optional<AssetFile> resolveIn(Path directory, String name) {
+    private Optional<AssetFile> resolveIn(Path directory, String name, boolean fallback) {
         if (directory == null) return Optional.empty();
         Path highResolution = directory.resolve(name + "@2x.png");
-        if (Files.isRegularFile(highResolution)) return Optional.of(new AssetFile(highResolution, 2));
+        if (Files.isRegularFile(highResolution)) return Optional.of(new AssetFile(highResolution, 2, fallback));
         Path standard = directory.resolve(name + ".png");
-        return Files.isRegularFile(standard) ? Optional.of(new AssetFile(standard, 1)) : Optional.empty();
+        return Files.isRegularFile(standard) ? Optional.of(new AssetFile(standard, 1, fallback)) : Optional.empty();
     }
 
     public boolean isFallback(AssetFile file) {
-        return fallbackDirectory != null && file.path().getParent().equals(fallbackDirectory)
-                && (directory == null || !directory.equals(fallbackDirectory));
+        return file.fallback();
     }
 
     /** Legacy GetTextures("sliderb", animatable=true, separator=""): animation wins. */
@@ -91,7 +93,8 @@ public final class SkinAssetResolver {
         catch (IllegalArgumentException e) { return Optional.empty(); }
     }
 
-    public record AssetFile(Path path, int density) {
+    public record AssetFile(Path path, int density, boolean fallback) {
+        public AssetFile(Path path, int density) { this(path, density, false); }
         public float logicalSize(int pixels) {
             return (float) pixels / density;
         }
