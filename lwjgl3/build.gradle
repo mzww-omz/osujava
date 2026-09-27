@@ -136,6 +136,7 @@ tasks.register('volumeHudVisualHarness', JavaExec) {
 
 // Production SongSelect with Greylooks and partial/malformed skins at 720p, 1080p and Retina density.
 tasks.register('songSelectVisualHarness', JavaExec) {
+    workingDir = rootProject.projectDir
     dependsOn hudHarnessClasses
     classpath = sourceSets.hudHarness.runtimeClasspath
     mainClass = 'dev.osujava.ui.SongSelectVisualHarness'

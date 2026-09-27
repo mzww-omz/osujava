@@ -55,11 +55,6 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     private static final class Metrics {
         static final float HEADER_HEIGHT = 62;
-        static final float BACK_WIDTH = 154;
-        static final float IMPORT_X = 172;
-        static final float IMPORT_WIDTH = 110;
-        static final float RANDOM_X = 298;
-        static final float RANDOM_WIDTH = 82;
     }
 
     private final OsuJavaGame game;
@@ -101,6 +96,11 @@ public final class SongSelectScreen extends ScreenAdapter {
     private float toastSeconds, seconds, setClickGuard;
     private float backgroundFade;
     private Path backgroundPath;
+    private SongSelectChrome.Bottom bottomLayout;
+    private boolean renderedTopProcedural, renderedBottomProcedural;
+    boolean renderedChromeProcedural(Image image) {
+        return image == Image.TOP ? renderedTopProcedural : renderedBottomProcedural;
+    }
     private float top, bottom, searchX, searchW, cookieX, cookieY, cookieRadius;
 
     private record Row(int setIndex, int difficultyIndex, String header, boolean selected, boolean sibling,
@@ -242,8 +242,8 @@ public final class SongSelectScreen extends ScreenAdapter {
                 if (oldSort != browser.sort() || oldGroup != browser.group()) { refreshBrowserOrder(); }
             }
             else if (px >= searchX && px <= searchX + searchW && py >= top + 4 && py <= top + 29) searchActive = true;
-            else if (SongSelectAction.bottom(px, py, bottom) != null) {
-                var action = SongSelectAction.bottom(px, py, bottom);
+            else if (SongSelectAction.bottom(px, py, bottomLayout) != null) {
+                var action = SongSelectAction.bottom(px, py, bottomLayout);
                 if (action == SongSelectAction.RANDOM) searchActive = false;
                 perform(action);
                 if (action == SongSelectAction.BACK) return;
@@ -267,24 +267,24 @@ public final class SongSelectScreen extends ScreenAdapter {
         randomFade += Math.max(-fadeStep, Math.min(fadeStep, fadeTarget - randomFade));
         view.beginShapes();
         view.box(0, 0, layout.width(), layout.height(), 0, DIM);
-        if (!has(Image.TOP)) view.box(0, layout.height() - 112, layout.width() * .52f, 112, 0, TOP);
-        if (!has(Image.TOP)) view.box(layout.width() * .55f, top, layout.width() * .45f, layout.height() - top, 0, TOP);
+        renderedTopProcedural = SongSelectChrome.procedural(skin, Image.TOP);
+        renderedBottomProcedural = SongSelectChrome.procedural(skin, Image.BOTTOM);
+        if (renderedTopProcedural) view.box(0, layout.height() - 112, layout.width() * .52f, 112, 0, TOP);
+        if (renderedTopProcedural) view.box(layout.width() * .55f, top, layout.width() * .45f, layout.height() - top, 0, TOP);
 
-        if (!has(Image.BOTTOM)) view.box(0, 0, layout.width(), bottom, 0, BOTTOM);
+        if (renderedBottomProcedural) view.box(0, 0, layout.width(), bottom, 0, BOTTOM);
         view.endShapes();
         view.beginText();
         drawTopSkin(layout);
-        skinImage(Image.BOTTOM, 0, 0, layout.width(), skinChromeHeight(Image.BOTTOM, layout, bottom), Color.WHITE);
+        skinImage(Image.BOTTOM, bottomLayout.skinBounds(), Color.WHITE);
         view.endText();
         view.beginShapes();
-        if (!has(Image.BACK)) view.box(0, 0, Metrics.BACK_WIDTH, bottom, 0, BACK_PINK);
-        view.box(Metrics.IMPORT_X, 10, Metrics.IMPORT_WIDTH, bottom - 20, 0, OTHER);
-        if (!has(Image.RANDOM)) view.box(Metrics.RANDOM_X, 0, Metrics.RANDOM_WIDTH, bottom, 0,
+        if (!has(Image.BACK)) chromeBox(bottomLayout.back(), BACK_PINK);
+        if (!has(Image.RANDOM)) chromeBox(bottomLayout.random(),
                 !randomEnabled ? LEFT : randomFade > 0 ? SIBLING_HOVER : OTHER);
         if (searchActive || !search.isEmpty()) view.box(searchX, top + 4, searchW, 25, 0, LEFT);
         view.box(18, layout.height() - 158, layout.width() * .35f, 28, 0, TOP);
         drawScoreShapes(layout, px, py);
-        view.box(layout.width() * .48f, 10, layout.width() * .22f, bottom - 20, 0, LEFT);
         if (toastSeconds > 0) view.box(18, bottom + 12, Math.min(450, layout.width() * .42f), 35, 0, BOTTOM);
         view.endShapes();
         drawRows(layout);
@@ -292,25 +292,29 @@ public final class SongSelectScreen extends ScreenAdapter {
             playCookie.draw(view, seconds, playCookie.hit(px, py), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
         }
         view.beginText();
-        // Fit Back into logical bounds regardless of transparent pixels or image dimensions.
-        skinImageFit(Image.BACK, 0, 0, Metrics.BACK_WIDTH, bottom, Color.WHITE);
+        drawAction(Image.BACK, bottomLayout.back(), Color.WHITE);
         Color randomTint = randomEnabled ? Color.WHITE : RANDOM_DISABLED;
-        skinImageFit(Image.RANDOM, Metrics.RANDOM_X, 0, Metrics.RANDOM_WIDTH, bottom, randomTint);
-        if (has(Image.RANDOM) && randomEnabled) skinImageOverlay(Image.RANDOM, Image.RANDOM_OVER, Metrics.RANDOM_X, 0,
-                Metrics.RANDOM_WIDTH, bottom, randomOverlayTint.set(1, 1, 1, randomFade));
+        drawAction(Image.RANDOM, bottomLayout.random(), randomTint);
+        if (has(Image.RANDOM) && randomEnabled)
+            drawAction(Image.RANDOM_OVER, bottomLayout.random(), randomOverlayTint.set(1, 1, 1, randomFade));
         drawMetadata(layout);
         drawRanking(layout);
         controls.drawLabels(view, layout.width(), layout.height(), browser);
         view.textSmooth(search.isEmpty() ? "Search: type to search" : search + (searchActive ? "|" : ""),
                 searchX + 9, top + 11, searchW - 18, .75f, search.isEmpty() ? UiTheme.MUTED : UiTheme.TEXT);
-        if (!has(Image.BACK)) view.textSmooth("‹  back", 22, 32, 120, 1.2f, UiTheme.TEXT);
-        view.textSmooth("Import", Metrics.IMPORT_X + 14, 43, Metrics.IMPORT_WIDTH - 24, .9f, UiTheme.TEXT);
-        view.textSmooth(".osz / .osu", Metrics.IMPORT_X + 14, 24, Metrics.IMPORT_WIDTH - 24, .64f, UiTheme.MUTED);
-        if (!has(Image.RANDOM)) view.textSmooth("F2 Random", Metrics.RANDOM_X + 7, 32,
-                Metrics.RANDOM_WIDTH - 14, .70f, !randomEnabled ? UiTheme.MUTED : UiTheme.TEXT);
-        view.textSmooth("Local Library", layout.width() * .49f, 52, layout.width() * .20f, .90f, UiTheme.TEXT);
-        view.textSmooth(browser.visibleSets().size() + " / " + sets.size() + " sets", layout.width() * .49f, 30, layout.width() * .20f, .72f, UiTheme.MUTED);
-        view.textSmooth("F6  DEBUG AUTO", layout.width() * .73f, 25, 132, .62f, UiTheme.MUTED);
+        float labelY = bottomLayout.controlBaseline() + bottomLayout.actionHeight() * .5f;
+        if (!has(Image.BACK)) view.textSmooth("‹  back", bottomLayout.back().x() + 22, labelY,
+                bottomLayout.back().width() - 30, 1.2f, UiTheme.TEXT);
+        var importBounds = bottomLayout.importAction();
+        // Local helper: quiet text in the common action slot, without a primary navigation panel.
+        view.textSmooth("Import", importBounds.x() + 14, labelY + 5, importBounds.width() - 24, .72f, UiTheme.MUTED);
+        view.textSmooth(".osz / .osu", importBounds.x() + 14, labelY - 13, importBounds.width() - 24, .55f, UiTheme.MUTED);
+        if (!has(Image.RANDOM)) view.textSmooth("F2 Random", bottomLayout.random().x() + 7, labelY,
+                bottomLayout.random().width() - 14, .70f, !randomEnabled ? UiTheme.MUTED : UiTheme.TEXT);
+        view.textSmooth("Local Library", layout.width() * .49f, labelY + 7, layout.width() * .20f, .72f, UiTheme.MUTED);
+        view.textSmooth(browser.visibleSets().size() + " / " + sets.size() + " sets", layout.width() * .49f, labelY - 12,
+                layout.width() * .20f, .62f, UiTheme.MUTED);
+        view.textSmooth("F6  DEBUG AUTO", layout.width() * .73f, labelY - 12, 132, .55f, UiTheme.MUTED);
         if (toastSeconds > 0) view.textSmooth(toast, 27, bottom + 34, Math.min(430, layout.width() * .4f), UiTheme.META, toastColor);
         view.endText();
         controls.drawMenu(view, layout.width(), layout.height(), browser);
@@ -322,13 +326,15 @@ public final class SongSelectScreen extends ScreenAdapter {
     @Override public void dispose() { closed = true; thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
 
     private void calculateLayout(UiLayout layout) {
+        bottomLayout = SongSelectChrome.bottom(layout.width(), layout.height(), skin);
         bottom = SongSelectChrome.bottomHeight(layout.height());
         top = layout.height() - Metrics.HEADER_HEIGHT;
         searchW = layout.width() * .36f;
         searchX = layout.width() - searchW - 16;
-        cookieRadius = SongSelectChrome.cookieRadius(layout.height());
-        cookieX = SongSelectChrome.cookieX(layout.width(), cookieRadius);
-        cookieY = SongSelectChrome.cookieY(cookieRadius);
+        var cookie = bottomLayout.cookie();
+        cookieRadius = cookie.width() / 2;
+        cookieX = cookie.x() + cookieRadius;
+        cookieY = cookie.y() + cookieRadius;
         playCookie.bounds(cookieX, cookieY, cookieRadius, bottom);
         scores.capacity(ScoreBrowserBounds.of(layout).capacity());
     }
@@ -400,21 +406,42 @@ public final class SongSelectScreen extends ScreenAdapter {
         game.batch().setColor(Color.WHITE);
     }
 
-    private float skinChromeHeight(Image image, UiLayout layout, float fallback) {
-        if (!has(image)) return fallback;
-        // osujava independently uses a 960-unit skin canvas at the 720-unit UI baseline.
-        return Math.min(layout.height() * .34f, skin.get(image).logicalHeight() * layout.height() / 960f);
+    private void skinImage(Image image, SongSelectChrome.Bounds bounds, Color tint) {
+        skinImage(image, bounds.x(), bounds.y(), bounds.width(), bounds.height(), tint);
+    }
+
+    private void chromeBox(SongSelectChrome.Bounds bounds, Color tint) {
+        view.box(bounds.x(), bounds.y(), bounds.width(), bounds.height(), 0, tint);
     }
 
     private void drawTopSkin(UiLayout layout) {
         if (!has(Image.TOP)) return;
         var asset = skin.get(Image.TOP);
-        float h = skinChromeHeight(Image.TOP, layout, 112);
-        float w = asset.logicalWidth() * h / asset.logicalHeight();
+        var bounds = SongSelectChrome.top(layout.width(), layout.height(), asset);
         var texture = asset.texture();
-        if (w < layout.width()) game.batch().draw(texture, w, layout.height() - h, layout.width() - w, h,
-                1 - 1f / texture.getWidth(), 1, 1, 0);
-        skinImage(Image.TOP, 0, layout.height() - h, w, h, Color.WHITE);
+        float edgePixels = Math.min(20 * asset.density(), texture.getWidth());
+        float tileWidth = edgePixels / asset.density() * layout.height() / 768f;
+        // Edge repetitions go underneath the original. Window clipping handles over-wide artwork.
+        for (float x = Math.max(0, bounds.width() - tileWidth); x < layout.width(); x += tileWidth) {
+            float width = Math.min(tileWidth, layout.width() - x);
+            game.batch().draw(texture, x, bounds.y(), width, bounds.height(),
+                    1 - edgePixels / texture.getWidth(), 1,
+                    1 - edgePixels / texture.getWidth() + width / tileWidth * edgePixels / texture.getWidth(), 0);
+        }
+        skinImage(Image.TOP, bounds, Color.WHITE);
+    }
+
+    private void drawAction(Image image, SongSelectChrome.Bounds slot, Color tint) {
+        if (!has(image)) return;
+        var asset = skin.get(image);
+        var body = skin.actionBody(image);
+        var bounds = SongSelectChrome.actionImage(slot, asset, body);
+        // An unusually wider overlay is fitted independently; never distort it to the normal canvas.
+        if (bounds.width() > slot.width()) {
+            float height = slot.width() * asset.logicalHeight() / asset.logicalWidth();
+            bounds = new SongSelectChrome.Bounds(slot.x(), slot.y() - body.bottom() * height, slot.width(), height);
+        }
+        skinImage(image, bounds, tint);
     }
 
     private void skinImageFit(Image image, float x, float y, float w, float h, Color tint) {
@@ -423,13 +450,6 @@ public final class SongSelectScreen extends ScreenAdapter {
         float scale = Math.min(w / asset.logicalWidth(), h / asset.logicalHeight());
         float width = asset.logicalWidth() * scale, height = asset.logicalHeight() * scale;
         skinImage(image, x + (w - width) / 2, y, width, height, tint);
-    }
-
-    private void skinImageOverlay(Image normal, Image overlay, float x, float y, float w, float h, Color tint) {
-        var asset = skin.get(normal);
-        float scale = Math.min(w / asset.logicalWidth(), h / asset.logicalHeight());
-        float width = asset.logicalWidth() * scale, height = asset.logicalHeight() * scale;
-        skinImage(overlay, x + (w - width) / 2, y, width, height, tint);
     }
 
     private static Color textColor(SkinConfiguration.Rgb rgb, Color fallback) {
@@ -679,7 +699,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
     private boolean randomHit(float x, float y) {
-        return y >= 0 && y < bottom && x >= Metrics.RANDOM_X && x < Metrics.RANDOM_X + Metrics.RANDOM_WIDTH;
+        return SongSelectAction.bottom(x, y, bottomLayout) == SongSelectAction.RANDOM;
     }
 
     private void randomize() {

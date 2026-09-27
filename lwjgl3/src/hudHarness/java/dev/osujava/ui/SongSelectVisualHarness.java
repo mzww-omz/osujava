@@ -110,9 +110,46 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         "high-only", "scroll-top", "scroll-middle", "scroll-bottom", "selected", "wheel-hover", "transitions",
                         "large-0", "large-10", "large-100", "large-1000"))
                     scenes.add(new Scene(size[0],size[1],size[2],"phase4-" + name));
+            for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
+                for (String name : List.of("current", "current-hover", "missing", "fallback", "bundled", "normal", "transparent", "present"))
+                    scenes.add(new Scene(size[0], size[1], size[2], "phasechrome-" + name));
+            Path present = Files.createDirectories(output.resolve("fixtures/present"));
+            for (String name : List.of("songselect-top", "songselect-bottom")) {
+                var pixels = new Pixmap(1366, name.endsWith("top") ? 149 : 90, Pixmap.Format.RGBA8888);
+                pixels.setColor(name.endsWith("top") ? Color.MAGENTA : Color.CYAN); pixels.fill();
+                PixmapIO.writePNG(Gdx.files.absolute(present.resolve(name + ".png").toString()), pixels);
+                pixels.dispose();
+            }
+            Path transparent = Files.createDirectories(output.resolve("fixtures/transparent"));
+            for (String name : List.of("songselect-top", "songselect-bottom")) {
+                var pixels = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
+                PixmapIO.writePNG(Gdx.files.absolute(transparent.resolve(name + ".png").toString()), pixels);
+                pixels.dispose();
+            }
             String phase = System.getProperty("osujava.songSelectPhase", "all");
             if (!phase.equals("all")) scenes.removeIf(scene -> !scene.name.startsWith("phase" + phase + "-"));
         } catch (Exception e) { throw new RuntimeException(e); }
+    }
+
+    private void assertChrome(SongSelectScreen screen, SongSelectSkinAssets assets, String name, Path greylooks) {
+        for (var image : List.of(SongSelectSkinAssets.Image.TOP, SongSelectSkinAssets.Image.BOTTOM)) {
+            var asset = assets.get(image);
+            boolean missing = name.equals("phasechrome-missing");
+            if (screen.renderedChromeProcedural(image) != missing || (asset == null) != missing)
+                throw new AssertionError("Chrome rendered the wrong branch: " + name + " " + image);
+            if (name.startsWith("phasechrome-current") && (asset.file().fallback() || asset.density() != 2
+                    || !asset.file().path().equals(greylooks.resolve(image.basename + "@2x.png"))))
+                throw new AssertionError("Current Greylooks did not win: " + asset);
+            if (name.equals("phasechrome-fallback") && (!asset.file().fallback() || asset.file().classpathResource() != null))
+                throw new AssertionError("Configured fallback did not win");
+            if (name.equals("phasechrome-bundled") && asset.file().classpathResource() == null)
+                throw new AssertionError("Bundled fallback did not win");
+            if ((name.equals("phasechrome-normal") || name.equals("phasechrome-transparent"))
+                    && (asset.file().fallback() || asset.density() != 1))
+                throw new AssertionError("Current 1x must beat fallback 2x");
+            System.out.println("CHROME PASS " + name + " " + image + " procedural=" + missing
+                    + (asset == null ? "" : " path=" + asset.file().path() + " density=" + asset.density()));
+        }
     }
 
     private void png(Path path, int w, int h) {
@@ -161,7 +198,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         boolean[] clicked = {false};
         UiLayout layout = UiLayout.fromPixels(scene.width,scene.height);
         int[] pointer = {40,scene.height / 2};
-        if (scene.name.equals("greylooks-random-hover")) { pointer[0] = Math.round(344 * layout.scale()); pointer[1] = scene.height - Math.round(19 * layout.scale()); }
+        if (scene.name.equals("greylooks-random-hover") || scene.name.equals("phasechrome-current-hover")) { pointer[0] = Math.round(344 * layout.scale()); pointer[1] = scene.height - Math.round(19 * layout.scale()); }
         Gdx.input = (Input) Proxy.newProxyInstance(Input.class.getClassLoader(),new Class[]{Input.class},(p,m,a) -> switch(m.getName()) {
             case "setInputProcessor" -> { processor[0] = (InputProcessor)a[0]; yield null; }
             case "getInputProcessor" -> processor[0];
@@ -242,7 +279,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             @Override public dev.osujava.score.LocalScoreStore localScores() { return localScores; }
             @Override public dev.osujava.ruleset.osu.OsuRuleset osuRuleset() { return new dev.osujava.ruleset.osu.OsuRuleset(); }
         };
+        Path greylooks = Path.of("core/src/main/resources/skins/default").toAbsolutePath();
         var resolver = switch (scene.name) {
+            case "phasechrome-current", "phasechrome-current-hover" -> SkinAssetResolver.withBundledDefault(greylooks, output.resolve("fixtures/latest"));
+            case "phasechrome-missing" -> new SkinAssetResolver(output.resolve("fixtures/row-only"));
+            case "phasechrome-fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), greylooks);
+            case "phasechrome-bundled" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), null);
+            case "phasechrome-normal" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/normal-only"), greylooks);
+            case "phasechrome-present" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/present"), greylooks);
+            case "phasechrome-transparent" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/transparent"), greylooks);
             case "phase4-fallback", "phase3-fallback" -> new SkinAssetResolver(output.resolve("fixtures/empty"));
             case "phase4-high-only" -> new SkinAssetResolver(output.resolve("fixtures/high-only"));
             case "phase4-bundled-fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), null);
@@ -363,6 +408,18 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         if (frame == 0 || frame == 8 || frame == 24) capture(fb,name+"-stage-"+stage+"-frame-"+frame);
                     }
                 }
+            }
+            if (scene.name.startsWith("phasechrome-")) assertChrome(screen, assets, scene.name, greylooks);
+            if (scene.name.equals("phasechrome-present")) {
+                Pixmap rendered = Pixmap.createFromFrameBuffer(0, 0, fb.getWidth(), fb.getHeight());
+                try {
+                    // Opaque source colours must survive in the production framebuffer, with no fallback covering them.
+                    int x = Math.round(500 * layout.scale() * scene.density);
+                    int inset = Math.max(1, 3 * scene.density);
+                    if (rendered.getPixel(x, fb.getHeight() - inset) != Color.rgba8888(Color.MAGENTA)
+                            || rendered.getPixel(x, inset) != Color.rgba8888(Color.CYAN))
+                        throw new AssertionError("Procedural chrome covered current skin pixels");
+                } finally { rendered.dispose(); }
             }
             capture(fb,name);
             if (scene.name.startsWith("phase3") || scene.name.startsWith("phase4")) {

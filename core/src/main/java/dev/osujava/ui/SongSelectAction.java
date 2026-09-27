@@ -17,9 +17,16 @@ enum SongSelectAction {
     }
     static SongSelectAction bottom(float x, float y, float bottom) {
         if (y < 0 || y >= bottom) return null;
-        if (x >= 0 && x < 154) return BACK;
-        if (x >= 172 && x < 282) return IMPORT;
-        if (x >= 298 && x < 380) return RANDOM;
+        return bottom(x, y, SongSelectChrome.bottom(1280, 720, null));
+    }
+    static SongSelectAction bottom(float x, float y, SongSelectChrome.Bottom layout) {
+        if (contains(layout.back(), x, y)) return BACK;
+        if (contains(layout.importAction(), x, y)) return IMPORT;
+        if (contains(layout.random(), x, y)) return RANDOM;
         return null;
+    }
+    private static boolean contains(SongSelectChrome.Bounds bounds, float x, float y) {
+        return x >= bounds.x() && x < bounds.x() + bounds.width()
+                && y >= bounds.y() && y < bounds.y() + bounds.height();
     }
 }

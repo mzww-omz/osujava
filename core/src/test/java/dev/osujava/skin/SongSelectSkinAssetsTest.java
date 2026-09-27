@@ -200,6 +200,43 @@ class SongSelectSkinAssetsTest {
         bundled.dispose();
     }
 
+    @ParameterizedTest @ValueSource(strings = {"songselect-top", "songselect-bottom"})
+    void chromeLoadsCurrentBeforeFallbackAndBundledIncludingDecodeFailure(String basename) throws Exception {
+        Image image = basename.equals("songselect-top") ? Image.TOP : Image.BOTTOM;
+        Path fallback = Files.createDirectory(directory.resolve("fallback"));
+        Files.createFile(directory.resolve(basename + ".png"));
+        Files.createFile(fallback.resolve(basename + "@2x.png"));
+        var resolver = SkinAssetResolver.withBundledDefault(directory, fallback);
+        var current = new SongSelectSkinAssets(resolver, file -> new TestTexture(1,1));
+        assertEquals(directory.resolve(basename + ".png"), current.get(image).file().path());
+        assertFalse(current.get(image).file().fallback());
+        assertEquals(1,current.get(image).density());
+        current.dispose();
+        Files.createFile(directory.resolve(basename + "@2x.png"));
+        var high = new SongSelectSkinAssets(resolver, file -> new TestTexture(2732,180));
+        assertEquals(directory.resolve(basename + "@2x.png"), high.get(image).file().path());
+        assertEquals(1366,high.get(image).logicalWidth()); high.dispose();
+        var brokenHigh = new SongSelectSkinAssets(resolver, file -> {
+            if (!file.fallback() && file.density() == 2) throw new GdxRuntimeException("Broken 2x");
+            return new TestTexture(1,1);
+        });
+        assertEquals(1,brokenHigh.get(image).density()); brokenHigh.dispose();
+        var fallbackAssets = new SongSelectSkinAssets(resolver, file -> {
+            if (!file.fallback()) throw new GdxRuntimeException("Broken current");
+            return new TestTexture(32,48);
+        });
+        assertEquals(fallback.resolve(basename + "@2x.png"),fallbackAssets.get(image).file().path());
+        fallbackAssets.dispose();
+        var bundled = new SongSelectSkinAssets(resolver, file -> {
+            if (file.classpathResource() == null) throw new GdxRuntimeException("Broken local");
+            return new TestTexture(32,48);
+        });
+        assertEquals("skins/default/" + basename + "@2x.png",bundled.get(image).file().classpathResource());
+        bundled.dispose();
+        var absent = new SongSelectSkinAssets(resolver, file -> { throw new GdxRuntimeException("All broken"); });
+        assertNull(absent.get(image)); absent.dispose();
+    }
+
     private static class TestTexture extends Texture {
         int disposals;
         final int width, height;
