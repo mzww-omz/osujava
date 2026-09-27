@@ -97,6 +97,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         "phase25-thumbnail-missing", "phase25-thumbnail-wide", "phase25-thumbnail-tall",
                         "phase25-large-library-modern", "phase25-large-library-modern-rated", "phase25-chrome-full", "phase25-chrome-bottom-cookie", "phase25-chrome-top", "phase25-chrome-rankings"))
                     scenes.add(new Scene(size[0],size[1],size[2],name));
+            for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
+                for (String name : List.of("phase3-sort-title", "phase3-sort-artist", "phase3-sort-bpm", "phase3-sort-length",
+                        "phase3-group-none", "phase3-group-artist", "phase3-group-creator", "phase3-group-bpm", "phase3-group-length",
+                        "phase3-search-inactive", "phase3-search-active", "phase3-search-short", "phase3-search-long", "phase3-search-unicode", "phase3-search-none",
+                        "phase3-group-expanded", "phase3-group-selected", "phase3-group-first", "phase3-group-last",
+                        "phase3-chrome-full", "phase3-chrome-cookie", "phase3-menu-group", "phase3-menu-sort", "phase3-large-library", "phase3-transitions", "phase3-fallback", "phase3-modern"))
+                    scenes.add(new Scene(size[0],size[1],size[2],name));
         } catch (Exception e) { throw new RuntimeException(e); }
     }
 
@@ -155,7 +162,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
         var library = new BeatmapLibrary();
-        int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern")) ? 1000 : 7;
+        int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern") || scene.name.equals("phase3-large-library")) ? 1000 : 7;
         boolean phase2 = scene.name.startsWith("phase2");
         var ratings = new IdentityHashMap<BeatmapDifficulty, OptionalDouble>();
         for (int i = 0; i < setCount; i++) {
@@ -163,6 +170,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if (scene.name.equals("phase2-long-set") && i == 2)
                 title = "Local song 2 — A Very Long English Title with Unicode 星の旅人 that extends beyond the row";
             String mapper = "Harness", version = "Difficulty ";
+            String artist = "Local artist";
+            boolean browserScene = scene.name.startsWith("phase3");
+            if (browserScene) {
+                artist = new String[]{"Camellia", "Aether", "夜の星"}[i % 3];
+                mapper = new String[]{"Harness", "Mapper", "星の旅人"}[i % 3];
+                if (i == 3 && scene.name.equals("phase3-search-unicode")) title += " 夜空";
+            }
             Path image = artwork;
             if (phase2 && i == 3) {
                 title = switch (scene.name) {
@@ -187,8 +201,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             int difficultyCount = (scene.name.equals("greylooks-expanded-single") || scene.name.equals("phase2-single")) ? 1
                     : (scene.name.contains("many") && i == 3) ? 16 : 4;
             for (int difficulty = 0; difficulty < difficultyCount; difficulty++) {
-                var diff = new BeatmapDifficulty(title,"Local artist",mapper,version + (difficulty + 1),0,"","",DifficultySettings.defaults(),
-                        List.of(new TimingPoint(0,500,4,0,0,100,true,0)),List.of(),null,image);
+                var diff = new BeatmapDifficulty(title,artist,mapper,version + (difficulty + 1),0,"","",DifficultySettings.defaults(),
+                        List.of(new TimingPoint(0,browserScene ? 60000.0 / (80 + (i % 6) * 55) : 500,4,0,0,100,true,0)),
+                        browserScene ? List.of(new dev.osujava.beatmap.HitObject(0,0,1000,dev.osujava.beatmap.HitObject.Type.CIRCLE,1,0),
+                                new dev.osujava.beatmap.HitObject(0,0,1000 + (i % 7 + 1) * 90000,dev.osujava.beatmap.HitObject.Type.CIRCLE,1,0)) : List.of(),null,image);
                 diffs.add(diff);
                 double rating = switch (scene.name) {
                     case "phase2-low-rating" -> .65;
@@ -200,9 +216,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 };
                 if (phase2 && !scene.name.equals("phase2-no-rating") && !scene.name.equals("phase25-rating-none") && !scene.name.equals("phase25-large-library-modern")) ratings.put(diff, OptionalDouble.of(rating));
             }
-            library.add(new BeatmapSet("set" + i,title,"Local artist",mapper,null,image,diffs,List.of()));
+            library.add(new BeatmapSet("set" + i,title,artist,mapper,null,image,diffs,List.of()));
         }
+        Screen[] destination = {null};
         var game = new OsuJavaGame(null,null) {
+            @Override public void navigate(Screen next) { destination[0] = next; }
             @Override public SpriteBatch batch() { return batch; }
             @Override public ShapeRenderer shapes() { return shapes; }
             @Override public BitmapFont font() { return font; }
@@ -211,6 +229,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             @Override public dev.osujava.ruleset.osu.OsuRuleset osuRuleset() { return new dev.osujava.ruleset.osu.OsuRuleset(); }
         };
         var resolver = switch (scene.name) {
+            case "phase3-fallback" -> new SkinAssetResolver(output.resolve("fixtures/empty"));
+            case "phase3-modern" -> new SkinAssetResolver(output.resolve("fixtures/latest"));
             case "phase2-missing-star" -> new SkinAssetResolver(output.resolve("fixtures/missing"));
             case "phase2-broken-star" -> new SkinAssetResolver(output.resolve("fixtures/star-broken"));
             case "phase2-high-star" -> new SkinAssetResolver(output.resolve("fixtures/star-high"));
@@ -219,7 +239,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     "phase25-rating-high", "phase25-rating-none", "phase25-thumbnail-missing", "phase25-thumbnail-wide",
                     "phase25-thumbnail-tall", "phase25-chrome-full", "phase25-hover", "phase2-thumbnail-fade", "phase2-missing-thumbnail",
                     "phase2-portrait", "phase2-wide", "phase2-broken-thumbnail", "phase2-v22" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/star-high"), null);
-            default -> scene.name.startsWith("greylooks") || phase2 ? SkinAssetResolver.withBundledDefault(null,null)
+            default -> scene.name.startsWith("greylooks") || phase2 || scene.name.startsWith("phase3") ? SkinAssetResolver.withBundledDefault(null,null)
                     : new SkinAssetResolver(output.resolve("fixtures").resolve(scene.name));
         };
         var assets = new SongSelectSkinAssets(resolver);
@@ -235,6 +255,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             screen.legacyThumbnailPreview(scene.name.equals("phase25-legacy-b"));
             screen.resize(scene.width,scene.height);
             fb.begin();
+            if (scene.name.startsWith("phase3")) configureBrowserScene(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             for (int frame = 0; frame < 40; frame++) screen.render(1f / 60);
             if ((scene.name.equals("phase2-hover") || scene.name.equals("phase25-hover"))) {
                 pointerRow(screen,carousel(screen).rows().stream().filter(r -> r.entry.difficultyIndex() == 1).findFirst().orElseThrow().entry.setIndex(),2,pointer,layout,scene.height);
@@ -305,10 +326,28 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         capture(fb,name + "-frame-" + String.format(Locale.ROOT,"%02d",frame));
                 }
             }
+            if (scene.name.equals("phase3-transitions")) {
+                for (int stage=0;stage<3;stage++) {
+                    if (stage == 0) screen.browserMode(SongBrowserModel.Sort.ARTIST, SongBrowserModel.Group.ARTIST);
+                    if (stage == 1) screen.browserSearch("Camellia Difficulty",true);
+                    if (stage == 2) { screen.browserSearch("",false); screen.browserMode(SongBrowserModel.Sort.LENGTH,SongBrowserModel.Group.BPM); }
+                    for (int frame=0;frame<=60;frame++) {
+                        screen.render(1f/60); assertRenderedBounds(screen,layout);
+                        if (frame == 0 || frame == 8 || frame == 24 || frame == 60) capture(fb,name+"-stage-"+stage+"-frame-"+frame);
+                    }
+                }
+            }
             capture(fb,name);
+            if (scene.name.startsWith("phase3")) {
+                screen.browserSearch("",false);
+                closeBrowserMenu(screen);
+                screen.browserMode(SongBrowserModel.Sort.TITLE,SongBrowserModel.Group.NONE);
+                for (int frame=0;frame<90;frame++)screen.render(1f/60);
+            }
             assertRenderedBounds(screen,layout);
             assertScrollSettled(screen,name);
             if (setCount > 7) {
+                if (scene.name.equals("phase3-large-library")) profileBrowser(screen,name);
                 profileMotion(carousel(screen),name);
                 profileRender(screen, name);
             }
@@ -333,21 +372,44 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             processor[0].keyDown(Input.Keys.ENTER);
             pointer[0] = Math.round(344 * layout.scale()); pointer[1] = scene.height - Math.round(19 * layout.scale());
             clicked[0] = true; screen.render(0); clicked[0] = false;
-            // Exactly one matching Set must remain, including after clicking Random.
+            // Multi-token metadata search can match the numeric token in a difficulty name.
+            // Large fixtures use the unique 002 token; small fixtures verify visible eligibility.
             try {
                 var selected = SongSelectScreen.class.getDeclaredField("selectedSetIndex"); selected.setAccessible(true);
                 var setsField = SongSelectScreen.class.getDeclaredField("sets"); setsField.setAccessible(true);
                 var selectedSet = (BeatmapSet)((List<?>)setsField.get(screen)).get(selected.getInt(screen));
-                if (!selectedSet.id().equals("set2")) throw new AssertionError("Search/Random selection changed: " + name);
+                var browserField = SongSelectScreen.class.getDeclaredField("browser"); browserField.setAccessible(true);
+                var browser = (SongBrowserModel)browserField.get(screen);
+                if (!browser.visibleSets().contains(selectedSet) || browser.selectedDifficulty() == null
+                        || setCount > 7 && !selectedSet.id().equals("set2")) throw new AssertionError("Search/Random selection changed: " + name);
             } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
             // Selected difficulty re-click also reaches the production Play transition.
             pointer[0] = 40;
             for (int frame=0;frame<60;frame++) screen.render(1f/60);
             model = carousel(screen);
             selectedRow = model.rows().stream().max(Comparator.comparingDouble(r -> r.selectedAmount)).orElseThrow();
-            pointerRow(screen,selectedRow.entry.setIndex(),selectedRow.entry.difficultyIndex(),pointer,layout,scene.height);
+            if (scene.name.equals("phase3-chrome-cookie")) {
+                screen.browserMode(SongBrowserModel.Sort.LENGTH,SongBrowserModel.Group.BPM);
+                processor[0].keyDown(Input.Keys.RIGHT);
+                pointer[0] = Math.round((layout.width()-20)*layout.scale()); pointer[1] = scene.height-Math.round(30*layout.scale());
+            } else pointerRow(screen,selectedRow.entry.setIndex(),selectedRow.entry.difficultyIndex(),pointer,layout,scene.height);
             clicked[0] = true; screen.render(0); clicked[0] = false;
             if (!pending(screen)) throw new AssertionError("Selected re-click did not play: " + name);
+            if (scene.name.equals("phase3-chrome-cookie")) {
+                try {
+                    var browserField = SongSelectScreen.class.getDeclaredField("browser"); browserField.setAccessible(true);
+                    var browser = (SongBrowserModel)browserField.get(screen);
+                    var expectedSet = browser.selectedSet(); var expectedDifficulty = browser.selectedDifficulty();
+                    var outgoing = SongSelectScreen.class.getDeclaredField("outgoing"); outgoing.setAccessible(true);
+                    ((UiNavigation)outgoing.get(screen)).advance(.2f);
+                    if (!(destination[0] instanceof GameplayScreen)) throw new AssertionError("Cookie did not navigate to gameplay");
+                    var difficultyField = GameplayScreen.class.getDeclaredField("difficulty"); difficultyField.setAccessible(true);
+                    var setField = GameplayScreen.class.getDeclaredField("set"); setField.setAccessible(true);
+                    if (difficultyField.get(destination[0]) != expectedDifficulty || setField.get(destination[0]) != expectedSet)
+                        throw new AssertionError("Cookie activated a stale difficulty");
+                } catch(ReflectiveOperationException e) { throw new RuntimeException(e); }
+                finally { if(destination[0] != null) destination[0].dispose(); }
+            }
             fb.end();
         } finally {
             screen.dispose(); screen.dispose();
@@ -388,6 +450,95 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         PixmapIO.writePNG(Gdx.files.absolute(output.resolve(name + ".png").toString()),capture,-1,true);
         capture.dispose();
     }
+    private Object valueUnchecked(Class<?> type, Object object, String name) {
+        try { return value(type,object,name); } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+    private void closeBrowserMenu(SongSelectScreen screen) {
+        try { var f = SongSelectScreen.class.getDeclaredField("controls"); f.setAccessible(true); ((SongBrowserControls)f.get(screen)).close(); }
+        catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+    private void configureBrowserScene(SongSelectScreen screen, String name, InputProcessor processor, int[] pointer, boolean[] clicked, UiLayout layout, int height) {
+        var sort = switch(name) {
+            case "phase3-sort-artist" -> SongBrowserModel.Sort.ARTIST;
+            case "phase3-sort-bpm" -> SongBrowserModel.Sort.BPM;
+            case "phase3-sort-length" -> SongBrowserModel.Sort.LENGTH;
+            default -> SongBrowserModel.Sort.TITLE;
+        };
+        var group = switch(name) {
+            case "phase3-group-creator" -> SongBrowserModel.Group.CREATOR;
+            case "phase3-group-bpm" -> SongBrowserModel.Group.BPM;
+            case "phase3-group-length" -> SongBrowserModel.Group.LENGTH;
+            case "phase3-fallback", "phase3-modern", "phase3-group-artist", "phase3-group-expanded", "phase3-group-selected", "phase3-group-first", "phase3-group-last" -> SongBrowserModel.Group.ARTIST;
+            default -> SongBrowserModel.Group.NONE;
+        };
+        screen.browserMode(sort,group);
+        switch(name) {
+            case "phase3-chrome-full" -> {
+                var groupBounds = SongBrowserControls.groupBounds(layout.width(),layout.height());
+                var sortBounds = SongBrowserControls.sortBounds(layout.width(),layout.height());
+                clickBrowser(screen,groupBounds.x()+10,groupBounds.y()+10,pointer,clicked,layout,height);
+                clickBrowser(screen,groupBounds.x()+10,groupBounds.y()-2*26-5,pointer,clicked,layout,height);
+                clickBrowser(screen,sortBounds.x()+10,sortBounds.y()+10,pointer,clicked,layout,height);
+                clickBrowser(screen,sortBounds.x()+10,sortBounds.y()-26-5,pointer,clicked,layout,height);
+                try {
+                    var f = SongSelectScreen.class.getDeclaredField("browser"); f.setAccessible(true); var model = (SongBrowserModel)f.get(screen);
+                    if(model.group() != SongBrowserModel.Group.CREATOR || model.sort() != SongBrowserModel.Sort.ARTIST
+                            || !model.selectedSet().id().equals("set3") || !model.selectedDifficulty().version().equals("Difficulty 2"))
+                        throw new AssertionError("Browser control input lost selection");
+                } catch(ReflectiveOperationException e) { throw new RuntimeException(e); }
+                pointer[0] = 40;
+            }
+            case "phase3-search-active" -> screen.browserSearch("",true);
+            case "phase3-search-short" -> screen.browserSearch("Camellia Difficulty",true);
+            case "phase3-search-long" -> screen.browserSearch("Local song Camellia Harness Difficulty Local song Camellia Harness Difficulty",true);
+            case "phase3-search-unicode" -> screen.browserSearch("夜空",true);
+            case "phase3-search-none" -> screen.browserSearch("no matching beatmap",true);
+            case "phase3-group-first" -> { for(int i=0;i<12;i++)processor.keyDown(Input.Keys.PAGE_UP); }
+            case "phase3-group-last" -> { for(int i=0;i<12;i++)processor.keyDown(Input.Keys.PAGE_DOWN); }
+            case "phase3-menu-group", "phase3-menu-sort" -> {
+                var bounds = name.endsWith("group") ? SongBrowserControls.groupBounds(layout.width(),layout.height()) : SongBrowserControls.sortBounds(layout.width(),layout.height());
+                pointer[0] = Math.round((bounds.x()+20)*layout.scale()); pointer[1] = height - Math.round((bounds.y()+10)*layout.scale());
+                clicked[0] = true; screen.render(0); clicked[0] = false;
+            }
+        }
+    }
+    private void clickBrowser(SongSelectScreen screen, float x, float y, int[] pointer, boolean[] clicked, UiLayout layout, int height) {
+        pointer[0] = Math.round(x*layout.scale()); pointer[1] = height-Math.round(y*layout.scale());
+        clicked[0] = true; screen.render(0); clicked[0] = false;
+    }
+    private void profileBrowser(SongSelectScreen screen, String name) {
+        try {
+            var f = SongSelectScreen.class.getDeclaredField("browser"); f.setAccessible(true); var model = (SongBrowserModel)f.get(screen);
+            for (String operation : List.of("search", "sort", "group")) {
+                long[] samples = new long[100];
+                for(int i=0;i<140;i++) {
+                    long start = System.nanoTime();
+                    if(operation.equals("search")) model.search(i%2==0 ? "Local song" : "Local song 00");
+                    if(operation.equals("sort")) model.sort(SongBrowserModel.Sort.values()[i%5]);
+                    if(operation.equals("group")) model.group(SongBrowserModel.Group.values()[i%5]);
+                    if(i>=40)samples[i-40] = System.nanoTime()-start;
+                }
+                Arrays.sort(samples);
+                System.out.printf(Locale.ROOT,"Browser profile %s %s: mean %.3f ms, p95 %.3f ms, max %.3f ms (100 samples)%n",name,operation,Arrays.stream(samples).average().orElseThrow()/1e6,samples[94]/1e6,samples[99]/1e6);
+                model.search(""); model.sort(SongBrowserModel.Sort.TITLE); model.group(SongBrowserModel.Group.NONE);
+            }
+            for (String operation : List.of("search", "sort", "group")) {
+                long[] samples = new long[60];
+                for(int i=0;i<100;i++) {
+                    long start = System.nanoTime();
+                    if(operation.equals("search")) screen.browserSearch(i%2==0 ? "Local song" : "Local song 00",false);
+                    if(operation.equals("sort")) screen.browserMode(SongBrowserModel.Sort.values()[i%5],SongBrowserModel.Group.NONE);
+                    if(operation.equals("group")) screen.browserMode(SongBrowserModel.Sort.TITLE,SongBrowserModel.Group.values()[i%5]);
+                    if(i>=40)samples[i-40] = System.nanoTime()-start;
+                }
+                Arrays.sort(samples);
+                System.out.printf(Locale.ROOT,"Browser bridge profile %s %s: mean %.3f ms, p95 %.3f ms, max %.3f ms (60 samples)%n",name,operation,Arrays.stream(samples).average().orElseThrow()/1e6,samples[56]/1e6,samples[59]/1e6);
+                screen.browserSearch("",false); screen.browserMode(SongBrowserModel.Sort.TITLE,SongBrowserModel.Group.NONE);
+            }
+            screen.browserMode(SongBrowserModel.Sort.TITLE,SongBrowserModel.Group.NONE);
+        } catch(ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+
     private SongSelectCarousel carousel(SongSelectScreen screen) {
         try {
             var field = SongSelectScreen.class.getDeclaredField("carousel"); field.setAccessible(true);
@@ -436,7 +587,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for (Object snapshot : (List<?>) field.get(screen)) {
                 var type = snapshot.getClass();
                 int set = (int) value(type,snapshot,"setIndex"), diff = (int) value(type,snapshot,"difficultyIndex");
-                var row = model.rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff).findFirst().orElseThrow();
+                var row = model.rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff
+                        && (set >= 0 || Math.abs(model.renderY(r,layout.height()-62) - (float)valueUnchecked(type,snapshot,"y")) < .001f)).findFirst().orElseThrow();
                 float x = (float) value(type,snapshot,"x"), y = (float) value(type,snapshot,"y");
                 if (Math.abs(x - model.renderX(row,layout.width())) > .001f
                         || Math.abs(y - model.renderY(row,layout.height() - 62)) > .001f)

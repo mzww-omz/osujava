@@ -44,11 +44,13 @@ Main Menu・Gameplay・ResultsではホイールだけでHUDを開いて音量�
 
 ### 開発確認用 Debug Auto
 
-Song SelectでDifficultyを選び、`F6`を押すとDebug Auto Playを開始します。検索欄が入力中の間はショートカットは動作しません。`Enter`またはPlay Cookieは通常のManual Playです。Debug Autoは既存のGameplay入力・判定経路に入力を送り、カーソルには目視確認用のcrosshairを表示します。Resultsには`AUTO / DEBUG`と表示されます。これはModsではなく、将来の通常プレイ用Local Rankingへ含めない開発用の実行種別です。Gameplay中の`Escape`でSong Selectへ戻れます。
+Song SelectでDifficultyを選び、`F6`を押すとDebug Auto Playを開始します。検索入力中はF6などのプレイ・navigationショートカットは動作しません（F2 / Shift+F2は使用できます）。検索入力を終了した後の`Enter`またはPlay Cookieは通常のManual Playです。Debug Autoは既存のGameplay入力・判定経路に入力を送り、カーソルには目視確認用のcrosshairを表示します。Resultsには`AUTO / DEBUG`と表示されます。これはModsではなく、将来の通常プレイ用Local Rankingへ含めない開発用の実行種別です。Gameplay中の`Escape`でSong Selectへ戻れます。
 
 終了はウィンドウの閉じるボタン、macOSのCmd+Q、Windows / LinuxのCtrl+Qで行えます。
 
 Song Selectでは、1つの.oszに入った複数Difficultyを1つのBeatmap Setとして表示します。taiko / catch / maniaのmode情報も保持して表示しますが、Gameplay対応はosu!standardのHitCircle、Slider、Spinnerです。Mods、Replay、Editor、オンライン機能は未実装です。
+
+Song Select右上のGroup / SortでLibraryを分類・並べ替えできます。入力するとTitle / Artist / Creator / Difficulty名を対象に、空白区切りの全tokenで検索します。Unicode入力にも対応しています。`F2`は現在の検索結果内からRandom、`Shift+F2`は以前のRandom selectionへ戻ります。検索・Sort・Group変更時は譜面identityを維持し、検索解除時は自動fallback前の選択、または検索中に明示的に選んだ譜面を復元します。実装した分類、数値の根拠、保留項目と検証結果は[Song Browser Phase 3](docs/songselect-browser.md)を参照してください。
 
 ### 内蔵デフォルトSkin / カスタムSkin
 
