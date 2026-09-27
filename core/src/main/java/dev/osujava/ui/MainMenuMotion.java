@@ -1,21 +1,34 @@
+// Behaviour adapted from osu!lazer (ppy Pty Ltd), MIT; see docs/licenses/ppy-MIT.txt.
 package dev.osujava.ui;
 
-/** UI seconds only: entrance ends at 360ms; no gameplay clock or wall-clock reads. */
+/** Easing and independent scale layers. UI durations are milliseconds; beat timing comes from music. */
 final class MainMenuMotion {
     private MainMenuMotion() { }
-    static float ease(float time, float delay, float duration) {
-        float t = Math.max(0, Math.min(1, (time - delay) / duration));
-        return 1 - (1 - t) * (1 - t) * (1 - t);
+    static float clamp(double value) { return (float) Math.max(0, Math.min(1, value)); }
+    static float outExpo(double value) { float t = clamp(value); return t == 1 ? 1 : 1 - (float) Math.pow(2, -10 * t); }
+    static float outQuint(double value) { return 1 - (float) Math.pow(1 - clamp(value), 5); }
+    static float elastic(double value) {
+        float t = clamp(value);
+        if (t == 0 || t == 1) return t;
+        return (float) (Math.pow(2, -10 * t) * Math.sin((t * 10 - .75) * Math.PI * 2 / 3) + 1);
     }
-    static float background(float time) { return ease(time, 0, .18f); }
-    static float cookie(float time) { return ease(time, .035f, .22f); }
-    static float strip(float time, int index) { return ease(time, .09f + index * .045f, .225f); }
-    static float beat(float time) { return (float) Math.pow(Math.max(0, Math.sin(time * Math.PI * 2)), 5); }
-    static float scale(float time, float hover, boolean pressed) {
-        return (.94f + .06f * cookie(time)) * (1 + .009f * beat(time) + .014f * hover - (pressed ? .025f : 0));
+    static float normalized(float value) { return Float.isFinite(value) ? clamp(value) : 0; }
+    static float beatScale(MenuBeatTiming.Beat beat, float amplitude) {
+        // 60ms early contraction (Easing.Out = quadratic), then two-beat OutQuint recovery.
+        double shifted = (beat.positionMs() + 60 - beat.originMs()) / beat.lengthMs();
+        long index = (long) Math.floor(shifted);
+        if (index < 0) return 1;
+        double elapsed = (shifted - index) * beat.lengthMs();
+        float depth = .02f * Math.min(1, .4f + normalized(amplitude));
+        float previous = 1 - depth * (1 - outQuint((beat.lengthMs() - 60) / (beat.lengthMs() * 2)));
+        if (elapsed < 60) {
+            float ease = 1 - (float) Math.pow(1 - elapsed / 60, 2);
+            return previous + (1 - depth - previous) * ease;
+        }
+        return 1 - depth * (1 - outQuint((elapsed - 60) / (beat.lengthMs() * 2)));
     }
-    static float approach(float current, boolean target, float delta) {
-        float step = Math.max(0, delta) / .11f;
-        return target ? Math.min(1, current + step) : Math.max(0, current - step);
+    static float amplitudeTarget(float maximum) { return 1 - Math.max(0, normalized(maximum) - .4f) * .04f; }
+    static float damp(float current, float target, double ms) {
+        return target + (current - target) * (float) Math.pow(.9, Math.max(0, ms));
     }
 }

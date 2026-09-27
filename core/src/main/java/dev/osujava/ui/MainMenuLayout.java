@@ -2,36 +2,27 @@ package dev.osujava.ui;
 
 import dev.osujava.ui.theme.UiLayout;
 
-/** Main Menu geometry in UiLayout units. Drawing and hit testing use the same animated polygons. */
-record MainMenuLayout(float width, float height, float cx, float cy, float radius,
-                      float stripLeft, float stripRight, float rowHeight, float gap) {
-    static final java.util.List<String> LABELS = java.util.List.of("Play", "Exit");
-    static final int ITEMS = LABELS.size();
-    static final float EDGE = 24;
-    static final float HOVER_EXTENSION = 9;
-    static final float SLANT = 22;
-
+/** Centre-rooted mirrored wedges. Draw and hitbox share the exact animated outer edge. */
+record MainMenuLayout(float width, float height, float cx, float cy, float radius, float targetWidth, float buttonHeight) {
+    static final float WEDGE = 20;
     static MainMenuLayout from(UiLayout ui) {
-        float r = Math.min(ui.height() * .258f, ui.width() * .205f);
-        float cx = Math.max(r + EDGE * 2, ui.width() * .335f);
-        return new MainMenuLayout(ui.width(), ui.height(), cx, ui.height() * .5f, r,
-                cx, ui.width() * (ui.height() > ui.width() ? .94f : .87f),
-                Math.min(78, Math.max(64, ui.height() * .105f)), 4);
+        float r = Math.min(ui.height() * .235f, ui.width() * .18f);
+        return new MainMenuLayout(ui.width(), ui.height(), ui.width() / 2, ui.height() / 2, r,
+                (ui.width() / 2 - 32) / 1.22f, Math.min(92, ui.height() * .125f));
     }
-
-    float rowY(int index) { return cy + (ITEMS * .5f - index - 1) * (rowHeight + gap) + gap * .5f; }
-    float labelX() { return cx + radius + 24; }
-    float right(float reveal, float hover) { return stripLeft + (stripRight - stripLeft) * reveal + HOVER_EXTENSION * hover; }
-    boolean cookieHit(float x, float y, float scale) {
-        return Math.hypot(x - cx, y - cy) <= radius * scale;
+    int direction(int button) { return button == 0 ? 1 : -1; }
+    float extent(float reveal, float hover, float explosion) { return targetWidth * reveal * (1 + .15f * hover + .25f * explosion); }
+    float outer(int button, float y, float reveal, float hover, float explosion) {
+        float vertical = MainMenuMotion.clamp((y - cy + buttonHeight / 2) / buttonHeight);
+        return cx + direction(button) * Math.max(0, extent(reveal, hover, explosion) - WEDGE * reveal * (1 - vertical));
     }
-    int stripAt(float x, float y, float time, float[] hover, float cookieScale) {
-        if (cookieHit(x, y, cookieScale)) return -1;
-        for (int i = 0; i < ITEMS; i++) {
-            float bottom = rowY(i), t = MainMenuMotion.strip(time, i);
-            if (t <= 0 || y < bottom || y > bottom + rowHeight || x < stripLeft) continue;
-            float edge = right(t, hover[i]) - SLANT * (1 - (y - bottom) / rowHeight);
-            if (x <= edge) return i;
+    boolean logoHit(float x, float y, float scale) { return Math.hypot(x - cx, y - cy) <= radius * scale; }
+    int buttonAt(float x, float y, MainMenuModel model) {
+        if (!model.buttonsEnabled() || model.reveal() < .8f || logoHit(x, y, model.scale()) || Math.abs(y - cy) > buttonHeight / 2) return -1;
+        for (int b = 0; b < 2; b++) {
+            float distance = direction(b) * (x - cx);
+            float edge = direction(b) * (outer(b, y, model.reveal(), model.hover(b), 0) - cx);
+            if (distance > 0 && distance <= edge) return b;
         }
         return -1;
     }

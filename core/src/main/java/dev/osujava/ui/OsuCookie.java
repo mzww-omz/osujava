@@ -31,31 +31,6 @@ final class OsuCookie {
         view.circle(x - r * .22f, y + r * .25f, r * .33f, SHEEN);
     }
 
-    /** Main Menu presentation; the existing Song Select cookie remains unchanged. */
-    void drawMainMenu(UiView view, float seconds, float hover, boolean pressed) {
-        float alpha = MainMenuMotion.cookie(seconds);
-        float beat = MainMenuMotion.beat(seconds);
-        float r = radius * MainMenuMotion.scale(seconds, hover, pressed);
-        Color tint = new Color();
-        for (int i = 10; i >= 1; i--) {
-            view.circle(x, y, r + i * (2.3f + beat * .3f),
-                    tint.set(1, .43f, .66f, alpha * (.007f + .002f * beat + .002f * hover)));
-        }
-        view.circle(x, y - r * .016f, r * 1.013f, tint.set(.06f, .02f, .04f, alpha * .3f));
-        tint.set(1, .98f, .99f, alpha);
-        view.radialDisk(x, y, r, x, y, tint, tint);
-        float inner = r * .945f;
-        Color edge = new Color(pressed ? .68f : .78f, .19f + hover * .035f, .42f + hover * .045f, alpha);
-        Color center = new Color(pressed ? .85f : .96f, .32f + hover * .035f, .57f + hover * .04f, alpha);
-        view.radialDisk(x, y, inner, x - r * .055f, y + r * .14f, center, edge);
-    }
-
-    void drawMainMenuText(UiView view, float seconds, float hover, boolean pressed) {
-        float r = radius * MainMenuMotion.scale(seconds, hover, pressed);
-        view.textSmooth("osu!", x - r, y - r * .14f, r * 2, r / 23f,
-                new Color(1, 1, 1, MainMenuMotion.cookie(seconds)), Align.center);
-    }
-
     void drawText(UiView view) { drawText(view, 1f); }
 
     void drawText(UiView view, float scale) {

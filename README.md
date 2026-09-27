@@ -26,7 +26,7 @@ macOSではlauncherがGLFWの非同期起動設定を使います。
 
 ## 遊び方
 
-1. Main MenuでPlayを選びます。
+1. Main Menuの中央Logoをクリックしてmenuを開き、右側のPlayを選びます（`P` / `Enter` / `Space`でも直接移動できます）。
 2. Song SelectのImport .osz / .osuから譜面を選びます。
 3. Beatmap SetとDifficultyを選択してPlayを押します。
 4. HitCircleはタイミングに合わせてクリックします。左/右クリックまたはZ/Xキーで操作できます。Sliderは頭を押してから、押したままカーソルでボールを追います。

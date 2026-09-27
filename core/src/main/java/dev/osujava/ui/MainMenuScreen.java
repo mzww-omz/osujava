@@ -6,150 +6,132 @@ import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.Align;
 import dev.osujava.OsuJavaGame;
-import dev.osujava.beatmap.BeatmapSet;
+import dev.osujava.beatmap.*;
 import dev.osujava.ui.theme.*;
-
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.function.Supplier;
+import java.util.List;
 import java.util.random.RandomGenerator;
 
-/** Artwork, cookie, then two strips. All animation uses screen-local UI seconds. */
+/** Music-first local menu. Owns one ambient difficulty and its stream for this screen lifetime. */
 public final class MainMenuScreen extends ScreenAdapter {
-    private static final DateTimeFormatter CLOCK_FORMAT = DateTimeFormatter.ofPattern("HH:mm");
-    private static final Color CLEAR = new Color(0, 0, 0, 0);
-    private static final Color DIM = new Color(.015f, .012f, .025f, .22f);
-    private static final Color FOCUS = new Color(.018f, .012f, .025f, .24f);
-    private static final Color EDGE = new Color(.015f, .012f, .025f, .48f);
-    private static final Color STRIP = new Color(.065f, .055f, .085f, .85f);
-    private static final Color PRIMARY = new Color(.20f, .085f, .145f, .89f);
-    private static final Color HOVER = new Color(.65f, .19f, .39f, .96f);
-
     private final UiView view;
-    private final OsuCookie cookie = new OsuCookie();
+    private final MainMenuLogo logo = new MainMenuLogo();
     private final BeatmapBackdrop artwork = new BeatmapBackdrop();
-    private final UiNavigation outgoing = new UiNavigation();
+    private final MenuAmbientAudio audio;
+    private final MenuAudioAnalysis analysis;
+    private final List<TimingPoint> timing;
+    private final MenuVisualiser visualiser = new MenuVisualiser();
+    private final MainMenuModel model = new MainMenuModel();
     private final MainMenuInput input;
-    private final Supplier<String> clock;
-    private final String ambientTitle;
-    private final int count;
-    private final float[] hover = new float[MainMenuLayout.ITEMS];
-    private float seconds, cookieHover;
-    private boolean cookiePressed;
+    private final String title;
+    private MenuBeatTiming.Beat beat = MenuBeatTiming.at(List.of(), 0, false);
+    private boolean pointerWasDown, disposed;
+    private int pressedTarget = -1;
 
     public MainMenuScreen(OsuJavaGame game) {
-        this(game, () -> LocalTime.now().format(CLOCK_FORMAT),
-                AmbientArtworkSelection.choose(game.library().all(), RandomGenerator.getDefault()),
-                () -> game.navigate(new SongSelectScreen(game)), () -> Gdx.app.exit());
+        this(game, AmbientArtworkSelection.choose(game.library().all(), RandomGenerator.getDefault()),
+                new DeterministicMenuAudioFallback(), () -> game.navigate(new SongSelectScreen(game)), () -> Gdx.app.exit());
     }
-
-    /** Small seams for capture clock, local artwork and real navigation callback regression checks. */
-    MainMenuScreen(OsuJavaGame game, Supplier<String> clock, BeatmapSet ambient, Runnable play, Runnable exit) {
-        view = new UiView(game);
-        this.clock = clock;
-        input = new MainMenuInput(outgoing, play, exit);
-        count = game.library().all().stream().mapToInt(set -> set.difficulties().size()).sum();
-        ambientTitle = ambient == null ? "" : ambient.artist() + " — " + ambient.title();
-        if (ambient != null) artwork.select(ambient, ambient.difficulties().stream()
+    /** Harness injects fixed amplitudes; decoding never enters the renderer. */
+    MainMenuScreen(OsuJavaGame game, BeatmapSet ambient, MenuAudioAnalysis analysis, Runnable play, Runnable exit) {
+        view = new UiView(game); this.analysis = analysis;
+        BeatmapDifficulty difficulty = ambient == null ? null : ambient.difficulties().stream()
                 .filter(d -> d.backgroundPath() != null && java.nio.file.Files.isRegularFile(d.backgroundPath()))
-                .findFirst().orElse(null));
+                .findFirst().orElse(ambient.difficulties().getFirst());
+        timing = difficulty == null ? List.of() : difficulty.timingPoints();
+        audio = new MenuAmbientAudio(difficulty == null ? null : difficulty.audioPath() != null ? difficulty.audioPath() : ambient.audioPath());
+        title = difficulty == null ? "" : difficulty.artist() + " — " + difficulty.title();
+        if (ambient != null) artwork.select(ambient, difficulty);
+        input = new MainMenuInput(model, () -> { audio.close(); play.run(); }, () -> { audio.close(); exit.run(); });
     }
-
-    @Override public void show() { Gdx.input.setInputProcessor(input); }
-
+    @Override public void show() { if (!disposed) { audio.enter(); visualiser.reset(); Gdx.input.setInputProcessor(input); } }
+    @Override public void hide() { audio.close(); }
     @Override public void render(float delta) {
-        if (outgoing.advance(delta)) return;
-        seconds += Math.max(0, delta);
-        UiLayout ui = view.prepare();
-        MainMenuLayout m = MainMenuLayout.from(ui);
-        float px = ui.pointerX(Gdx.input.getX()), py = ui.pointerY(Gdx.input.getY());
-        float scale = MainMenuMotion.scale(seconds, cookieHover, cookiePressed);
-        boolean onCookie = MainMenuMotion.cookie(seconds) > 0 && m.cookieHit(px, py, scale);
-        int row = m.stripAt(px, py, seconds, hover, scale);
-        cookieHover = MainMenuMotion.approach(cookieHover, onCookie || row == 0, delta);
-        for (int i = 0; i < hover.length; i++) hover[i] = MainMenuMotion.approach(hover[i], row == i, delta);
-        cookiePressed = onCookie && (Gdx.input.isButtonPressed(Input.Buttons.LEFT) || outgoing.pending());
-        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) input.click(onCookie, row);
-        draw(m);
-    }
-
-    /** Draw exactly the supplied state, independent of pointer, delta, wall clock and previous frames. */
-    void capture(float time, float pointerX, float pointerY, boolean pressed) {
-        seconds = time;
+        if (disposed) return;
+        double ms = Math.max(0, delta) * 1000;
+        audio.advance(ms, model.fade());
+        beat = MenuBeatTiming.at(timing, audio.positionMs(), audio.available());
+        analysis.sample(beat.positionMs(), beat);
+        visualiser.advance(ms, analysis, beat.kiai());
+        if (model.advance(ms, beat, analysis)) return;
+        audio.advance(0, model.fade());
         MainMenuLayout m = MainMenuLayout.from(view.prepare());
-        cookieHover = 0;
-        java.util.Arrays.fill(hover, 0);
-        boolean onCookie = m.cookieHit(pointerX, pointerY, MainMenuMotion.scale(time, 0, pressed));
-        int row = m.stripAt(pointerX, pointerY, time, hover, MainMenuMotion.scale(time, 0, pressed));
-        cookieHover = onCookie || row == 0 ? 1 : 0;
-        if (row >= 0) hover[row] = 1;
-        cookiePressed = pressed && onCookie;
-        draw(m);
-    }
-
-    private void draw(MainMenuLayout m) {
-        cookie.bounds(m.cx(), m.cy(), m.radius());
-        view.clear();
-        artwork.drawAt(view, MainMenuMotion.background(seconds));
-        view.beginShapes();
-        drawBackground(m);
-        for (int i = 0; i < MainMenuLayout.ITEMS; i++) drawStrip(m, i);
-        cookie.drawMainMenu(view, seconds, cookieHover, cookiePressed);
-        // Edge information gets a fading backing instead of an opaque header/footer panel.
-        view.gradient(0, m.height() - 100, m.width(), 100, CLEAR, CLEAR, EDGE, EDGE);
-        view.gradient(0, 0, m.width(), 62, EDGE, EDGE, CLEAR, CLEAR);
-        view.endShapes();
-        view.beginText();
-        cookie.drawMainMenuText(view, seconds, cookieHover, cookiePressed);
-        for (int i = 0; i < MainMenuLayout.ITEMS; i++) {
-            float reveal = MainMenuMotion.strip(seconds, i);
-            float x = m.labelX() + hover[i] * 4;
-            float width = m.right(reveal, hover[i]) - MainMenuLayout.SLANT - x - 24;
-            if (width < 80) continue; // Labels appear only once their animated polygon contains them.
-            Color text = new Color(i == 0 ? UiTheme.TEXT : UiTheme.MUTED).lerp(Color.WHITE, hover[i]);
-            text.a = reveal;
-            view.textSmooth(MainMenuLayout.LABELS.get(i), x, m.rowY(i) + m.rowHeight() * .39f, width,
-                    i == 0 ? 1.85f : 1.32f, text);
+        UiLayout ui = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        float x = ui.pointerX(Gdx.input.getX()), y = ui.pointerY(Gdx.input.getY());
+        boolean overLogo = m.logoHit(x, y, model.scale());
+        int button = m.buttonAt(x, y, model);
+        boolean down = Gdx.input.isButtonPressed(Input.Buttons.LEFT);
+        if (down && !pointerWasDown) pressedTarget = overLogo ? -2 : button;
+        if (!down && pointerWasDown) {
+            if (pressedTarget == -2 && overLogo) input.click(true, -1);
+            else if (pressedTarget >= 0 && button == pressedTarget) input.click(false, button);
+            pressedTarget = -1;
         }
-        float infoScale = m.height() > m.width() ? 1.3f : 1;
-        float pad = MainMenuLayout.EDGE, groupWidth = (m.width() - pad * 3) * .5f;
-        view.textSmooth("osu!java", pad, m.height() - 29, groupWidth, 1.05f * infoScale, UiTheme.TEXT);
-        view.textSmooth(count + " local beatmaps", pad, m.height() - 50, groupWidth, .74f * infoScale, UiTheme.MUTED);
-        float rightX = m.width() - pad - groupWidth;
-        view.textSmooth(ambientTitle, rightX, m.height() - 29, groupWidth, .88f * infoScale, UiTheme.TEXT, Align.right);
-        view.textSmooth("LOCAL · " + clock.get(), rightX, m.height() - 50, groupWidth, .72f * infoScale, UiTheme.MUTED, Align.right);
-        view.textSmooth("P / Enter — Play", pad, 20, m.width() - pad * 2, .74f * infoScale, UiTheme.MUTED);
-        view.endText();
-        // Entrance is compositional; UiNavigation exclusively owns the outgoing full-screen fade.
-        view.cover(outgoing.opacity());
+        pointerWasDown = down;
+        model.pointer(overLogo, button, down && pressedTarget == -2);
+        draw(m, model, visualiser.amplitudes());
     }
-
-    private void drawBackground(MainMenuLayout m) {
-        if (!artwork.available()) {
-            float fade = MainMenuMotion.background(seconds);
-            Color low = new Color(.035f, .032f, .055f, fade);
-            Color high = new Color(.12f, .075f, .11f, fade);
-            view.gradient(0, 0, m.width(), m.height(), low, low, high, high);
-        } else view.box(0, 0, m.width(), m.height(), 0, DIM);
-        // Broad horizontal contrast falloff behind the action area, no decorative circles.
-        float focus = m.cx() + m.radius() * .25f;
-        view.gradient(0, 0, focus, m.height(), CLEAR, FOCUS, FOCUS, CLEAR);
-        view.gradient(focus, 0, m.width() - focus, m.height(), FOCUS, CLEAR, CLEAR, FOCUS);
+    /** Each capture reconstructs animation/analysis history from explicit inputs, not prior frames. */
+    void capture(MainMenuState state, double stateMs, double playbackMs, float x, float y, boolean pressed) {
+        MainMenuModel snapshot = new MainMenuModel(); snapshot.captureState(state, stateMs);
+        beat = MenuBeatTiming.at(timing, playbackMs, true);
+        analysis.sample(playbackMs, beat);
+        MenuVisualiser spectrum = new MenuVisualiser(); spectrum.advance(0, analysis, beat.kiai());
+        MainMenuLayout m = MainMenuLayout.from(view.prepare());
+        snapshot.advance(0, beat, analysis);
+        snapshot.pointer(m.logoHit(x, y, snapshot.scale()), m.buttonAt(x, y, snapshot), pressed);
+        // Settle hover/amplitude layers without advancing the requested transition time.
+        snapshot.settleCapture(beat, analysis);
+        draw(m, snapshot, spectrum.amplitudes());
     }
-
-    private void drawStrip(MainMenuLayout m, int index) {
-        float reveal = MainMenuMotion.strip(seconds, index);
-        if (reveal <= 0) return;
-        float y = m.rowY(index), right = m.right(reveal, hover[index]);
-        Color tint = new Color(index == 0 ? PRIMARY : STRIP).lerp(HOVER, hover[index]);
-        tint.a *= reveal;
-        view.quad(m.stripLeft(), y, right - MainMenuLayout.SLANT, y, right, y + m.rowHeight(),
-                m.stripLeft(), y + m.rowHeight(), tint);
-        // Thin inset accent follows the slanted end, subordinate to the cookie's white ring.
-        Color accent = new Color(UiTheme.ACCENT); accent.a = reveal * (.25f + hover[index] * .5f);
-        view.quad(right - 4 - MainMenuLayout.SLANT, y, right - MainMenuLayout.SLANT, y,
-                right, y + m.rowHeight(), right - 4, y + m.rowHeight(), accent);
+    private void draw(MainMenuLayout m, MainMenuModel snapshot, float[] bins) {
+        view.clear(); artwork.drawAt(view, 1);
+        view.beginShapes();
+        if (!artwork.available()) view.gradient(0, 0, m.width(), m.height(),
+                new Color(.035f,.032f,.055f,1), new Color(.035f,.032f,.055f,1),
+                new Color(.12f,.075f,.11f,1), new Color(.12f,.075f,.11f,1));
+        view.box(0, 0, m.width(), m.height(), 0, new Color(.015f,.012f,.025f,.16f + snapshot.reveal() * .17f));
+        // Vertical edge falloff leaves the artwork visible; no permanent horizontal action strip.
+        Color clear = new Color(0,0,0,0), edge = new Color(.01f,.008f,.02f,.32f);
+        view.gradient(0,0,m.width(),m.height() * .23f,edge,edge,clear,clear);
+        view.gradient(0,m.height() * .77f,m.width(),m.height() * .23f,clear,clear,edge,edge);
+        for (int b = 0; b < 2; b++) buttonShape(m, snapshot, b);
+        view.endShapes();
+        logo.visualiser(view, m, snapshot.scale(), bins);
+        view.beginShapes(); logo.shape(view, m, snapshot); view.endShapes();
+        view.beginText();
+        for (int b = 0; b < 2; b++) {
+            float extent = m.extent(snapshot.reveal(), snapshot.hover(b), snapshot.explosion(b));
+            float inner = m.radius() * snapshot.scale() + 22, width = extent - inner - MainMenuLayout.WEDGE - 20;
+            if (width < 60) continue;
+            float x = b == 0 ? m.cx() + inner : m.cx() - extent + MainMenuLayout.WEDGE + 20;
+            Color color = new Color(1, .96f, .98f, snapshot.buttonAlpha(b) * MainMenuMotion.clamp((snapshot.reveal() - .5) / .3));
+            view.textSmooth(b == 0 ? "PLAY" : "EXIT", x + m.direction(b) * snapshot.hover(b) * 5,
+                    m.cy() + 11, width, b == 0 ? 1.5f : 1.25f, color, Align.center);
+        }
+        logo.text(view, m, snapshot);
+        if (!title.isBlank()) {
+            view.textSmooth(title, 24, 38, m.width() - 48, .72f, new Color(1,1,1,.65f), Align.right);
+            view.textSmooth(Math.round(60000 / beat.lengthMs()) + " BPM", 24, 20, m.width() - 48, .62f,
+                    new Color(1,1,1,.48f), Align.right);
+        }
+        view.endText(); view.cover(snapshot.fade());
     }
-
-    @Override public void dispose() { artwork.close(); }
+    private void buttonShape(MainMenuLayout m, MainMenuModel snapshot, int button) {
+        float reveal = snapshot.reveal(); if (reveal <= 0) return;
+        float bottom = m.cy() - m.buttonHeight() / 2, top = bottom + m.buttonHeight();
+        float low = m.outer(button, bottom, reveal, snapshot.hover(button), snapshot.explosion(button));
+        float high = m.outer(button, top, reveal, snapshot.hover(button), snapshot.explosion(button));
+        Color color = new Color(button == 0 ? .27f : .11f, .065f, button == 0 ? .17f : .13f, .86f);
+        color.lerp(new Color(.53f,.17f,.32f,.92f), MainMenuMotion.clamp(snapshot.hover(button)));
+        color.lerp(Color.WHITE, .5f * (1 - snapshot.fade()) * snapshot.explosion(button));
+        color.a *= snapshot.buttonAlpha(button);
+        view.quad(m.cx(), bottom, low, bottom, high, top, m.cx(), top, color);
+        Color accent = new Color(1,.58f,.76f,.25f * snapshot.buttonAlpha(button));
+        view.quad(low - m.direction(button) * 3,bottom,low,bottom,high,top,high - m.direction(button) * 3,top,accent);
+    }
+    MainMenuState menuState() { return model.state(); }
+    @Override public void dispose() {
+        if (disposed) return;
+        disposed = true; audio.close(); analysis.close(); artwork.close();
+    }
 }
