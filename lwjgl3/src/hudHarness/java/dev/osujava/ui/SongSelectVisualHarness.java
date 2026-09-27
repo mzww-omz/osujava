@@ -104,6 +104,14 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         "phase3-group-expanded", "phase3-group-selected", "phase3-group-first", "phase3-group-last",
                         "phase3-chrome-full", "phase3-chrome-cookie", "phase3-menu-group", "phase3-menu-sort", "phase3-large-library", "phase3-transitions", "phase3-fallback", "phase3-modern"))
                     scenes.add(new Scene(size[0],size[1],size[2],name));
+            for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
+                for (String name : List.of("empty", "single", "three", "many", "SS", "S", "A", "B", "C", "D",
+                        "numbers", "numbers-bottom", "sibling", "no-score", "group", "search", "long", "unicode", "fallback", "bundled-fallback",
+                        "high-only", "scroll-top", "scroll-middle", "scroll-bottom", "selected", "wheel-hover", "transitions",
+                        "large-0", "large-10", "large-100", "large-1000"))
+                    scenes.add(new Scene(size[0],size[1],size[2],"phase4-" + name));
+            String phase = System.getProperty("osujava.songSelectPhase", "all");
+            if (!phase.equals("all")) scenes.removeIf(scene -> !scene.name.startsWith("phase" + phase + "-"));
         } catch (Exception e) { throw new RuntimeException(e); }
     }
 
@@ -162,7 +170,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
         var library = new BeatmapLibrary();
-        int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern") || scene.name.equals("phase3-large-library")) ? 1000 : 7;
+        int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern") || scene.name.equals("phase3-large-library") || scene.name.startsWith("phase4-large")) ? 1000 : 7;
         boolean phase2 = scene.name.startsWith("phase2");
         var ratings = new IdentityHashMap<BeatmapDifficulty, OptionalDouble>();
         for (int i = 0; i < setCount; i++) {
@@ -171,7 +179,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 title = "Local song 2 — A Very Long English Title with Unicode 星の旅人 that extends beyond the row";
             String mapper = "Harness", version = "Difficulty ";
             String artist = "Local artist";
-            boolean browserScene = scene.name.startsWith("phase3");
+            boolean browserScene = scene.name.startsWith("phase3") || scene.name.startsWith("phase4");
+            if (scene.name.equals("phase4-long") && i == 3) title = "A Very Long Song Title Beyond the Carousel — 夜空の星と夢の続き";
+            if (scene.name.equals("phase4-unicode") && i == 3) title = "夜空の星と夢の続き 별빛 创作者";
             if (browserScene) {
                 artist = new String[]{"Camellia", "Aether", "夜の星"}[i % 3];
                 mapper = new String[]{"Harness", "Mapper", "星の旅人"}[i % 3];
@@ -205,6 +215,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         List.of(new TimingPoint(0,browserScene ? 60000.0 / (80 + (i % 6) * 55) : 500,4,0,0,100,true,0)),
                         browserScene ? List.of(new dev.osujava.beatmap.HitObject(0,0,1000,dev.osujava.beatmap.HitObject.Type.CIRCLE,1,0),
                                 new dev.osujava.beatmap.HitObject(0,0,1000 + (i % 7 + 1) * 90000,dev.osujava.beatmap.HitObject.Type.CIRCLE,1,0)) : List.of(),null,image);
+                if (scene.name.startsWith("phase4")) diff = diff.withAssets(null, image, output.resolve("maps/set" + i + "/難易度" + difficulty + ".osu"));
                 diffs.add(diff);
                 double rating = switch (scene.name) {
                     case "phase2-low-rating" -> .65;
@@ -218,6 +229,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             library.add(new BeatmapSet("set" + i,title,artist,mapper,null,image,diffs,List.of()));
         }
+        var localScores = new dev.osujava.score.LocalScoreStore();
+        if (scene.name.startsWith("phase4")) populateScores(localScores, library, scene.name);
         Screen[] destination = {null};
         var game = new OsuJavaGame(null,null) {
             @Override public void navigate(Screen next) { destination[0] = next; }
@@ -226,10 +239,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             @Override public BitmapFont font() { return font; }
             @Override public SmoothUiFont smoothFont() { return smooth; }
             @Override public BeatmapLibrary library() { return library; }
+            @Override public dev.osujava.score.LocalScoreStore localScores() { return localScores; }
             @Override public dev.osujava.ruleset.osu.OsuRuleset osuRuleset() { return new dev.osujava.ruleset.osu.OsuRuleset(); }
         };
         var resolver = switch (scene.name) {
-            case "phase3-fallback" -> new SkinAssetResolver(output.resolve("fixtures/empty"));
+            case "phase4-fallback", "phase3-fallback" -> new SkinAssetResolver(output.resolve("fixtures/empty"));
+            case "phase4-high-only" -> new SkinAssetResolver(output.resolve("fixtures/high-only"));
+            case "phase4-bundled-fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), null);
             case "phase3-modern" -> new SkinAssetResolver(output.resolve("fixtures/latest"));
             case "phase2-missing-star" -> new SkinAssetResolver(output.resolve("fixtures/missing"));
             case "phase2-broken-star" -> new SkinAssetResolver(output.resolve("fixtures/star-broken"));
@@ -239,7 +255,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     "phase25-rating-high", "phase25-rating-none", "phase25-thumbnail-missing", "phase25-thumbnail-wide",
                     "phase25-thumbnail-tall", "phase25-chrome-full", "phase25-hover", "phase2-thumbnail-fade", "phase2-missing-thumbnail",
                     "phase2-portrait", "phase2-wide", "phase2-broken-thumbnail", "phase2-v22" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/star-high"), null);
-            default -> scene.name.startsWith("greylooks") || phase2 || scene.name.startsWith("phase3") ? SkinAssetResolver.withBundledDefault(null,null)
+            default -> scene.name.startsWith("greylooks") || phase2 || scene.name.startsWith("phase3") || scene.name.startsWith("phase4") ? SkinAssetResolver.withBundledDefault(null,null)
                     : new SkinAssetResolver(output.resolve("fixtures").resolve(scene.name));
         };
         var assets = new SongSelectSkinAssets(resolver);
@@ -261,6 +277,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 pointerRow(screen,carousel(screen).rows().stream().filter(r -> r.entry.difficultyIndex() == 1).findFirst().orElseThrow().entry.setIndex(),2,pointer,layout,scene.height);
                 for (int frame = 0; frame < 60; frame++) screen.render(1f / 60);
             }
+            if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
             if (scene.name.equals("phase2-thumbnail-fade")) {
                 // Simulate a newly resident image after entrance, without changing content/hitboxes.
@@ -337,8 +354,18 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     }
                 }
             }
+            if (scene.name.equals("phase4-transitions")) {
+                for (int stage=0;stage<4;stage++) {
+                    processor[0].keyDown(stage % 2 == 0 ? Input.Keys.RIGHT : Input.Keys.LEFT);
+                    assertScoreTarget(screen);
+                    for (int frame=0;frame<=24;frame++) {
+                        screen.render(1f/60); assertRenderedBounds(screen,layout);
+                        if (frame == 0 || frame == 8 || frame == 24) capture(fb,name+"-stage-"+stage+"-frame-"+frame);
+                    }
+                }
+            }
             capture(fb,name);
-            if (scene.name.startsWith("phase3")) {
+            if (scene.name.startsWith("phase3") || scene.name.startsWith("phase4")) {
                 screen.browserSearch("",false);
                 closeBrowserMenu(screen);
                 screen.browserMode(SongBrowserModel.Sort.TITLE,SongBrowserModel.Group.NONE);
@@ -348,6 +375,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             assertScrollSettled(screen,name);
             if (setCount > 7) {
                 if (scene.name.equals("phase3-large-library")) profileBrowser(screen,name);
+                if (scene.name.startsWith("phase4")) profileScores(screen, localScores, name);
                 profileMotion(carousel(screen),name);
                 profileRender(screen, name);
             }
@@ -388,14 +416,14 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for (int frame=0;frame<60;frame++) screen.render(1f/60);
             model = carousel(screen);
             selectedRow = model.rows().stream().max(Comparator.comparingDouble(r -> r.selectedAmount)).orElseThrow();
-            if (scene.name.equals("phase3-chrome-cookie")) {
+            if ((scene.name.equals("phase3-chrome-cookie") || scene.name.equals("phase4-sibling"))) {
                 screen.browserMode(SongBrowserModel.Sort.LENGTH,SongBrowserModel.Group.BPM);
                 processor[0].keyDown(Input.Keys.RIGHT);
                 pointer[0] = Math.round((layout.width()-20)*layout.scale()); pointer[1] = scene.height-Math.round(30*layout.scale());
             } else pointerRow(screen,selectedRow.entry.setIndex(),selectedRow.entry.difficultyIndex(),pointer,layout,scene.height);
             clicked[0] = true; screen.render(0); clicked[0] = false;
             if (!pending(screen)) throw new AssertionError("Selected re-click did not play: " + name);
-            if (scene.name.equals("phase3-chrome-cookie")) {
+            if ((scene.name.equals("phase3-chrome-cookie") || scene.name.equals("phase4-sibling"))) {
                 try {
                     var browserField = SongSelectScreen.class.getDeclaredField("browser"); browserField.setAccessible(true);
                     var browser = (SongBrowserModel)browserField.get(screen);
@@ -422,6 +450,91 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             Gdx.app.exit();
         }
     }
+    private void populateScores(dev.osujava.score.LocalScoreStore store, BeatmapLibrary library, String name) {
+        var set = library.all().stream().filter(b -> b.id().equals("set3")).findFirst().orElseThrow();
+        int count = name.equals("phase4-empty") || name.equals("phase4-large-0") ? 0
+                : name.startsWith("phase4-large-") ? Integer.parseInt(name.substring("phase4-large-".length()))
+                : name.equals("phase4-single") || name.matches("phase4-(SS|S|A|B|C|D)") ? 1
+                : name.equals("phase4-three") ? 3 : 16;
+        int[][] counts = {{100,0,0,0},{91,9,0,0},{81,19,0,0},{71,29,0,0},{61,39,0,0},{20,30,20,30}};
+        for (int i=0;i<count;i++) {
+            int grade = name.matches("phase4-(SS|S|A|B|C|D)")
+                    ? dev.osujava.ruleset.osu.OsuGrade.valueOf(name.substring(7)).ordinal() : i % 6;
+            var tracker = new dev.osujava.gameplay.ScoreTracker();
+            for(int j=0;j<4;j++) for(int n=0;n<counts[grade][j];n++)
+                tracker.record(dev.osujava.gameplay.Judgement.values()[j]);
+            if (name.startsWith("phase4-numbers") && i == 0) tracker = new dev.osujava.gameplay.ScoreTracker();
+            if (name.startsWith("phase4-numbers") && i == 0) tracker.record(dev.osujava.gameplay.Judgement.HIT50);
+            if (name.startsWith("phase4-numbers") && i == 1) {
+                for(int n=0;n<10000;n++)tracker.recordNestedHit(0,true,true);
+                tracker.recordBonusScore(9_876_543_210L);
+            } else if (count>100) tracker.recordBonusScore(i * 100000L);
+            var identity = dev.osujava.score.DifficultyIdentity.of(set.id(),set.difficulties().get(1));
+            store.save(new dev.osujava.score.LocalScore(new UUID(0,i+1),identity,1_790_467_200_000L + i * 60000L,
+                    tracker.snapshot()),dev.osujava.gameplay.GameplayRunMode.MANUAL);
+        }
+        if (!name.equals("phase4-empty") && !name.startsWith("phase4-large")) {
+            var identity = dev.osujava.score.DifficultyIdentity.of(set.id(),set.difficulties().get(2));
+            store.save(new dev.osujava.score.LocalScore(new UUID(1,1),identity,1_790_467_200_000L,
+                    new dev.osujava.gameplay.ScoreState(30000,100,100,100,0,0,0,1)),dev.osujava.gameplay.GameplayRunMode.MANUAL);
+        }
+    }
+    private ScoreBrowserModel scoreBrowser(SongSelectScreen screen) {
+        try { var f=SongSelectScreen.class.getDeclaredField("scores"); f.setAccessible(true); return (ScoreBrowserModel)f.get(screen); }
+        catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+    private void assertScoreTarget(SongSelectScreen screen) {
+        try {
+            var f=SongSelectScreen.class.getDeclaredField("browser"); f.setAccessible(true);
+            var browser=(SongBrowserModel)f.get(screen);
+            var target=browser.selectedSet()==null ? null : dev.osujava.score.DifficultyIdentity.of(browser.selectedSet().id(),browser.selectedDifficulty());
+            if (!Objects.equals(target,scoreBrowser(screen).target())) throw new AssertionError("Stale score target");
+        } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+    private void configureScores(SongSelectScreen screen, String name, InputProcessor input, int[] pointer,
+                                 boolean[] clicked, UiLayout layout, int height) {
+        var scores=scoreBrowser(screen); var bounds=ScoreBrowserBounds.of(layout);
+        pointer[0]=Math.round(100*layout.scale()); pointer[1]=height-Math.round((bounds.top()-32)*layout.scale());
+        float carouselTarget=carousel(screen).scrollTarget();
+        int before=scores.first(); input.scrolled(0,1);
+        if(carousel(screen).scrollTarget()!=carouselTarget) throw new AssertionError("Left wheel moved carousel");
+        scores.scroll(-1);
+        if(scores.first()!=before) throw new AssertionError("Score scroll did not reverse");
+        pointer[0]=Math.round(layout.width()*.9f*layout.scale()); pointer[1]=height/2;
+        input.scrolled(0,1);
+        if(scores.first()!=before) throw new AssertionError("Right wheel moved score browser");
+        input.scrolled(0,-1);
+        pointer[0]=Math.round(100*layout.scale()); pointer[1]=height-Math.round((bounds.top()-32)*layout.scale());
+        if(name.equals("phase4-scroll-middle")) scores.scroll(6);
+        if(name.equals("phase4-scroll-bottom") || name.equals("phase4-numbers-bottom")) scores.scroll(10000);
+        if(name.equals("phase4-selected")) { clicked[0]=true; screen.render(0); clicked[0]=false; if(scores.selected()==null)throw new AssertionError("Score click lost"); }
+        if(name.equals("phase4-no-score")) input.keyDown(Input.Keys.LEFT);
+        if(name.equals("phase4-group")) screen.browserMode(SongBrowserModel.Sort.ARTIST,SongBrowserModel.Group.ARTIST);
+        if(name.equals("phase4-search")) screen.browserSearch("Local song",true);
+        assertScoreTarget(screen);
+        for (int frame=0;frame<90;frame++) screen.render(1f/60);
+    }
+    private void profileScores(SongSelectScreen screen, dev.osujava.score.LocalScoreStore store, String name) {
+        var scores=scoreBrowser(screen); var target=scores.target();
+        for(String operation:List.of("query","sort","scroll","difficulty","input-switch","cold-format")) {
+            long[] samples=new long[100];
+            for(int i=0;i<140;i++) {
+                long start=System.nanoTime();
+                switch(operation) {
+                    case "query" -> store.query(target);
+                    case "sort" -> { var copy=new ArrayList<>(store.query(target)); copy.sort(dev.osujava.score.LocalScore.ORDER); }
+                    case "scroll" -> scores.scroll(i%2==0 ? 1 : -1);
+                    case "difficulty" -> { scores.target(null); scores.target(target); }
+                    case "input-switch" -> Gdx.input.getInputProcessor().keyDown(i%2==0 ? Input.Keys.RIGHT : Input.Keys.LEFT);
+                    case "cold-format" -> new ScoreBrowserModel(store).target(target);
+                }
+                if(i>=40)samples[i-40]=System.nanoTime()-start;
+            }
+            Arrays.sort(samples);
+            System.out.printf(Locale.ROOT,"Score profile %s %s: mean %.3f ms, p95 %.3f ms, max %.3f ms%n",name,operation,Arrays.stream(samples).average().orElseThrow()/1e6,samples[94]/1e6,samples[99]/1e6);
+        }
+    }
+
     private void assertPresentation(SongSelectScreen screen, SongSelectSkinAssets assets, String scene) {
         try {
             var field = SongSelectScreen.class.getDeclaredField("rowContent"); field.setAccessible(true);

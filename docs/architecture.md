@@ -105,3 +105,9 @@ The local ScoreTracker records one Spinner result for accuracy and combo. Comple
 ## Extending rulesets
 
 Add another Ruleset implementation that declares which imported mode it supports and creates its own GameplaySession. Keep mode parsing in the shared importer/model, and keep each ruleset's hit-object interpretation and judgement rules within that implementation. OsuRuleset owns Slider timing, path traversal, and judgement alongside HitCircle judgement.
+
+## Local gameplay scores
+
+`GameplayScreen` finalizes its session before capturing the shared immutable `ScoreState`. Each manual completion is saved once using a play UUID; DEBUG_AUTO and Escape/interrupted plays do not enter the store. Results construction/rendering never saves. `LocalScoreStore` loads versioned UTF-8 Properties records at startup and maintains immutable difficulty-scoped sorted query lists. Identity is Set ID plus normalized `.osu` path, never an index. Per-record corruption is recoverable; save failures leave Results usable.
+
+`OsuGrade` is ruleset-specific pure judgement-ratio logic. `ScoreBrowserModel` owns formatted rows, selected score and left scroll position; `SongBrowserModel` retains beatmap filtering/sorting/grouping/selection only. Song Select coordinates them through the shared selection synchronization path. Left score and right carousel wheel bounds are disjoint and reserved by the global volume input. Details and verification: [Phase 4](songselect-local-scores.md).

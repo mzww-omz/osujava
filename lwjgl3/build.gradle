@@ -141,4 +141,5 @@ tasks.register('songSelectVisualHarness', JavaExec) {
     mainClass = 'dev.osujava.ui.SongSelectVisualHarness'
     systemProperty 'java.awt.headless', 'true'
     args project.findProperty('songSelectOutput') ?: '/tmp/osujava-songselect'
+    systemProperty 'osujava.songSelectPhase', project.findProperty('songSelectPhase') ?: 'all'
 }

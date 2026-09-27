@@ -36,7 +36,7 @@ macOSではlauncherがGLFWの非同期起動設定を使います。
 
 全画面共通の円形HUDで `master` / `music` / `effect` を調整できます。`F4`で開閉し、開いた直後はmasterを選択します。表示中は `Tab` / `←` / `→` で対象を切り替え、`↑` / `↓` またはマウスホイールで5%ずつ調整します。`Escape`は表示中のHUDを閉じ、HUDが閉じている場合は従来の画面操作です。Z/X・クリック・カーソル移動はHUD表示中もGameplayへ届き、曲と判定は進行します。
 
-Main Menu・Gameplay・ResultsではホイールだけでHUDを開いて音量を変更できます。Song Selectでも譜面の行がない場所（余白・ヘッダー・下部ボタンなど）ではF4なしで音量を変更できます。HUD非表示時に譜面の行へカーソルを置くとホイール選曲を優先します。行の上でも `F4`でHUDを開いてからホイール、または `Alt`＋ホイールで音量を変更できます。Alt＋ホイールは全画面で利用できます。
+Main Menu・Gameplay・ResultsではホイールだけでHUDを開いて音量を変更できます。Song Selectでは、左のLocal Rankings領域でscoreを、右のCarousel領域で譜面をホイールscrollします。どちらのBrowserにも属さない余白・ヘッダー・下部ボタンではF4なしで音量を変更できます。HUD非表示時は各Browserのホイール操作を優先します。行の上でも `F4`でHUDを開いてからホイール、または `Alt`＋ホイールで音量を変更できます。Alt＋ホイールは全画面で利用できます。
 
 音量は0〜100%に制限し、Musicはmaster×music、hitsoundはmaster×effect×譜面sample音量を使います。Main Menuの既存の65%基準ゲインと画面遷移fadeもその上に掛けます。設定は画面間で共有し、アプリを再起動すると100%へ戻ります。120msのfade-inと軽いscale-in、1.5秒の無操作後に220msのfade-out、約90msの円弧追従、選択時250msのglow強調があります。描画は独自の円・円弧・文字で、全画面を暗くする処理はありません。
 
@@ -44,13 +44,15 @@ Main Menu・Gameplay・ResultsではホイールだけでHUDを開いて音量�
 
 ### 開発確認用 Debug Auto
 
-Song SelectでDifficultyを選び、`F6`を押すとDebug Auto Playを開始します。検索入力中はF6などのプレイ・navigationショートカットは動作しません（F2 / Shift+F2は使用できます）。検索入力を終了した後の`Enter`またはPlay Cookieは通常のManual Playです。Debug Autoは既存のGameplay入力・判定経路に入力を送り、カーソルには目視確認用のcrosshairを表示します。Resultsには`AUTO / DEBUG`と表示されます。これはModsではなく、将来の通常プレイ用Local Rankingへ含めない開発用の実行種別です。Gameplay中の`Escape`でSong Selectへ戻れます。
+Song SelectでDifficultyを選び、`F6`を押すとDebug Auto Playを開始します。検索入力中はF6などのプレイ・navigationショートカットは動作しません（F2 / Shift+F2は使用できます）。検索入力を終了した後の`Enter`またはPlay Cookieは通常のManual Playです。Debug Autoは既存のGameplay入力・判定経路に入力を送り、カーソルには目視確認用のcrosshairを表示します。Resultsには`AUTO / DEBUG`と表示されます。これはModsではなく、通常プレイ用Local Rankingsへ保存しない開発用の実行種別です。Gameplay中の`Escape`でSong Selectへ戻れます。
 
 終了はウィンドウの閉じるボタン、macOSのCmd+Q、Windows / LinuxのCtrl+Qで行えます。
 
 Song Selectでは、1つの.oszに入った複数Difficultyを1つのBeatmap Setとして表示します。taiko / catch / maniaのmode情報も保持して表示しますが、Gameplay対応はosu!standardのHitCircle、Slider、Spinnerです。Mods、Replay、Editor、オンライン機能は未実装です。
 
 Song Select右上のGroup / SortでLibraryを分類・並べ替えできます。入力するとTitle / Artist / Creator / Difficulty名を対象に、空白区切りの全tokenで検索します。Unicode入力にも対応しています。`F2`は現在の検索結果内からRandom、`Shift+F2`は以前のRandom selectionへ戻ります。検索・Sort・Group変更時は譜面identityを維持し、検索解除時は自動fallback前の選択、または検索中に明示的に選んだ譜面を復元します。実装した分類、数値の根拠、保留項目と検証結果は[Song Browser Phase 3](docs/songselect-browser.md)を参照してください。
+
+通常プレイが終了すると、確定したScore・Accuracy・Combo・判定数・日時を `~/.osujava/scores` へ保存します。左のLocal Rankingsに選択difficultyの結果をScore降順で表示し、clickで選択、wheelでscrollできます。difficulty rowのGradeは先頭のbest local scoreに対応し、score無しでは表示しません。Debug Autoと中断プレイは保存しません。再起動後も保持され、破損recordは個別にskipします。Grade規則、identity、保存schemaと検証結果は[Song Select Phase 4](docs/songselect-local-scores.md)を参照してください。
 
 ### 内蔵デフォルトSkin / カスタムSkin
 
