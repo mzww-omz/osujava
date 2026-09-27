@@ -64,7 +64,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
                 for (String name : List.of("greylooks", "greylooks-initial", "greylooks-set-selected", "greylooks-difficulty-selected",
-                        "greylooks-hover", "greylooks-after-wheel", "greylooks-random", "greylooks-random-hover", "missing", "row-only", "top-only", "bottom-only",
+                        "greylooks-hover", "greylooks-after-wheel", "greylooks-random", "greylooks-random-hover",
+                        "greylooks-slow-scroll", "greylooks-fast-scroll", "greylooks-scroll-reverse",
+                        "greylooks-expanded-many-first", "greylooks-expanded-many-last", "greylooks-expanded-single",
+                        "greylooks-collapse-many", "greylooks-first-item", "greylooks-last-item", "greylooks-large-library", "missing", "row-only", "top-only", "bottom-only",
                         "normal-only", "high-only", "broken", "tiny", "unusual", "old", "latest", "malformed-colours"))
                     scenes.add(new Scene(size[0],size[1],size[2],name));
         } catch (Exception e) { throw new RuntimeException(e); }
@@ -99,12 +102,16 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
         var library = new BeatmapLibrary();
-        for (int i = 0; i < 7; i++) {
+        int setCount = scene.name.equals("greylooks-large-library") ? 1000 : 7;
+        for (int i = 0; i < setCount; i++) {
+            String title = setCount > 7 ? String.format(Locale.ROOT,"Local song %03d",i) : "Local song " + i;
             List<BeatmapDifficulty> diffs = new ArrayList<>();
-            for (String version : List.of("Easy","Normal","Hard","Expert")) diffs.add(new BeatmapDifficulty(
-                    "Local song " + i,"Local artist","Harness",version,0,"","",DifficultySettings.defaults(),
+            int difficultyCount = scene.name.equals("greylooks-expanded-single") ? 1
+                    : (scene.name.contains("many") && i == 3) ? 16 : 4;
+            for (int difficulty = 0; difficulty < difficultyCount; difficulty++) diffs.add(new BeatmapDifficulty(
+                    title,"Local artist","Harness","Difficulty " + (difficulty + 1),0,"","",DifficultySettings.defaults(),
                     List.of(new TimingPoint(0,500,4,0,0,100,true,0)),List.of(),null,artwork));
-            library.add(new BeatmapSet("set" + i,"Local song " + i,"Local artist","Harness",null,artwork,diffs,List.of()));
+            library.add(new BeatmapSet("set" + i,title,"Local artist","Harness",null,artwork,diffs,List.of()));
         }
         var game = new OsuJavaGame(null,null) {
             @Override public SpriteBatch batch() { return batch; }
@@ -117,7 +124,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         var resolver = scene.name.startsWith("greylooks") ? SkinAssetResolver.withBundledDefault(null,null)
                 : new SkinAssetResolver(output.resolve("fixtures").resolve(scene.name));
         var assets = new SongSelectSkinAssets(resolver);
-        var screen = new SongSelectScreen(game,"set3",1,assets);
+        String preferredSet = scene.name.equals("greylooks-first-item") ? "set0"
+                : scene.name.equals("greylooks-last-item") ? "set6"
+                : scene.name.startsWith("greylooks-expanded") ? "set2" : "set3";
+        int preferredDifficulty = scene.name.equals("greylooks-first-item") ? 0
+                : (scene.name.equals("greylooks-last-item") || scene.name.startsWith("greylooks-expanded")) ? 3 : 1;
+        var screen = new SongSelectScreen(game,preferredSet,preferredDifficulty,assets);
         var fb = new FrameBuffer(Pixmap.Format.RGBA8888,scene.width * scene.density,scene.height * scene.density,false);
         try {
             screen.show(); screen.resize(scene.width,scene.height);
@@ -146,17 +158,42 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     if (carousel(screen).rows() != before) throw new AssertionError("Wheel rebuilt selection: " + name);
                 }
                 case "greylooks-random" -> processor[0].keyDown(Input.Keys.F2);
+                case "greylooks-expanded-many-first", "greylooks-expanded-many-last", "greylooks-expanded-single" -> {
+                    pointerRow(screen,3,-1,pointer,layout,scene.height);
+                    clicked[0] = true; screen.render(0); clicked[0] = false;
+                    if (scene.name.endsWith("last")) for (int i = 0; i < 15; i++) processor[0].keyDown(Input.Keys.RIGHT);
+                    long children = carousel(screen).rows().stream().filter(r -> r.entry.setIndex() == 3 && r.entry.difficultyIndex() >= 0).count();
+                    if (children != (scene.name.endsWith("single") ? 1 : 16)) throw new AssertionError("Expansion input missed: " + name);
+                    pointer[0] = 40;
+                }
+                case "greylooks-collapse-many" -> { processor[0].keyDown(Input.Keys.PAGE_DOWN); pointer[0] = 40; }
+                case "greylooks-slow-scroll", "greylooks-fast-scroll", "greylooks-scroll-reverse", "greylooks-large-library" ->
+                    pointerRow(screen,3,1,pointer,layout,scene.height);
             }
             if (scene.name.equals("greylooks-hover") || scene.name.equals("greylooks-after-wheel")
-                    || scene.name.equals("greylooks-random") || scene.name.endsWith("selected")) {
+                    || scene.name.equals("greylooks-random") || scene.name.endsWith("selected")
+                    || scene.name.contains("scroll") || scene.name.contains("expanded")
+                    || scene.name.contains("collapse") || scene.name.equals("greylooks-large-library")) {
                 for (int frame=1;frame<=60;frame++) {
+                    if (scene.name.equals("greylooks-slow-scroll") && frame <= 24) processor[0].scrolled(0,.08f);
+                    if ((scene.name.equals("greylooks-fast-scroll") || scene.name.equals("greylooks-large-library")) && frame <= 12)
+                        processor[0].scrolled(0,2);
+                    if (scene.name.equals("greylooks-scroll-reverse") && frame <= 12) processor[0].scrolled(0,frame <= 6 ? 2 : -2);
                     screen.render(1f/60);
-                    if (frame == 1 || frame == 4 || frame == 10 || frame == 20 || frame == 40)
+                    assertRenderedBounds(screen,layout);
+                    if (frame == 1 || frame == 4 || frame == 10 || frame == 20 || frame == 40 || frame == 60)
                         capture(fb,name + "-frame-" + String.format(Locale.ROOT,"%02d",frame));
                 }
             }
             capture(fb,name);
+            assertRenderedBounds(screen,layout);
             assertScrollSettled(screen,name);
+            if (scene.name.equals("greylooks-large-library")) profileMotion(carousel(screen),name);
+            // Wheel scenes intentionally leave selection behind. A real difficulty change restores it.
+            if (scene.name.contains("scroll") || scene.name.equals("greylooks-large-library")) {
+                processor[0].keyDown(Input.Keys.RIGHT); pointer[0] = 40;
+                for (int frame = 0; frame < 90; frame++) screen.render(1f/60);
+            }
             // Position the pointer on the current selected row for the existing input smoke checks.
             var model = carousel(screen);
             var selectedRow = model.rows().stream().max(Comparator.comparingDouble(r -> r.selectedAmount)).orElseThrow();
@@ -169,7 +206,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             pointer[0] = Math.round((layout.width() - 100) * layout.scale());
             pointer[1] = Math.round(45 * layout.scale());
             clicked[0] = true; screen.render(0); clicked[0] = false;
-            for (char c : "Local song 2".toCharArray()) if (!processor[0].keyTyped(c)) throw new AssertionError("Search lost: " + name);
+            for (char c : (setCount > 7 ? "Local song 002" : "Local song 2").toCharArray()) if (!processor[0].keyTyped(c)) throw new AssertionError("Search lost: " + name);
             processor[0].keyDown(Input.Keys.ENTER);
             pointer[0] = Math.round(344 * layout.scale()); pointer[1] = scene.height - Math.round(19 * layout.scale());
             clicked[0] = true; screen.render(0); clicked[0] = false;
@@ -219,6 +256,39 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         var row = model.rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff).findFirst().orElseThrow();
         pointer[0] = Math.round((model.renderX(row,layout.width()) + 150) * layout.scale());
         pointer[1] = height - Math.round((model.renderY(row,layout.height() - 62) + model.rowHeight()/2) * layout.scale());
+    }
+    private void profileMotion(SongSelectCarousel source, String name) {
+        var model = new SongSelectCarousel();
+        model.content(source.rows().stream().map(r -> r.entry).toList(),620,76,72,source.rows().getFirst().entry.key());
+        long total = 0, maximum = 0;
+        for (int frame = 0; frame < 720; frame++) {
+            model.scrollBy(frame < 360 ? 130 : -130);
+            long start = System.nanoTime(); model.advance(1f/60,null); long elapsed = System.nanoTime() - start;
+            if (frame >= 120) { total += elapsed; maximum = Math.max(maximum,elapsed); }
+        }
+        System.out.printf(Locale.ROOT,"Motion profile %s: %d rows, mean %.3f ms, max %.3f ms (600 samples)%n",
+                name,model.rows().size(),total / 600.0 / 1_000_000,maximum / 1_000_000.0);
+    }
+    /** Production draw snapshots must exactly match Carousel output even during overlapping motion. */
+    private void assertRenderedBounds(SongSelectScreen screen, UiLayout layout) {
+        try {
+            var field = SongSelectScreen.class.getDeclaredField("visibleRows"); field.setAccessible(true);
+            var model = carousel(screen);
+            for (Object snapshot : (List<?>) field.get(screen)) {
+                var type = snapshot.getClass();
+                int set = (int) value(type,snapshot,"setIndex"), diff = (int) value(type,snapshot,"difficultyIndex");
+                var row = model.rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff).findFirst().orElseThrow();
+                float x = (float) value(type,snapshot,"x"), y = (float) value(type,snapshot,"y");
+                if (Math.abs(x - model.renderX(row,layout.width())) > .001f
+                        || Math.abs(y - model.renderY(row,layout.height() - 62)) > .001f)
+                    throw new AssertionError("Draw snapshot diverged from motion bounds");
+                if (!Float.isFinite(x) || !Float.isFinite(y) || x < layout.width() * .52f || x > layout.width() * .74f)
+                    throw new AssertionError("Invalid row bounds");
+            }
+        } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+    private Object value(Class<?> type, Object snapshot, String name) throws ReflectiveOperationException {
+        var method = type.getDeclaredMethod(name); method.setAccessible(true); return method.invoke(snapshot);
     }
     private void assertScrollSettled(SongSelectScreen screen, String name) {
         var model = carousel(screen);
