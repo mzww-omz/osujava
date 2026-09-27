@@ -140,11 +140,30 @@ public final class SongSelectScreen extends ScreenAdapter {
                 return true;
             }
             @Override public boolean scrolled(float amountX, float amountY) {
-                if (sets.isEmpty()) return false;
+                if (!Float.isFinite(amountY) || amountY == 0
+                        || !usesMouseWheelAt(Gdx.input.getX(), Gdx.input.getY())) return false;
                 advance((int) Math.signum(amountY));
                 return true;
             }
         });
+    }
+
+    @Override public void resize(int width, int height) {
+        if (width <= 0 || height <= 0) return;
+        UiLayout layout = UiLayout.fromPixels(width, height);
+        calculateLayout(layout);
+        visibleRows = layoutRows(layout, 0);
+    }
+
+    /** Only the visible beatmap rows reserve the wheel; blank space falls through to volume. */
+    public boolean usesMouseWheelAt(int screenX, int screenY) {
+        if (closed || importing || outgoing.pending() || visibleRows.isEmpty()) return false;
+        if (Gdx.graphics.getWidth() <= 0 || Gdx.graphics.getHeight() <= 0) return false;
+        UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        float x = layout.pointerX(screenX), y = layout.pointerY(screenY);
+        if (y <= bottom || y >= top || playCookie.hit(x, y)) return false;
+        for (Row row : visibleRows) if (rowHit(row, x, y)) return true;
+        return false;
     }
 
     @Override public void render(float delta) {

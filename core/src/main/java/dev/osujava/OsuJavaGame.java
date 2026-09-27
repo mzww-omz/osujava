@@ -41,7 +41,8 @@ public class OsuJavaGame extends Game {
     private final AudioVolumes audioVolumes = new AudioVolumes();
     private final VolumeHud volumeHud = new VolumeHud(audioVolumes);
     private final VolumeHudInput volumeInput = new VolumeHudInput(volumeHud,
-            () -> getScreen() instanceof SongSelectScreen,
+            () -> getScreen() instanceof SongSelectScreen songs
+                    && songs.usesMouseWheelAt(Gdx.input.getX(), Gdx.input.getY()),
             () -> Gdx.input.isKeyPressed(Input.Keys.ALT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.ALT_RIGHT));
     private VolumeHudRenderer volumeRenderer;
 
