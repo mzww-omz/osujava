@@ -237,6 +237,23 @@ class SongSelectSkinAssetsTest {
         assertNull(absent.get(image)); absent.dispose();
     }
 
+    @Test void customAnimatedBackFirstFrameWinsOverBundledStaticBack() throws Exception {
+        Files.createFile(directory.resolve("menu-back-0.png"));
+        Files.createFile(directory.resolve("menu-back-0@2x.png"));
+        Files.createFile(directory.resolve("menu-back-1@2x.png"));
+        var assets = new SongSelectSkinAssets(SkinAssetResolver.withBundledDefault(directory,null),file -> new TestTexture(544,182));
+        assertEquals(directory.resolve("menu-back-0@2x.png"),assets.get(Image.BACK).file().path());
+        assertEquals(2,assets.get(Image.BACK).density());
+        assertFalse(assets.get(Image.BACK).file().fallback());
+        assets.dispose();
+        var brokenHigh = new SongSelectSkinAssets(SkinAssetResolver.withBundledDefault(directory,null),file -> {
+            if (file.path().equals(directory.resolve("menu-back-0@2x.png"))) throw new GdxRuntimeException("Broken frame zero 2x");
+            return new TestTexture(272,91);
+        });
+        assertEquals(directory.resolve("menu-back-0.png"),brokenHigh.get(Image.BACK).file().path());
+        brokenHigh.dispose();
+    }
+
     private static class TestTexture extends Texture {
         int disposals;
         final int width, height;

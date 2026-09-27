@@ -13,7 +13,7 @@ All entries support `.png` and `@2x.png` through `SkinAssetResolver`.
 | `menu-button-background` | Row background multiplied by selected/sibling/other/hover tint, then thumbnail and text. Selected row is composited last. |
 | `songselect-top` | Top-left, uniform legacy chrome scale; right edge repeats underneath the original. See [chrome integration](songselect-chrome.md). |
 | `songselect-bottom` | Bottom-left, logical image height at legacy chrome scale, stretched only to screen width. |
-| `menu-back` | Aspect-preserving image around common visible body bounds/baseline, with transparent padding retained. |
+| `menu-back` | Aspect-preserving static image or animation frame zero around common visible body bounds/baseline, with transparent padding retained. |
 | `selection-random`, `selection-random-over` | Normal image plus aspect-preserving hover overlay at the common action baseline; 140 ms fade and short F2 pulse. Click/F2 selects a matching Set, avoiding the current Set when alternatives exist. |
 | `selection-mode`, `selection-mods`, `selection-options` and their `-over` images | Asset-holder support only. No buttons are shown for unimplemented actions. |
 | `star` | Optional trusted-rating full/partial icons. Existing resolver priority is retained; all missing/corrupt candidates use a small owned procedural glyph. Production has no trusted rating source and hides this region. |

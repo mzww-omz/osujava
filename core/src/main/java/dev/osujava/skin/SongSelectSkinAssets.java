@@ -12,6 +12,7 @@ import java.util.EnumMap;
 import java.util.IdentityHashMap;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 
 /** SongSelect visuals only. Resolution and configuration belong to the shared skin resolver. */
 public final class SongSelectSkinAssets implements Disposable {
@@ -39,6 +40,7 @@ public final class SongSelectSkinAssets implements Disposable {
     private final EnumMap<Image, SkinTexture> textures = new EnumMap<>(Image.class);
     private final Set<Texture> owned = Collections.newSetFromMap(new IdentityHashMap<>());
     private Texture fallbackStar;
+    private SongSelectTopCoverage topCoverage;
     private SongSelectBodyBounds rowBody = SongSelectBodyBounds.FULL;
     private SkinConfiguration configuration = SkinConfiguration.defaults();
 
@@ -55,7 +57,7 @@ public final class SongSelectSkinAssets implements Disposable {
         try { configuration = resolver.readConfiguration(); }
         catch (IOException e) { log("Could not read skin.ini", e); }
         for (Image image : Image.values()) {
-            resolver.resolve(image.basename, file -> {
+            Predicate<SkinAssetResolver.AssetFile> load = file -> {
                 Texture texture = null;
                 try {
                     texture = loader.apply(file);
@@ -71,15 +73,20 @@ public final class SongSelectSkinAssets implements Disposable {
                                 + " density=" + file.density() + " logical=" + file.logicalSize(texture.getWidth())
                                 + "x" + file.logicalSize(texture.getHeight()));
                     if ((image == Image.MENU_BUTTON_BACKGROUND || image == Image.BACK
-                            || image == Image.RANDOM || image == Image.RANDOM_OVER) && Gdx.gl != null) {
+                            || image == Image.RANDOM || image == Image.RANDOM_OVER || image == Image.TOP) && Gdx.gl != null) {
                         Pixmap pixels = null;
                         try {
                             pixels = new Pixmap(file.handle());
                             Pixmap source = pixels;
-                            var body = SongSelectBodyBounds.detect(pixels.getWidth(), pixels.getHeight(),
-                                    (x, y) -> source.getPixel(x, y) & 255);
-                            if (image == Image.MENU_BUTTON_BACKGROUND) rowBody = body;
-                            else actionBodies.put(image, body);
+                            if (image == Image.TOP) {
+                                topCoverage = SongSelectTopCoverage.detect(pixels.getWidth(), pixels.getHeight(),
+                                        file.density(), (x,y) -> source.getPixel(x,y) & 255);
+                            } else {
+                                var body = SongSelectBodyBounds.detect(pixels.getWidth(), pixels.getHeight(),
+                                        (x, y) -> source.getPixel(x, y) & 255);
+                                if (image == Image.MENU_BUTTON_BACKGROUND) rowBody = body;
+                                else actionBodies.put(image, body);
+                            }
                         } catch (GdxRuntimeException ignored) { /* Full-image bounds remain the safe default. */ }
                         finally { if (pixels != null) pixels.dispose(); }
                     }
@@ -89,7 +96,9 @@ public final class SongSelectSkinAssets implements Disposable {
                     log("Could not load " + file.path() + "; trying the next skin candidate", e);
                     return false;
                 }
-            });
+            };
+            if (image == Image.BACK) resolver.resolveAnimationFirstFrame(image.basename, load);
+            else resolver.resolve(image.basename, load);
         }
     }
 
@@ -98,6 +107,10 @@ public final class SongSelectSkinAssets implements Disposable {
     }
 
     public SkinTexture get(Image image) { return textures.get(image); }
+    public float topDepth(float start, float end) {
+        var top = get(Image.TOP);
+        return top == null ? 0 : topCoverage == null ? top.logicalHeight() : topCoverage.depth(start,end);
+    }
     public SongSelectBodyBounds actionBody(Image image) { return actionBodies.getOrDefault(image, SongSelectBodyBounds.FULL); }
     public SongSelectBodyBounds rowBody() { return rowBody; }
     public boolean thumbnailsEnabled() { return configuration.legacyVersion() >= 2.2; }
@@ -134,5 +147,6 @@ public final class SongSelectSkinAssets implements Disposable {
         textures.clear();
         actionBodies.clear();
         fallbackStar = null;
+        topCoverage = null;
     }
 }

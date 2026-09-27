@@ -53,10 +53,6 @@ public final class SongSelectScreen extends ScreenAdapter {
     private static final Color RANDOM_DISABLED = new Color(.5f, .5f, .5f, .5f);
     private static final Color BACK_PINK = new Color(.83f, .28f, .55f, 1f);
 
-    private static final class Metrics {
-        static final float HEADER_HEIGHT = 62;
-    }
-
     private final OsuJavaGame game;
     private final UiView view;
     private SongSelectSkinAssets skin;
@@ -97,10 +93,24 @@ public final class SongSelectScreen extends ScreenAdapter {
     private float backgroundFade;
     private Path backgroundPath;
     private SongSelectChrome.Bottom bottomLayout;
+    private SongSelectChrome.Content chromeContent;
+    private float chromeWidth = -1, chromeHeight = -1;
+    SongSelectChrome.Content chromeBounds(UiLayout layout) {
+        if (chromeContent == null || chromeWidth != layout.width() || chromeHeight != layout.height()) {
+            chromeContent = SongSelectChrome.content(layout.width(), layout.height(), skin);
+            chromeWidth = layout.width(); chromeHeight = layout.height();
+        }
+        return chromeContent;
+    }
+    ScoreBrowserBounds scoreBounds(UiLayout layout) {
+        var content = chromeBounds(layout);
+        return new ScoreBrowserBounds(18, content.bottom() + 48, layout.width() * .35f, content.rankingHeaderTop() - 64);
+    }
     private boolean renderedTopProcedural, renderedBottomProcedural;
     boolean renderedChromeProcedural(Image image) {
         return image == Image.TOP ? renderedTopProcedural : renderedBottomProcedural;
     }
+    private float viewportHeight;
     private float top, bottom, searchX, searchW, cookieX, cookieY, cookieRadius;
 
     private record Row(int setIndex, int difficultyIndex, String header, boolean selected, boolean sibling,
@@ -155,6 +165,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             inactiveText = textColor(skin.configuration().songSelect().inactiveText(), null);
         }
         contentDirty = true;
+        chromeContent = null;
         syncBrowser(true);
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override public boolean keyDown(int key) {
@@ -201,7 +212,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                         || !usesMouseWheelAt(Gdx.input.getX(), Gdx.input.getY())) return false;
                 if (!importing) {
                     UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-                    var bounds = ScoreBrowserBounds.of(layout);
+                    var bounds = scoreBounds(layout);
                     if (bounds.contains(layout.pointerX(Gdx.input.getX()), layout.pointerY(Gdx.input.getY()))) scores.scroll(amountY);
                     else carousel.scrollBy(Math.max(-10000, Math.min(10000, amountY)) * carousel.rowHeight());
                 }
@@ -223,8 +234,9 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (Gdx.graphics.getWidth() <= 0 || Gdx.graphics.getHeight() <= 0) return false;
         UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         float x = layout.pointerX(screenX), y = layout.pointerY(screenY);
-        return ScoreBrowserBounds.of(layout).contains(x, y) || x >= layout.width() * .5f && x <= layout.width()
-                && y > SongSelectChrome.bottomHeight(layout.height()) && y < layout.height() - Metrics.HEADER_HEIGHT;
+        var chrome = chromeBounds(layout);
+        return scoreBounds(layout).contains(x, y) || x >= layout.width() * .5f && x <= layout.width()
+                && y > chrome.bottom() && y < chrome.carouselTop();
     }
 
     @Override public void render(float delta) {
@@ -241,7 +253,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             if (controls.click(px, py, layout.width(), layout.height(), browser)) {
                 if (oldSort != browser.sort() || oldGroup != browser.group()) { refreshBrowserOrder(); }
             }
-            else if (px >= searchX && px <= searchX + searchW && py >= top + 4 && py <= top + 29) searchActive = true;
+            else if (px >= searchX && px <= searchX + searchW && py >= layout.height() - 58 && py <= layout.height() - 33) searchActive = true;
             else if (SongSelectAction.bottom(px, py, bottomLayout) != null) {
                 var action = SongSelectAction.bottom(px, py, bottomLayout);
                 if (action == SongSelectAction.RANDOM) searchActive = false;
@@ -251,7 +263,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             else if (selectedDifficulty() != null && playCookie.hit(px, py)) { playSelected(); return; }
             else {
                 searchActive = false;
-                int slot = ScoreBrowserBounds.of(layout).slot(px, py);
+                int slot = scoreBounds(layout).slot(px, py);
                 if (slot >= 0) scores.select(scores.first() + slot);
                 else handleRowClick(px, py);
             }
@@ -282,8 +294,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (!has(Image.BACK)) chromeBox(bottomLayout.back(), BACK_PINK);
         if (!has(Image.RANDOM)) chromeBox(bottomLayout.random(),
                 !randomEnabled ? LEFT : randomFade > 0 ? SIBLING_HOVER : OTHER);
-        if (searchActive || !search.isEmpty()) view.box(searchX, top + 4, searchW, 25, 0, LEFT);
-        view.box(18, layout.height() - 158, layout.width() * .35f, 28, 0, TOP);
+        if (searchActive || !search.isEmpty()) view.box(searchX, layout.height() - 58, searchW, 25, 0, LEFT);
+        view.box(18, chromeContent.rankingHeaderTop() - 28, layout.width() * .35f, 28, 0, TOP);
         drawScoreShapes(layout, px, py);
         if (toastSeconds > 0) view.box(18, bottom + 12, Math.min(450, layout.width() * .42f), 35, 0, BOTTOM);
         view.endShapes();
@@ -301,7 +313,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         drawRanking(layout);
         controls.drawLabels(view, layout.width(), layout.height(), browser);
         view.textSmooth(search.isEmpty() ? "Search: type to search" : search + (searchActive ? "|" : ""),
-                searchX + 9, top + 11, searchW - 18, .75f, search.isEmpty() ? UiTheme.MUTED : UiTheme.TEXT);
+                searchX + 9, layout.height() - 51, searchW - 18, .75f, search.isEmpty() ? UiTheme.MUTED : UiTheme.TEXT);
         float labelY = bottomLayout.controlBaseline() + bottomLayout.actionHeight() * .5f;
         if (!has(Image.BACK)) view.textSmooth("‹  back", bottomLayout.back().x() + 22, labelY,
                 bottomLayout.back().width() - 30, 1.2f, UiTheme.TEXT);
@@ -326,9 +338,11 @@ public final class SongSelectScreen extends ScreenAdapter {
     @Override public void dispose() { closed = true; thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
 
     private void calculateLayout(UiLayout layout) {
+        viewportHeight = layout.height();
         bottomLayout = SongSelectChrome.bottom(layout.width(), layout.height(), skin);
-        bottom = SongSelectChrome.bottomHeight(layout.height());
-        top = layout.height() - Metrics.HEADER_HEIGHT;
+        chromeContent = chromeBounds(layout);
+        bottom = chromeContent.bottom();
+        top = chromeContent.carouselTop();
         searchW = layout.width() * .36f;
         searchX = layout.width() - searchW - 16;
         var cookie = bottomLayout.cookie();
@@ -336,7 +350,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         cookieX = cookie.x() + cookieRadius;
         cookieY = cookie.y() + cookieRadius;
         playCookie.bounds(cookieX, cookieY, cookieRadius, bottom);
-        scores.capacity(ScoreBrowserBounds.of(layout).capacity());
+        scores.capacity(scoreBounds(layout).capacity());
     }
 
     private List<Row> layoutRows(UiLayout layout, float delta) {
@@ -391,9 +405,9 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void refreshSelection(boolean rebuild) {
         contentDirty |= rebuild;
         // Input and wheel arbitration can run before render(), so synchronize the model here too.
-        if (contentWidth > 0) updateContent(new UiLayout(contentWidth, top + Metrics.HEADER_HEIGHT, 1));
+        if (contentWidth > 0) updateContent(new UiLayout(contentWidth, viewportHeight, 1));
         carousel.select(selectedRowKey());
-        if (contentWidth > 0) visibleRows = layoutRows(new UiLayout(contentWidth, top + Metrics.HEADER_HEIGHT, 1), 0);
+        if (contentWidth > 0) visibleRows = layoutRows(new UiLayout(contentWidth, viewportHeight, 1), 0);
         selectBackground();
     }
 
@@ -617,7 +631,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private void drawScoreShapes(UiLayout layout, float px, float py) {
-        var bounds = ScoreBrowserBounds.of(layout);
+        var bounds = scoreBounds(layout);
         for (int slot = 0; slot < bounds.capacity() && scores.first() + slot < scores.rows().size(); slot++) {
             var row = scores.rows().get(scores.first() + slot);
             boolean selected = row.score().playId().equals(scores.selected());
@@ -638,10 +652,10 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private void drawRanking(UiLayout layout) {
-        var bounds = ScoreBrowserBounds.of(layout);
-        view.textSmooth("Local Rankings", 28, layout.height() - 147, bounds.width() - 20, .96f, UiTheme.TEXT);
+        var bounds = scoreBounds(layout);
+        view.textSmooth("Local Rankings", 28, chromeContent.rankingHeaderTop() - 17, bounds.width() - 20, .96f, UiTheme.TEXT);
         view.textSmooth("Score descending · " + scores.rows().size() + " local scores", 28,
-                layout.height() - 176, bounds.width() - 20, .64f, UiTheme.MUTED);
+                chromeContent.rankingHeaderTop() - 46, bounds.width() - 20, .64f, UiTheme.MUTED);
         if (scores.rows().isEmpty()) {
             String message = selectedDifficulty() == null ? (sets.isEmpty() ? "Import a beatmap to view rankings" : "Select a matching difficulty")
                     : game.localScores().status() == LocalScoreStore.Status.UNAVAILABLE
@@ -754,7 +768,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void refreshBrowserOrder() {
         syncBrowser(true);
         carousel.reordered();
-        if (contentWidth > 0) visibleRows = layoutRows(new UiLayout(contentWidth, top + Metrics.HEADER_HEIGHT, 1), 0);
+        if (contentWidth > 0) visibleRows = layoutRows(new UiLayout(contentWidth, viewportHeight, 1), 0);
     }
     void browserSearch(String query, boolean active) { search = query; searchActive = active; ensureVisibleSelection(); }
     private String rowKey(int setIndex, int difficultyIndex) {

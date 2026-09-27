@@ -24,7 +24,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     private ShapeRenderer shapes;
     private BitmapFont font;
     private SmoothUiFont smooth;
-    private Path artwork, portrait, wide;
+    private Path artwork, portrait, wide, customSkin;
     private int index;
 
     private SongSelectVisualHarness(Path output) { this.output = output; }
@@ -111,7 +111,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         "large-0", "large-10", "large-100", "large-1000"))
                     scenes.add(new Scene(size[0],size[1],size[2],"phase4-" + name));
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
-                for (String name : List.of("current", "current-hover", "missing", "fallback", "bundled", "normal", "transparent", "present"))
+                for (String name : List.of("current", "current-hover", "missing", "fallback", "bundled", "normal", "transparent", "present", "tall"))
                     scenes.add(new Scene(size[0], size[1], size[2], "phasechrome-" + name));
             Path present = Files.createDirectories(output.resolve("fixtures/present"));
             for (String name : List.of("songselect-top", "songselect-bottom")) {
@@ -120,11 +120,22 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 PixmapIO.writePNG(Gdx.files.absolute(present.resolve(name + ".png").toString()), pixels);
                 pixels.dispose();
             }
+            Path tall = Files.createDirectories(output.resolve("fixtures/tall"));
+            png(tall.resolve("songselect-top.png"),1366,240);
+            png(tall.resolve("songselect-bottom.png"),1366,160);
             Path transparent = Files.createDirectories(output.resolve("fixtures/transparent"));
             for (String name : List.of("songselect-top", "songselect-bottom")) {
                 var pixels = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
                 PixmapIO.writePNG(Gdx.files.absolute(transparent.resolve(name + ".png").toString()), pixels);
                 pixels.dispose();
+            }
+            String custom = System.getProperty("osujava.songSelectCustomSkin", "");
+            if (!custom.isBlank()) {
+                Path source = Path.of(custom);
+                customSkin = custom.toLowerCase(Locale.ROOT).endsWith(".osk")
+                        ? new SkinImporter(output.resolve("imported-skins")).importFile(source) : source;
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
+                    scenes.add(new Scene(size[0],size[1],size[2],"phasechrome-custom"));
             }
             String phase = System.getProperty("osujava.songSelectPhase", "all");
             if (!phase.equals("all")) scenes.removeIf(scene -> !scene.name.startsWith("phase" + phase + "-"));
@@ -132,11 +143,38 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     }
 
     private void assertChrome(SongSelectScreen screen, SongSelectSkinAssets assets, String name, Path greylooks) {
+        var layout = UiLayout.fromPixels(Gdx.graphics.getWidth(),Gdx.graphics.getHeight());
+        var content = SongSelectChrome.content(layout.width(),layout.height(),assets);
+        var scores = screen.scoreBounds(layout);
+        if (name.equals("phasechrome-custom")) {
+            var mode = assets.get(SongSelectSkinAssets.Image.MODE);
+            System.out.println("CUSTOM directory=" + customSkin
+                    + (mode == null ? "" : " mode=" + mode.file().path() + " logical=" + mode.logicalWidth() + "x" + mode.logicalHeight()));
+            var back = assets.get(SongSelectSkinAssets.Image.BACK);
+            if (java.nio.file.Files.isRegularFile(customSkin.resolve("menu-back-0@2x.png"))
+                    && !back.file().path().equals(customSkin.resolve("menu-back-0@2x.png")))
+                throw new AssertionError("Animated custom Back fell through to bundled static art");
+        }
+        if (scores.top() + 64 != content.rankingHeaderTop() || scores.bottom() < content.bottom())
+            throw new AssertionError("Content bounds are disconnected from chrome");
+        if (assets.get(SongSelectSkinAssets.Image.TOP) != null) {
+            float scale = layout.height()/768;
+            float leftDepth = assets.topDepth(0,layout.width()*.52f/scale)*scale;
+            float rightDepth = assets.topDepth(layout.width()*.55f/scale,layout.width()/scale)*scale;
+            if (content.rankingHeaderTop() > layout.height()-leftDepth || content.carouselTop() > layout.height()-rightDepth)
+                throw new AssertionError("Chrome overlaps content");
+        }
         for (var image : List.of(SongSelectSkinAssets.Image.TOP, SongSelectSkinAssets.Image.BOTTOM)) {
             var asset = assets.get(image);
             boolean missing = name.equals("phasechrome-missing");
             if (screen.renderedChromeProcedural(image) != missing || (asset == null) != missing)
                 throw new AssertionError("Chrome rendered the wrong branch: " + name + " " + image);
+            if (name.equals("phasechrome-custom")) {
+                var local = new SkinAssetResolver(customSkin).resolve(image.basename);
+                if (local.isPresent() && (!asset.file().path().equals(local.get().path()) || asset.file().fallback()))
+                    throw new AssertionError("Custom native chrome did not win: " + asset.file());
+                if (local.isEmpty() && !asset.file().fallback()) throw new AssertionError("Unexpected custom chrome");
+            }
             if (name.startsWith("phasechrome-current") && (asset.file().fallback() || asset.density() != 2
                     || !asset.file().path().equals(greylooks.resolve(image.basename + "@2x.png"))))
                 throw new AssertionError("Current Greylooks did not win: " + asset);
@@ -277,6 +315,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             @Override public SmoothUiFont smoothFont() { return smooth; }
             @Override public BeatmapLibrary library() { return library; }
             @Override public dev.osujava.score.LocalScoreStore localScores() { return localScores; }
+            @Override public Path skinDirectory() { return scene.name.equals("phasechrome-custom") ? customSkin
+                    : scene.name.startsWith("phasechrome-current") ? Path.of("core/src/main/resources/skins/default").toAbsolutePath() : null; }
+            @Override public Path skinFallbackDirectory() { return scene.name.equals("phasechrome-custom") ? null : output.resolve("fixtures/latest"); }
             @Override public dev.osujava.ruleset.osu.OsuRuleset osuRuleset() { return new dev.osujava.ruleset.osu.OsuRuleset(); }
         };
         Path greylooks = Path.of("core/src/main/resources/skins/default").toAbsolutePath();
@@ -286,6 +327,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "phasechrome-fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), greylooks);
             case "phasechrome-bundled" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), null);
             case "phasechrome-normal" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/normal-only"), greylooks);
+            case "phasechrome-tall" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/tall"), greylooks);
             case "phasechrome-present" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/present"), greylooks);
             case "phasechrome-transparent" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/transparent"), greylooks);
             case "phase4-fallback", "phase3-fallback" -> new SkinAssetResolver(output.resolve("fixtures/empty"));
@@ -303,7 +345,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             default -> scene.name.startsWith("greylooks") || phase2 || scene.name.startsWith("phase3") || scene.name.startsWith("phase4") ? SkinAssetResolver.withBundledDefault(null,null)
                     : new SkinAssetResolver(output.resolve("fixtures").resolve(scene.name));
         };
-        var assets = new SongSelectSkinAssets(resolver);
+        var assets = scene.name.startsWith("phasechrome-current") || scene.name.equals("phasechrome-custom") ? null : new SongSelectSkinAssets(resolver);
         String preferredSet = scene.name.equals("greylooks-first-item") ? "set0"
                 : scene.name.equals("greylooks-last-item") ? "set6"
                 : scene.name.startsWith("greylooks-expanded") ? "set2" : "set3";
@@ -313,6 +355,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         var fb = new FrameBuffer(Pixmap.Format.RGBA8888,scene.width * scene.density,scene.height * scene.density,false);
         try {
             screen.show();
+            if (assets == null) {
+                try { var field = SongSelectScreen.class.getDeclaredField("skin"); field.setAccessible(true);
+                    assets = (SongSelectSkinAssets)field.get(screen); }
+                catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+            }
             screen.legacyThumbnailPreview(scene.name.equals("phase25-legacy-b"));
             screen.resize(scene.width,scene.height);
             fb.begin();
@@ -550,7 +597,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     }
     private void configureScores(SongSelectScreen screen, String name, InputProcessor input, int[] pointer,
                                  boolean[] clicked, UiLayout layout, int height) {
-        var scores=scoreBrowser(screen); var bounds=ScoreBrowserBounds.of(layout);
+        var scores=scoreBrowser(screen); var bounds=screen.scoreBounds(layout);
         pointer[0]=Math.round(100*layout.scale()); pointer[1]=height-Math.round((bounds.top()-32)*layout.scale());
         float carouselTarget=carousel(screen).scrollTarget();
         int before=scores.first(); input.scrolled(0,1);
@@ -725,7 +772,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         var model = carousel(screen);
         var row = model.rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff).findFirst().orElseThrow();
         pointer[0] = Math.round((model.renderX(row,layout.width()) + 150) * layout.scale());
-        pointer[1] = height - Math.round((model.renderY(row,layout.height() - 62) + model.rowHeight()/2) * layout.scale());
+        pointer[1] = height - Math.round((model.renderY(row,screen.chromeBounds(layout).carouselTop()) + model.rowHeight()/2) * layout.scale());
     }
     private void profileMotion(SongSelectCarousel source, String name) {
         var model = new SongSelectCarousel();
@@ -758,10 +805,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 var type = snapshot.getClass();
                 int set = (int) value(type,snapshot,"setIndex"), diff = (int) value(type,snapshot,"difficultyIndex");
                 var row = model.rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff
-                        && (set >= 0 || Math.abs(model.renderY(r,layout.height()-62) - (float)valueUnchecked(type,snapshot,"y")) < .001f)).findFirst().orElseThrow();
+                        && (set >= 0 || Math.abs(model.renderY(r,screen.chromeBounds(layout).carouselTop()) - (float)valueUnchecked(type,snapshot,"y")) < .001f)).findFirst().orElseThrow();
                 float x = (float) value(type,snapshot,"x"), y = (float) value(type,snapshot,"y");
                 if (Math.abs(x - model.renderX(row,layout.width())) > .001f
-                        || Math.abs(y - model.renderY(row,layout.height() - 62)) > .001f)
+                        || Math.abs(y - model.renderY(row,screen.chromeBounds(layout).carouselTop())) > .001f)
                     throw new AssertionError("Draw snapshot diverged from motion bounds");
                 if (!Float.isFinite(x) || !Float.isFinite(y) || x < layout.width() * .50f || x > layout.width() * .70f)
                     throw new AssertionError("Invalid row bounds");

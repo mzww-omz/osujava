@@ -139,6 +139,18 @@ public final class SkinAssetResolver {
         return resolveAnimation(name, file -> true);
     }
 
+    /** Static UI consumers use frame zero of an animation, preserving provider-local animation/static priority. */
+    Optional<AssetFile> resolveAnimationFirstFrame(String name, Predicate<AssetFile> loadable) {
+        validateName(name);
+        for (Provider provider : Provider.values()) {
+            var first = resolveIn(provider, name + "-0", loadable);
+            if (first.isPresent()) return first;
+            var single = resolveIn(provider, name, loadable);
+            if (single.isPresent()) return single;
+        }
+        return Optional.empty();
+    }
+
     /** Runtime lookup uses successful texture loads, matching lazer's GetTexture rather than file existence. */
     List<AssetFile> resolveAnimation(String name, Predicate<AssetFile> loadable) {
         return resolveAnimation(name, "-", loadable);

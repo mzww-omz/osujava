@@ -14,6 +14,18 @@ final class SongSelectChrome {
     record Bottom(Bounds skinBounds, float controlBaseline, float actionHeight,
                   float intentionalOverlap, Bounds back, Bounds importAction, Bounds random,
                   Bounds cookie) { }
+    record Content(float rankingHeaderTop, float carouselTop, float bottom) { }
+    static Content content(float width, float height, SongSelectSkinAssets skin) {
+        float scale = height / 768f;
+        float left = skin == null ? 0 : skin.topDepth(0, width * .52f / scale) * scale;
+        float right = skin == null ? 0 : skin.topDepth(width * .55f / scale, width / scale) * scale;
+        var bottom = skin == null ? null : skin.get(Image.BOTTOM);
+        return content(height, left, right, bottom == null ? 0 : bottom.logicalHeight() * scale);
+    }
+    static Content content(float height, float leftDepth, float rightDepth, float bottomDepth) {
+        return new Content(height - Math.max(130, leftDepth + 8),
+                height - Math.max(62, rightDepth + 4), Math.max(bottomHeight(height), bottomDepth));
+    }
     static float bottomHeight(float height) { return height * (84f / 720); }
     static float cookieRadius(float height) { return height * .135f; }
     static float cookieX(float width, float radius) { return width - radius * .32f; }

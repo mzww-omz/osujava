@@ -64,6 +64,20 @@ class SongSelectChromeTest {
         assertTrue(backImage.width() <= model.back().width() + .001);
         assertTrue(randomImage.width() <= model.random().width() + .001);
     }
+    @Test void contentStaysOutsideVisibleChromeWhileHeaderControlsKeepTheirOwnArea() {
+        var greylooks = SongSelectChrome.content(720,149*720f/768,83*720f/768,90*720f/768);
+        assertTrue(greylooks.rankingHeaderTop() < 720-149*720f/768);
+        assertTrue(greylooks.carouselTop() < 720-83*720f/768);
+        assertEquals(90*720f/768,greylooks.bottom(),.001);
+        var tall = SongSelectChrome.content(720,240,160,150);
+        assertEquals(472,tall.rankingHeaderTop());
+        assertEquals(556,tall.carouselTop());
+        assertEquals(150,tall.bottom());
+        var transparent = SongSelectChrome.content(720,0,0,0);
+        assertEquals(590,transparent.rankingHeaderTop());
+        assertEquals(658,transparent.carouselTop());
+        assertEquals(84,transparent.bottom());
+    }
     @Test void tinyChromeStaysAnAssetWithIntentionalActionOverlap() {
         var model = SongSelectChrome.bottom(1280,720,texture(1,1,1),null,null);
         assertEquals(720f/768,model.skinBounds().height());
