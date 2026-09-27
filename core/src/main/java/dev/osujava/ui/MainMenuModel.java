@@ -66,6 +66,10 @@ final class MainMenuModel {
     float flash() { return flash; }
     float scale() { return (1 + .1f * hover[0].value) * (1 - .1f * bounce.value) * beatScale * amplitudeScale * transitionScale(); }
     boolean pressed() { return pressed; }
+    void resetTrackAnalysis() {
+        lastBeatIndex = Long.MIN_VALUE; lastBeatOrigin = Double.NaN;
+        beatScale = amplitudeScale = 1; beatAmplitude = 0;
+    }
     boolean advance(double ms, MenuBeatTiming.Beat beat, MenuAudioAnalysis analysis) {
         ms = Math.max(0, ms); elapsed += ms;
         if (state == MainMenuState.OPENING && elapsed >= EXPAND_MS) state = MainMenuState.OPEN;

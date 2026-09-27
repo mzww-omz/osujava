@@ -78,7 +78,7 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
                         scenes.add(new Scene(size[0],size[1],size[2],bg,"opening-"+ms,MainMenuState.OPENING,ms,1170,.4f));
                     for (String name : new String[]{"open-idle","play-hover","exit-hover","logo-hover"})
                         scenes.add(new Scene(size[0],size[1],size[2],bg,name,MainMenuState.OPEN,0,1170,.4f));
-                    for (String name : new String[]{"frame-closed-long-title", "frame-open-long-title", "frame-opening-midpoint", "frame-no-track", "frame-selected-track"})
+                    for (String name : new String[]{"frame-closed-long-title", "frame-open-long-title", "frame-opening-midpoint", "frame-no-track", "frame-selected-track", "music-paused", "music-single-track", "music-unavailable", "music-previous-hover", "music-pause-hover", "music-next-hover"})
                         scenes.add(new Scene(size[0],size[1],size[2],bg,name,
                                 name.contains("opening") ? MainMenuState.OPENING : name.contains("open-long") ? MainMenuState.OPEN : MainMenuState.CLOSED,
                                 name.contains("opening") ? 100 : 0,1170,.4f));
@@ -118,19 +118,27 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
                 int button = scene.name.equals("play-hover") ? 0 : 1;
                 x = m.cx() + m.direction(button) * m.targetWidth() * .85f; y = m.cy();
             }
+            if (scene.name.endsWith("-hover") && scene.name.startsWith("music-")) {
+                var frame = MainMenuFrame.layout(UiLayout.fromPixels(scene.width,scene.height));
+                int control = scene.name.contains("previous") ? 0 : scene.name.contains("pause") ? 1 : 2;
+                x = MainMenuFrame.controlX(frame,control) + 13 * frame.unit();
+                y = MainMenuFrame.controlY(frame) + 13 * frame.unit();
+            }
             byte[] first = null;
             for (int attempt = 0; attempt < 2; attempt++) {
                 fb.begin();
                 screen.capture(scene.state,scene.transitionMs,scene.playbackMs,x,y,scene.name.equals("logo-pressed"),
                         new MainMenuFrame.Info(scene.name.equals("frame-no-track") ? 0 : 563,3600,"18:20",MainMenuFrame.version(),
-                                !scene.name.equals("frame-no-track") && !scene.name.equals("frame-selected-track")));
+                                !scene.name.equals("frame-no-track") && !scene.name.equals("frame-selected-track")
+                                        && !scene.name.equals("music-paused") && !scene.name.equals("music-unavailable"),
+                                scene.name.equals("music-paused"), !scene.name.equals("frame-no-track") && !scene.name.equals("music-single-track")));
                 Pixmap capture = Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
                 byte[] pixels = new byte[capture.getPixels().remaining()]; capture.getPixels().duplicate().get(pixels);
                 String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + (scene.background ? "artwork-" : "fallback-") + scene.name;
                 if (attempt == 0) {
                     first = pixels;
                     PixmapIO.writePNG(Gdx.files.absolute(output.resolve(name + ".png").toString()),capture,-1,true);
-                    if (scene.name.startsWith("frame-")) {
+                    if (scene.name.startsWith("frame-") || scene.name.startsWith("music-")) {
                         var frame = MainMenuFrame.layout(UiLayout.fromPixels(scene.width,scene.height));
                         float pixelScale = UiLayout.fromPixels(scene.width,scene.height).scale() * scene.density;
                         captureBar(capture,name + "-top",Math.round(frame.topHeight() * pixelScale),true);
@@ -140,10 +148,10 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
                 else if (!Arrays.equals(first,pixels)) throw new AssertionError("Pixels differ: " + name);
                 capture.dispose(); fb.end();
             }
-            if (scene.name.equals("open-idle") && scene.background) checkInteraction(scene);
+            if (scene.name.equals("open-idle") && scene.background) { checkInteraction(scene); checkMusicInteraction(scene); }
         } finally { screen.dispose(); fb.dispose(); Gdx.graphics = actual; }
         if (++index == scenes.size()) {
-            System.out.println("Main Menu harness: " + index + " captures, all repeated framebuffer bytes identical; 60 Screen interaction checks passed: " + output);
+            System.out.println("Main Menu harness: " + index + " captures, all repeated framebuffer bytes identical; 60 navigation and 6 music Screen interaction sequences passed: " + output);
             Gdx.app.exit();
         }
     }
@@ -153,6 +161,74 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
         bar.drawPixmap(capture,0,top ? capture.getHeight() - height : 0,capture.getWidth(),height,0,0,capture.getWidth(),height);
         PixmapIO.writePNG(Gdx.files.absolute(output.resolve(name + ".png").toString()),bar,-1,true);
         bar.dispose();
+    }
+    private void checkMusicInteraction(Scene scene) {
+        var library = new BeatmapLibrary();
+        var first = set(scene);
+        var difficulty = new BeatmapDifficulty("Next local song","Next artist","Harness","Normal",0,"","",
+                new DifficultySettings(5,5,5,5,1.4,1),List.of(new TimingPoint(0,250,4,0,0,100,true,0)),List.of(),null,null);
+        var second = new BeatmapSet("next",difficulty.title(),difficulty.artist(),"Harness",Path.of("next.ogg"),null,List.of(difficulty),List.of());
+        library.add(first); library.add(second);
+        var musicGame = new OsuJavaGame(null) {
+            @Override public SpriteBatch batch() { return batch; }
+            @Override public ShapeRenderer shapes() { return shapes; }
+            @Override public BitmapFont font() { return font; }
+            @Override public SmoothUiFont smoothFont() { return smooth; }
+            @Override public BeatmapLibrary library() { return library; }
+        };
+        // Give the first track a synthetic path; injected Music never reads files or uses the sound device.
+        first = new BeatmapSet(first.id(),first.title(),first.artist(),first.creator(),Path.of("first.ogg"),first.backgroundPath(),first.difficulties(),first.assets());
+        library.add(first);
+        int[] streams = {0}, disposals = {0}, calls = {0}; float[] position = {0};
+        var screen = new MainMenuScreen(musicGame,first,new FixedAnalysis(.4f),() -> calls[0]++,() -> calls[0]++,path -> {
+            streams[0]++; position[0] = 0;
+            boolean[] dead = {false};
+            return new MenuAmbientAudio(path,p -> (com.badlogic.gdx.audio.Music) java.lang.reflect.Proxy.newProxyInstance(
+                    com.badlogic.gdx.audio.Music.class.getClassLoader(),new Class[]{com.badlogic.gdx.audio.Music.class},(proxy,method,args) -> {
+                        if (dead[0]) throw new AssertionError("Disposed music accessed");
+                        if (method.getName().equals("dispose")) { dead[0] = true; disposals[0]++; }
+                        return method.getName().equals("getPosition") ? position[0] : null;
+                    }));
+        });
+        Input actual = Gdx.input;
+        var ui = UiLayout.fromPixels(scene.width,scene.height); var frame = MainMenuFrame.layout(ui);
+        float[] pointer = {-100,-100}; boolean[] down = {false};
+        Gdx.input = (Input) java.lang.reflect.Proxy.newProxyInstance(Input.class.getClassLoader(),new Class[]{Input.class},
+                (proxy,method,args) -> switch (method.getName()) {
+                    case "getX" -> Math.round(pointer[0] * ui.scale());
+                    case "getY" -> Math.round((ui.height() - pointer[1]) * ui.scale());
+                    case "isButtonPressed" -> down[0];
+                    case "setInputProcessor" -> null;
+                    default -> method.invoke(actual,args);
+                });
+        java.util.function.IntConsumer click = control -> {
+            pointer[0] = MainMenuFrame.controlX(frame,control) + 13 * frame.unit();
+            pointer[1] = MainMenuFrame.controlY(frame) + 13 * frame.unit();
+            down[0] = true; screen.render(0); down[0] = false; screen.render(0);
+        };
+        try {
+            screen.show(); screen.render(0); position[0] = 1.25f;
+            if (!screen.hasTrackArtwork() || !screen.trackBpm().equals("120 BPM")) throw new AssertionError("Initial track assets missing");
+            click.accept(1);
+            if (!screen.musicPaused() || screen.musicPositionMs() != 1250) throw new AssertionError("Pause failed");
+            screen.render(.5f);
+            if (screen.musicPositionMs() != 1250) throw new AssertionError("Paused clock advanced");
+            click.accept(2);
+            if (!screen.trackTitle().equals("Next artist — Next local song") || !screen.musicPaused() || screen.musicPositionMs() != 0)
+                throw new AssertionError("Paused next failed");
+            if (!screen.trackBpm().equals("240 BPM") || screen.hasTrackArtwork()) throw new AssertionError("Displayed timing/artwork did not switch");
+            click.accept(1); if (screen.musicPaused()) throw new AssertionError("Resume failed");
+            click.accept(2);
+            if (screen.trackTitle().equals("Next artist — Next local song") || !screen.trackBpm().equals("120 BPM") || !screen.hasTrackArtwork())
+                throw new AssertionError("Next did not wrap with initial assets");
+            click.accept(0); if (!screen.trackTitle().equals("Next artist — Next local song")) throw new AssertionError("Previous did not wrap");
+            int created = streams[0];
+            pointer[0] = MainMenuFrame.controlX(frame,0) + 13 * frame.unit();
+            down[0] = true; screen.render(0); pointer[0] = -100; down[0] = false; screen.render(0);
+            if (streams[0] != created) throw new AssertionError("Release outside control was not cancelled");
+            if (calls[0] != 0 || screen.menuState() != MainMenuState.CLOSED) throw new AssertionError("Music controls navigated or opened menu");
+        } finally { screen.dispose(); Gdx.input = actual; }
+        if (disposals[0] != streams[0]) throw new AssertionError("Music stream leaked");
     }
     /** Full Screen input/render path with scripted physical pointer and key input. */
     private void checkInteraction(Scene scene) {

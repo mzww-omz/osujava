@@ -12,8 +12,10 @@ import java.util.List;
 import java.util.random.RandomGenerator;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.nio.file.Path;
+import java.util.function.Function;
 
-/** Music-first local menu. Owns one ambient difficulty and its stream for this screen lifetime. */
+/** Music-first local menu. Owns a local track queue and one active stream. */
 public final class MainMenuScreen extends ScreenAdapter {
     private final UiView view;
     private final OsuJavaGame game;
@@ -21,13 +23,13 @@ public final class MainMenuScreen extends ScreenAdapter {
     private static final DateTimeFormatter CLOCK = DateTimeFormatter.ofPattern("HH:mm");
     private final MainMenuLogo logo = new MainMenuLogo();
     private final BeatmapBackdrop artwork = new BeatmapBackdrop();
-    private final MenuAmbientAudio audio;
+    private final MenuMusicPlayer audio;
     private final MenuAudioAnalysis analysis;
-    private final List<TimingPoint> timing;
+    private List<TimingPoint> timing = List.of();
     private final MenuVisualiser visualiser = new MenuVisualiser();
     private final MainMenuModel model = new MainMenuModel();
     private final MainMenuInput input;
-    private final String title;
+    private String title = "";
     private MenuBeatTiming.Beat beat = MenuBeatTiming.at(List.of(), 0, false);
     private boolean pointerWasDown, disposed;
     private int pressedTarget = -1;
@@ -38,18 +40,36 @@ public final class MainMenuScreen extends ScreenAdapter {
     }
     /** Harness injects fixed amplitudes; decoding never enters the renderer. */
     MainMenuScreen(OsuJavaGame game, BeatmapSet ambient, MenuAudioAnalysis analysis, Runnable play, Runnable exit) {
+        this(game,ambient,analysis,play,exit,MenuAmbientAudio::new);
+    }
+    MainMenuScreen(OsuJavaGame game, BeatmapSet ambient, MenuAudioAnalysis analysis, Runnable play, Runnable exit,
+                   Function<Path, MenuAmbientAudio> audioFactory) {
         this.game = game; view = new UiView(game); this.analysis = analysis;
-        BeatmapDifficulty difficulty = ambient == null ? null : ambient.difficulties().stream()
-                .filter(d -> d.backgroundPath() != null && java.nio.file.Files.isRegularFile(d.backgroundPath()))
-                .findFirst().orElse(ambient.difficulties().getFirst());
-        timing = difficulty == null ? List.of() : difficulty.timingPoints();
-        audio = new MenuAmbientAudio(difficulty == null ? null : difficulty.audioPath() != null ? difficulty.audioPath() : ambient.audioPath());
-        title = difficulty == null ? "" : difficulty.artist() + " — " + difficulty.title();
-        if (ambient != null) artwork.select(ambient, difficulty);
+        audio = new MenuMusicPlayer(game.library().all(),ambient,audioFactory);
+        selectTrack();
         input = new MainMenuInput(model, () -> { audio.close(); play.run(); }, () -> { audio.close(); exit.run(); });
     }
     @Override public void show() { if (!disposed) { audio.enter(); visualiser.reset(); Gdx.input.setInputProcessor(input); } }
     @Override public void hide() { audio.close(); }
+    private void selectTrack() {
+        var track = audio.current();
+        timing = track == null ? List.of() : track.difficulty().timingPoints();
+        title = track == null ? "" : track.title();
+        artwork.select(track == null ? null : track.set(),track == null ? null : track.difficulty());
+        visualiser.reset(); model.resetTrackAnalysis();
+    }
+    private MainMenuFrame.Info frameInfo() {
+        return new MainMenuFrame.Info(game.library().all().stream().mapToInt(set -> set.difficulties().size()).sum(),
+                game.sessionUptimeSeconds(),LocalTime.now().format(CLOCK),MainMenuFrame.version(),
+                audio.available() && !audio.paused(),audio.paused(),audio.canSkip());
+    }
+    private void musicControl(int control) {
+        if (model.pending()) return;
+        if (control == 1) audio.togglePause();
+        else if (audio.skip(control == 0 ? -1 : 1)) selectTrack();
+        beat = MenuBeatTiming.at(timing,audio.positionMs(),audio.available());
+        analysis.sample(beat.positionMs(),beat);
+    }
     @Override public void render(float delta) {
         if (disposed) return;
         double ms = Math.max(0, delta) * 1000;
@@ -64,18 +84,19 @@ public final class MainMenuScreen extends ScreenAdapter {
         float x = ui.pointerX(Gdx.input.getX()), y = ui.pointerY(Gdx.input.getY());
         boolean overLogo = m.logoHit(x, y, model.scale());
         int button = m.buttonAt(x, y, model);
+        int control = MainMenuFrame.controlAt(MainMenuFrame.layout(ui),x,y,frameInfo(),model.pending());
         boolean down = Gdx.input.isButtonPressed(Input.Buttons.LEFT);
-        if (down && !pointerWasDown) pressedTarget = overLogo ? -2 : button;
+        if (down && !pointerWasDown) pressedTarget = control >= 0 ? 10 + control : overLogo ? -2 : button;
         if (!down && pointerWasDown) {
             if (pressedTarget == -2 && overLogo) input.click(true, -1);
-            else if (pressedTarget >= 0 && button == pressedTarget) input.click(false, button);
+            else if (pressedTarget >= 10 && control == pressedTarget - 10) musicControl(control);
+            else if (pressedTarget >= 0 && pressedTarget < 2 && button == pressedTarget) input.click(false, button);
             pressedTarget = -1;
         }
         pointerWasDown = down;
         model.pointer(overLogo, button, down && pressedTarget == -2);
-        var info = new MainMenuFrame.Info(game.library().all().stream().mapToInt(set -> set.difficulties().size()).sum(),
-                game.sessionUptimeSeconds(), LocalTime.now().format(CLOCK), MainMenuFrame.version(), audio.available());
-        draw(m, model, visualiser.amplitudes(), info);
+        var info = frameInfo();
+        draw(m, model, visualiser.amplitudes(), info,MainMenuFrame.controlAt(MainMenuFrame.layout(ui),x,y,info,model.pending()));
     }
     /** Each capture reconstructs animation/analysis history from explicit inputs, not prior frames. */
     void capture(MainMenuState state, double stateMs, double playbackMs, float x, float y, boolean pressed,
@@ -89,9 +110,10 @@ public final class MainMenuScreen extends ScreenAdapter {
         snapshot.pointer(m.logoHit(x, y, snapshot.scale()), m.buttonAt(x, y, snapshot), pressed);
         // Settle hover/amplitude layers without advancing the requested transition time.
         snapshot.settleCapture(beat, analysis);
-        draw(m, snapshot, spectrum.amplitudes(), info);
+        draw(m, snapshot, spectrum.amplitudes(), info,
+                MainMenuFrame.controlAt(MainMenuFrame.layout(UiLayout.fromPixels(Gdx.graphics.getWidth(),Gdx.graphics.getHeight())),x,y,info,false));
     }
-    private void draw(MainMenuLayout m, MainMenuModel snapshot, float[] bins, MainMenuFrame.Info info) {
+    private void draw(MainMenuLayout m, MainMenuModel snapshot, float[] bins, MainMenuFrame.Info info, int hoveredControl) {
         var frameLayout = MainMenuFrame.layout(UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight()));
         view.clear(); artwork.drawAt(view, 1);
         view.beginShapes();
@@ -104,7 +126,7 @@ public final class MainMenuScreen extends ScreenAdapter {
         view.gradient(0,0,m.width(),m.height() * .23f,edge,edge,clear,clear);
         view.gradient(0,m.height() * .77f,m.width(),m.height() * .23f,clear,clear,edge,edge);
         for (int b = 0; b < 2; b++) buttonShape(m, snapshot, b);
-        frame.shapes(view, frameLayout, snapshot.frameEmphasis());
+        frame.shapes(view, frameLayout, snapshot.frameEmphasis(),info,hoveredControl,snapshot.pending());
         view.endShapes();
         logo.visualiser(view, m, snapshot.scale(), bins);
         logo.draw(view, m, snapshot);
@@ -119,7 +141,7 @@ public final class MainMenuScreen extends ScreenAdapter {
                     m.cy() + 11, width, b == 0 ? 1.5f : 1.25f, color, Align.center);
         }
         // Metadata uses map timing even for a missing stream; never label fallback animation timing as map BPM.
-        frame.text(view, frameLayout, snapshot, info, title, MainMenuFrame.bpm(timing, beat.positionMs()));
+        frame.text(view, frameLayout, snapshot, info, title, trackBpm());
         view.endText(); view.cover(snapshot.fade());
     }
     private void buttonShape(MainMenuLayout m, MainMenuModel snapshot, int button) {
@@ -136,6 +158,11 @@ public final class MainMenuScreen extends ScreenAdapter {
         view.quad(low - m.direction(button) * 3,bottom,low,bottom,high,top,high - m.direction(button) * 3,top,accent);
     }
     MainMenuState menuState() { return model.state(); }
+    String trackTitle() { return title; }
+    String trackBpm() { return MainMenuFrame.bpm(timing,beat.positionMs()); }
+    boolean hasTrackArtwork() { return artwork.available(); }
+    boolean musicPaused() { return audio.paused(); }
+    double musicPositionMs() { return audio.positionMs(); }
     @Override public void dispose() {
         if (disposed) return;
         disposed = true; audio.close(); analysis.close(); artwork.close(); logo.close();

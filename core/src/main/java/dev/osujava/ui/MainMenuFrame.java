@@ -12,7 +12,8 @@ import dev.osujava.beatmap.TimingPoint;
 
 /** Always-visible local information frame. All changing data is supplied before drawing. */
 final class MainMenuFrame {
-    record Info(int beatmaps, long uptimeSeconds, String clock, String version, boolean playing) { }
+    record Info(int beatmaps, long uptimeSeconds, String clock, String version,
+                boolean playing, boolean paused, boolean canSkip) { }
     record Layout(float width, float height, float unit, float topHeight, float bottomHeight,
                   float pad, float leftWidth, float trackX, float trackWidth) { }
     private static final String VERSION = readVersion();
@@ -46,7 +47,19 @@ final class MainMenuFrame {
                 && Double.isFinite(point.beatLength()) && point.beatLength() > 0);
         return valid ? Math.round(60000 / MenuBeatTiming.at(timing, positionMs, true).lengthMs()) + " BPM" : "";
     }
-    void shapes(UiView view, Layout m, float emphasis) {
+    static float controlX(Layout m, int control) { return m.width() - m.pad() - (86 - control * 30) * m.unit(); }
+    static float controlY(Layout m) { return m.height() - 52 * m.unit(); }
+    static boolean controlsVisible(Info info) { return info.playing() || info.paused() || info.canSkip(); }
+    static boolean controlEnabled(Info info, int control) {
+        return control == 1 ? info.playing() || info.paused() : info.canSkip();
+    }
+    static int controlAt(Layout m, float x, float y, Info info, boolean pending) {
+        if (pending || !controlsVisible(info) || y < controlY(m) || y > controlY(m) + 26 * m.unit()) return -1;
+        for (int control = 0; control < 3; control++)
+            if (controlEnabled(info,control) && x >= controlX(m,control) && x <= controlX(m,control) + 26 * m.unit()) return control;
+        return -1;
+    }
+    void shapes(UiView view, Layout m, float emphasis, Info info, int hovered, boolean pending) {
         view.box(0, m.height() - m.topHeight(), m.width(), m.topHeight(), 0,
                 new Color(.018f, .035f, .065f, .62f + emphasis * .07f));
         view.box(0, 0, m.width(), m.bottomHeight(), 0,
@@ -54,6 +67,21 @@ final class MainMenuFrame {
         Color edge = new Color(.65f, .73f, .84f, .075f + emphasis * .025f);
         view.box(0, m.height() - m.topHeight(), m.width(), m.unit(), 0, edge);
         view.box(0, m.bottomHeight() - m.unit(), m.width(), m.unit(), 0, edge);
+        if (!controlsVisible(info)) return;
+        for (int control = 0; control < 3; control++) {
+            float x = controlX(m,control), y = controlY(m), u = m.unit();
+            boolean enabled = !pending && controlEnabled(info,control);
+            view.box(x,y,26 * u,26 * u,4 * u,new Color(.6f,.7f,.85f,enabled && hovered == control ? .18f : .055f));
+            Color glyph = new Color(.94f,.96f,1,enabled ? .85f : .22f);
+            if (control == 1 && !info.paused()) {
+                view.box(x + 9 * u,y + 8 * u,3 * u,10 * u,0,glyph);
+                view.box(x + 15 * u,y + 8 * u,3 * u,10 * u,0,glyph);
+            } else {
+                float a = x + (control == 0 ? 17 : 9) * u, b = x + (control == 0 ? 9 : 17) * u;
+                view.quad(a,y + 8 * u,b,y + 13 * u,a,y + 18 * u,a,y + 18 * u,glyph);
+                if (control != 1) view.box(x + (control == 0 ? 7 : 18) * u,y + 8 * u,2 * u,10 * u,0,glyph);
+            }
+        }
     }
     void text(UiView view, Layout m, MainMenuModel model, Info info, String title, String bpm) {
         float u = m.unit(), top = m.height();
@@ -66,9 +94,9 @@ final class MainMenuFrame {
                 m.pad(), top - 43 * u, m.leftWidth(), .67f * u, secondary);
         view.textSmooth(title.isBlank() ? "No local track selected" : title,
                 m.trackX(), top - 23 * u, m.trackWidth(), .80f * u, primary, Align.right);
-        String trackDetail = title.isBlank() ? "" : (info.playing() ? "NOW PLAYING" : "SELECTED TRACK")
+        String trackDetail = title.isBlank() ? "" : (info.paused() ? "PAUSED" : info.playing() ? "NOW PLAYING" : "SELECTED TRACK")
                 + (bpm.isBlank() ? "" : " · " + bpm);
-        view.textSmooth(trackDetail, m.trackX(), top - 43 * u, m.trackWidth(), .60f * u, secondary, Align.right);
+        view.textSmooth(trackDetail, m.trackX(), top - 43 * u, m.trackWidth() - (controlsVisible(info) ? 98 * u : 0), .60f * u, secondary, Align.right);
         float footerY = 12 * u, side = 140 * u;
         if (!info.version().isBlank()) view.textSmooth("osujava " + info.version(), m.pad(), footerY,
                 side, .62f * u, secondary);
