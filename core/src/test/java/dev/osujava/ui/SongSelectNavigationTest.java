@@ -24,7 +24,7 @@ class SongSelectNavigationTest {
         Gdx.input = (Input) Proxy.newProxyInstance(Input.class.getClassLoader(),new Class[]{Input.class},(p,m,a) -> switch(m.getName()) {
             case "setInputProcessor" -> { processor = (InputProcessor)a[0]; yield null; }
             case "getInputProcessor" -> processor;
-            default -> m.getReturnType() == boolean.class ? false : null;
+            default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
         for (String title : List.of("Alpha", "Beta", "Gamma")) {
             var easy = new BeatmapDifficulty(title,"Artist","Creator","Easy",0,"","",DifficultySettings.defaults(),List.of(),List.of(),null,Path.of(title + "-easy.png"));
@@ -95,4 +95,81 @@ class SongSelectNavigationTest {
             selected(1,1,"Beta-hard.png"); screen.dispose();
         }
     }
+    private SongSelectCarousel carousel() throws Exception { return (SongSelectCarousel) field("carousel"); }
+    private void settle() throws Exception {
+        for (int i=0;i<120;i++) carousel().advance(1f/60,null);
+        screen.resize(1280,720);
+    }
+    private void click(int set, int difficulty) throws Exception {
+        var row = carousel().rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == difficulty).findFirst().orElseThrow();
+        var method = SongSelectScreen.class.getDeclaredMethod("handleRowClick",float.class,float.class); method.setAccessible(true);
+        method.invoke(screen,carousel().renderX(row,1280) + 150,carousel().renderY(row,658) + carousel().rowHeight()/2);
+    }
+
+    @Test void selectionMovesViewportTargetWhileLogicalContentRemainsStable() throws Exception {
+        open("Beta",0); screen.resize(1280,720);
+        var rows = carousel().rows(); float offset = carousel().scrollOffset();
+        key(Input.Keys.DOWN);
+        assertSame(rows,carousel().rows()); assertEquals(offset,carousel().scrollOffset());
+        assertTrue(carousel().scrollTarget() > offset); settle();
+        var selected = carousel().rows().stream().filter(r -> r.entry.setIndex() == 1 && r.entry.difficultyIndex() == 1).findFirst().orElseThrow();
+        assertEquals(348,carousel().renderY(selected,658) + carousel().rowHeight()/2,.01);
+    }
+
+    @Test void expansionIncludesEveryDifficultyInLibraryOrderAndCollapsesPreviousSet() throws Exception {
+        var diffs = java.util.stream.IntStream.range(0,16).mapToObj(i -> new BeatmapDifficulty("Many","Artist","Creator","Diff " + i,0,"","",DifficultySettings.defaults(),List.of(),List.of(),null,null)).toList();
+        library.add(new BeatmapSet("Many","Many","Artist","Creator",null,null,diffs,List.of()));
+        open("Many",8); screen.resize(1280,720);
+        assertEquals(16,carousel().rows().stream().filter(r -> r.entry.setIndex() == 3).count());
+        assertEquals(java.util.stream.IntStream.range(0,16).boxed().toList(),carousel().rows().stream().filter(r -> r.entry.setIndex() == 3).map(r -> r.entry.difficultyIndex()).toList());
+        key(Input.Keys.PAGE_UP);
+        assertEquals(List.of(-1),carousel().rows().stream().filter(r -> r.entry.setIndex() == 3).map(r -> r.entry.difficultyIndex()).toList());
+        assertEquals(2,carousel().rows().stream().filter(r -> r.entry.setIndex() == 2).count());
+    }
+
+    @Test void unselectedDifficultyClickSelectsAndSecondClickRequestsPlay() throws Exception {
+        open("Beta",0); screen.resize(1280,720);
+        click(1,1); selected(1,1,"Beta-hard.png");
+        assertFalse(((UiNavigation)field("outgoing")).pending());
+        settle(); click(1,1);
+        assertTrue(((UiNavigation)field("outgoing")).pending());
+    }
+
+    @Test void setDoubleClickCannotPlayTheDifficultyReplacingItsRow() throws Exception {
+        open("Beta",0); screen.resize(1280,720);
+        click(2,-1); screen.resize(1280,720); click(2,0);
+        selected(2,0,"Gamma-easy.png");
+        assertFalse(((UiNavigation)field("outgoing")).pending());
+        assertTrue((float)field("setClickGuard") > 0);
+        setField("setClickGuard",0f); settle(); click(2,0);
+        assertTrue(((UiNavigation)field("outgoing")).pending());
+    }
+
+    @Test void randomExpandsTargetAndSmoothlyMakesSelectedDifficultyVisible() throws Exception {
+        open("Beta",1); screen.resize(1280,720);
+        for (int i=0;i<10;i++) {
+            key(Input.Keys.F2);
+            assertEquals(2,carousel().rows().stream().filter(r -> r.entry.setIndex() == (int)uncheckedField("selectedSetIndex")).count());
+            settle();
+            var row = carousel().rows().stream().filter(r -> r.entry.setIndex() == (int)uncheckedField("selectedSetIndex") && r.entry.difficultyIndex() == 0).findFirst().orElseThrow();
+            assertEquals(348,carousel().renderY(row,658) + carousel().rowHeight()/2,.01);
+        }
+    }
+    private Object uncheckedField(String name) {
+        try { return field(name); } catch (Exception e) { throw new AssertionError(e); }
+    }
+
+    @Test void searchRemovesSelectionAndShrinksOrEmptiesContentWithValidViewport() throws Exception {
+        open("Gamma",1); screen.resize(1280,720);
+        setField("searchActive",true);
+        for (char c : "Alpha".toCharArray()) processor.keyTyped(c);
+        selected(0,0,"Alpha-easy.png"); assertEquals(2,carousel().rows().size());
+        assertTrue(carousel().scrollOffset() <= carousel().maxScroll()); settle();
+        assertEquals(0,carousel().scrollOffset(),.01);
+        processor.keyTyped('x'); assertTrue(carousel().rows().isEmpty());
+        assertEquals(0,carousel().scrollOffset()); assertEquals(0,carousel().scrollTarget());
+        key(Input.Keys.BACKSPACE); settle(); assertEquals(2,carousel().rows().size());
+        assertTrue(carousel().scrollOffset() <= carousel().maxScroll());
+    }
+
 }

@@ -26,10 +26,8 @@ import dev.osujava.ui.theme.UiView;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 
 public final class SongSelectScreen extends ScreenAdapter {
@@ -50,11 +48,6 @@ public final class SongSelectScreen extends ScreenAdapter {
     private static final class Metrics {
         static final float HEADER_HEIGHT = 62;
         static final float TOOLBAR_HEIGHT = 38;
-        static final float SELECTED_X = .49f;
-        static final float SIBLING_X = .585f;
-        static final float OTHER_X = .665f;
-        static final float ROW_HEIGHT = 76;
-        static final float ROW_STEP = 72;
         static final float THUMB_X = 9;
         static final float THUMB_Y = 3;
         static final float THUMB_WIDTH = 96;
@@ -80,7 +73,9 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final UiNavigation outgoing = new UiNavigation();
     private final BeatmapThumbnails thumbnails = new BeatmapThumbnails();
     private final OsuCookie playCookie = new OsuCookie();
-    private final Map<String, RowMotion> motions = new HashMap<>();
+    private final SongSelectCarousel carousel = new SongSelectCarousel();
+    private boolean contentDirty = true;
+    private float contentWidth, contentViewportHeight, contentRowHeight;
     private List<BeatmapSet> sets;
     private List<Row> visibleRows = List.of();
     private int selectedSetIndex, selectedDifficultyIndex;
@@ -88,15 +83,11 @@ public final class SongSelectScreen extends ScreenAdapter {
     private String search = "";
     private String toast = "";
     private Color toastColor = UiTheme.TEXT;
-    private float toastSeconds, seconds;
+    private float toastSeconds, seconds, setClickGuard;
     private float backgroundFade;
     private Path backgroundPath;
     private float top, bottom, searchX, searchW, cookieX, cookieY, cookieRadius;
 
-    private static final class RowMotion {
-        float x, y;
-        RowMotion(float x, float y) { this.x = x; this.y = y; }
-    }
     private record Row(int setIndex, int difficultyIndex, boolean selected, boolean sibling,
                        float x, float y, float width, float height) { }
 
@@ -127,6 +118,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             activeText = textColor(skin.configuration().songSelect().activeText(), DARK_TEXT);
             inactiveText = textColor(skin.configuration().songSelect().inactiveText(), null);
         }
+        contentDirty = true;
         selectBackground();
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override public boolean keyDown(int key) {
@@ -194,6 +186,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (outgoing.advance(delta)) return;
         UiLayout layout = view.prepare();
         seconds += Math.min(delta, .05f);
+        setClickGuard = Math.max(0, setClickGuard - Math.max(0, delta));
         calculateLayout(layout);
         visibleRows = layoutRows(layout, delta);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
@@ -278,41 +271,54 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private List<Row> layoutRows(UiLayout layout, float delta) {
-        List<int[]> entries = new ArrayList<>();
-        int selectedEntry = 0;
-        String query = search.toLowerCase(Locale.ROOT).strip();
-        for (int i = 0; i < sets.size(); i++) {
-            BeatmapSet set = sets.get(i);
-            if (!matches(set, query)) continue;
-            if (i == selectedSetIndex) {
-                int first = Math.max(0, selectedDifficultyIndex - 2);
-                int last = Math.min(set.difficulties().size(), selectedDifficultyIndex + 3);
-                for (int j = first; j < last; j++) {
-                    if (j == selectedDifficultyIndex) selectedEntry = entries.size();
-                    entries.add(new int[]{i, j});
-                }
-            } else entries.add(new int[]{i, -1});
-        }
+        updateContent(layout);
+        float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
+        Row hit = hitRow(px, py);
+        carousel.advance(delta, hit == null ? null : rowKey(hit.setIndex(), hit.difficultyIndex()));
         List<Row> result = new ArrayList<>();
-        float centerY = bottom + (top - bottom) * .49f;
-        float right = layout.width() + 2;
-        for (int i = 0; i < entries.size(); i++) {
-            int setIndex = entries.get(i)[0], diffIndex = entries.get(i)[1];
+        for (SongSelectCarousel.Row entry : carousel.rows()) {
+            float y = carousel.renderY(entry, top);
+            if (y + carousel.rowHeight() < bottom || y > top) continue;
+            int setIndex = entry.entry.setIndex(), diffIndex = entry.entry.difficultyIndex();
             boolean selected = setIndex == selectedSetIndex && diffIndex == selectedDifficultyIndex;
-            boolean sibling = setIndex == selectedSetIndex && !selected;
-            float targetX = layout.width() * (selected ? Metrics.SELECTED_X : sibling ? Metrics.SIBLING_X : Metrics.OTHER_X);
-            float targetY = centerY + (selectedEntry - i) * Metrics.ROW_STEP;
-            float width = right - targetX;
-            String key = rowKey(setIndex, diffIndex);
-            RowMotion motion = motions.computeIfAbsent(key, unused -> new RowMotion(targetX + 28, targetY));
-            float factor = Math.min(1, Math.max(0, delta) * 14);
-            motion.x += (targetX - motion.x) * factor;
-            motion.y += (targetY - motion.y) * factor;
-            if (motion.y + Metrics.ROW_HEIGHT < bottom || motion.y > top) continue;
-            result.add(new Row(setIndex, diffIndex, selected, sibling, motion.x, motion.y,
-                    width + targetX - motion.x, Metrics.ROW_HEIGHT));
+            result.add(new Row(setIndex, diffIndex, selected, setIndex == selectedSetIndex && !selected,
+                    carousel.renderX(entry, layout.width()), y, rowWidth(layout), carousel.rowHeight()));
         }
         return result;
+    }
+
+    private float rowWidth(UiLayout layout) { return layout.width() * .46f + 18; }
+
+    private void updateContent(UiLayout layout) {
+        float height = has(Image.MENU_BUTTON_BACKGROUND)
+                ? SongSelectCarousel.skinRowHeight(skin.get(Image.MENU_BUTTON_BACKGROUND).logicalWidth(),
+                    skin.get(Image.MENU_BUTTON_BACKGROUND).logicalHeight(), rowWidth(layout)) : 76;
+        float viewportHeight = top - bottom;
+        if (contentDirty || contentWidth != layout.width() || contentViewportHeight != viewportHeight || contentRowHeight != height) {
+            List<SongSelectCarousel.Entry> entries = new ArrayList<>();
+            String query = search.toLowerCase(Locale.ROOT).strip();
+            for (int i = 0; i < sets.size(); i++) {
+                if (!matches(sets.get(i), query)) continue;
+                if (i == selectedSetIndex) {
+                    // Library order is the existing difficulty policy; indices remain Gameplay identities.
+                    for (int j = 0; j < sets.get(i).difficulties().size(); j++)
+                        entries.add(new SongSelectCarousel.Entry(rowKey(i, j), i, j));
+                } else entries.add(new SongSelectCarousel.Entry(rowKey(i, -1), i, -1));
+            }
+            carousel.content(entries, viewportHeight, height, has(Image.MENU_BUTTON_BACKGROUND) ? height + 3 : 72, selectedRowKey());
+            contentDirty = false;
+            contentWidth = layout.width(); contentViewportHeight = viewportHeight; contentRowHeight = height;
+        }
+    }
+
+    private String selectedRowKey() { return selectedSet() == null ? null : rowKey(selectedSetIndex, selectedDifficultyIndex); }
+
+    private void refreshSelection(boolean rebuild) {
+        contentDirty |= rebuild;
+        // Input and wheel arbitration can run before render(), so synchronize the model here too.
+        if (contentWidth > 0) updateContent(new UiLayout(contentWidth, top + Metrics.HEADER_HEIGHT, 1));
+        carousel.select(selectedRowKey());
+        selectBackground();
     }
 
     private boolean has(Image image) { return skin != null && skin.get(image) != null; }
@@ -343,10 +349,12 @@ public final class SongSelectScreen extends ScreenAdapter {
         return rgb == null ? fallback : new Color(rgb.r(), rgb.g(), rgb.b(), 1);
     }
 
+    private float thumbnailHeight() { return Math.min(Metrics.THUMB_HEIGHT, carousel.rowHeight() - 6); }
+
     private float thumbnailWidth() {
         // Wiki v2.2+ ratio, adapted to the existing row height; old skins retain our original layout.
         return has(Image.MENU_BUTTON_BACKGROUND) && skin.configuration().legacyVersion() >= 2.2
-                ? Metrics.THUMB_HEIGHT * 115f / 85f : Metrics.THUMB_WIDTH;
+                ? thumbnailHeight() * 115f / 85f : Metrics.THUMB_WIDTH * thumbnailHeight() / Metrics.THUMB_HEIGHT;
     }
 
     private void drawRows(UiLayout layout, float px, float py) {
@@ -374,7 +382,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         boolean hover = rowHit(row, px, py);
         Color color = row.selected() ? SELECTED : row.sibling()
                 ? hover ? SIBLING_HOVER : SIBLING : hover ? OTHER_HOVER : OTHER;
-        float x = row.x() - (hover && !row.selected() ? 7 : 0), y = row.y();
+        float x = row.x(), y = row.y();
         if (has(Image.MENU_BUTTON_BACKGROUND)) {
             view.beginText();
             skinImage(Image.MENU_BUTTON_BACKGROUND, x, y, row.width(), row.height(), color);
@@ -385,14 +393,14 @@ public final class SongSelectScreen extends ScreenAdapter {
             view.endShapes();
         }
         view.beginShapes();
-        view.box(x + Metrics.THUMB_X, y + Metrics.THUMB_Y, thumbnailWidth(), Metrics.THUMB_HEIGHT, 0, THUMB_FALLBACK);
+        view.box(x + Metrics.THUMB_X, y + Metrics.THUMB_Y, thumbnailWidth(), thumbnailHeight(), 0, THUMB_FALLBACK);
         view.endShapes();
         BeatmapSet set = sets.get(row.setIndex());
         BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : set.difficulties().get(0);
         Path path = diff.backgroundPath() != null ? diff.backgroundPath() : set.backgroundPath();
         view.beginText();
-        view.imageCover(thumbnails.get(path), x + Metrics.THUMB_X, y + Metrics.THUMB_Y, thumbnailWidth(), Metrics.THUMB_HEIGHT);
-        drawRowLabel(new Row(row.setIndex(), row.difficultyIndex(), row.selected(), row.sibling(), x, y, row.width(), row.height()));
+        view.imageCover(thumbnails.get(path), x + Metrics.THUMB_X, y + Metrics.THUMB_Y, thumbnailWidth(), thumbnailHeight());
+        drawRowLabel(row);
         view.endText();
     }
 
@@ -403,13 +411,13 @@ public final class SongSelectScreen extends ScreenAdapter {
         Color secondary = row.selected() ? activeText : inactiveText != null ? inactiveText : UiTheme.MUTED;
         float textOffset = Metrics.THUMB_X + thumbnailWidth() + 13;
         float x = row.x() + textOffset, w = Math.max(60, row.width() - textOffset - 18);
-        view.textSmooth(set.artist() + " - " + set.title(), x, row.y() + 50, w, Metrics.ROW_TITLE_SCALE, primary);
+        view.textSmooth(set.artist() + " - " + set.title(), x, row.y() + row.height() * .66f, w, Metrics.ROW_TITLE_SCALE, primary);
         view.textSmooth(diff == null ? set.creator() + "  ·  " + set.difficulties().size() + " difficulties"
                         : "[" + diff.version() + "]  mapped by " + set.creator(),
-                x, row.y() + 30, w, Metrics.ROW_DETAIL_SCALE, secondary);
+                x, row.y() + row.height() * .40f, w, Metrics.ROW_DETAIL_SCALE, secondary);
         if (diff != null) view.textSmooth(modeName(diff.mode()) + (row.selected()
                         ? "  ·  " + (row.difficultyIndex() + 1) + "/" + set.difficulties().size() : ""),
-                x, row.y() + 13, w, Metrics.ROW_MODE_SCALE, secondary);
+                x, row.y() + row.height() * .17f, w, Metrics.ROW_MODE_SCALE, secondary);
     }
 
     private void drawMetadata(UiLayout layout) {
@@ -449,14 +457,29 @@ public final class SongSelectScreen extends ScreenAdapter {
     private boolean rowHit(Row row, float x, float y) {
         return x >= row.x() && x <= row.x() + row.width() && y >= row.y() && y <= row.y() + row.height();
     }
-    private void handleRowClick(float x, float y) {
+    private Row hitRow(float x, float y) {
+        if (y <= bottom || y >= top || playCookie.hit(x, y)) return null;
+        // Match compositing order: the selected difficulty is drawn above overlapping rows.
+        for (Row row : visibleRows) if (row.selected() && rowHit(row, x, y)) return row;
         for (int i = visibleRows.size() - 1; i >= 0; i--) {
             Row row = visibleRows.get(i);
-            if (!rowHit(row, x, y)) continue;
-            if (row.selected()) playSelected();
-            else if (row.difficultyIndex() >= 0) selectDifficulty(row.difficultyIndex());
-            else selectSet(row.setIndex());
-            return;
+            if (rowHit(row, x, y)) return row;
+        }
+        return null;
+    }
+
+    private void handleRowClick(float x, float y) {
+        Row row = hitRow(x, y);
+        if (row == null) return;
+        if (row.difficultyIndex() >= 0) {
+            if (row.setIndex() == selectedSetIndex && row.difficultyIndex() == selectedDifficultyIndex) {
+                if (setClickGuard == 0) playSelected();
+            }
+            else { selectSet(row.setIndex()); selectDifficulty(row.difficultyIndex()); }
+        } else {
+            selectSet(row.setIndex());
+            // Expansion replaces the clicked Set at this position; its double-click must not play.
+            setClickGuard = .24f;
         }
     }
     private boolean randomHit(float x, float y) {
@@ -502,11 +525,14 @@ public final class SongSelectScreen extends ScreenAdapter {
                 || set.difficulties().stream().anyMatch(d -> d.version().toLowerCase(Locale.ROOT).contains(query));
     }
     private void ensureVisibleSelection() {
-        if (sets.isEmpty() || matches(sets.get(selectedSetIndex), search.toLowerCase(Locale.ROOT).strip())) return;
-        for (int i = 0; i < sets.size(); i++) if (matches(sets.get(i), search.toLowerCase(Locale.ROOT).strip())) {
-            selectSet(i);
-            return;
+        String query = search.toLowerCase(Locale.ROOT).strip();
+        if (!sets.isEmpty() && !matches(sets.get(selectedSetIndex), query)) {
+            for (int i = 0; i < sets.size(); i++) if (matches(sets.get(i), query)) {
+                selectSet(i);
+                return;
+            }
         }
+        refreshSelection(true);
     }
     private void selectSet(int index) {
         if (sets.isEmpty()) return;
@@ -514,7 +540,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (next == selectedSetIndex) return;
         selectedSetIndex = next;
         selectedDifficultyIndex = 0;
-        selectBackground();
+        refreshSelection(true);
     }
     private void selectDifficulty(int index) {
         BeatmapSet set = selectedSet();
@@ -522,7 +548,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         int next = Math.max(0, Math.min(set.difficulties().size() - 1, index));
         if (next == selectedDifficultyIndex) return;
         selectedDifficultyIndex = next;
-        selectBackground();
+        refreshSelection(false);
     }
     private String rowKey(int setIndex, int difficultyIndex) {
         return sets.get(setIndex).id() + "#" + difficultyIndex;
@@ -606,8 +632,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 for (int i = 0; i < sets.size(); i++)
                     if (sets.get(i).id().equals(finished.beatmapSet().id())) { selectedSetIndex = i; break; }
                 selectedDifficultyIndex = 0;
-                motions.clear();
-                selectBackground();
+                refreshSelection(true);
                 String message = existing ? "Already imported: " : "Imported: ";
                 message += finished.beatmapSet().title();
                 if (!finished.warnings().isEmpty()) message += " (some difficulties skipped)";

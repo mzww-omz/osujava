@@ -1,6 +1,6 @@
 # SongSelect Legacy skin support
 
-SongSelect keeps its existing Set/difficulty model, selection, navigation, row positions and interpolation. `SongSelectSkinAssets` owns UI textures; `OsuSkinAssets` remains gameplay-only. Skin images are visuals, while osujava owns layout and hitboxes.
+SongSelect retains its existing selection/navigation semantics and now uses the independent [content/viewport carousel model](songselect-carousel.md). `SongSelectSkinAssets` owns UI textures; `OsuSkinAssets` remains gameplay-only. Skin images are visuals, while osujava owns layout and hitboxes.
 
 ## Assets
 
@@ -16,11 +16,11 @@ All entries support `.png` and `@2x.png` through `SkinAssetResolver`.
 | `selection-mode`, `selection-mods`, `selection-options` and their `-over` images | Asset-holder support only. No buttons are shown for unimplemented actions. |
 | `star` | Asset-holder support only. No star rating exists in the current BeatmapDifficulty model, so no fabricated rating or new calculator is introduced. |
 
-Thumbnails reuse `BeatmapThumbnails` and `UiView.imageCover`: the source is cropped to cover the fixed destination without overflow. With a loaded row asset and Version >= 2.2, the Wiki's 115:85 ratio is adapted to the existing thumbnail height. Older skins (including bundled Greylooks Version 1.0) retain the original thumbnail rectangle. The carousel is clipped between header and toolbar, including at Retina density.
+Thumbnails reuse `BeatmapThumbnails` and `UiView.imageCover`: the source is cropped to cover its bounded destination without overflow. With a loaded row asset and Version >= 2.2, the Wiki's 115:85 ratio is adapted to the existing thumbnail height. Older skins (including bundled Greylooks Version 1.0) retain the original thumbnail rectangle. The carousel is clipped between header and toolbar, including at Retina density.
 
 ## Resolution and fallback
 
-The existing priority is unchanged: custom skin, configured fallback skin, bundled Greylooks. Each provider tries `@2x` before normal PNG; decoding/initialization failure continues to its normal candidate, then subsequent providers. A valid transparent or 1x1 image still wins. Dimensions and aspect ratios cannot change logical layout, selection or hitboxes.
+The existing priority is unchanged: custom skin, configured fallback skin, bundled Greylooks. Each provider tries `@2x` before normal PNG; decoding/initialization failure continues to its normal candidate, then subsequent providers. A valid transparent or 1x1 image still wins. Row backgrounds now influence row height through a bounded logical aspect ratio; `@2x` density is normalized before sizing. Missing row assets retain the original 76-unit height and 72-unit pitch. Other image dimensions do not change interaction bounds.
 
 If no candidate loads, rows use the original quad, header/footer use TOP/BOTTOM colours, Back uses text and Random uses a labelled procedural button. Independent asset lookup supports row-only, top-only and bottom-only skins. Missing hover overlays keep the normal Random image. Empty search results disable Random visually.
 
@@ -32,7 +32,7 @@ The selected skin.ini is self-contained, following the shared resolver's existin
 
 ## Intentional limits
 
-No `selection-tab`, animated `menu-back-{n}`, Mode/Mods/Options actions, star calculation, online features, pixel-perfect stable sizing, velocity effects or additional carousel curve. Existing gameplay, judgement, GameClock and ruleset implementations are unchanged.
+No `selection-tab`, animated `menu-back-{n}`, Mode/Mods/Options actions, star calculation, online features, pixel-perfect stable sizing, physical wheel inertia or right-click absolute scrolling. The continuous carousel curve and hover feedback are described in the carousel document. Existing gameplay, judgement, GameClock and ruleset implementations are unchanged.
 
 ## References and implementation provenance
 
@@ -47,4 +47,4 @@ McOsu C++ code was not copied, translated or ported. All Java composition, bound
 
 Unit tests cover every asset name, normal-only/high-only skins, provider and density priority, failed-load fallback, missing/partial/broken assets, tiny/unusual dimensions, texture ownership, RGB parsing and old/latest versions. Navigation regression tests exercise preferred difficulty, backgrounds, up/down, set/page/left/right, filtered Random, search and play/debug/back transition requests. Existing SongSelectWheelTest and Volume HUD tests are retained.
 
-Run `./gradlew build` and `./gradlew :lwjgl3:songSelectVisualHarness` (optional `-PsongSelectOutput=/tmp/...`). The production-screen harness captures 1280x720, 1920x1080 and 1280x720 at 2x backbuffer density for Greylooks (idle/hover), missing, row/top/bottom-only, normal-only, high-only, corrupt PNG, 1x1, unusual aspect ratio, old/latest Version and malformed colours. It checks keyboard/wheel navigation, search input, Random clicks and screen texture disposal. Generated screenshots/fixtures stay outside the repository.
+Run `./gradlew build` and `./gradlew :lwjgl3:songSelectVisualHarness` (optional `-PsongSelectOutput=/tmp/...`). The production-screen harness captures 1280x720, 1920x1080 and 1280x720 at 2x backbuffer density for Greylooks (initial, Set/difficulty selection, row hover, wheel, Random and Random-button hover), missing, row/top/bottom-only, normal-only, high-only, corrupt PNG, 1x1, unusual aspect ratio, old/latest Version and malformed colours. It additionally saves frames 1/4/10/20/40 for five motion scenarios at all three densities/resolutions and checks centering, Set double-click protection, selected difficulty re-click, keyboard/wheel navigation, search input, Random clicks and screen texture disposal. Generated screenshots/fixtures stay outside the repository.

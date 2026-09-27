@@ -63,7 +63,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 }
             }
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
-                for (String name : List.of("greylooks", "greylooks-hover", "missing", "row-only", "top-only", "bottom-only",
+                for (String name : List.of("greylooks", "greylooks-initial", "greylooks-set-selected", "greylooks-difficulty-selected",
+                        "greylooks-hover", "greylooks-after-wheel", "greylooks-random", "greylooks-random-hover", "missing", "row-only", "top-only", "bottom-only",
                         "normal-only", "high-only", "broken", "tiny", "unusual", "old", "latest", "malformed-colours"))
                     scenes.add(new Scene(size[0],size[1],size[2],name));
         } catch (Exception e) { throw new RuntimeException(e); }
@@ -88,8 +89,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         InputProcessor[] processor = {null};
         boolean[] clicked = {false};
         UiLayout layout = UiLayout.fromPixels(scene.width,scene.height);
-        int[] pointer = {scene.width * 4 / 5,scene.height / 2};
-        if (scene.name.endsWith("hover")) { pointer[0] = Math.round(344 * layout.scale()); pointer[1] = scene.height - Math.round(19 * layout.scale()); }
+        int[] pointer = {40,scene.height / 2};
+        if (scene.name.equals("greylooks-random-hover")) { pointer[0] = Math.round(344 * layout.scale()); pointer[1] = scene.height - Math.round(19 * layout.scale()); }
         Gdx.input = (Input) Proxy.newProxyInstance(Input.class.getClassLoader(),new Class[]{Input.class},(p,m,a) -> switch(m.getName()) {
             case "setInputProcessor" -> { processor[0] = (InputProcessor)a[0]; yield null; }
             case "getInputProcessor" -> processor[0];
@@ -122,12 +123,44 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             screen.show(); screen.resize(scene.width,scene.height);
             fb.begin();
             for (int frame = 0; frame < 40; frame++) screen.render(1f / 60);
-            Pixmap capture = Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
-            PixmapIO.writePNG(Gdx.files.absolute(output.resolve(name + ".png").toString()),capture,-1,true);
-            capture.dispose();
+            switch (scene.name) {
+                case "greylooks-set-selected" -> {
+                    pointerRow(screen,2,-1,pointer,layout,scene.height);
+                    clicked[0] = true; screen.render(1f/60); clicked[0] = false;
+                    // A second click after expansion must not trigger Play.
+                    pointerRow(screen,2,0,pointer,layout,scene.height);
+                    clicked[0] = true; screen.render(1f/60); clicked[0] = false;
+                    if (pending(screen)) throw new AssertionError("Set double click played: " + name);
+                }
+                case "greylooks-difficulty-selected" -> {
+                    pointerRow(screen,3,2,pointer,layout,scene.height);
+                    clicked[0] = true; screen.render(1f/60); clicked[0] = false;
+                    if (pending(screen)) throw new AssertionError("Unselected difficulty played: " + name);
+                }
+                case "greylooks-hover" -> pointerRow(screen,3,2,pointer,layout,scene.height);
+                case "greylooks-after-wheel" -> {
+                    pointerRow(screen,3,1,pointer,layout,scene.height);
+                    if (!processor[0].scrolled(0,1)) throw new AssertionError("Wheel lost: " + name);
+                }
+                case "greylooks-random" -> processor[0].keyDown(Input.Keys.F2);
+            }
+            if (scene.name.equals("greylooks-hover") || scene.name.equals("greylooks-after-wheel")
+                    || scene.name.equals("greylooks-random") || scene.name.endsWith("selected")) {
+                for (int frame=1;frame<=60;frame++) {
+                    screen.render(1f/60);
+                    if (frame == 1 || frame == 4 || frame == 10 || frame == 20 || frame == 40)
+                        capture(fb,name + "-frame-" + String.format(Locale.ROOT,"%02d",frame));
+                }
+            }
+            capture(fb,name);
+            assertCentered(screen,name);
+            // Position the pointer on the current selected row for the existing input smoke checks.
+            var model = carousel(screen);
+            var selectedRow = model.rows().stream().max(Comparator.comparingDouble(r -> r.selectedAmount)).orElseThrow();
+            pointerRow(screen,selectedRow.entry.setIndex(),selectedRow.entry.difficultyIndex(),pointer,layout,scene.height);
             // Navigation and search still work even with malformed/missing visual assets.
-            if (!scene.name.endsWith("hover") && !processor[0].scrolled(0,1)) throw new AssertionError("Wheel lost: " + name);
+            if (!processor[0].scrolled(0,1)) throw new AssertionError("Wheel lost: " + name);
             for (int key : new int[]{Input.Keys.UP,Input.Keys.DOWN,Input.Keys.PAGE_UP,Input.Keys.PAGE_DOWN,Input.Keys.LEFT,Input.Keys.RIGHT,Input.Keys.F2})
                 if (!processor[0].keyDown(key)) throw new AssertionError("Key lost: " + name + " / " + key);
             screen.render(.05f);
@@ -143,6 +176,14 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 var selected = SongSelectScreen.class.getDeclaredField("selectedSetIndex"); selected.setAccessible(true);
                 if (selected.getInt(screen) != 2) throw new AssertionError("Search/Random selection changed: " + name);
             } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+            // Selected difficulty re-click also reaches the production Play transition.
+            pointer[0] = 40;
+            for (int frame=0;frame<60;frame++) screen.render(1f/60);
+            model = carousel(screen);
+            selectedRow = model.rows().stream().max(Comparator.comparingDouble(r -> r.selectedAmount)).orElseThrow();
+            pointerRow(screen,selectedRow.entry.setIndex(),selectedRow.entry.difficultyIndex(),pointer,layout,scene.height);
+            clicked[0] = true; screen.render(0); clicked[0] = false;
+            if (!pending(screen)) throw new AssertionError("Selected re-click did not play: " + name);
             fb.end();
         } finally {
             screen.dispose(); screen.dispose();
@@ -153,6 +194,34 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             System.out.println("SongSelect harness: " + index + " captures + navigation/disposal checks passed: " + output);
             Gdx.app.exit();
         }
+    }
+    private void capture(FrameBuffer fb, String name) {
+        Pixmap capture = Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
+        PixmapIO.writePNG(Gdx.files.absolute(output.resolve(name + ".png").toString()),capture,-1,true);
+        capture.dispose();
+    }
+    private SongSelectCarousel carousel(SongSelectScreen screen) {
+        try {
+            var field = SongSelectScreen.class.getDeclaredField("carousel"); field.setAccessible(true);
+            return (SongSelectCarousel) field.get(screen);
+        } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+    private boolean pending(SongSelectScreen screen) {
+        try {
+            var field = SongSelectScreen.class.getDeclaredField("outgoing"); field.setAccessible(true);
+            return ((UiNavigation)field.get(screen)).pending();
+        } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+    private void pointerRow(SongSelectScreen screen, int set, int diff, int[] pointer, UiLayout layout, int height) {
+        var model = carousel(screen);
+        var row = model.rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff).findFirst().orElseThrow();
+        pointer[0] = Math.round((model.renderX(row,layout.width()) + 150) * layout.scale());
+        pointer[1] = height - Math.round((model.renderY(row,layout.height() - 62) + model.rowHeight()/2) * layout.scale());
+    }
+    private void assertCentered(SongSelectScreen screen, String name) {
+        var model = carousel(screen);
+        if (Math.abs(model.scrollOffset() - model.scrollTarget()) > 1) throw new AssertionError("Selection not centered: " + name);
+        if (model.scrollOffset() < 0 || model.scrollOffset() > model.maxScroll()) throw new AssertionError("Invalid scroll: " + name);
     }
     @Override public void dispose() { batch.dispose(); shapes.dispose(); font.dispose(); smooth.close(); }
 }
