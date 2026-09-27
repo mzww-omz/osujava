@@ -73,8 +73,17 @@ public final class OsuSkinAssets implements Disposable {
     OsuSkinAssets(Function<SkinAssetResolver.AssetFile, Texture> textureLoader, SkinAssetResolver resolver) {
         for (Image image : Image.values()) {
             diagnostics.put(image, new AssetDiagnostic(LoadStatus.MISSING, null, false));
-            resolver.resolve(image.basename, file -> load(file, textureLoader) != null)
-                    .or(() -> resolver.resolve(image.basename)).ifPresent(file -> {
+            Image sliderBase = sliderCircleBase(image);
+            // Reuse the selected skin's hitcircle family when its dedicated slider base is absent.
+            // An orphan slider overlay still cannot select a dedicated family on its own.
+            boolean customOnly = sliderBase != null && hasCustomHitCircle()
+                    && resolver.resolveCustom(sliderBase.basename, file -> load(file, textureLoader) != null).isEmpty();
+            var resolved = customOnly
+                    ? resolver.resolveCustom(image.basename, file -> load(file, textureLoader) != null)
+                        .or(() -> resolver.resolveCustom(image.basename, file -> true))
+                    : resolver.resolve(image.basename, file -> load(file, textureLoader) != null)
+                        .or(() -> resolver.resolve(image.basename));
+            resolved.ifPresent(file -> {
                 SkinTexture texture = load(file, textureLoader);
                 if (texture != null) textures.put(image, texture);
                 diagnostics.put(image, new AssetDiagnostic(texture == null ? LoadStatus.FAILED : LoadStatus.LOADED,
@@ -147,6 +156,22 @@ public final class OsuSkinAssets implements Disposable {
             ballFrames.add(frame);
         }
         sliderBallFrames = List.copyOf(ballFrames);
+    }
+
+    private boolean hasCustomHitCircle() {
+        for (Image image : List.of(Image.HIT_CIRCLE, Image.HIT_CIRCLE_OVERLAY)) {
+            SkinTexture asset = textures.get(image);
+            if (asset != null && !asset.file().fallback()) return true;
+        }
+        return false;
+    }
+
+    private static Image sliderCircleBase(Image image) {
+        return switch (image) {
+            case SLIDER_START_CIRCLE, SLIDER_START_CIRCLE_OVERLAY -> Image.SLIDER_START_CIRCLE;
+            case SLIDER_END_CIRCLE, SLIDER_END_CIRCLE_OVERLAY -> Image.SLIDER_END_CIRCLE;
+            default -> null;
+        };
     }
 
     private SkinTexture load(SkinAssetResolver.AssetFile file,

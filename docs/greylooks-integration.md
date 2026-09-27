@@ -36,6 +36,7 @@ core/src/main/resources/skins/default/
 
 - 画像・数字: selected custom → optional existing local fallback → bundled default → programmatic fallback。
 - `@2x`は各provider内で優先するため、customの通常画像がbundledの高解像度画像に勝つ。透明画像も有効な画像としてそのまま使う。破損画像は次の解像度／providerを試す。
+- Slider始点／終点はそれぞれcustomの専用baseを先に確認する。customにhitcircle／hitcircleoverlayがあり、その専用baseがない／壊れている場合はhitcircle familyを再利用し、fallback providerの専用circleを読み込まない。baseを伴わない専用overlayはfamily選択を変更しない。専用baseがある場合は優先し、custom circle素材自体がない場合は従来どおり内蔵skinへ補完する。Slider ball・follow circle等の探索は変更しない。
 - animationはframe 0またはstaticが読めたproviderを選択し、後続frameを他providerと混ぜない。
 - `skin.ini`はcustomを優先し、存在しない／読めない場合のみ次のproviderを使う。項目単位のini合成はしない。部分skinでiniがない場合は内蔵iniを使用する。
 - custom font prefixの不足glyphはbundled ini自身のfont prefixで補う。customの設定したoverlapは維持するため、違うfont同士が混在するとspacingが原skinと異なることがある。全10桁が揃わない／安全でないprefixの場合は既存フォント描画へ戻る。
@@ -71,3 +72,7 @@ Greylooksで使用されるがini項目として未対応: `AnimationFramerate`,
 - 配布JAR: `./gradlew :lwjgl3:bundledSkinVisualHarness -PskinHarnessJar=<absolute path to lwjgl3/build/libs/osujava-0.1.0-all.jar> -PskinHarnessOutput=/tmp/osujava-greylooks-jar`。harnessクラス以外のruntimeとassetsを配布JARだけから読み、resource URLが `jar:file:.../osujava-0.1.0-all.jar!/skins/default/skin.ini` であることを確認。各起動は独立した一時HOMEを使い、ローカルskinを要求しない。
 - Java 21で通常の `java -Duser.home=/tmp/osujava-greylooks-launcher -jar <配布JAR>` 起動も確認。working directoryを `/tmp` にして起動し、起動エラーなくMain Menuを開始した後に検証用プロセスを終了した。
 - opt-in harnessは通常buildではコンパイルのみ。GameplaySessionの通常Input APIを使う既存Debug Autoを起動し、GameClock・状態・scoreを直接変更しない。スクリーンショットと生成譜面／Libraryは `/tmp` 配下で、commitしない。
+
+## Slider circle補完の追加修正
+
+customのhitcircle系を持つskinで、欠落したSlider始点／終点をGreylooksの専用circleに置き換えていた問題を修正した。ローカルlazerの`LegacyMainCirclePiece`のprovider内でprefixを選ぶ考え方を参照し、同じcustomのcircle familyを優先する。描画時は既存hitcircle Textureを共有する。skin関連126テスト、全338テストとbuild／配布JAR生成が成功。専用素材の優先・片側だけの専用素材・破損base・孤立overlay・custom circleなしの場合を回帰テストに含めた。

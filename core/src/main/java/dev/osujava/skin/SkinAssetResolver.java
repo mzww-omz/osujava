@@ -77,6 +77,12 @@ public final class SkinAssetResolver {
         return Optional.empty();
     }
 
+    /** Provider-local lookup for choosing a custom circle family before considering fallback skins. */
+    Optional<AssetFile> resolveCustom(String name, Predicate<AssetFile> loadable) {
+        validateName(name);
+        return resolveIn(Provider.CUSTOM, name, loadable);
+    }
+
     /** Skin samples use unindexed legacy names; indexed beatmap samples stay at the audio caller. */
     public Optional<AssetFile> resolveSound(String name) {
         return resolveSound(name, file -> true);

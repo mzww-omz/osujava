@@ -6,6 +6,8 @@ import com.badlogic.gdx.utils.GdxRuntimeException;
 import dev.osujava.gameplay.GameplayVisualConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.imageio.ImageIO;
 import java.net.URL;
@@ -20,6 +22,71 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class BundledSkinTest {
     @TempDir Path custom;
+
+    @ParameterizedTest
+    @ValueSource(strings = {"hitcircle", "hitcircleoverlay", "both"})
+    void missingCustomSliderCirclesReuseHitCircleFamilyBeforeBundledImages(String present) throws Exception {
+        for (String name : List.of("hitcircle", "hitcircleoverlay"))
+            if (present.equals(name) || present.equals("both")) Files.createFile(custom.resolve(name + ".png"));
+        var loaded = new ArrayList<SkinAssetResolver.AssetFile>();
+        var assets = new OsuSkinAssets(file -> { loaded.add(file); return new TestTexture(); },
+                SkinAssetResolver.withBundledDefault(custom, null));
+        for (var base : List.of(OsuSkinAssets.Image.SLIDER_START_CIRCLE, OsuSkinAssets.Image.SLIDER_END_CIRCLE)) {
+            assertFalse(assets.hasDedicatedSliderCircle(base));
+            assertSame(assets.get(OsuSkinAssets.Image.HIT_CIRCLE), assets.get(base));
+        }
+        for (var overlay : List.of(OsuSkinAssets.Image.SLIDER_START_CIRCLE_OVERLAY, OsuSkinAssets.Image.SLIDER_END_CIRCLE_OVERLAY))
+            assertSame(assets.get(OsuSkinAssets.Image.HIT_CIRCLE_OVERLAY), assets.get(overlay));
+        assertTrue(loaded.stream().noneMatch(file -> file.path().getFileName().toString().startsWith("sliderstartcircle")
+                || file.path().getFileName().toString().startsWith("sliderendcircle")));
+        // Other slider elements retain the ordinary bundled fallback.
+        assertNotNull(assets.get(OsuSkinAssets.Image.SLIDER_FOLLOW_CIRCLE));
+        assertFalse(assets.sliderBallFrames().isEmpty());
+        assets.dispose();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"sliderstartcircle", "sliderendcircle"})
+    void customDedicatedCircleWinsWhileOtherSliderCircleUsesCustomHitCircle(String prefix) throws Exception {
+        for (String name : List.of("hitcircle", "hitcircleoverlay", prefix, prefix + "overlay"))
+            Files.createFile(custom.resolve(name + ".png"));
+        var assets = new OsuSkinAssets(file -> new TestTexture(), SkinAssetResolver.withBundledDefault(custom, null));
+        var base = prefix.equals("sliderstartcircle") ? OsuSkinAssets.Image.SLIDER_START_CIRCLE : OsuSkinAssets.Image.SLIDER_END_CIRCLE;
+        var overlay = prefix.equals("sliderstartcircle") ? OsuSkinAssets.Image.SLIDER_START_CIRCLE_OVERLAY : OsuSkinAssets.Image.SLIDER_END_CIRCLE_OVERLAY;
+        var other = prefix.equals("sliderstartcircle") ? OsuSkinAssets.Image.SLIDER_END_CIRCLE : OsuSkinAssets.Image.SLIDER_START_CIRCLE;
+        assertTrue(assets.hasDedicatedSliderCircle(base));
+        assertEquals(custom.resolve(prefix + ".png"), assets.get(base).file().path());
+        assertEquals(custom.resolve(prefix + "overlay.png"), assets.get(overlay).file().path());
+        assertSame(assets.get(OsuSkinAssets.Image.HIT_CIRCLE), assets.get(other));
+        assets.dispose();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"sliderstartcircle", "sliderendcircle"})
+    void brokenCustomDedicatedBaseReusesHitCircleAndIgnoresOrphanOverlay(String prefix) throws Exception {
+        for (String name : List.of("hitcircle", "hitcircleoverlay", prefix, prefix + "overlay"))
+            Files.createFile(custom.resolve(name + ".png"));
+        var assets = new OsuSkinAssets(file -> {
+            if (file.path().getFileName().toString().equals(prefix + ".png")) throw new GdxRuntimeException("broken slider circle");
+            return new TestTexture();
+        }, SkinAssetResolver.withBundledDefault(custom, null));
+        var base = prefix.equals("sliderstartcircle") ? OsuSkinAssets.Image.SLIDER_START_CIRCLE : OsuSkinAssets.Image.SLIDER_END_CIRCLE;
+        var overlay = prefix.equals("sliderstartcircle") ? OsuSkinAssets.Image.SLIDER_START_CIRCLE_OVERLAY : OsuSkinAssets.Image.SLIDER_END_CIRCLE_OVERLAY;
+        assertFalse(assets.hasDedicatedSliderCircle(base));
+        assertSame(assets.get(OsuSkinAssets.Image.HIT_CIRCLE), assets.get(base));
+        assertSame(assets.get(OsuSkinAssets.Image.HIT_CIRCLE_OVERLAY), assets.get(overlay));
+        assets.dispose();
+    }
+
+    @Test void noCustomCircleAssetsKeepBundledDedicatedSliderCircles() {
+        var assets = new OsuSkinAssets(file -> new TestTexture(), SkinAssetResolver.withBundledDefault(custom, null));
+        for (var base : List.of(OsuSkinAssets.Image.SLIDER_START_CIRCLE, OsuSkinAssets.Image.SLIDER_END_CIRCLE)) {
+            assertTrue(assets.hasDedicatedSliderCircle(base));
+            assertNotSame(assets.get(OsuSkinAssets.Image.HIT_CIRCLE), assets.get(base));
+            assertNotNull(assets.get(base).file().classpathResource());
+        }
+        assets.dispose();
+    }
 
     @Test void defaultConfigurationAndSupportedModeImagesLoadFromClasspath() throws Exception {
         var resolver = SkinAssetResolver.withBundledDefault(null, null);

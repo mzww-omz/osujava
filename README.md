@@ -57,6 +57,7 @@ Song Selectでは、1つの.oszに入った複数Difficultyを1つのBeatmap Set
 `-Dosujava.skinFallbackDirectory="/path/to/fallback-skin"`を追加します。
 customの通常解像度画像もfallbackの`@2x`より優先します。透明画像は置換しません。
 検索順はcustom → 明示指定したlocal fallback（任意）→ 内蔵Greylooks → コードの最低限の描画です。画像と数字は欠落部分だけ補います。animationはproviderを混ぜません。
+Slider始点・終点の専用circle baseがcustomにない場合、customのhitcircle／hitcircleoverlayがあればそのcircle familyを再利用し、Greylooksの専用circleで置き換えません。専用baseがある場合は引き続き優先します。Slider ball・follow circle等の補完順は通常どおりです。
 `skin.ini`はcustomを優先し、存在しない／読めない場合に次のproviderのiniを使います。設定を項目単位では合成しません。
 Spinner bodyのOld/New選択はcustom providerのrootを優先し、fallback画像でstyleを変えません。
 
