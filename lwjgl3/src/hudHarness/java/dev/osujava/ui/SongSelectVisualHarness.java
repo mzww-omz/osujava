@@ -141,7 +141,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 case "greylooks-hover" -> pointerRow(screen,3,2,pointer,layout,scene.height);
                 case "greylooks-after-wheel" -> {
                     pointerRow(screen,3,1,pointer,layout,scene.height);
+                    var before = carousel(screen).rows();
                     if (!processor[0].scrolled(0,1)) throw new AssertionError("Wheel lost: " + name);
+                    if (carousel(screen).rows() != before) throw new AssertionError("Wheel rebuilt selection: " + name);
                 }
                 case "greylooks-random" -> processor[0].keyDown(Input.Keys.F2);
             }
@@ -154,7 +156,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 }
             }
             capture(fb,name);
-            assertCentered(screen,name);
+            assertScrollSettled(screen,name);
             // Position the pointer on the current selected row for the existing input smoke checks.
             var model = carousel(screen);
             var selectedRow = model.rows().stream().max(Comparator.comparingDouble(r -> r.selectedAmount)).orElseThrow();
@@ -218,9 +220,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         pointer[0] = Math.round((model.renderX(row,layout.width()) + 150) * layout.scale());
         pointer[1] = height - Math.round((model.renderY(row,layout.height() - 62) + model.rowHeight()/2) * layout.scale());
     }
-    private void assertCentered(SongSelectScreen screen, String name) {
+    private void assertScrollSettled(SongSelectScreen screen, String name) {
         var model = carousel(screen);
-        if (Math.abs(model.scrollOffset() - model.scrollTarget()) > 1) throw new AssertionError("Selection not centered: " + name);
+        if (Math.abs(model.scrollOffset() - model.scrollTarget()) > 1) throw new AssertionError("Scroll not settled: " + name);
         if (model.scrollOffset() < 0 || model.scrollOffset() > model.maxScroll()) throw new AssertionError("Invalid scroll: " + name);
     }
     @Override public void dispose() { batch.dispose(); shapes.dispose(); font.dispose(); smooth.close(); }

@@ -114,4 +114,18 @@ class SongSelectCarouselTest {
         float offset = a.scrollOffset(); a.advance(Float.NaN,null); a.advance(-1,null);
         assertEquals(offset,a.scrollOffset());
     }
+    @Test void wheelTargetIsSmoothClampedAndDoesNotChangeSelectionOrLogicalRows() {
+        var model=model(12); var rows=model.rows();
+        model.scrollBy(38);
+        assertEquals(38,model.scrollTarget()); assertEquals(0,model.scrollOffset());
+        model.advance(1f/60,null);
+        assertTrue(model.scrollOffset()>0 && model.scrollOffset()<38);
+        assertSame(rows,model.rows()); assertEquals(1,rows.get(0).selectedAmount);
+        model.scrollBy(10000); assertEquals(model.maxScroll(),model.scrollTarget());
+        model.scrollBy(-10000); assertEquals(0,model.scrollTarget());
+        model.scrollBy(Float.NaN); model.scrollBy(Float.POSITIVE_INFINITY);
+        assertEquals(0,model.scrollTarget());
+        model.select("set#4"); assertEquals(4*72,model.scrollTarget());
+    }
+
 }

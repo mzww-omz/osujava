@@ -87,7 +87,7 @@ class VolumeHudTest {
         var input = new VolumeHudInput(hud, () -> reserve[0], () -> alt[0]);
         assertFalse(input.scrolled(0,1)); assertFalse(input.keyDown(Input.Keys.DOWN));
         alt[0] = true; assertTrue(input.scrolled(0,1)); assertEquals(95,hud.percent(MASTER));
-        alt[0] = false; assertTrue(input.scrolled(0,-1)); assertEquals(100,hud.percent(MASTER));
+        alt[0] = false; assertFalse(input.scrolled(0,-1)); assertEquals(95,hud.percent(MASTER));
         assertTrue(input.keyDown(Input.Keys.TAB)); assertEquals(MUSIC,hud.selected());
         assertTrue(input.keyDown(Input.Keys.DOWN)); assertEquals(95,hud.percent(MUSIC));
         assertTrue(input.keyDown(Input.Keys.RIGHT)); assertEquals(EFFECT,hud.selected());
@@ -98,7 +98,7 @@ class VolumeHudTest {
         assertTrue(input.keyDown(Input.Keys.ESCAPE)); assertFalse(hud.active());
         assertFalse(input.keyDown(Input.Keys.ESCAPE));
         reserve[0] = false; assertTrue(input.scrolled(0,1)); assertEquals(MASTER,hud.selected());
-        assertEquals(95,hud.percent(MASTER));
+        assertEquals(90,hud.percent(MASTER));
         assertTrue(input.keyDown(Input.Keys.F4)); assertFalse(hud.active());
         assertTrue(input.keyDown(Input.Keys.F4)); assertTrue(hud.active());
         assertFalse(input.scrolled(0,Float.NaN)); assertFalse(input.scrolled(1,0));

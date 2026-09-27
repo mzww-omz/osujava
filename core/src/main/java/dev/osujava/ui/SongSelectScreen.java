@@ -158,7 +158,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             @Override public boolean scrolled(float amountX, float amountY) {
                 if (!Float.isFinite(amountY) || amountY == 0
                         || !usesMouseWheelAt(Gdx.input.getX(), Gdx.input.getY())) return false;
-                advance((int) Math.signum(amountY));
+                if (!importing) carousel.scrollBy(amountY * carousel.rowHeight());
                 return true;
             }
         });
@@ -171,15 +171,15 @@ public final class SongSelectScreen extends ScreenAdapter {
         visibleRows = layoutRows(layout, 0);
     }
 
-    /** Only the visible beatmap rows reserve the wheel; blank space falls through to volume. */
+    /** Reserve the whole carousel viewport, including row gaps and empty results. */
     public boolean usesMouseWheelAt(int screenX, int screenY) {
-        if (closed || importing || outgoing.pending() || visibleRows.isEmpty()) return false;
+        if (closed || outgoing.pending()) return false;
         if (Gdx.graphics.getWidth() <= 0 || Gdx.graphics.getHeight() <= 0) return false;
         UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         float x = layout.pointerX(screenX), y = layout.pointerY(screenY);
-        if (y <= bottom || y >= top || playCookie.hit(x, y)) return false;
-        for (Row row : visibleRows) if (rowHit(row, x, y)) return true;
-        return false;
+        return x >= layout.width() * .5f && x <= layout.width()
+                && y > Metrics.TOOLBAR_HEIGHT && y < layout.height() - Metrics.HEADER_HEIGHT
+                && !playCookie.hit(x, y);
     }
 
     @Override public void render(float delta) {

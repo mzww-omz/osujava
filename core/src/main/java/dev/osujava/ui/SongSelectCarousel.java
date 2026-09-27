@@ -77,6 +77,11 @@ final class SongSelectCarousel {
         scrollTarget = clamp(selected == null ? scrollOffset : selected.logicalY - viewportHeight / 2);
     }
 
+    /** Wheel browsing moves the viewport independently of selection and Set expansion. */
+    void scrollBy(float distance) {
+        if (Float.isFinite(distance)) scrollTarget = clamp(scrollTarget + distance);
+    }
+
     /** Briefly retain hover across the gaps created by separation, avoiding reset flicker. */
     void advance(float delta, String hitKey) {
         float dt = Float.isFinite(delta) ? Math.max(0, delta) : 0;

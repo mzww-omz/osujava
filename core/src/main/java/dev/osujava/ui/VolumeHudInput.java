@@ -9,14 +9,17 @@ public final class VolumeHudInput extends InputAdapter {
     private final VolumeHud hud;
     private final BooleanSupplier reserveWheel;
     private final BooleanSupplier altDown;
+    private boolean explicitWheelControl;
     public VolumeHudInput(VolumeHud hud, BooleanSupplier reserveWheel, BooleanSupplier altDown) {
         this.hud = hud;
         this.reserveWheel = reserveWheel;
         this.altDown = altDown;
     }
     @Override public boolean keyDown(int key) {
+        if (!hud.active()) explicitWheelControl = false;
         if (key == Input.Keys.F4) {
             if (hud.active()) hud.close(); else hud.open();
+            explicitWheelControl = hud.active();
             return true;
         }
         if (!hud.active()) return false;
@@ -32,7 +35,9 @@ public final class VolumeHudInput extends InputAdapter {
     }
     @Override public boolean scrolled(float amountX, float amountY) {
         if (!Float.isFinite(amountY) || amountY == 0) return false;
-        if (!hud.active() && reserveWheel.getAsBoolean() && !altDown.getAsBoolean()) return false;
+        if (!hud.active()) explicitWheelControl = false;
+        // Auto-displayed volume feedback must not steal subsequent carousel wheel events.
+        if (reserveWheel.getAsBoolean() && !altDown.getAsBoolean() && !explicitWheelControl) return false;
         hud.adjust(-amountY);
         return true;
     }

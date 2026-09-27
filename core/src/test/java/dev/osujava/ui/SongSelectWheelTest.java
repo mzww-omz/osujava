@@ -52,7 +52,7 @@ class SongSelectWheelTest {
     }
     private void pointer(float x, float y) { pointerX = Math.round(width * x); pointerY = Math.round(height * y); }
 
-    @Test void blankSpaceHeaderAndToolbarAdjustVolumeWithoutF4AtAllResolutions() {
+    @Test void outsideCarouselHeaderAndToolbarAdjustVolumeWithoutF4AtAllResolutions() {
         addBeatmap();
         for (int[] size : new int[][]{{1280,720},{1920,1080},{2560,1440}}) {
             width = size[0]; height = size[1];
@@ -71,7 +71,7 @@ class SongSelectWheelTest {
             } finally { screen.dispose(); }
         }
     }
-    @Test void hoveredRowsKeepSelectionWhileAltAndAnOpenHudOverrideTheWheel() {
+    @Test void carouselKeepsWheelUnlessAltOrAnExplicitHudOverridesIt() {
         addBeatmap(); var game = game(); var screen = new SongSelectScreen(game); game.navigate(screen);
         try {
             pointer(.8f,.5f);
@@ -79,19 +79,80 @@ class SongSelectWheelTest {
             assertTrue(processor.scrolled(0,1));
             assertEquals(100,game.volumeHud().percent(Channel.MASTER)); assertFalse(game.volumeHud().active());
             alt = true; assertTrue(processor.scrolled(0,1)); assertEquals(95,game.volumeHud().percent(Channel.MASTER));
-            alt = false; assertTrue(processor.scrolled(0,1)); assertEquals(90,game.volumeHud().percent(Channel.MASTER));
+            alt = false; assertTrue(processor.scrolled(0,1)); assertEquals(95,game.volumeHud().percent(Channel.MASTER));
             game.volumeHud().advance(2); assertFalse(game.volumeHud().active());
-            assertTrue(processor.scrolled(0,-1)); assertEquals(90,game.volumeHud().percent(Channel.MASTER));
-            assertTrue(processor.keyDown(Input.Keys.F4));
             assertTrue(processor.scrolled(0,-1)); assertEquals(95,game.volumeHud().percent(Channel.MASTER));
+            assertTrue(processor.keyDown(Input.Keys.F4));
+            assertTrue(processor.scrolled(0,-1)); assertEquals(100,game.volumeHud().percent(Channel.MASTER));
         } finally { screen.dispose(); }
     }
-    @Test void emptyLibraryDoesNotReserveWheelEvenInTheBeatmapArea() {
+    @Test void emptyLibraryStillReservesTheCarouselViewport() {
         var game = game(); var screen = new SongSelectScreen(game); game.navigate(screen);
         try {
-            pointer(.8f,.5f); assertFalse(screen.usesMouseWheelAt(pointerX,pointerY));
-            assertTrue(processor.scrolled(0,1)); assertEquals(95,game.volumeHud().percent(Channel.MASTER));
-            assertTrue(game.volumeHud().active());
+            pointer(.8f,.5f); assertTrue(screen.usesMouseWheelAt(pointerX,pointerY));
+            assertTrue(processor.scrolled(0,1)); assertEquals(100,game.volumeHud().percent(Channel.MASTER));
+            assertFalse(game.volumeHud().active());
         } finally { screen.dispose(); }
     }
+    private SongSelectCarousel carousel(SongSelectScreen screen) throws Exception {
+        var field = SongSelectScreen.class.getDeclaredField("carousel"); field.setAccessible(true);
+        return (SongSelectCarousel) field.get(screen);
+    }
+    private int selected(SongSelectScreen screen, String fieldName) throws Exception {
+        var field = SongSelectScreen.class.getDeclaredField(fieldName); field.setAccessible(true);
+        return field.getInt(screen);
+    }
+
+    @Test void rowGapsAndSpaceLeftOfCurvedRowsScrollWithoutOpeningVolumeAtAllResolutions() throws Exception {
+        addBeatmap();
+        for (int[] size : new int[][]{{1280,720},{1920,1080},{2560,1440}}) {
+            width=size[0]; height=size[1];
+            var game=game(); var screen=new SongSelectScreen(game); game.navigate(screen);
+            try {
+                var model=carousel(screen);
+                for (float[] point : new float[][]{{.51f,.5f},{.8f,.2f},{.95f,.3f}}) {
+                    pointer(point[0],point[1]);
+                    assertTrue(screen.usesMouseWheelAt(pointerX,pointerY));
+                    float before=model.scrollTarget();
+                    assertTrue(processor.scrolled(0,.25f));
+                    assertTrue(model.scrollTarget()>before);
+                    assertEquals(100,game.volumeHud().percent(Channel.MASTER));
+                    assertFalse(game.volumeHud().active());
+                }
+            } finally { screen.dispose(); }
+        }
+    }
+
+    @Test void wheelBrowsesPastOtherSetsWithoutSelectingOrExpandingThem() throws Exception {
+        addBeatmap();
+        var diff=library.all().iterator().next().difficulties().get(0);
+        for (int i=0;i<10;i++) library.add(new BeatmapSet("set"+i,"Other "+i,"Artist","Creator",null,null,List.of(diff),List.of()));
+        var game=game(); var screen=new SongSelectScreen(game); game.navigate(screen);
+        try {
+            pointer(.8f,.5f);
+            var model=carousel(screen); var rows=model.rows();
+            int set=selected(screen,"selectedSetIndex"), difficulty=selected(screen,"selectedDifficultyIndex");
+            for (int i=0;i<20;i++) assertTrue(processor.scrolled(0,1));
+            assertSame(rows,model.rows());
+            assertEquals(set,selected(screen,"selectedSetIndex"));
+            assertEquals(difficulty,selected(screen,"selectedDifficultyIndex"));
+            assertEquals(model.maxScroll(),model.scrollTarget());
+            assertEquals(100,game.volumeHud().percent(Channel.MASTER));
+            assertFalse(game.volumeHud().active());
+            for (int i=0;i<20;i++) assertTrue(processor.scrolled(0,-1));
+            assertEquals(0,model.scrollTarget());
+            assertSame(rows,model.rows());
+        } finally { screen.dispose(); }
+    }
+
+    @Test void volumeFeedbackFromOutsideCarouselDoesNotStealWheelAfterPointerReturns() {
+        addBeatmap(); var game=game(); var screen=new SongSelectScreen(game); game.navigate(screen);
+        try {
+            pointer(.05f,.5f); assertTrue(processor.scrolled(0,1));
+            assertEquals(95,game.volumeHud().percent(Channel.MASTER)); assertTrue(game.volumeHud().active());
+            pointer(.51f,.5f); assertTrue(processor.scrolled(0,1));
+            assertEquals(95,game.volumeHud().percent(Channel.MASTER));
+        } finally { screen.dispose(); }
+    }
+
 }
