@@ -61,4 +61,9 @@ class SongBrowserRandomTest {
         m.search("missing"); m.previousRandom(); assertEquals(size,m.historySize());
     }
 
+    @Test void randomChoiceWithinQueryRemainsSelectedOnClear() {
+        var m = model(); m.search("Artist"); m.random(); var selected = m.selection();
+        m.search(""); assertEquals(selected,m.selection());
+    }
+
 }

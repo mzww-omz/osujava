@@ -137,4 +137,9 @@ class SongBrowserModelTest {
         assertEquals("b",model.selectedSet().id()); var entries = model.entries();
         for (int i=0;i<1000;i++) { model.selectedSet(); model.selectedDifficulty(); model.search(""); model.sort(model.sort()); model.group(model.group()); assertSame(entries,model.entries()); }
     }
+    @Test void explicitChoiceInsideSearchRemainsSelectedWhenQueryIsCleared() {
+        var model = new SongBrowserModel(fixture()); model.select("c",0); model.search("Alpha");
+        model.select("a",0); var chosen = model.selection(); model.search(""); assertEquals(chosen,model.selection());
+    }
+
 }

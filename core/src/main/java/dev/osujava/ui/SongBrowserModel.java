@@ -103,6 +103,7 @@ final class SongBrowserModel {
         if (next.equals(selection)) return;
         boolean expansionChanged = selection == null || !selection.setId().equals(setId);
         selection = next;
+        if (!search.isBlank()) beforeSearch = next;
         if (expansionChanged) expand();
     }
     void random() {
@@ -124,7 +125,9 @@ final class SongBrowserModel {
             if (set == null) continue;
             var difficulty = set.difficulties().stream().filter(d -> difficultyId(d).equals(previous.difficultyId()))
                     .findFirst().orElse(set.difficulties().getFirst());
-            iterator.remove(); selection = new Selection(set.id(), difficultyId(difficulty)); expand(); return;
+            iterator.remove(); selection = new Selection(set.id(), difficultyId(difficulty));
+            if (!search.isBlank()) beforeSearch = selection;
+            expand(); return;
         }
     }
     int historySize() { return history.size(); }
