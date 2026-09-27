@@ -69,3 +69,17 @@ Commands:
 ```
 
 Follow-up verification: 585 unit tests passed with no failures, errors or skips. Gradle `build` and `:lwjgl3:executableJar` succeeded. The final full harness passed 456 captures plus navigation/disposal checks, including the local WhiteCat production-path case (`/tmp/osujava-chrome-final.log`). Image review covered current Greylooks and WhiteCat at 720p/1080p/2x, tall chrome, configured fallback, all-assets-missing procedural fallback and opaque current sentinel artwork. Greylooks current top/bottom logs report `provider=current density=2` and the renderer reports `procedural=false`. Rankings and rows stay below the visible top boundary, with rows clipped above native bottom artwork. WhiteCat uses its current animated Back's first frame and bundled native top/bottom because those two files are absent; its composite custom chrome is still unsupported as explained above. The user's specific skin has not yet been identified, so its reported custom appearance has not been reproduced or claimed fixed.
+
+## Identified skin: default.osk (2026-09-28)
+
+The user subsequently identified `~/Documents/default.osk`. Its ini names it `osu! Default Skin Template`, Version 2.7. Archive inspection confirms that neither `songselect-top` nor `songselect-bottom` exists, at either density. Its `selection-mode` is an ordinary 88×90 SD button, not composite chrome; the earlier Seoul/WhiteCat investigation does not describe this archive. `menu-background` is a full-screen background, not a replacement for the two absent chrome assets.
+
+The actual archive was imported into the harness's temporary directory through `SkinImporter` and selected through production `SongSelectScreen.show()`. At all three profiles Back, Random and Random hover resolve from current `@2x` files. Top and bottom resolve from bundled Greylooks `@2x`, and `procedural=false`. Thus the mixed appearance is caused by absent source chrome and the explicitly requested fallback order, not loss of the selected skin or a procedural layer covering its artwork. No name-specific resolver override or invented current chrome is added. Showing osu!stable's standard chrome for this archive would require a separate fallback policy/assets decision.
+
+A regression test now covers a current skin with Back/Random but missing top/bottom, ensuring that bundled chrome does not replace its current actions. The custom harness also asserts and logs current static/animated Back, Random and Random hover paths. Final verification passed 586 unit tests, Gradle `build`, executable JAR generation and 30 chrome harness captures plus navigation/disposal checks (`/tmp/osujava-default-chrome-final.log`). Visual review of the actual archive at 720p/1080p/2x confirms that rankings and the carousel stay outside chrome after the preceding content-inset fix; Import and Random do not protrude above the bottom bar. Back's translucent decoration intentionally extends above its visible body baseline, and Cookie remains at the bottom/right edge. The archive, imported skin and captures remain outside Git.
+
+```sh
+./gradlew :core:test build :lwjgl3:executableJar :lwjgl3:songSelectVisualHarness \
+  -PsongSelectPhase=chrome -PsongSelectCustomSkin=/Users/agemizu/Documents/default.osk \
+  -PsongSelectOutput=/tmp/osujava-default-chrome-final
+```

@@ -254,6 +254,24 @@ class SongSelectSkinAssetsTest {
         brokenHigh.dispose();
     }
 
+    @Test void missingChromeUsesBundledImagesWithoutReplacingCurrentActions() throws Exception {
+        Files.writeString(directory.resolve("skin.ini"), "[General]\nName: osu! Default Skin Template\nVersion: 2.7\n");
+        for (var image : List.of(Image.BACK, Image.RANDOM, Image.RANDOM_OVER))
+            Files.createFile(directory.resolve(image.basename + "@2x.png"));
+        var assets = new SongSelectSkinAssets(SkinAssetResolver.withBundledDefault(directory,null),
+                file -> new TestTexture(148,180));
+        for (var image : List.of(Image.TOP, Image.BOTTOM)) {
+            assertEquals("skins/default/" + image.basename + "@2x.png",assets.get(image).file().classpathResource());
+            assertTrue(assets.get(image).file().fallback());
+        }
+        for (var image : List.of(Image.BACK, Image.RANDOM, Image.RANDOM_OVER)) {
+            assertEquals(directory.resolve(image.basename + "@2x.png"),assets.get(image).file().path());
+            assertFalse(assets.get(image).file().fallback());
+            assertEquals(2,assets.get(image).density());
+        }
+        assets.dispose();
+    }
+
     private static class TestTexture extends Texture {
         int disposals;
         final int width, height;

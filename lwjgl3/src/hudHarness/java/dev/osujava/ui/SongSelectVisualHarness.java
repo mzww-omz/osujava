@@ -150,10 +150,18 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             var mode = assets.get(SongSelectSkinAssets.Image.MODE);
             System.out.println("CUSTOM directory=" + customSkin
                     + (mode == null ? "" : " mode=" + mode.file().path() + " logical=" + mode.logicalWidth() + "x" + mode.logicalHeight()));
-            var back = assets.get(SongSelectSkinAssets.Image.BACK);
-            if (java.nio.file.Files.isRegularFile(customSkin.resolve("menu-back-0@2x.png"))
-                    && !back.file().path().equals(customSkin.resolve("menu-back-0@2x.png")))
-                throw new AssertionError("Animated custom Back fell through to bundled static art");
+            var current = new SkinAssetResolver(customSkin);
+            for (var image : List.of(SongSelectSkinAssets.Image.BACK, SongSelectSkinAssets.Image.RANDOM,
+                    SongSelectSkinAssets.Image.RANDOM_OVER)) {
+                var local = image == SongSelectSkinAssets.Image.BACK
+                        ? current.resolveAnimation(image.basename).stream().findFirst() : current.resolve(image.basename);
+                var asset = assets.get(image);
+                if (local.isPresent() && (asset == null || asset.file().fallback() || !asset.file().path().equals(local.get().path())))
+                    throw new AssertionError("Current action replaced by chrome fallback: " + image);
+                if (asset != null) System.out.println("ACTION PASS " + image + " provider="
+                        + (asset.file().classpathResource() != null ? "bundled" : asset.file().fallback() ? "fallback" : "current")
+                        + " path=" + asset.file().path() + " density=" + asset.density());
+            }
         }
         if (scores.top() + 64 != content.rankingHeaderTop() || scores.bottom() < content.bottom())
             throw new AssertionError("Content bounds are disconnected from chrome");
