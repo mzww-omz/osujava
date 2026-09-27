@@ -93,3 +93,11 @@ tasks.register('spinnerVisualHarness', JavaExec) {
         systemProperty 'osujava.spinnerCkSkinArchive', project.property('spinnerCkSkinArchive')
     }
 }
+
+tasks.register('mainMenuVisualHarness', JavaExec) {
+    dependsOn hudHarnessClasses
+    classpath = sourceSets.hudHarness.runtimeClasspath
+    mainClass = 'dev.osujava.ui.MainMenuVisualHarness'
+    systemProperty 'java.awt.headless', 'true'
+    args project.findProperty('mainMenuOutput') ?: '/tmp/osujava-main-menu'
+}

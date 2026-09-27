@@ -33,6 +33,11 @@ public final class BeatmapBackdrop implements AutoCloseable {
         view.background(texture, 0.75f * fade);
     }
 
+    public boolean available() { return texture != null; }
+
+    /** Explicit UI animation alpha for deterministic captures and screen-local entrance timing. */
+    public void drawAt(UiView view, float alpha) { view.background(texture, alpha); }
+
     @Override public void close() {
         if (texture != null) texture.dispose();
         texture = null;

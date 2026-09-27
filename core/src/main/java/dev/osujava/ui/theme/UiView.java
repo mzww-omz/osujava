@@ -70,9 +70,27 @@ public final class UiView {
         }
     }
 
+    /** Vertex-colour gradient without a separate shader or texture. */
+    public void gradient(float x, float y, float w, float h, Color bottomLeft, Color bottomRight,
+                         Color topRight, Color topLeft) {
+        game.shapes().rect(x, y, w, h, bottomLeft, bottomRight, topRight, topLeft);
+    }
+
     public void circle(float x, float y, float radius, Color color) {
         game.shapes().setColor(color);
         game.shapes().circle(x, y, radius, 64);
+    }
+
+    /** A smooth coloured disk; the highlight origin can be offset within the perimeter. */
+    public void radialDisk(float x, float y, float radius, float highlightX, float highlightY,
+                           Color center, Color edge) {
+        int segments = 128;
+        for (int i = 0; i < segments; i++) {
+            double a = i * Math.PI * 2 / segments, b = (i + 1) * Math.PI * 2 / segments;
+            game.shapes().triangle(highlightX, highlightY,
+                    x + (float) Math.cos(a) * radius, y + (float) Math.sin(a) * radius,
+                    x + (float) Math.cos(b) * radius, y + (float) Math.sin(b) * radius, center, edge, edge);
+        }
     }
 
     public void quad(float x1, float y1, float x2, float y2, float x3, float y3,
