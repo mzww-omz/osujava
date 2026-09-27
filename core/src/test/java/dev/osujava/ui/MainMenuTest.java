@@ -16,6 +16,48 @@ class MainMenuTest {
     private static final MenuBeatTiming.Beat BEAT = MenuBeatTiming.at(List.of(), 0, false);
     private static void advance(MainMenuModel model, double ms) { model.advance(ms, BEAT, SILENT); }
 
+    @Test void informationFrameFadesInTwoHundredMsAndReversesContinuously() {
+        var model = new MainMenuModel(); assertEquals(0, model.frameEmphasis());
+        model.toggle(); advance(model, 100); assertEquals(.5f, model.frameEmphasis());
+        model.toggle(); assertEquals(.5f, model.frameEmphasis());
+        advance(model, 100); assertEquals(.25f, model.frameEmphasis());
+        advance(model, 100); assertEquals(0, model.frameEmphasis());
+        model.toggle(); advance(model, 200); assertEquals(1, model.frameEmphasis());
+        assertEquals(MainMenuState.OPENING, model.state());
+        for (var state : MainMenuState.values()) {
+            var snapshot = new MainMenuModel(); snapshot.captureState(state, 100);
+            assertEquals(switch (state) { case CLOSED -> 0; case OPEN -> 1; default -> .5f; }, snapshot.frameEmphasis());
+        }
+    }
+    @Test void informationFrameRetainsLegibilityAndNegativeSpaceAtAllCaptureSizes() {
+        for (int[] size : new int[][]{{1024,768},{1280,720},{1920,1080},{600,800}}) {
+            var ui = UiLayout.fromPixels(size[0],size[1]);
+            var frame = MainMenuFrame.layout(ui); var menu = MainMenuLayout.from(ui);
+            assertTrue(frame.topHeight() * ui.scale() >= 52);
+            assertTrue(frame.bottomHeight() * ui.scale() >= 30);
+            assertEquals(56 * Math.max(.95f,ui.scale()),frame.topHeight() * ui.scale(),.001);
+            assertTrue(frame.trackWidth() * ui.scale() > 250);
+            assertTrue(frame.trackX() > frame.pad() + frame.leftWidth());
+            // Fixed harness spectrum's maximum radius, including settled logo hover.
+            float spectrumRadius = menu.radius() * 1.1f * (1 + 3 * .111f);
+            assertTrue(menu.cy() + spectrumRadius + 24 < frame.height() - frame.topHeight());
+            assertTrue(menu.cy() - spectrumRadius - 24 > frame.bottomHeight());
+        }
+        assertEquals("00:00:00",MainMenuFrame.uptime(-1));
+        assertEquals("01:00:00",MainMenuFrame.uptime(3600));
+        assertEquals("100:01:01",MainMenuFrame.uptime(360061));
+        assertEquals("click the logo to open menu",MainMenuFrame.tip(MainMenuState.CLOSED));
+        assertTrue(MainMenuFrame.tip(MainMenuState.OPEN).contains("PLAY"));
+        assertFalse(MainMenuFrame.version().isBlank());
+    }
+    @Test void frameBpmUsesImportedTimingAndHidesUnknownValues() {
+        assertEquals("",MainMenuFrame.bpm(List.of(),0));
+        assertEquals("",MainMenuFrame.bpm(List.of(point(Double.NaN,500,true),point(0,-50,false)),0));
+        var timing = List.of(point(0,500,true),point(2000,250,true));
+        assertEquals("120 BPM",MainMenuFrame.bpm(timing,0));
+        assertEquals("240 BPM",MainMenuFrame.bpm(timing,2000));
+    }
+
     @Test void timingUsesCurrentUninheritedPointAndChangesBpmWithoutInheritedInterference() {
         var points = List.of(point(2000,250,true),point(100,500,true),point(1000,-50,false));
         assertEquals(500, MenuBeatTiming.at(points,0,true).lengthMs());

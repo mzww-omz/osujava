@@ -78,6 +78,10 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
                         scenes.add(new Scene(size[0],size[1],size[2],bg,"opening-"+ms,MainMenuState.OPENING,ms,1170,.4f));
                     for (String name : new String[]{"open-idle","play-hover","exit-hover","logo-hover"})
                         scenes.add(new Scene(size[0],size[1],size[2],bg,name,MainMenuState.OPEN,0,1170,.4f));
+                    for (String name : new String[]{"frame-closed-long-title", "frame-open-long-title", "frame-opening-midpoint", "frame-no-track", "frame-selected-track"})
+                        scenes.add(new Scene(size[0],size[1],size[2],bg,name,
+                                name.contains("opening") ? MainMenuState.OPENING : name.contains("open-long") ? MainMenuState.OPEN : MainMenuState.CLOSED,
+                                name.contains("opening") ? 100 : 0,1170,.4f));
                     for (int ms : new int[]{150,300})
                         scenes.add(new Scene(size[0],size[1],size[2],bg,"closing-"+ms,MainMenuState.CLOSING,ms,1170,.4f));
                 }
@@ -85,7 +89,10 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
     }
     private BeatmapSet set(Scene scene) {
         Path bg = scene.background ? artwork : null;
-        var diff = new BeatmapDifficulty("A long ambient title for responsive typography", "Local artist", "Harness", "Normal", 0, "", "",
+        String title = scene.name.startsWith("frame-")
+                ? "An extraordinarily long local track title — 夜空の向こうへ — with enough metadata to require an ellipsis even on a wide desktop window"
+                : "A long ambient title for responsive typography";
+        var diff = new BeatmapDifficulty(title, "Local artist", "Harness", "Normal", 0, "", "",
                 new DifficultySettings(5,5,5,5,1.4,1), List.of(new TimingPoint(0,500,4,0,0,100,true,1)), List.of(), null, bg);
         return new BeatmapSet("fixture",diff.title(),diff.artist(),"Harness",null,bg,List.of(diff),List.of());
     }
@@ -102,7 +109,7 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
                 });
         var fb = new FrameBuffer(Pixmap.Format.RGBA8888,scene.width * scene.density,scene.height * scene.density,false);
         game.library().add(set(scene));
-        var screen = new MainMenuScreen(game,set(scene),new FixedAnalysis(scene.amplitude), () -> {}, () -> {});
+        var screen = new MainMenuScreen(game,scene.name.equals("frame-no-track") ? null : set(scene),new FixedAnalysis(scene.amplitude), () -> {}, () -> {});
         try {
             MainMenuLayout m = MainMenuLayout.from(UiLayout.fromPixels(scene.width,scene.height));
             float x = -100, y = -100;
@@ -114,11 +121,22 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
             byte[] first = null;
             for (int attempt = 0; attempt < 2; attempt++) {
                 fb.begin();
-                screen.capture(scene.state,scene.transitionMs,scene.playbackMs,x,y,scene.name.equals("logo-pressed"));
+                screen.capture(scene.state,scene.transitionMs,scene.playbackMs,x,y,scene.name.equals("logo-pressed"),
+                        new MainMenuFrame.Info(scene.name.equals("frame-no-track") ? 0 : 563,3600,"18:20",MainMenuFrame.version(),
+                                !scene.name.equals("frame-no-track") && !scene.name.equals("frame-selected-track")));
                 Pixmap capture = Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
                 byte[] pixels = new byte[capture.getPixels().remaining()]; capture.getPixels().duplicate().get(pixels);
                 String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + (scene.background ? "artwork-" : "fallback-") + scene.name;
-                if (attempt == 0) { first = pixels; PixmapIO.writePNG(Gdx.files.absolute(output.resolve(name + ".png").toString()),capture,-1,true); }
+                if (attempt == 0) {
+                    first = pixels;
+                    PixmapIO.writePNG(Gdx.files.absolute(output.resolve(name + ".png").toString()),capture,-1,true);
+                    if (scene.name.startsWith("frame-")) {
+                        var frame = MainMenuFrame.layout(UiLayout.fromPixels(scene.width,scene.height));
+                        float pixelScale = UiLayout.fromPixels(scene.width,scene.height).scale() * scene.density;
+                        captureBar(capture,name + "-top",Math.round(frame.topHeight() * pixelScale),true);
+                        captureBar(capture,name + "-bottom",Math.round(frame.bottomHeight() * pixelScale),false);
+                    }
+                }
                 else if (!Arrays.equals(first,pixels)) throw new AssertionError("Pixels differ: " + name);
                 capture.dispose(); fb.end();
             }
@@ -128,6 +146,13 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
             System.out.println("Main Menu harness: " + index + " captures, all repeated framebuffer bytes identical; 60 Screen interaction checks passed: " + output);
             Gdx.app.exit();
         }
+    }
+    private void captureBar(Pixmap capture, String name, int height, boolean top) {
+        var bar = new Pixmap(capture.getWidth(),height,Pixmap.Format.RGBA8888);
+        bar.setBlending(Pixmap.Blending.None);
+        bar.drawPixmap(capture,0,top ? capture.getHeight() - height : 0,capture.getWidth(),height,0,0,capture.getWidth(),height);
+        PixmapIO.writePNG(Gdx.files.absolute(output.resolve(name + ".png").toString()),bar,-1,true);
+        bar.dispose();
     }
     /** Full Screen input/render path with scripted physical pointer and key input. */
     private void checkInteraction(Scene scene) {

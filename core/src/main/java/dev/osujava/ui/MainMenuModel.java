@@ -5,6 +5,8 @@ final class MainMenuModel {
     static final double EXPAND_MS = 380, LOGO_MS = 200, CLOSE_MS = 300, EXIT_MS = 200;
     private MainMenuState state = MainMenuState.CLOSED;
     private double elapsed, startReveal, startScale = 1;
+    private float startFrame;
+    static final double FRAME_MS = 200;
     private Runnable pending;
     private double exitElapsed;
     private int exploded = -1;
@@ -18,6 +20,7 @@ final class MainMenuModel {
     MainMenuState state() { return state; }
     void toggle() {
         if (pending != null) return;
+        startFrame = frameEmphasis();
         startReveal = reveal(); startScale = transitionScale(); elapsed = 0; flash = .4f;
         state = state == MainMenuState.CLOSED || state == MainMenuState.CLOSING ? MainMenuState.OPENING : MainMenuState.CLOSING;
     }
@@ -26,6 +29,15 @@ final class MainMenuModel {
             case CLOSED -> 0; case OPEN -> 1;
             case OPENING -> (float) startReveal + (1 - (float) startReveal) * MainMenuMotion.outExpo(elapsed / EXPAND_MS);
             case CLOSING -> (float) startReveal * (1 - MainMenuMotion.outExpo(elapsed / CLOSE_MS));
+        };
+    }
+    /** A quiet linear fade, independent of logo easing; reversals retain current opacity. */
+    float frameEmphasis() {
+        return switch (state) {
+            case CLOSED -> 0;
+            case OPEN -> 1;
+            case OPENING -> startFrame + (1 - startFrame) * MainMenuMotion.clamp(elapsed / FRAME_MS);
+            case CLOSING -> startFrame * (1 - MainMenuMotion.clamp(elapsed / FRAME_MS));
         };
     }
     float transitionScale() {

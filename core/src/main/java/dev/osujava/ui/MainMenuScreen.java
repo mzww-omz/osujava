@@ -10,10 +10,15 @@ import dev.osujava.beatmap.*;
 import dev.osujava.ui.theme.*;
 import java.util.List;
 import java.util.random.RandomGenerator;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 /** Music-first local menu. Owns one ambient difficulty and its stream for this screen lifetime. */
 public final class MainMenuScreen extends ScreenAdapter {
     private final UiView view;
+    private final OsuJavaGame game;
+    private final MainMenuFrame frame = new MainMenuFrame();
+    private static final DateTimeFormatter CLOCK = DateTimeFormatter.ofPattern("HH:mm");
     private final MainMenuLogo logo = new MainMenuLogo();
     private final BeatmapBackdrop artwork = new BeatmapBackdrop();
     private final MenuAmbientAudio audio;
@@ -33,7 +38,7 @@ public final class MainMenuScreen extends ScreenAdapter {
     }
     /** Harness injects fixed amplitudes; decoding never enters the renderer. */
     MainMenuScreen(OsuJavaGame game, BeatmapSet ambient, MenuAudioAnalysis analysis, Runnable play, Runnable exit) {
-        view = new UiView(game); this.analysis = analysis;
+        this.game = game; view = new UiView(game); this.analysis = analysis;
         BeatmapDifficulty difficulty = ambient == null ? null : ambient.difficulties().stream()
                 .filter(d -> d.backgroundPath() != null && java.nio.file.Files.isRegularFile(d.backgroundPath()))
                 .findFirst().orElse(ambient.difficulties().getFirst());
@@ -68,10 +73,13 @@ public final class MainMenuScreen extends ScreenAdapter {
         }
         pointerWasDown = down;
         model.pointer(overLogo, button, down && pressedTarget == -2);
-        draw(m, model, visualiser.amplitudes());
+        var info = new MainMenuFrame.Info(game.library().all().stream().mapToInt(set -> set.difficulties().size()).sum(),
+                game.sessionUptimeSeconds(), LocalTime.now().format(CLOCK), MainMenuFrame.version(), audio.available());
+        draw(m, model, visualiser.amplitudes(), info);
     }
     /** Each capture reconstructs animation/analysis history from explicit inputs, not prior frames. */
-    void capture(MainMenuState state, double stateMs, double playbackMs, float x, float y, boolean pressed) {
+    void capture(MainMenuState state, double stateMs, double playbackMs, float x, float y, boolean pressed,
+                 MainMenuFrame.Info info) {
         MainMenuModel snapshot = new MainMenuModel(); snapshot.captureState(state, stateMs);
         beat = MenuBeatTiming.at(timing, playbackMs, true);
         analysis.sample(playbackMs, beat);
@@ -81,20 +89,22 @@ public final class MainMenuScreen extends ScreenAdapter {
         snapshot.pointer(m.logoHit(x, y, snapshot.scale()), m.buttonAt(x, y, snapshot), pressed);
         // Settle hover/amplitude layers without advancing the requested transition time.
         snapshot.settleCapture(beat, analysis);
-        draw(m, snapshot, spectrum.amplitudes());
+        draw(m, snapshot, spectrum.amplitudes(), info);
     }
-    private void draw(MainMenuLayout m, MainMenuModel snapshot, float[] bins) {
+    private void draw(MainMenuLayout m, MainMenuModel snapshot, float[] bins, MainMenuFrame.Info info) {
+        var frameLayout = MainMenuFrame.layout(UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight()));
         view.clear(); artwork.drawAt(view, 1);
         view.beginShapes();
         if (!artwork.available()) view.gradient(0, 0, m.width(), m.height(),
                 new Color(.035f,.032f,.055f,1), new Color(.035f,.032f,.055f,1),
                 new Color(.12f,.075f,.11f,1), new Color(.12f,.075f,.11f,1));
         view.box(0, 0, m.width(), m.height(), 0, new Color(.015f,.012f,.025f,.16f + snapshot.reveal() * .17f));
-        // Vertical edge falloff leaves the artwork visible; no permanent horizontal action strip.
+        // Light edge falloff beneath the permanent information frame.
         Color clear = new Color(0,0,0,0), edge = new Color(.01f,.008f,.02f,.32f);
         view.gradient(0,0,m.width(),m.height() * .23f,edge,edge,clear,clear);
         view.gradient(0,m.height() * .77f,m.width(),m.height() * .23f,clear,clear,edge,edge);
         for (int b = 0; b < 2; b++) buttonShape(m, snapshot, b);
+        frame.shapes(view, frameLayout, snapshot.frameEmphasis());
         view.endShapes();
         logo.visualiser(view, m, snapshot.scale(), bins);
         logo.draw(view, m, snapshot);
@@ -108,11 +118,8 @@ public final class MainMenuScreen extends ScreenAdapter {
             view.textSmooth(b == 0 ? "PLAY" : "EXIT", x + m.direction(b) * snapshot.hover(b) * 5,
                     m.cy() + 11, width, b == 0 ? 1.5f : 1.25f, color, Align.center);
         }
-        if (!title.isBlank()) {
-            view.textSmooth(title, 24, 38, m.width() - 48, .72f, new Color(1,1,1,.65f), Align.right);
-            view.textSmooth(Math.round(60000 / beat.lengthMs()) + " BPM", 24, 20, m.width() - 48, .62f,
-                    new Color(1,1,1,.48f), Align.right);
-        }
+        // Metadata uses map timing even for a missing stream; never label fallback animation timing as map BPM.
+        frame.text(view, frameLayout, snapshot, info, title, MainMenuFrame.bpm(timing, beat.positionMs()));
         view.endText(); view.cover(snapshot.fade());
     }
     private void buttonShape(MainMenuLayout m, MainMenuModel snapshot, int button) {

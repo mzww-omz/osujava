@@ -1,5 +1,18 @@
 apply plugin: 'java-library'
 
+def buildInfoDirectory = layout.buildDirectory.dir('generated/buildInfo')
+tasks.register('generateBuildInfo') {
+    inputs.property('appVersion', project.version.toString())
+    outputs.dir(buildInfoDirectory)
+    doLast {
+        def output = buildInfoDirectory.get().file('osujava-build.properties').asFile
+        output.parentFile.mkdirs()
+        output.text = "version=${project.version}\n"
+    }
+}
+sourceSets.main.resources.srcDir(buildInfoDirectory)
+tasks.named('processResources') { dependsOn 'generateBuildInfo' }
+
 dependencies {
     api "com.badlogicgames.gdx:gdx:$gdxVersion"
 

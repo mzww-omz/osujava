@@ -19,6 +19,7 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 
 public class OsuJavaGame extends Game {
+    private final long sessionStartNanos = System.nanoTime();
     private final BeatmapFileChooser fileChooser;
     private final Path skinDirectory;
     private SpriteBatch batch;
@@ -39,6 +40,9 @@ public class OsuJavaGame extends Game {
     }
 
     public Path skinDirectory() { return skinDirectory; }
+
+    /** Application lifetime, including time spent away from the Main Menu. */
+    public long sessionUptimeSeconds() { return Math.max(0, (System.nanoTime() - sessionStartNanos) / 1_000_000_000L); }
 
     public Path skinFallbackDirectory() {
         String value = System.getProperty("osujava.skinFallbackDirectory");
