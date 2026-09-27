@@ -36,6 +36,7 @@ public final class SongSelectSkinAssets implements Disposable {
     private final EnumMap<Image, SkinTexture> textures = new EnumMap<>(Image.class);
     private final Set<Texture> owned = Collections.newSetFromMap(new IdentityHashMap<>());
     private Texture fallbackStar;
+    private SongSelectBodyBounds rowBody = SongSelectBodyBounds.FULL;
     private SkinConfiguration configuration = SkinConfiguration.defaults();
 
     public SongSelectSkinAssets(Path directory, Path fallbackDirectory) {
@@ -61,6 +62,16 @@ public final class SongSelectSkinAssets implements Disposable {
                     texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
                     textures.put(image, new SkinTexture(texture, file));
                     owned.add(texture);
+                    if (image == Image.MENU_BUTTON_BACKGROUND && Gdx.gl != null) {
+                        Pixmap pixels = null;
+                        try {
+                            pixels = new Pixmap(file.handle());
+                            Pixmap source = pixels;
+                            rowBody = SongSelectBodyBounds.detect(pixels.getWidth(), pixels.getHeight(),
+                                    (x, y) -> source.getPixel(x, y) & 255);
+                        } catch (GdxRuntimeException ignored) { rowBody = SongSelectBodyBounds.FULL; }
+                        finally { if (pixels != null) pixels.dispose(); }
+                    }
                     return true;
                 } catch (GdxRuntimeException | IllegalArgumentException e) {
                     if (texture != null && !owned.contains(texture)) texture.dispose();
@@ -76,6 +87,8 @@ public final class SongSelectSkinAssets implements Disposable {
     }
 
     public SkinTexture get(Image image) { return textures.get(image); }
+    public SongSelectBodyBounds rowBody() { return rowBody; }
+    public boolean thumbnailsEnabled() { return configuration.legacyVersion() >= 2.2; }
     public SkinConfiguration configuration() { return configuration; }
 
     /** Resolver candidates always win; this small UI glyph is created once if all are absent/corrupt. */

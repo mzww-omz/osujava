@@ -130,7 +130,7 @@ class SongSelectWheelTest {
             var game=game(); var screen=new SongSelectScreen(game); game.navigate(screen);
             try {
                 screen.resize(width,height);
-                pointer(.97f,.90f);
+                pointer(.97f,.85f);
                 assertTrue(screen.usesMouseWheelAt(pointerX,pointerY));
                 float before=carousel(screen).scrollTarget();
                 assertTrue(processor.scrolled(0,.25f));

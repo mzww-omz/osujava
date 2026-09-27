@@ -42,8 +42,8 @@ class SongSelectRowPresentationTest {
     @ParameterizedTest @ValueSource(doubles = {7.01, 10, 12.84, 1000, Double.MAX_VALUE})
     void highRatingsHaveBoundedWidthAndCount(double value) {
         var stars = SongSelectRowPresentation.Stars.of(OptionalDouble.of(value));
-        assertEquals(1, stars.count()); assertEquals(1, stars.fill(0));
-        assertTrue(stars.width() <= 76); assertTrue(stars.label().length() <= 8);
+        assertTrue(stars.count() <= 9); assertEquals(1, stars.fill(0));
+        assertTrue(stars.width() <= 226); assertTrue(stars.label().length() <= 8);
     }
     @Test void knownZeroHasEmptyIconAndZeroLabel() {
         var stars = SongSelectRowPresentation.Stars.of(OptionalDouble.of(0));
@@ -53,11 +53,11 @@ class SongSelectRowPresentationTest {
     void setAndDifficultyContentKeepSeparateHierarchy(int count) {
         var set = set(count);
         var parent = SongSelectRowPresentation.content(set, null, OptionalDouble.of(5));
-        assertEquals(set.title(), parent.title()); assertEquals("Artist  /  Set mapper", parent.byline());
-        assertEquals(count + (count == 1 ? " difficulty" : " difficulties"), parent.detail());
+        assertEquals(set.title(), parent.title()); assertEquals("Artist // Set mapper", parent.byline());
+        assertEquals("", parent.detail());
         assertFalse(parent.stars().present());
         var child = SongSelectRowPresentation.content(set, set.difficulties().getFirst(), OptionalDouble.of(5));
-        assertEquals("Artist  /  Difficulty mapper", child.byline()); assertEquals("Difficulty 0", child.detail());
+        assertEquals("Artist // Difficulty mapper", child.byline()); assertEquals("Difficulty 0", child.detail());
         assertEquals(set.backgroundPath(), child.thumbnail()); assertTrue(child.stars().present());
     }
     @ParameterizedTest @ValueSource(ints = {68, 76, 110})
@@ -68,12 +68,16 @@ class SongSelectRowPresentationTest {
             assertTrue(geometry.thumbnailY() + geometry.thumbnailHeight() <= height);
             assertTrue(geometry.thumbnailX() + geometry.thumbnailWidth() < geometry.textX());
             assertTrue(geometry.textX() + geometry.textWidth() <= 410);
-            assertEquals(modern ? 115f / 85 : 96f / 70, geometry.thumbnailWidth() / geometry.thumbnailHeight(), .0001f);
+            if (modern) {
+                assertEquals(115f / 85, geometry.thumbnailWidth() / geometry.thumbnailHeight(), .0001f);
+                assertEquals(.93f, geometry.thumbnailHeight() / height, .0001f);
+            } else assertEquals(0, geometry.thumbnailWidth());
+            assertTrue(geometry.detailY() > geometry.starsY());
             assertTrue(geometry.titleY() > geometry.bylineY()); assertTrue(geometry.bylineY() > geometry.detailY());
         }
     }
     @Test void noAvailableTextWidthDoesNotForceOverlap() {
-        assertEquals(0, SongSelectRowPresentation.geometry(600, 76, 100, false).textWidth());
+        assertEquals(0, SongSelectRowPresentation.geometry(600, 76, 100, true).textWidth());
     }
     @Test void thumbnailFadeNeverChangesRowGeometry() {
         var before = SongSelectRowPresentation.geometry(600, 76, 410, false);

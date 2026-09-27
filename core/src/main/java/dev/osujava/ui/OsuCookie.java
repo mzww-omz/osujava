@@ -22,7 +22,7 @@ final class OsuCookie implements AutoCloseable {
     void draw(UiView view, float seconds, boolean hovered, boolean pressed) {
         // Song Select uses a 60 BPM fallback for its UI pulse.
         float beat = (float) Math.pow(Math.max(0, Math.sin(seconds * Math.PI * 2)), 5);
-        float r = radius + beat * 3 + (hovered ? 5 : 0) - (hovered && pressed ? 5 : 0);
+        float r = radius + beat * radius * .018f + (hovered ? radius * .035f : 0) - (hovered && pressed ? radius * .035f : 0);
         logo.draw(view, x, y, r, 0);
     }
 

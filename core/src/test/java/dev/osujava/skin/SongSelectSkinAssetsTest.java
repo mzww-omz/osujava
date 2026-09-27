@@ -14,6 +14,14 @@ import static org.junit.jupiter.api.Assertions.*;
 class SongSelectSkinAssetsTest {
     @TempDir Path directory;
 
+    @ParameterizedTest @ValueSource(strings = {"1.0", "2.1", "2.2", "latest"})
+    void thumbnailPolicyUsesSkinVersionRatherThanSkinName(String version) throws Exception {
+        Files.writeString(directory.resolve("skin.ini"), "[General]\nName: Arbitrary\nVersion: " + version + "\n");
+        var assets = new SongSelectSkinAssets(new SkinAssetResolver(directory), file -> { fail(); return null; });
+        assertEquals(version.equals("2.2") || version.equals("latest"), assets.thumbnailsEnabled());
+        assets.dispose();
+    }
+
     @Test void emptySkinUsesNoTexturesAndKeepsDrawingFallback() {
         var assets = new SongSelectSkinAssets(new SkinAssetResolver(directory), file -> {
             fail("Missing files must not invoke the loader"); return null;

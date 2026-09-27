@@ -126,8 +126,8 @@ class SongSelectCarouselMotionTest {
             for (var row : model.rows()) {
                 float center = model.renderY(row, 658) + model.rowHeight() / 2;
                 float distance = (658 - center - 310) / 310;
-                float baseline = SongSelectCarousel.curveX(distance, 1280) - 24 * row.selectedAmount;
-                assertTrue(Math.abs(model.renderX(row, 1280) - baseline) <= 18.01);
+                float baseline = SongSelectCarousel.curveX(distance, 1280) - 3 * row.selectedAmount;
+                assertTrue(Math.abs(model.renderX(row, 1280) - baseline) <= 5.01);
                 assertTrue(model.renderX(row, 1280) >= 1280 * .52f);
                 assertTrue(model.renderX(row, 1280) <= 1280 * .74f);
             }
