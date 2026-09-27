@@ -135,6 +135,21 @@ class SongSelectNavigationTest {
         assertTrue(((UiNavigation)field("outgoing")).pending());
     }
 
+    @Test void rowUnderLogoSelectsSetWithoutStartingPlay() throws Exception {
+        var diff = library.all().iterator().next().difficulties().get(0);
+        for (String title : List.of("Delta", "Epsilon"))
+            library.add(new BeatmapSet(title,title,"Artist","Creator",null,null,List.of(diff),List.of()));
+        open("Beta",0); screen.resize(1280,720);
+        var row = carousel().rows().stream().filter(r -> r.entry.setIndex() == 4).findFirst().orElseThrow();
+        float x = 1245, y = carousel().renderY(row,658) + carousel().rowHeight()/2;
+        assertTrue(y > 38 && y < 100, "Row overlaps the logo artwork");
+        assertFalse(((OsuCookie)field("playCookie")).hit(x,y));
+        var method = SongSelectScreen.class.getDeclaredMethod("handleRowClick",float.class,float.class);
+        method.setAccessible(true); method.invoke(screen,x,y);
+        selected(4,0,"Gamma-easy.png");
+        assertFalse(((UiNavigation)field("outgoing")).pending());
+    }
+
     @Test void setDoubleClickCannotPlayTheDifficultyReplacingItsRow() throws Exception {
         open("Beta",0); screen.resize(1280,720);
         click(2,-1); screen.resize(1280,720); click(2,0);

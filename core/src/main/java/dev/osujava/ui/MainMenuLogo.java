@@ -6,7 +6,7 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import dev.osujava.ui.theme.UiView;
 
-/** Main Menu only; Song Select retains its existing OsuCookie. Pure drawing of supplied layers. */
+/** Shared menu logo artwork. Pure drawing of supplied layers. */
 final class MainMenuLogo implements AutoCloseable {
     private Texture texture;
 
@@ -37,16 +37,18 @@ final class MainMenuLogo implements AutoCloseable {
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
     }
     void draw(UiView view, MainMenuLayout m, MainMenuModel model) {
-        float r = m.radius() * model.scale();
+        draw(view, m.cx(), m.cy(), m.radius() * model.scale(), model.flash());
+    }
+    void draw(UiView view, float x, float y, float r, float flash) {
         view.beginShapes();
-        for (int i = 10; i > 0; i--) view.circle(m.cx(), m.cy(), r + i * 2.2f, new Color(1, .4f, .65f, .01f));
+        for (int i = 10; i > 0; i--) view.circle(x, y, r + i * 2.2f, new Color(1, .4f, .65f, .01f));
         view.endShapes();
         view.beginText();
-        view.imageCover(texture, m.cx() - r, m.cy() - r, r * 2, r * 2);
+        view.imageCover(texture, x - r, y - r, r * 2, r * 2);
         view.endText();
-        if (model.flash() > .001f) {
+        if (flash > .001f) {
             view.beginShapes();
-            view.circle(m.cx(), m.cy(), r * .945f, new Color(1, 1, 1, model.flash()));
+            view.circle(x, y, r * .945f, new Color(1, 1, 1, flash));
             view.endShapes();
         }
     }

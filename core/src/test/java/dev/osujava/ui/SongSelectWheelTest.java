@@ -123,6 +123,24 @@ class SongSelectWheelTest {
         }
     }
 
+    @Test void artworkOverlappingCarouselDoesNotStealWheelAtAllResolutions() throws Exception {
+        addBeatmap();
+        for (int[] size : new int[][]{{1280,720},{1920,1080},{2560,1440}}) {
+            width=size[0]; height=size[1];
+            var game=game(); var screen=new SongSelectScreen(game); game.navigate(screen);
+            try {
+                screen.resize(width,height);
+                pointer(.97f,.90f);
+                assertTrue(screen.usesMouseWheelAt(pointerX,pointerY));
+                float before=carousel(screen).scrollTarget();
+                assertTrue(processor.scrolled(0,.25f));
+                assertTrue(carousel(screen).scrollTarget()>before);
+                assertEquals(100,game.volumeHud().percent(Channel.MASTER));
+                assertFalse(game.volumeHud().active());
+            } finally { screen.dispose(); }
+        }
+    }
+
     @Test void wheelBrowsesPastOtherSetsWithoutSelectingOrExpandingThem() throws Exception {
         addBeatmap();
         var diff=library.all().iterator().next().difficulties().get(0);

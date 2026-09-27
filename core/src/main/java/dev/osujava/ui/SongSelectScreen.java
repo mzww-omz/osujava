@@ -60,7 +60,6 @@ public final class SongSelectScreen extends ScreenAdapter {
         static final float ROW_TITLE_SCALE = .84f;
         static final float ROW_DETAIL_SCALE = .66f;
         static final float ROW_MODE_SCALE = .62f;
-        static final float COOKIE_TEXT_SCALE = .68f;
     }
 
     private final OsuJavaGame game;
@@ -114,6 +113,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     @Override public void show() {
         // GL is absent in navigation-only unit tests. No textures are loaded in render().
         if (skin == null && Gdx.gl != null) skin = new SongSelectSkinAssets(game.skinDirectory(), game.skinFallbackDirectory());
+        if (Gdx.gl != null) playCookie.loadGraphics();
         if (skin != null) {
             activeText = textColor(skin.configuration().songSelect().activeText(), DARK_TEXT);
             inactiveText = textColor(skin.configuration().songSelect().inactiveText(), null);
@@ -178,8 +178,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         float x = layout.pointerX(screenX), y = layout.pointerY(screenY);
         return x >= layout.width() * .5f && x <= layout.width()
-                && y > Metrics.TOOLBAR_HEIGHT && y < layout.height() - Metrics.HEADER_HEIGHT
-                && !playCookie.hit(x, y);
+                && y > Metrics.TOOLBAR_HEIGHT && y < layout.height() - Metrics.HEADER_HEIGHT;
     }
 
     @Override public void render(float delta) {
@@ -227,9 +226,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.endShapes();
         drawRows(layout, px, py);
         if (selectedDifficulty() != null) {
-            view.beginShapes();
-            playCookie.drawShape(view, seconds, playCookie.hit(px, py), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
-            view.endShapes();
+            playCookie.draw(view, seconds, playCookie.hit(px, py), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
         }
         view.beginText();
         // Fit Back into logical bounds regardless of transparent pixels or image dimensions.
@@ -249,7 +246,6 @@ public final class SongSelectScreen extends ScreenAdapter {
                 Metrics.RANDOM_WIDTH - 14, .70f, !randomEnabled ? UiTheme.MUTED : UiTheme.TEXT);
         view.textSmooth(sets.size() + " local sets", 405, 11, 160, .72f, UiTheme.MUTED);
         view.textSmooth("F6  DEBUG AUTO", layout.width() - 145, 11, 132, .62f, UiTheme.MUTED);
-        if (selectedDifficulty() != null) playCookie.drawText(view, Metrics.COOKIE_TEXT_SCALE);
         if (toastSeconds > 0) view.textSmooth(toast, 27, bottom + 34, Math.min(430, layout.width() * .4f), UiTheme.META, toastColor);
         view.endText();
         toastSeconds = Math.max(0, toastSeconds - Math.max(0, delta));
@@ -257,7 +253,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.cover(outgoing.opacity());
     }
 
-    @Override public void dispose() { closed = true; thumbnails.close(); if (skin != null) skin.dispose(); }
+    @Override public void dispose() { closed = true; thumbnails.close(); playCookie.close(); if (skin != null) skin.dispose(); }
 
     private void calculateLayout(UiLayout layout) {
         bottom = Metrics.TOOLBAR_HEIGHT;
@@ -267,7 +263,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         cookieRadius = Math.min(70, layout.height() * .10f);
         cookieX = layout.width() - cookieRadius * .50f;
         cookieY = cookieRadius * .55f;
-        playCookie.bounds(cookieX, cookieY, cookieRadius);
+        playCookie.bounds(cookieX, cookieY, cookieRadius, bottom);
     }
 
     private List<Row> layoutRows(UiLayout layout, float delta) {
@@ -458,7 +454,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         return x >= row.x() && x <= row.x() + row.width() && y >= row.y() && y <= row.y() + row.height();
     }
     private Row hitRow(float x, float y) {
-        if (y <= bottom || y >= top || playCookie.hit(x, y)) return null;
+        if (y <= bottom || y >= top) return null;
         // Match compositing order: the selected difficulty is drawn above overlapping rows.
         for (Row row : visibleRows) if (row.selected() && rowHit(row, x, y)) return row;
         for (int i = visibleRows.size() - 1; i >= 0; i--) {
