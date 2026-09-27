@@ -173,4 +173,23 @@ class SongSelectWheelTest {
         } finally { screen.dispose(); }
     }
 
+    @Test void extremeFiniteWheelAndTinyTrackpadDeltasRemainSafe() throws Exception {
+        addBeatmap();
+        var diff = library.all().iterator().next().difficulties().getFirst();
+        for (int i = 0; i < 30; i++) library.add(new BeatmapSet("set" + i,"Other " + i,"Artist","Creator",null,null,List.of(diff),List.of()));
+        var game = game(); var screen = new SongSelectScreen(game); game.navigate(screen);
+        try {
+            pointer(.8f,.5f); var model = carousel(screen);
+            float target = model.scrollTarget();
+            assertTrue(processor.scrolled(0,.0001f));
+            assertEquals(target + .0001f * model.rowHeight(),model.scrollTarget(),.001);
+            assertTrue(processor.scrolled(0,Float.MAX_VALUE));
+            assertEquals(model.maxScroll(),model.scrollTarget());
+            assertTrue(Float.isFinite(model.scrollVelocity()));
+            assertTrue(processor.scrolled(0,-Float.MAX_VALUE));
+            assertEquals(0,model.scrollTarget());
+            assertEquals(100,game.volumeHud().percent(Channel.MASTER));
+        } finally { screen.dispose(); }
+    }
+
 }

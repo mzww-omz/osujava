@@ -68,6 +68,8 @@ public final class SongSelectScreen extends ScreenAdapter {
     private Color activeText = DARK_TEXT, inactiveText;
     private float randomFade, randomPulse;
     private final Color randomOverlayTint = new Color(Color.WHITE);
+    private final Color rowTint = new Color(), thumbnailTint = new Color();
+    private final Color primaryTint = new Color(), secondaryTint = new Color();
     private final UiTransition entrance = new UiTransition();
     private final UiNavigation outgoing = new UiNavigation();
     private final BeatmapThumbnails thumbnails = new BeatmapThumbnails();
@@ -88,7 +90,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private float top, bottom, searchX, searchW, cookieX, cookieY, cookieRadius;
 
     private record Row(int setIndex, int difficultyIndex, boolean selected, boolean sibling,
-                       float x, float y, float width, float height) { }
+                       float x, float y, float width, float height, float hoverAmount, float revealAmount) { }
 
     public SongSelectScreen(OsuJavaGame game) { this(game, null, 0); }
     public SongSelectScreen(OsuJavaGame game, String preferredSetId, int preferredDifficulty) {
@@ -158,7 +160,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             @Override public boolean scrolled(float amountX, float amountY) {
                 if (!Float.isFinite(amountY) || amountY == 0
                         || !usesMouseWheelAt(Gdx.input.getX(), Gdx.input.getY())) return false;
-                if (!importing) carousel.scrollBy(amountY * carousel.rowHeight());
+                if (!importing) carousel.scrollBy(Math.max(-10000, Math.min(10000, amountY)) * carousel.rowHeight());
                 return true;
             }
         });
@@ -224,7 +226,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.box(searchX, top + 4, searchW, 25, 0, searchActive ? SIBLING : LEFT);
         if (toastSeconds > 0) view.box(18, bottom + 12, Math.min(450, layout.width() * .42f), 35, 0, BOTTOM);
         view.endShapes();
-        drawRows(layout, px, py);
+        drawRows(layout);
         if (selectedDifficulty() != null) {
             playCookie.draw(view, seconds, playCookie.hit(px, py), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
         }
@@ -278,7 +280,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             int setIndex = entry.entry.setIndex(), diffIndex = entry.entry.difficultyIndex();
             boolean selected = setIndex == selectedSetIndex && diffIndex == selectedDifficultyIndex;
             result.add(new Row(setIndex, diffIndex, selected, setIndex == selectedSetIndex && !selected,
-                    carousel.renderX(entry, layout.width()), y, rowWidth(layout), carousel.rowHeight()));
+                    carousel.renderX(entry, layout.width()), y, rowWidth(layout), carousel.rowHeight(), entry.hoverAmount, selected ? 1 : entry.revealAmount * entry.revealAmount));
         }
         return result;
     }
@@ -353,15 +355,15 @@ public final class SongSelectScreen extends ScreenAdapter {
                 ? thumbnailHeight() * 115f / 85f : Metrics.THUMB_WIDTH * thumbnailHeight() / Metrics.THUMB_HEIGHT;
     }
 
-    private void drawRows(UiLayout layout, float px, float py) {
+    private void drawRows(UiLayout layout) {
         // Crop the carousel to its existing logical area, including partially visible rows.
         float scaleX = Gdx.graphics.getBackBufferWidth() / layout.width();
         float scaleY = Gdx.graphics.getBackBufferHeight() / layout.height();
         Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
         Gdx.gl.glScissor(0, Math.round(bottom * scaleY), Math.round(layout.width() * scaleX), Math.round((top - bottom) * scaleY));
         try {
-            for (Row row : visibleRows) if (!row.selected()) drawRow(row, px, py);
-            for (Row row : visibleRows) if (row.selected()) drawRow(row, px, py);
+            for (Row row : visibleRows) if (!row.selected()) drawRow(row);
+            for (Row row : visibleRows) if (row.selected()) drawRow(row);
         } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
         if (visibleRows.isEmpty()) {
             view.beginShapes();
@@ -374,10 +376,11 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
-    private void drawRow(Row row, float px, float py) {
-        boolean hover = rowHit(row, px, py);
-        Color color = row.selected() ? SELECTED : row.sibling()
-                ? hover ? SIBLING_HOVER : SIBLING : hover ? OTHER_HOVER : OTHER;
+    private void drawRow(Row row) {
+        if (row.revealAmount() < .01f) return;
+        Color color = rowTint.set(row.selected() ? SELECTED : row.sibling() ? SIBLING : OTHER);
+        if (!row.selected()) color.lerp(row.sibling() ? SIBLING_HOVER : OTHER_HOVER, row.hoverAmount());
+        color.a *= row.revealAmount();
         float x = row.x(), y = row.y();
         if (has(Image.MENU_BUTTON_BACKGROUND)) {
             view.beginText();
@@ -389,13 +392,16 @@ public final class SongSelectScreen extends ScreenAdapter {
             view.endShapes();
         }
         view.beginShapes();
-        view.box(x + Metrics.THUMB_X, y + Metrics.THUMB_Y, thumbnailWidth(), thumbnailHeight(), 0, THUMB_FALLBACK);
+        view.box(x + Metrics.THUMB_X, y + Metrics.THUMB_Y, thumbnailWidth(), thumbnailHeight(), 0,
+                thumbnailTint.set(THUMB_FALLBACK.r, THUMB_FALLBACK.g, THUMB_FALLBACK.b, row.revealAmount()));
         view.endShapes();
         BeatmapSet set = sets.get(row.setIndex());
         BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : set.difficulties().get(0);
         Path path = diff.backgroundPath() != null ? diff.backgroundPath() : set.backgroundPath();
         view.beginText();
+        game.batch().setColor(1, 1, 1, row.revealAmount());
         view.imageCover(thumbnails.get(path), x + Metrics.THUMB_X, y + Metrics.THUMB_Y, thumbnailWidth(), thumbnailHeight());
+        game.batch().setColor(Color.WHITE);
         drawRowLabel(row);
         view.endText();
     }
@@ -405,6 +411,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         BeatmapDifficulty diff = row.difficultyIndex() >= 0 ? set.difficulties().get(row.difficultyIndex()) : null;
         Color primary = row.selected() ? activeText : inactiveText != null ? inactiveText : UiTheme.TEXT;
         Color secondary = row.selected() ? activeText : inactiveText != null ? inactiveText : UiTheme.MUTED;
+        primary = primaryTint.set(primary); primary.a *= row.revealAmount();
+        secondary = secondaryTint.set(secondary); secondary.a *= row.revealAmount();
         float textOffset = Metrics.THUMB_X + thumbnailWidth() + 13;
         float x = row.x() + textOffset, w = Math.max(60, row.width() - textOffset - 18);
         view.textSmooth(set.artist() + " - " + set.title(), x, row.y() + row.height() * .66f, w, Metrics.ROW_TITLE_SCALE, primary);
@@ -451,7 +459,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private boolean rowHit(Row row, float x, float y) {
-        return x >= row.x() && x <= row.x() + row.width() && y >= row.y() && y <= row.y() + row.height();
+        return row.revealAmount() >= .05f && x >= row.x() && x <= row.x() + row.width() && y >= row.y() && y <= row.y() + row.height();
     }
     private Row hitRow(float x, float y) {
         if (y <= bottom || y >= top) return null;

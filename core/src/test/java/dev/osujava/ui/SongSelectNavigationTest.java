@@ -187,4 +187,32 @@ class SongSelectNavigationTest {
         assertTrue(carousel().scrollOffset() <= carousel().maxScroll());
     }
 
+    private Object rowValue(Object row, String name) throws Exception {
+        var method = row.getClass().getDeclaredMethod(name); method.setAccessible(true); return method.invoke(row);
+    }
+
+    @Test void animatedDrawBoundsAreClickableAndSelectedRowWinsDuringExpansionOverlap() throws Exception {
+        open("Beta",0); screen.resize(1280,720); settle();
+        var hit = SongSelectScreen.class.getDeclaredMethod("hitRow",float.class,float.class); hit.setAccessible(true);
+        key(Input.Keys.PAGE_DOWN); // Expansion inherits the collapsed Set bounds, overlapping children.
+        for (int frame = 0; frame < 40; frame++) {
+            if (frame < 8) carousel().scrollBy(frame < 4 ? 80 : -80);
+            carousel().advance(1f/60,"Gamma#0");
+            // resize refreshes the production draw snapshot without advancing motion.
+            screen.resize(1280,720);
+            for (Object snapshot : (List<?>) field("visibleRows")) {
+                int set = (int)rowValue(snapshot,"setIndex"), diff = (int)rowValue(snapshot,"difficultyIndex");
+                var modelRow = carousel().rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff).findFirst().orElseThrow();
+                assertEquals(carousel().renderX(modelRow,1280),(float)rowValue(snapshot,"x"),.001);
+                assertEquals(carousel().renderY(modelRow,658),(float)rowValue(snapshot,"y"),.001);
+                if ((boolean)rowValue(snapshot,"selected")) {
+                    float x = (float)rowValue(snapshot,"x") + 150;
+                    float y = (float)rowValue(snapshot,"y") + (float)rowValue(snapshot,"height") / 2;
+                    if (y > 38 && y < 658) assertSame(snapshot,hit.invoke(screen,x,y),"Selected row must win over overlapping animated siblings");
+                }
+            }
+        }
+        assertFalse(((UiNavigation)field("outgoing")).pending());
+    }
+
 }
