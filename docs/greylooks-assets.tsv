@@ -1,0 +1,504 @@
+file	category	bundled	reason	sha256
+applause.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+approachcircle.png	standard	yes	Currently supported gameplay sprite	5281f8406031babbb65558ca3b3332591595003cbbb73f7d45488776029b3ba2
+approachcircle@2x.png	standard	yes	Currently supported gameplay sprite	77a172c80613bb21ace68c26ce8880e90e370e92a02c6be2e8ab61f9313d7f05
+button-left.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	5594347b2505d5c5637c06c137a0cec0970c119292af0ec185dd5770003d2dfb
+button-left@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	5ed5effb6a7b5efbf03595a3b19a4dae8cb2cf369a3e8bba50aa4826f4544f7d
+button-middle.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	f9869715a25f63c5df7939668f2208f813d4ea0c493c65ee6c843019c50ae474
+button-middle@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	7ae75706026941213df0a3ca160e18d56d84af1497fa705b8ec2ad368390776a
+button-right.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	cae84a598c9ecaf18d8d20138bc52ebd2863d264d2c892745be8eee7a851742c
+button-right@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	5da149cf7f38ea26b2452a0c10570c9aa6b215de03c8813d422a6647a53ffe29
+check-off.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	c2d512e8536bf47809bc922fdcccdedf246d3b3114023aae851f129ade9b7a45
+check-on.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	d6aa082ad857690ce10f2742f19c370e27a7201726911875aff848e9c9535633
+click-short-confirm.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	e092163a15b87023b0ab9c3e3bb4bed5c6e6ff212a5d9716639b6ee884a77106
+click-short.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+combobreak.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	2dc4d7fc5debb34c05930c3a1927ed4e844e96f4972e6158f5b15aef162f99d2
+count1.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+count1.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+count2.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+count2.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+count3.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+count3.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+cursor-smoke.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	bc210c4c0bdc92c64d2efdc61af03b30eae41ee9b6ce65166488deddcc58dd98
+cursor-smoke@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	bf778c871b4756ac96441280b731eec209de56b5db41dc44adeb319624c72f93
+cursor.png	common	yes	Gameplay cursor and bitmap fonts	a636d53996306f730fbf87b7bfdd51b74265035285015f9aa51105912fc65d4a
+cursor@2x.png	common	yes	Gameplay cursor and bitmap fonts	0a3796aabe754c9461502b465634480bed1f8356c865666d0aa636fb55bef55f
+cursortrail.png	common	yes	Gameplay cursor and bitmap fonts	f7870850c91c33ca384308eaac9088f17dc50086c92c04da16f99d6539efe2b9
+cursortrail@2x.png	common	yes	Gameplay cursor and bitmap fonts	1b9c4b516c2526675e2369d38f3f3270bf999feb805a1b2d301ba20366dfb1d9
+default-0.png	common	yes	Gameplay cursor and bitmap fonts	94774a6fc91987293ccebed239f4647e84bb9dbac9314981a98a4f5f16595293
+default-0@2x.png	common	yes	Gameplay cursor and bitmap fonts	6631adcf9b354c7c25f68a650dfc21e5e32c39bfb283eeb6f72cb4e2978be541
+default-1.png	common	yes	Gameplay cursor and bitmap fonts	4996e94e90b3cf705f5ab1cf953bdd25fe1ad95e0ef8f0f16535e76d9416d6f9
+default-1@2x.png	common	yes	Gameplay cursor and bitmap fonts	818907df350fe3049333869fb36f978e669cbd1c09875012c0ae9f96c4b781b2
+default-2.png	common	yes	Gameplay cursor and bitmap fonts	99a0d2d317359a1e7dd61748734f1cf58468f7aca0f415ca2eebeef2754ff3b9
+default-2@2x.png	common	yes	Gameplay cursor and bitmap fonts	c1b4ee151ac98d3e9642dcbe58b748ec720e6bc383b93379f937a2c5fd9f3bcf
+default-3.png	common	yes	Gameplay cursor and bitmap fonts	7d84e23dd429385e66858e229d3ee4679e9cef3d95890dd3e2ffe66fe79a7936
+default-3@2x.png	common	yes	Gameplay cursor and bitmap fonts	add198f856da1c17a23ed335602b5cdf863c80b52a2e8d10588b8ec0fadcb083
+default-4.png	common	yes	Gameplay cursor and bitmap fonts	f6e69628a936d903e8edeb38363c37267266c51974d984eedd9bc5b9e6a3d174
+default-4@2x.png	common	yes	Gameplay cursor and bitmap fonts	2505b58b673aafb8f9066564b0f48c05dbf72fb53d0095d7b7db32ed69ec1f82
+default-5.png	common	yes	Gameplay cursor and bitmap fonts	67ba7943ee23e39a93e85371c671575bf420b8984e933f417d1f223daa4b5e58
+default-5@2x.png	common	yes	Gameplay cursor and bitmap fonts	4fb917f7044ddc564b51368461ed490211ff507db36f66675b43921f55a680ad
+default-6.png	common	yes	Gameplay cursor and bitmap fonts	a9ed528ac687fabe37cf55a9daea029992a7a231cc4ae1bfc17fe337e0e560b1
+default-6@2x.png	common	yes	Gameplay cursor and bitmap fonts	2e36742884c3dff5b896b39fc2b434e52e8468abb64f779649e044fc94aa2a09
+default-7.png	common	yes	Gameplay cursor and bitmap fonts	470fb6b52ac70f734a50702ec5369c491d1c6ba19c48c452aecf4c990c2bacf4
+default-7@2x.png	common	yes	Gameplay cursor and bitmap fonts	1b4d29499d1802e87dccf211dcd4694511faa50c0009a1eb8de7d90e3857bcd4
+default-8.png	common	yes	Gameplay cursor and bitmap fonts	6de13abc8080efad52e51c44f784df919aaee6174443cc26dcc66f787ecc1581
+default-8@2x.png	common	yes	Gameplay cursor and bitmap fonts	45a856b4a1c5bbe560aae304742f3ffba6eb980d34b9b19a6630beb849bb87b0
+default-9.png	common	yes	Gameplay cursor and bitmap fonts	ad275aeac815ed6aeea411d1d81742606b3e0fb65618ec0bb29ed33f8889b96e
+default-9@2x.png	common	yes	Gameplay cursor and bitmap fonts	2bc62f0ddfe073606c7e473716797c6762eae1130235962d6ec44e3c89711d8e
+drum-hitclap.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	01f84f056ea1c9eb0f56506f83d9b3ca2d4b13f2f6058ff8e36a93db015ce9de
+drum-hitfinish.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	de51537a7a3554bafe669518bfac6da69810c9ecce4011e9cd257220b6aafeee
+drum-hitnormal.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	a3a8e8ffd6df20f56bf5c7d5c7de35ea9ac2f35b718e51489ef4ceb8ca73d3be
+drum-hitwhistle.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	73a4f8938a96b5053fb0f0c834437e20734bb5a396cde5e5d3444bf313b36c57
+drum-sliderslide.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+drum-slidertick.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	b65b30a84c5fe9b6716c8460c6283523b2b0cfc00e648c81944e47df5d1c76de
+drum-sliderwhistle.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+fail-background.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	c28e003208e5e988abc5e5b8ccfee25fcc3702ed5e21a9e74b1efeef7f994916
+fail-background@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	02f80eacf562fa68931f3c7e695f1cd254c98e0affa07f99ec13af55fdbbd8dc
+failsound.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	0c54d0c8e5e1c06df9a4c8df59f686278a685a2210308a37aaceaa09706a47e6
+followpoint-0.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-1.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-10.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-11.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-12.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-13.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-14.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-15.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-16.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-17.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-18.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	a89b6ffdf1fa8a9278f81bca0e09946549e75bd633622e478a1c29f2048c21fa
+followpoint-18@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	b8294dceb46a391b4704d41066d02110730d7b05e9ea038819c2f1290f001572
+followpoint-19.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	d5fa319c5ab6d90f278ac0650b1887f5afc496068b4a30bba586f6f4fbfdd197
+followpoint-19@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	147818df456f234a28cd9fcfe54b84db091c4e69aab38ad0e4a7b63db9677ca1
+followpoint-2.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-20.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	d0cd975ca8c7cb06f66f30988a0449d60bdf400a38b2c2ced1b5db5d2ce6c8a9
+followpoint-20@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	3d14eec4e5d87468064d3b88db301c0e4de8c62ee1ec321d8408d9324316e1ae
+followpoint-21.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	3e2d01e3e5042dc8731e471259dd6a4aced22d92dfdb0bea650782843d6fe1cf
+followpoint-21@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	6f01573cdeab491c45ce3f66722d3780dfd9da223731c5ec1e7bc5d087d40243
+followpoint-22.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	1bc6b23389aa0e45ae22f6f9989724413ef279dc5ed173df8bcfafcdd937ff17
+followpoint-22@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	d0899319f97183344d39e09c64aabb34ecee6458dd88ab232271d1465bd3bff7
+followpoint-23.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	7dc50d68fc0f2197c957b03b014b5462d88e18e1a0ebe79b24d05ac2f42174ea
+followpoint-23@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	8f061ff6188e5476a5289d2617b799901b501a9deaa65a235b21deb629879f0e
+followpoint-24.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	d1300d432d3b00f7de6325cd629974a654b95ef912890d3dd2c2a17a889fc600
+followpoint-24@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	ab5c3f2f4a9cbcafe9e55d1c0902604f0eb9d66c1b6a0ac165a1cdae892eb123
+followpoint-25.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	f9797a083ce0f48960635402ead94f818f0fbd647d68dfa6341528ab845b4397
+followpoint-25@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	c656cb406288845bc956a9186ca031a27ac957317b9ff5e1d88b6ab6ab44f07f
+followpoint-26.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	93e5574ccb67f0fc473df9dffda6464933a40f7c782811c42923b19acd5a9f89
+followpoint-26@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	3b7162e9a1f3d40b4cb819748d6082a045dfa912751a996f857ea374e0131920
+followpoint-27.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	20bafa0b938e3d1334de19f951782628d1985f5cbb75d8c9fca4f5924a966d44
+followpoint-27@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	18415ce03f062e36998dac432dcb55e01c180e800b529f6dec509b2d98b469b9
+followpoint-28.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	bb6fc45529d00193c145053712bc548d3be5be4535f5059df71de13741702636
+followpoint-28@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	76eaf332db62ddbce3387c0fd399c91e8a26fa9545eff90f8ce26f10c9fbfe08
+followpoint-29.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	a769da34db4dc134d9e3b7131ee300be141e017bbafd7b4e9485edb0bbb88e66
+followpoint-29@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	6ef72929f102dfb05408d7b4298c84781499de6355689f854115c27963abc5e3
+followpoint-3.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-30.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	a769da34db4dc134d9e3b7131ee300be141e017bbafd7b4e9485edb0bbb88e66
+followpoint-30@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	6ef72929f102dfb05408d7b4298c84781499de6355689f854115c27963abc5e3
+followpoint-31.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	bb6fc45529d00193c145053712bc548d3be5be4535f5059df71de13741702636
+followpoint-31@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	76eaf332db62ddbce3387c0fd399c91e8a26fa9545eff90f8ce26f10c9fbfe08
+followpoint-32.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	20bafa0b938e3d1334de19f951782628d1985f5cbb75d8c9fca4f5924a966d44
+followpoint-32@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	18415ce03f062e36998dac432dcb55e01c180e800b529f6dec509b2d98b469b9
+followpoint-33.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	93e5574ccb67f0fc473df9dffda6464933a40f7c782811c42923b19acd5a9f89
+followpoint-33@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	3b7162e9a1f3d40b4cb819748d6082a045dfa912751a996f857ea374e0131920
+followpoint-34.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	f9797a083ce0f48960635402ead94f818f0fbd647d68dfa6341528ab845b4397
+followpoint-34@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	c656cb406288845bc956a9186ca031a27ac957317b9ff5e1d88b6ab6ab44f07f
+followpoint-35.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	d1300d432d3b00f7de6325cd629974a654b95ef912890d3dd2c2a17a889fc600
+followpoint-35@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	ab5c3f2f4a9cbcafe9e55d1c0902604f0eb9d66c1b6a0ac165a1cdae892eb123
+followpoint-36.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	7dc50d68fc0f2197c957b03b014b5462d88e18e1a0ebe79b24d05ac2f42174ea
+followpoint-36@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	8f061ff6188e5476a5289d2617b799901b501a9deaa65a235b21deb629879f0e
+followpoint-37.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	1bc6b23389aa0e45ae22f6f9989724413ef279dc5ed173df8bcfafcdd937ff17
+followpoint-37@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	d0899319f97183344d39e09c64aabb34ecee6458dd88ab232271d1465bd3bff7
+followpoint-38.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	3e2d01e3e5042dc8731e471259dd6a4aced22d92dfdb0bea650782843d6fe1cf
+followpoint-38@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	6f01573cdeab491c45ce3f66722d3780dfd9da223731c5ec1e7bc5d087d40243
+followpoint-39.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	d0cd975ca8c7cb06f66f30988a0449d60bdf400a38b2c2ced1b5db5d2ce6c8a9
+followpoint-39@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	3d14eec4e5d87468064d3b88db301c0e4de8c62ee1ec321d8408d9324316e1ae
+followpoint-4.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-40.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	d5fa319c5ab6d90f278ac0650b1887f5afc496068b4a30bba586f6f4fbfdd197
+followpoint-40@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	147818df456f234a28cd9fcfe54b84db091c4e69aab38ad0e4a7b63db9677ca1
+followpoint-41.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	a89b6ffdf1fa8a9278f81bca0e09946549e75bd633622e478a1c29f2048c21fa
+followpoint-41@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	b8294dceb46a391b4704d41066d02110730d7b05e9ea038819c2f1290f001572
+followpoint-42.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-43.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-44.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-45.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-46.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-47.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-48.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-49.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-5.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-50.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-51.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-52.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-53.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-54.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-55.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-56.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-57.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-58.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-59.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-6.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-7.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-8.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+followpoint-9.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+fruit-apple-overlay.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	f1471e8474b2250c0bef7349710012bc68374f84aab7d681c8fbbfc8cda78476
+fruit-apple-overlay@2x.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	96a7ef1e2d1167878cf32a50611a72555e0370b882a7b3591c277f243960bff2
+fruit-apple.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	4403c2ec28c3e9b6339b43f69f3a54a9bff283fb9c56ea4203158197760478c2
+fruit-apple@2x.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	88907c231b098e0c59324d6ad3022e0de0b1dbd70b4a98cb2aa409fc25975067
+fruit-bananas-overlay.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	0e59fcb604cdb051e09d7b80b0c66f5f47040f4d7f7bd3779ddccaf1d6e25ca4
+fruit-bananas-overlay@2x.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	91376e390f6d9111f8a6e1a76877ffbcc1cea1eebc71221ab3f2455416056255
+fruit-bananas.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	ea5767fa07ee005d4fe2bdf1b1c951727b913cf5c2c9f50b6c4a23a7316fbba8
+fruit-bananas@2x.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	e5ee08c0d3a3ffa2762ea55544dab44dbcc7033d06ee855760ec835f421f4e58
+fruit-drop.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	11e0e9cae87d8f190d2e43b5c8cab973cab77aa47f2251b44df00e28a6c2f8cf
+fruit-drop@2x.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	0cf9f4ed024ec47315c876d4bda75714c02e43638d091a696d3e5649bb42f13c
+fruit-grapes-overlay.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	50a839281fe12a24c973421fe601eab50342f54887295609fd6bffe65f7a2fb9
+fruit-grapes-overlay@2x.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	230d6263ff8bfe3559486307a2bbb014ea01619be740d89d05c667e4ee44c6d6
+fruit-grapes.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	75ceab428bc8d3e17b7c08b5d2dee59efe8e7dbcfc1494146082162611337bf4
+fruit-grapes@2x.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	e5c958ef921fc9c8eab012e84284f957dd422c1f1f3d38938b1cf4e0dc5a0fb4
+fruit-orange-overlay.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	5ce523d83bbd18b502999b0d35b7fc9d92f266152a8de0a93eb9266a0b1ffc9a
+fruit-orange-overlay@2x.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	7e44b31534a6f28fcad93a95375d6e6402714ef094c3676915129a6593a81a57
+fruit-orange.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	fae110ae0c47010877fdb495d8f2392386336ec48e9f743521965cbf5d6cd4be
+fruit-orange@2x.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	fe32ea3510806474c89a3045a18aa79224b809aceb8e4fd9374107ef8b8541fe
+fruit-pear-overlay.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	67e0af2f3dcc292857d3f5064afb338b5b22916dc1d39a02eafcbe1fe677710b
+fruit-pear-overlay@2x.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	5a78e92f692ee967507f2623618b8855291dbc3b9e2f0bc950c480c28aef82ed
+fruit-pear.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	f39a8f7b5114a7c21d17a0ed9d33a4c551ff031f13f2f6baa3f1135eca9550fb
+fruit-pear@2x.png	catch (not yet rendered)	yes	Fruit/overlay/droplet assets reserved for future renderer	865bde3471dd6a7f0597c29fdfa67d411c805737d35dcccae368333859e99b3f
+go.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+gos.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+hit0.png	standard	yes	Currently supported gameplay sprite	6cf28b783cc35aba8cd1ca49b7647b5264997f123060d1364ed17c9d7892017e
+hit0@2x.png	standard	yes	Currently supported gameplay sprite	decfee527f43409748fb96488ad66e335c8d2d8a99fbe227b6fd588ef0014005
+hit100.png	standard	yes	Currently supported gameplay sprite	c310bbf1122266184f49d4dc8493b230631974cd478bab6970b2b890a9f6638b
+hit100@2x.png	standard	yes	Currently supported gameplay sprite	058c5e51b3113559c95c27c964c5807bd31e27bf12260d12ef90d4b51f3f1642
+hit100k.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	edbc1d31201672e9db67d0d2166628871c4b23a39c00b3d39317d88861c49795
+hit100k@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	741bda69df6de0554ec968a2a0b832ec31979ae8df8ad6ffa4c44147f4859f48
+hit300.png	standard	yes	Currently supported gameplay sprite	bb79322640784c3fab4e1b0933fe51a51a1cd85d8d9b42db44cdef04738fd0b4
+hit300@2x.png	standard	yes	Currently supported gameplay sprite	c9a54a934b9e23495f7bc94b166b859d49431b7026224b944d1c8f887fa41c88
+hit300g.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	34d9a43e472655628736931cdedaf670124b3de58442c090ac0263523f5c52b5
+hit300g@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	12a27837ea751f770a270bcb623c8b79b67cfcaf42816a9bcbbb03fe93c5126f
+hit300k.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	aa27fecdd6d104ef64b096804a545278588e8d5d123132694581b339a73ea3f6
+hit300k@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	24444ec0256aa5b942ebdfb767801f7a2fa737621f70ca1ac8ace48b8b30905a
+hit50.png	standard	yes	Currently supported gameplay sprite	febd99930ef3a093f8f72bec6f02bfa43f84f7b9e5b3a84b2da72b606d6174cc
+hit50@2x.png	standard	yes	Currently supported gameplay sprite	19438201316dea008ce44aec8746185460e2fdd713cc9425854ebac24d975bad
+hitcircle.png	standard	yes	Currently supported gameplay sprite	7f134461ac010b965fabbdc0348ae68b5f35f17c5a98c46f46e9c65437506453
+hitcircle@2x.png	standard	yes	Currently supported gameplay sprite	dec322697a3cb67bc19e62d2e88745471137934f2dd7a214d447a922bc510fca
+hitcircleoverlay.png	standard	yes	Currently supported gameplay sprite	0e59fcb604cdb051e09d7b80b0c66f5f47040f4d7f7bd3779ddccaf1d6e25ca4
+hitcircleoverlay@2x.png	standard	yes	Currently supported gameplay sprite	91376e390f6d9111f8a6e1a76877ffbcc1cea1eebc71221ab3f2455416056255
+hitcircleselect.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	4afd064468df12a1d4b3a9adbab0080651eca9c6f7a7d15a0817a6756dfd09ba
+hitcircleselect@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	1f98c86b86f0f23b23cc06c377204eab6a9572dd1c896490f2caad2616186938
+inputoverlay-background.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	59ce6a94f6eb205651431c349bb5c2cfad450a719078b327775629dd5413c6e1
+inputoverlay-background@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	367af6062789701e483b02e585e2a4cbcfa73d7e1bf9468da769a2daf43537f1
+inputoverlay-key.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	73431a665e11aafdd5d57a4818afb16719a45b84e594e9bfe7cb32c8569a7bbe
+inputoverlay-key@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	4b7dc1f4543d947546f4bed6b64449659e69523002f647094ea2c23e2390937c
+key-confirm.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+key-delete.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+key-movement.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+key-press-1.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+key-press-2.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+key-press-3.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+key-press-4.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+lighting.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+menu-back.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	70f9d2987f3e06bf13390e408f9daa157ef381009219decfb8d0922c50adb40d
+menu-back@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	24701700fb4b1716e7b500d07117912a54cb29cb9bc95c3fdd5743dcedae313a
+menu-button-background.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	bda225d5996979904363b08721eff24e17b233fb017d98bb1f28d547734b9cf5
+menu-button-background@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	8d82a9bd8e643b887495e838491784ae296801e8875c2bbb8532bc3ee310f092
+menuback.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	f7a56e3f64ee7b80e589dc7572b30ffeb2d571f2e1a70df0110ced34eccfe28c
+menuclick.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+menuhit.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	e092163a15b87023b0ab9c3e3bb4bed5c6e6ff212a5d9716639b6ee884a77106
+mode-fruits-small.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+mode-fruits.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+mode-mania-small.png	mania	no	Explicitly out of scope	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+mode-mania.png	mania	no	Explicitly out of scope	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+mode-osu-small.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+mode-osu.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+mode-taiko-small.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+mode-taiko.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+nightcore-clap.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+nightcore-finish.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+nightcore-hat.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+nightcore-kick.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+normal-hitclap.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	62a016a0132f4912354489ffb7b516dbb34fff65a63b710848e9ada9462fab4b
+normal-hitfinish.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	addf37a371645d26c83d33a139f4190c6015301aed7d37f4110d30b7033a592d
+normal-hitnormal.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	f5117aa362211a307786bc3138829785ef072e7515351d51225c4a1b31d84ec8
+normal-hitwhistle.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	60aa7a9ab36bdc4dc851ca5990fb4916e40c17d070c52c57f9be35873821994f
+normal-sliderslide.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+normal-slidertick.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	e33bf5dcf7c9b6a99ddbf8357afbed8a7d643630548e00dba6a56d7298463742
+normal-sliderwhistle.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+pause-back-click.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	f7a56e3f64ee7b80e589dc7572b30ffeb2d571f2e1a70df0110ced34eccfe28c
+pause-back.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	6bedca7720e32f1f4c41c41ae2ead77c499775d45a9659b3c409cc75347347ff
+pause-back@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	49d0e6706d06363a4bbe19099bfa4d8365900f8039b32b7aaa0e0a4538c63a8e
+pause-continue-click.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	e092163a15b87023b0ab9c3e3bb4bed5c6e6ff212a5d9716639b6ee884a77106
+pause-continue.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	d46bb4f58ff30ffb323651851238d9ff5d30c667d789dada04826c47bd5a9618
+pause-continue@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	6887f955fdfcafd5bb928b25bb7dd7f37754351f25e02f4caa1820c483255fe9
+pause-hover.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+pause-loop.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+pause-overlay.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0252fbfb10000417fecba64e83e814acf28b78acbb84e45aec4ef26aa4e3b10d
+pause-overlay@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	245a7a7ebb502e475c677a8ee915cd4dcab1371f677b63d78eb2c100ec703956
+pause-replay.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	e013be4c6713c1cc80f91689af13cb2decde674c5b468d75fe732a5987b532fa
+pause-replay@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	6406f105b75974917bcaa3e734590134370b13a7bfe2a4048cd912c0f579d60d
+pause-retry-click.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	e092163a15b87023b0ab9c3e3bb4bed5c6e6ff212a5d9716639b6ee884a77106
+pause-retry.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	f384b1326f4a1b0ffe0941a307dfd05e6938849a295361ef6c6b4422b3377f27
+pause-retry@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	ed38081f968892f31c9b6ae8fd0b2b20dfcb25d4fb088afa52a3835ff99fd45c
+play-skip.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	74a912a095ac941f65b87008235787b968150169db1feeae6c5bb3f2c1ff0aaf
+play-skip@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	6d87626bbfd50d488ce04330f972e8febe5723facd9c6b4892df771ba606e045
+play-unranked@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	dfa587c6f94fd4905502de7616495533e36491110dbe0278af070e6dc2a7fc59
+play-warningarrow.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	4d7ed54a54f0fb51ef28da8d0f4a4e24ad1eb6c625d67afb3ad81631c9868029
+play-warningarrow@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	c57d34f88009608d32a40a346499314deaed4a10280674a3a8b7ac9b3dfc7d93
+ranking-A-small.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	4236e8017f088aac300e941467ec3c0db7368ddea09029071aafc4b5bc6e016e
+ranking-A-small@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	ce17e8c89d3a8982eb9bf0aafeccdd04140778a1468c54291a775e2c9b5e4775
+ranking-A.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	01dc8e6b5c3a5bdbdbfc07aeca04ed8bf7ece7763db8dc3cb0bb94f3dbc64a5b
+ranking-A@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	c7e373914163cb9ee28b68a5c837f379e307c6546c27d8f4a6ee879ce2c35039
+ranking-accuracy.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+ranking-B-small.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	9d87e375d25c1da57c107915f7043ca5d383c4c21016b30c14bc47c6cbec9b6f
+ranking-B-small@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	36b9c2a31652aebffe51798482320cb93d1752d29b10734f91bd99e019e25b83
+ranking-B.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	46128f27efb94d52aff0251b6759492aa1c5821b80be434ba0597c1a3f4a5859
+ranking-B@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	adb9d4980a718d53749516bf229fa3e5728ed42be77e5acc4bce86b46796d23d
+ranking-C-small.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	b3798902d6f0c743c5acd179a7f6f81a34c06216b42723cc4546b8854fb33726
+ranking-C-small@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	5daaaeb9f58bd2b3bb15cc11c7bd03dec47588f529f53e655ee662dc60e15888
+ranking-C.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	92b8698da34e313f1a277f6444a213ee3316cf9d04f56824bac358c24db59a22
+ranking-C@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	f585f98054ab61a45eeba11f966fefa7e0eccd10daa9c02c07822fb3e22cb80f
+ranking-D-small.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	9897d1e932a4b94d614e9eed72a439f20d18fc4671e1607234a6886408cdf28e
+ranking-D-small@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	e292bbc775fffb91103f4ffa730d727d2cca40bb7546e7073db491b2af634acc
+ranking-D.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	9b9f7abfd2caf5adb7d26be6888d68345ccce5949dcab67f8d1935bc5ecbb081
+ranking-D@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	d7e0547a59614ef6f200a0a4b49ff492b228f8c1d8369e907245651671a0204f
+ranking-F-small.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	82e6d2fda5dd3d50b0242bd7334de15cfa5d74364e5a1658a57db66ce548941c
+ranking-F-small@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	4402cd05a83d69aaa1e85e80d0e6d748b9834a764f7bf1f57de822c01057dcf3
+ranking-F.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	9250f8ad73a1cbfec6cc3f469e0d74abec51fb4e4dede86a385a38ad473225e1
+ranking-F@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	627e7a608748821bd302c2698014f3a95a58a8d934f4c6d9e5e311f8eecec59b
+ranking-graph.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+ranking-maxcombo.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+ranking-panel.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	f8bd2d82c7394f5f122ab4d1b68dd1077cc43f4334f7fa15cdc2091772169ca8
+ranking-panel@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	d13932770f8d5c168ca9dcac19e631ead79680f5479f79352a60c9be7d87e6f7
+ranking-perfect.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	ae4e897f3d4b94119c3c2bce099a2384a817dce174c340cc8b35a48c96963d87
+ranking-perfect@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	f8dee063cba8f3d55bd4b8d274efea20f082adbf54a97900b478e45835656688
+ranking-S-small.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	fcfbff2486e47e1fb011985c6eb769d4c27f5bf24c5283fd7b5eb6f93737750a
+ranking-S-small@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	be84ceef1c84125be65ed5acb823c94bb09f081edeb406148cdcdaf65ccdf0de
+ranking-S.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	77da6d46b24961dc3dc029c911101c7fff09dc384f7e8c5dd5e1acd64ff0f56e
+ranking-S@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	025eca66d2c2d778be40dafe7804f9c2140b2197fd46b47c80cc4c0475cf87bb
+ranking-SH-small.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	36bf1244d013b39084a69c7fa1a6a1db1eb4b13fd0df061f410c764f5b0c7728
+ranking-SH-small@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	48aefd9223712e2ad10c5e323ca07db5eec4bcd5b0e9a30178769a55c4afe227
+ranking-SH.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0daa773df62c93a586e17cfb1cfed4ad03af4eeaf779a21090ee5491f7f70716
+ranking-SH@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	97836098882f8befdce7e14a232a4a56a8f7b700c92eafe984bcf8eb021bf705
+ranking-title.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+ranking-X-small.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	9ba0407fa76fd6cbd7eb6eaff194f4d6469a3e43481a713884bc79d14338a4c7
+ranking-X-small@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	a8c8320512e3a1ab8228505340260c9b7ff513de19c7372edf7e90857d70d520
+ranking-X.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	e708265b893d16ed9ed73fccba8f727a18e378223af05dd98d20a107f053ba1c
+ranking-X@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	61748fa11a54cf069aebcd8c1155843048269cff5a0c7e14657013473b9ca27a
+ranking-XH-small.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	11c3756d004d102a1303dfc5601788955d61d6895d9c4d83e25f2cba752c7c0b
+ranking-XH-small@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	a35d2b19c039dbecfa1f8915f3685746fee760745ff7db59b5a1c5298aac5fc1
+ranking-XH.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	fe5e78c144a9d186afa9d431798eef1bd763cb13007e71bb9d98a7953e7b9386
+ranking-XH@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	3ffa5155ff3f27f4405867c86b3b9e09f179c2497f7d4786bad9c352d6087860
+ready.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+readys.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+reversearrow.png	standard	yes	Currently supported gameplay sprite	e0889b44c05ed7b57f1f2e687fdb697871072ad0f53037c2df6388864f09ffe5
+reversearrow@2x.png	standard	yes	Currently supported gameplay sprite	78cb0bfbe072a76c273b05066004302da0abb95d7d595e27665065d9ec042276
+score-0.png	common	yes	Gameplay cursor and bitmap fonts	40ab80ed566cb2568e84af724db23002d12ab9a8ef5f8c3a77887bf9cf3f1a77
+score-0@2x.png	common	yes	Gameplay cursor and bitmap fonts	b4c8784a2842eba57ff4e64b2e28f69962698931398477d877acbda83193598e
+score-1.png	common	yes	Gameplay cursor and bitmap fonts	abc37b656ae17fa390a1e01d36d6f431f5521931432b0aa39620068bc9549435
+score-1@2x.png	common	yes	Gameplay cursor and bitmap fonts	ed584f6c613170bae55ea2555a18b575e627eb04cb91fd8fd67a07a582e307b3
+score-2.png	common	yes	Gameplay cursor and bitmap fonts	544be87d66b57f9497c9c2d550d2d805c11de0ab5b39f0d675c147daf13a6787
+score-2@2x.png	common	yes	Gameplay cursor and bitmap fonts	f45033560029ba37e24795513262278fc48c0f4aa9e4fdda3434e3f8d4386820
+score-3.png	common	yes	Gameplay cursor and bitmap fonts	775562622f3d5155bee384e06df46eb3042ad8a74d707b2c2480974eb2f312f0
+score-3@2x.png	common	yes	Gameplay cursor and bitmap fonts	a38f062cbe3a638fdf5a5ffbdba019726d2e35cdda9110c32b0be0500129101b
+score-4.png	common	yes	Gameplay cursor and bitmap fonts	d096a63ebf078cb31da890f0a805bef43fdf03a139b1338985634a125627343b
+score-4@2x.png	common	yes	Gameplay cursor and bitmap fonts	a36439951fb16e891b9e9fa7946df1710b3f293e7d75d8aab88b0ae08fc2a2b6
+score-5.png	common	yes	Gameplay cursor and bitmap fonts	97666c1dd82e153274e5671ab3260f96683ce92b676031004ae402e35fd5af58
+score-5@2x.png	common	yes	Gameplay cursor and bitmap fonts	d85bd1574d723d71ef3e5fd840dbde2d79126a1307eb92742c095f1fe6875652
+score-6.png	common	yes	Gameplay cursor and bitmap fonts	eab16aec9e874674a9ce240598fe7ff872e471de4e320e1303c68c3539494a75
+score-6@2x.png	common	yes	Gameplay cursor and bitmap fonts	74068ac0a8e0b1a368a5ccb1245f2d44c9af2a7b76ad90642928701931e4c97d
+score-7.png	common	yes	Gameplay cursor and bitmap fonts	bad5d655b8e03725b5cb3be05b3c16415571224ee8a91b3eacfad4d71205ae05
+score-7@2x.png	common	yes	Gameplay cursor and bitmap fonts	9a3105cf6cd80043ec90004f1f3a7e85189b66d64f89a9f313033f894d5c5229
+score-8.png	common	yes	Gameplay cursor and bitmap fonts	9c14e4bbf8b06f51b0ddd873941daa5ce95080d1d1b2c40b513d4b7e58c64cd1
+score-8@2x.png	common	yes	Gameplay cursor and bitmap fonts	b9f965f918613b2a21bbcc5648b540346932ccd1a73390d9f7cac53fe6eb8519
+score-9.png	common	yes	Gameplay cursor and bitmap fonts	34bae64d974f8de142242e6adf1c0fcd364611b73097423da27b413b914028cc
+score-9@2x.png	common	yes	Gameplay cursor and bitmap fonts	800dc36bd8a42d32926d2976fd144540001be0fd0fcb2242f54be57d4d35be55
+score-comma.png	common	yes	Gameplay cursor and bitmap fonts	05bf7c91195d0a11248d3b2d57a12d7d0ddc34f28429042b399309b7cce0ec63
+score-comma@2x.png	common	yes	Gameplay cursor and bitmap fonts	b3984727c5d9cfa8d02e056f522c867bf6809d9fb1daa190a0dea6a1bb4630cd
+score-dot.png	common	yes	Gameplay cursor and bitmap fonts	5ea05876703f905b3150e47ea5fa6d6619ab9078240b799e422e7203f301a928
+score-dot@2x.png	common	yes	Gameplay cursor and bitmap fonts	ff5ff66e354cac2e886001ba39ed4139d9ec4e1c906a9ab8e4bcfa8fa3a0c699
+score-percent.png	common	yes	Gameplay cursor and bitmap fonts	f3a9f7faa996d3eba65339032dd8e5930d749c05ce0a1c955237ab1532238cda
+score-percent@2x.png	common	yes	Gameplay cursor and bitmap fonts	96d8e14066eadb41393c909c2c61e490f6593b89f2554b9545f8a1eb2cf67dff
+score-x.png	common	yes	Gameplay cursor and bitmap fonts	0fc18ac47bdc41ae3d4efbb7fdfca9d3ba4970cb16c08ab9579b7299f0b9b773
+score-x@2x.png	common	yes	Gameplay cursor and bitmap fonts	12ba264bc15c2fe1eb07a722f1c6874d086c2d431239153cf7de00b1df568bf4
+scorebar-bg.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	b611037a331e2902ec52a739959a78b5eb42c29b980353f19d9fb01fd507382d
+scorebar-bg@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	9abda0be9cb5f9dd65968e9723a0a3926c8a3df0c9b6860428c2eb0df523c301
+scorebar-colour.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	bcba9fb3c3aaed8b1b773f8be199ad6ed07e9400f85cfd41c3acfe0453651fa6
+scorebar-colour@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	2812896e81c6e6a738631cdd0d464be593480d56e6e1f273ec5f278d55e9690c
+scorebar-marker.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	ca60fc92ffd4cf8964ed5b5295fdf50d42635f1805b2c0bd96a300095bae8bf3
+scorebar-marker@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	a7865af6a1e6c88813370682cc74ba1319f409b2bfd6ec741a6dafb96c4e7463
+scoreboard-explosion-2.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+section-fail.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	81d6cef50fbf02b0db7042a68413d93f7061c1aaa011b4bf798be0775d80613e
+section-fail@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	395f5c32ed57dd3a6a56aada3fb8cba9349610ff580fb51501b4ed778b477b51
+section-pass.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	3b6f0481a0aea6ad02f98c338a6db27fe7ad213728d837cb9b3e9bb4e670ac09
+section-pass@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	280be24b97cb14751cd681fe1b5847854fb56601fa23b6972214d1579142bdcb
+sectionfail.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+sectionpass.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+select-difficulty.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	6fcebae714cb0c0d84b6be3b5b01ca1445718fa1ba0ad2a4421c05f19fe7bd53
+select-expand.wav	unused sound	yes (reserved)	No current gameplay cue / UI sound outside scope; retained for future support per user request	e092163a15b87023b0ab9c3e3bb4bed5c6e6ff212a5d9716639b6ee884a77106
+selection-mod-autoplay.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	b104d9d604e4f3411cf0b363ae7ba0d21d639323092a36f857ce7db09064fb56
+selection-mod-autoplay@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	aba2855a53aa83a88d3ceed02440958ee0f695691452b4bdc425dd9eddce9946
+selection-mod-cinema.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	65f9ee5b426d46440f33bdc42c745e01761904ed91fcb6338f2e3e0901d42f8b
+selection-mod-cinema@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	5da06f26f84491d596deca9088355e3ee30a7d8f8d46e519e640b80dd70d8c77
+selection-mod-doubletime.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	510dc1a0f99b2e3d23b4ddb80881dcffb2a2f622f6d38e04d91cea7d1296e1a7
+selection-mod-doubletime@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	48a42e95065b223dc27c54100fbe0ffd6facc762c74e345d2b4cb5ed21b2e666
+selection-mod-easy.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	f17a27ebb2c93fbeef17ba9e116ff2478f3847432ce201583b6b3a6dbc0ba23e
+selection-mod-easy@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	14aadfbd8e4ac1e7791906c35360a5051626d29bcf3efa88a70d1fd214f51b79
+selection-mod-flashlight.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	bf4dd3f4234ca093784b0466f43164bb284f55fd884e47c8fff8827dc0f5dd82
+selection-mod-flashlight@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	a5efaca0c78ff70a328af10729c4865348d523a904503fef2310a551acf6c476
+selection-mod-halftime.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	057972f34f1fbbc497d994c590c446b035dcee4212d2ae32a586a4f06c9fa5aa
+selection-mod-halftime@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	c4d52f0d235ad76abf3645fde9c92a6a91962b07f05740ef9e701526401ae14a
+selection-mod-hardrock.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	bbc2756e63dc7e62410eb6fa3a40d8d05f5748f922ff687bae6e545bae30b57d
+selection-mod-hardrock@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	817f950461e5590f10d0d4bb42e0d67587af70f3873d9b6a569418d709f81437
+selection-mod-hidden.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	ab53159a0bff7ee002523de4034fef104e5bdca434c6a99ba2739fd73d1a7ba1
+selection-mod-hidden@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	79e529e6f53bd1b07150db02cac070c884a7bacc825af15ccc2e5ddb2860c113
+selection-mod-nightcore.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	9d92c28778586c14d6769c6eec495359445a1806d9b00a491440a1571482d6b2
+selection-mod-nightcore@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	a9702f126eb25ea645a08ba0c1f871d083f7dc40f5ed5e53ed4c31351a7633bd
+selection-mod-nofail.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	15c6482fd29542df7b5e32aac3845863e26671127cf89bb9b67e5ab939af35a3
+selection-mod-nofail@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	cb41356c4d83f624e03d4e1f34bcdbfdf47521bb3044f4ec1fcbf2a65997f288
+selection-mod-perfect.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	9a6102af35afccf03b4e1027621262c8642e055413673180be0a5a160c110476
+selection-mod-perfect@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	accef4d12982ae0a1573eb9ca7528838f593478fb46c93ba7516954b3b4b597f
+selection-mod-relax.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	428a9c9ea15229bc51c740da891f799a4206a24c0ef067810ad885eccb2fe8a6
+selection-mod-relax2.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	6c3af0cbf3ad895fc00ef73d624be7fe767aec9fc557c5ef6fe035edd940d46f
+selection-mod-relax2@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	a3763c4a2ace0d7926965e03c5548a96a3cd3a83fb8c8e9e33501b1abfe5ca83
+selection-mod-relax@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	a258bba616e51c7063e90b2dd0f05c27afb2a57b725f996aa0f83237df865370
+selection-mod-scorev2.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	5964c0f8c0fd45044edc14c12e353a919f92a887a0bc6316f91d107742f99e0a
+selection-mod-scorev2@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	86fadaea773fcac641b139c21a2c31dd27e6d38703d2e4c68b564db8bbc5662b
+selection-mod-spunout.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	6774ad15b3ccfc8664ede858fcc975c0e558628ab81f97076132545af6337e43
+selection-mod-spunout@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	72bf8482a6258052f834e052a4dcb3b644b3561d8d4dce87b8537c7d5d5d3396
+selection-mod-suddendeath.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	f2cc03ccc6d4b06da01443101a9572eeaaa9017966e1b8f62a7ae7c5005a23c4
+selection-mod-suddendeath@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	9bd4c0356eed36cb5fe1ce8ba9a3e66f2399cd705a54c7dd95ab0e01bd204bcc
+selection-mod-target.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	f5826eb7e0590f773c1d17c5cd4f5e49f0c17770172c2538e778910368ace754
+selection-mod-target@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	db22b03b3212ce1240795760596dd6b4b55897537b8affef4326bf5b7d62f803
+selection-mode-over.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	3019a170055fc82b0dc1aaacbc5146c4ce0cf9106b595d70e0d9a800a5bc3cb0
+selection-mode-over@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	7522780ffa33dc1f5a1d5c96cb849e9cebc4064acc48dd90e5c2f14abf3ab74e
+selection-mode.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	c483b38f5c254d2703104aa89bfad7c61162497711c1b44408f4aa36834f6094
+selection-mode@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	f57e3608d46fc7af4de6d691bf298648d33001feb27ad4d1e42fae32ebda5ac8
+selection-mods-over.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	3d23d8c4483fa607fd89a5c458d68487776ea226f9ec04598d2ab56c165b3c21
+selection-mods-over@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	a7bcdf5a85a892e4dcb681c8ab49ca3ece658df3060bbbc93028d3af9e15d343
+selection-mods.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	ea07a0e26201f36abb93c0e680088744741e8046711df2557022724f59895ca6
+selection-mods@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	aa7bfd179052a1260403c3b3225adebbac0d8bcc155df01ff8bd8d83a58fde76
+selection-options-over.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	998dfac4e101521144845244253a63cc803ea28967c227a0e2bc1dca76a0e8b5
+selection-options-over@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	77b102208563e829978561566452d8afdbfafeeb5ef9f034fe766adc3c786b42
+selection-options.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	00fcf32f14c050aeb69dc6d885059bb6e604e2edfe5d5b6d81ceb1dbd61bb883
+selection-options@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	29de16b37acb30a33c161b33b5633c434d2564889ffa468e370d86626661ad56
+selection-random-over.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	61bfd3dfbfebe0db5e7e9048936aa2141f2f5b4564f77ab26f41a35a69d22095
+selection-random-over@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	4e489f7fb2f08382b71a01cc04dc49020f4a3ce1a28b2dcf51d116c4fa91417f
+selection-random.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	e832433c23d9f3f47d4adb3e45371a96341eaebf47884bb433e25b0f6ad6506e
+selection-random@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	def7b182bf05b8b9e43cc8329a1be9e310f95fa8e932eb3c761fafacf5efdc90
+selection-tab.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	5c707cb8bda1ffb586e554643f2dc32fd77545262b275d2b10c12e96ee988da1
+selection-tab@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	cdd6dbe71de912eca166917297a6a7942e385136813b4f57ce7769703b45cc8c
+skin.ini	configuration	yes	Original ini, including ignored sections	318b47746ee20707596e4b35de811be4a7f8a9355dc7448410a4629dd2180f79
+sliderb-nd.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	1e1e8310f8a5c44a744b8cf4a8e1942983f0cab4ea2137b1fde2270951a7c32a
+sliderb-nd@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	5fe39e129d5a9d67baa5adf9db67b3db37302cc7579a005e43d4307cfbe4e903
+sliderb-spec.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	b9f3b4f7be69a3ced5e4c47fda1e70a68f4e794120c4eda4582c3e24b50b7ebe
+sliderb-spec@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	31d7ffa4d4d28bd61afd3ae538af62755b6a59bf0c9e5914577e17215dc88278
+sliderb0.png	standard	yes	Currently supported gameplay sprite	2dbc83d72b7276adbbf11757d8bcb4eae76d214e98511dccd03a4da44b87cb7c
+sliderb0@2x.png	standard	yes	Currently supported gameplay sprite	dfcf884de255d51d134c9b85c1b210700d88681a0b1154bc0ce3e940dccdec5e
+sliderendcircle.png	standard	yes	Currently supported gameplay sprite	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+sliderfollowcircle.png	standard	yes	Currently supported gameplay sprite	eaef8c418311339a4cddab3d1500a15240188d3bf2d83f7c452994abc6f0c81c
+sliderfollowcircle@2x.png	standard	yes	Currently supported gameplay sprite	3530c522a763769f24bd327b626d11221175b55fdb4e72e17824b41db1a17ed0
+sliderpoint10.png	standard	yes	Currently supported gameplay sprite	36033face482f01af809aeea6bdfe2021dc9e0380247d36e017be983747e645f
+sliderpoint10@2x.png	standard	yes	Currently supported gameplay sprite	6c19f36b3b28e30dc781a7ca0d1dd59df9c918643f3a3101ed0c31ebe124f65d
+sliderpoint30.png	unsupported	yes (reserved)	No current renderer for this judgement; retained for future support per user request	39da75f97ef1e0fc3bf7ddcdaea5f0266152b7ea23bddb550765b09f78974d6a
+sliderpoint30@2x.png	unsupported	yes (reserved)	No current renderer for this judgement; retained for future support per user request	713fdc74440f3447bab145bcf0682a713bac1faf8d7210278aa4cfd7e49553c7
+sliderscorepoint.png	standard	yes	Currently supported gameplay sprite	db86ae5533b357289fb4e5b002832a17ca797bf20c9f309312de0d8344c9e055
+sliderscorepoint@2x.png	standard	yes	Currently supported gameplay sprite	8e4be6019ebaaea5ba2a98b69ba07795e0e227bcb12ede62fcb3adfb859d3c95
+sliderstartcircle.png	standard	yes	Currently supported gameplay sprite	7f134461ac010b965fabbdc0348ae68b5f35f17c5a98c46f46e9c65437506453
+sliderstartcircle@2x.png	standard	yes	Currently supported gameplay sprite	dec322697a3cb67bc19e62d2e88745471137934f2dd7a214d447a922bc510fca
+sliderstartcircleoverlay.png	standard	yes	Currently supported gameplay sprite	019180e1c5b6b3e015da7fd0dd428b45671cec555c7cf4e79ea16b6a6700ef34
+sliderstartcircleoverlay@2x.png	standard	yes	Currently supported gameplay sprite	7999ecd51455e5a4edd21287387355420cac2a7879477d0c5c7f05c07c8b3493
+soft-hitclap.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	148813563e77adec918643f9ebf010cf7523166a2b7ef9c4b5305b2eaa5a43e8
+soft-hitfinish.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	e0e3d8e91c4ea8f6f2c47c8de0e7c7b282dce2f508eeae083f6296499fbf2efb
+soft-hitnormal.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	8bedae83edb4d650b1b99a8046f862d2ca81753732660c6c570c8d9af728db1c
+soft-hitwhistle.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	8ab4bb429efa985503dca6e985c44d20fe9229f676515cc1c7e26fbf1be75134
+soft-sliderslide.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+soft-slidertick.wav	common sound	yes	Skin fallback hitsounds (beatmap samples retain priority)	102d2b11ecd8c25320b601eaf5e50358e05f11f276e3b23a11bfd5a3202fc47d
+soft-sliderwhistle.wav	unused sound	yes (reserved)	Empty WAV placeholder; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+songselect-bottom.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	527c09b36cf794b6521bf5d10157d77594a3f7abdc6c35b3429e479aeef49def
+songselect-bottom@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	970347b2d88853b1d30d92918d2848fd9ba0301e63ad4a65f7558394ef3e0e7f
+songselect-top.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	48200ff8e4f2025a7e9c242df9399814e233fc38bdd928ba2f47ba558907d06e
+songselect-top@2x.png	unused	yes (reserved)	Menu/song select/results/pause/editor/Mods or other UI outside this task; retained for future support per user request	6447edfbafc5bcbefc8c1a836cdd0e546c78061706b6d9501886a9de5ed886cf
+spinner-approachcircle.png	standard	yes	Currently supported gameplay sprite	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+spinner-background.png	standard	yes	Currently supported gameplay sprite	adf14d3b018c59b4da61fa4f819415098f1be92860d01ba54ae9f3f121345256
+spinner-background@2x.png	standard	yes	Currently supported gameplay sprite	0961e6126be129d86ca0113213c10bb808078dd0de12f874a7168b13cc9aabcf
+spinner-circle.png	standard	yes	Currently supported gameplay sprite	1aadff202501e37226cf78913845d9b2af84e359b5ea13f1ba38894a6443a053
+spinner-circle@2x.png	standard	yes	Currently supported gameplay sprite	ab8e5eed117972f3a7dfea4f1184ef4cc8ca583db861b82af145030da9be1f17
+spinner-clear.png	standard	yes	Currently supported gameplay sprite	432a4e649b69ced68efb3f73a2280145a83c9c57bd765b1eecab15680343fffe
+spinner-clear@2x.png	standard	yes	Currently supported gameplay sprite	52ad760cf61cb68569ff399411a4113f63aaa829640e020f54e97efac7efcaee
+spinner-metre.png	standard	yes	Currently supported gameplay sprite	ced89ac1b8dc1a1bab08c9b60e62ab39116d3bbbae09b049567e4a9f7d53ab0f
+spinner-metre@2x.png	standard	yes	Currently supported gameplay sprite	6e4053bdc216ae8c3d3dae04dc2db824d1db253d5efa18f9a3619dbd7260611c
+spinner-rpm.png	standard	yes	Currently supported gameplay sprite	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+spinner-spin.png	standard	yes	Currently supported gameplay sprite	da82622f883aa39f5bda615ba68f1e3d0d35ff8b12e1d78763bb57a3e37462a0
+spinner-spin@2x.png	standard	yes	Currently supported gameplay sprite	729c7c12dc77db586e0c2a9fe72f37fb50a04e74bfc1f6775107dc790df852af
+spinner-warning.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	25d37ca4e85a4005fb43dd7228b39d72110257d49b418ecbcf4f880cad722a46
+spinner-warning@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	e857061b2c418f5f9e6a76ab6bad43349c7aa49d8213f9ebbbdf09c7e6f842b3
+star.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	53c0c92d2745e1a5cf0592438ec9d8de20c0884904ad6b38f3c35f7806f2c8e8
+star2.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+star@2x.png	unsupported	yes (reserved)	No current renderer for this element; retained for future support per user request	6ac3c68b1715db4c73d33b60d7de0245f501da01ebdd23d18a9f77f463b0b689
+taiko-bar-left.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	8e586a4ee98e7410c1f0147a13283f7ce3128fd44886569066dcf1192c3549e3
+taiko-bar-left@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	ce2d8f8e2952097bf32bd6fd76a84f9d4e1220425cf69eb346e81144a3ebfa24
+taiko-bar-right-glow.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	6b1b33bb99cba12b646ff686b5d15539aef3b4995626775e6e3c200928b53ea6
+taiko-bar-right-glow@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	341c4fcb4a0ab30bee09febd4220a0dbbf7c1d6c15ce4d3765139004ec280801
+taiko-bar-right.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	ad914aa88610d6cdaf88befcc70582e68cd1701bfaabc033d27d2c66ca6e317a
+taiko-bar-right@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	f909217b104514d43a037b0b10850b569bab87bc96325724e4390e88c8e37244
+taiko-drum-inner.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	ab1655df5ea8a50c9c61103f25b963a001c2f24a514b18d584bc4e1612e1667f
+taiko-drum-inner@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	e3fedc91db9e8dc9a13fbe63ac0d5092c9866bac0d5fc791bff1e9de069aefda
+taiko-drum-outer.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	62b98dbe0e28fe4247cd9cbabe0ac46d4409639e72e536106316a4342c393fa5
+taiko-drum-outer@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	20091e339b3467f4f79ad4906c5bd6799b043bae193fef10c047e57e3bfc4b87
+taiko-glow.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	a458fe728ff0fc5e32244cc428bfc1336c6cefef5ee7b9ad9a151f4a957d24a3
+taiko-glow@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	abd61991bf29e55b5563e90634508bd1a80924791737f9be8c10432b9e0a38ed
+taiko-hit0.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	3b06b9e1da379b3bd4223d93714f969d7520245cc3fdc1e16c3df176d63f0d9e
+taiko-hit0@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	4251f108b89c55fa86b4f3e9694e22f620f53f6ae521a61e21c6ee9bb6194fa3
+taiko-hit100.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	66fae5bc9a36b5024d912f089327300c2b7a1c3d07edeb67db202525c5aab18d
+taiko-hit100@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	731de46f7c20cccd724e046b80d63fef9ca72975e4196d8a0d8e515f2a3f59ad
+taiko-hit100k.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	ce4428f2a45a9744ebf464c591d63f9359082e768a0e6f6bf73508e7f212eed9
+taiko-hit100k@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	0b45073b2beb73c4b64bd2006777e30f41edc11b5e22599b9bb58ba15e6be29a
+taiko-hit300.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	a1c71621efa0e3f7b148424f82263834cc9852d1afdde93b90864a36914daae3
+taiko-hit300@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	b28c548460e5a1e380c989b8bddbe030e17ad0f5fcb31e39b3246bc402674bc9
+taiko-hit300g.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	aa294b9724068e071d4ec53c90845c46dc9d582ab09b9f362b555edced6b7079
+taiko-hit300g@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	2e738fcc9e1e36c018557f448fa18f85a9479838d96dd174b62931af77fe9400
+taiko-hit300k.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	aa294b9724068e071d4ec53c90845c46dc9d582ab09b9f362b555edced6b7079
+taiko-hit300k@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	2e738fcc9e1e36c018557f448fa18f85a9479838d96dd174b62931af77fe9400
+taiko-roll-end.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	3dd574fae77f90a84ac334dd8fbf95e1a388fe953478788ebef44993b4106a00
+taiko-roll-end@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	c932bd2dfe8f7ac77f2c0c3fa3d54b98f0fa014a25dd416b604f7125a689162a
+taiko-roll-middle.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	e9b409794f32b71e06cf548f029becec42231269ff810539b135f23dfb949051
+taiko-roll-middle@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	0ade9c1f3e3b35ab2d9ebd173be2411bd7b4cad817664f4b0288a9eb7ae5f65f
+taiko-Slider-fail.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	95f3b69ffc25bc37ea347152eca9876bea7865de44ff44f49e4703b10a4add4d
+taiko-Slider-fail@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	be1ac1c581ca61c28eba63413f30de919706e5eb3575028b33b3cd4e5efc0a56
+taiko-Slider.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	2487691453db660f353b7e70ae16b55e85a8aaa6666ceca39cef95bbf39b6cb2
+taiko-Slider@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	4330a5698a45a1ffb75beb69601830a09467f236419b3cf08ceab88e59333b15
+taikobigcircle.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	80ceb448b72d3af9351960589ccf1c84a5613b8c30d2ac66fe7baa2a1aaac750
+taikobigcircle@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	670be467890505fcb057bb59c1db44e0d65ab57240769ea132fca4941749029e
+taikobigcircleoverlay.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	3f9cb1bfca36a1a98da9525aea0c8d3100470d6aca31e4bf11718b0f252ba658
+taikobigcircleoverlay@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	cbeb2bd39932d719fe51c627d724b3b1366acab3704b21535ca721d1dddabfc4
+taikohitcircle.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	91f9a24c121f3894b23331da0a5443fe6bef78311cae8731c80f1303018707e1
+taikohitcircle@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	2c19f9dbec20ef5077102fb9faf7f1441aef695e22233cb58782a2e394b683cf
+taikohitcircleoverlay.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	c44ee2fed88072196b266286d0bb02006d6a923f45da165fd1bba68991f8c5e4
+taikohitcircleoverlay@2x.png	taiko (not yet rendered)	yes	Mode assets reserved for future renderer	33fa96cde477b9872fd5592b2ebcdb6658f8db05929035ae02626423db03281f
+Extras/Defaults/drum-hitclap.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	01f84f056ea1c9eb0f56506f83d9b3ca2d4b13f2f6058ff8e36a93db015ce9de
+Extras/Defaults/drum-hitfinish.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	de51537a7a3554bafe669518bfac6da69810c9ecce4011e9cd257220b6aafeee
+Extras/Defaults/drum-hitwhistle.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	73a4f8938a96b5053fb0f0c834437e20734bb5a396cde5e5d3444bf313b36c57
+Extras/Defaults/hit300.png	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	bb79322640784c3fab4e1b0933fe51a51a1cd85d8d9b42db44cdef04738fd0b4
+Extras/Defaults/hit300@2x.png	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	c9a54a934b9e23495f7bc94b166b859d49431b7026224b944d1c8f887fa41c88
+Extras/Defaults/hit300g.png	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	34d9a43e472655628736931cdedaf670124b3de58442c090ac0263523f5c52b5
+Extras/Defaults/hit300g@2x.png	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	12a27837ea751f770a270bcb623c8b79b67cfcaf42816a9bcbbb03fe93c5126f
+Extras/Defaults/hit300k.png	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	aa27fecdd6d104ef64b096804a545278588e8d5d123132694581b339a73ea3f6
+Extras/Defaults/hit300k@2x.png	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	24444ec0256aa5b942ebdfb767801f7a2fa737621f70ca1ac8ace48b8b30905a
+Extras/Defaults/normal-hitclap.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	62a016a0132f4912354489ffb7b516dbb34fff65a63b710848e9ada9462fab4b
+Extras/Defaults/normal-hitfinish.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	addf37a371645d26c83d33a139f4190c6015301aed7d37f4110d30b7033a592d
+Extras/Defaults/normal-hitwhistle.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	60aa7a9ab36bdc4dc851ca5990fb4916e40c17d070c52c57f9be35873821994f
+Extras/Defaults/soft-hitclap.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	148813563e77adec918643f9ebf010cf7523166a2b7ef9c4b5305b2eaa5a43e8
+Extras/Defaults/soft-hitfinish.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	e0e3d8e91c4ea8f6f2c47c8de0e7c7b282dce2f508eeae083f6296499fbf2efb
+Extras/Defaults/soft-hitwhistle.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	8ab4bb429efa985503dca6e985c44d20fe9229f676515cc1c7e26fbf1be75134
+Extras/No-300s/hit300.png	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+Extras/No-300s/hit300@2x.png	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+Extras/No-300s/hit300g.png	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+Extras/No-300s/hit300g@2x.png	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+Extras/No-300s/hit300k.png	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+Extras/No-300s/hit300k@2x.png	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	0464f45b495a5aac8d0e6edd4cc000fef4d3f90187ba1a7b7faf39cf4087085f
+Extras/No-hitsound-additions/drum-hitclap.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Extras/No-hitsound-additions/drum-hitfinish.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Extras/No-hitsound-additions/drum-hitwhistle.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Extras/No-hitsound-additions/normal-hitclap.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Extras/No-hitsound-additions/normal-hitfinish.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Extras/No-hitsound-additions/normal-hitwhistle.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Extras/No-hitsound-additions/soft-hitclap.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Extras/No-hitsound-additions/soft-hitfinish.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+Extras/No-hitsound-additions/soft-hitwhistle.wav	unused	yes (reserved)	Optional Extras replacement; preserve original root selection; retained for future support per user request	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
