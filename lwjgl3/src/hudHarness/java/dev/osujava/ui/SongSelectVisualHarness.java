@@ -24,7 +24,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     private ShapeRenderer shapes;
     private BitmapFont font;
     private SmoothUiFont smooth;
-    private Path artwork;
+    private Path artwork, portrait, wide;
     private int index;
 
     private SongSelectVisualHarness(Path output) { this.output = output; }
@@ -40,7 +40,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         try {
             Files.createDirectories(output);
             artwork = output.resolve("artwork.png");
-            png(artwork, 800, 200); // Wide image exercises thumbnail cover cropping.
+            artwork(artwork, 800, 450);
+            portrait = output.resolve("portrait.png"); artwork(portrait, 200, 800);
+            wide = output.resolve("wide.png"); artwork(wide, 1600, 160);
             for (String name : List.of("missing", "row-only", "top-only", "bottom-only", "normal-only", "high-only",
                     "broken", "tiny", "unusual", "old", "latest", "malformed-colours")) {
                 Path dir = Files.createDirectories(output.resolve("fixtures").resolve(name));
@@ -62,6 +64,14 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     png(dir.resolve(image.basename + suffix + ".png"), w, h);
                 }
             }
+            Files.createDirectories(output.resolve("fixtures/empty"));
+            Path starOnly = Files.createDirectories(output.resolve("fixtures/star-high"));
+            Files.writeString(starOnly.resolve("skin.ini"), "[General]\nVersion: 2.2\n");
+            starPng(starOnly.resolve("star@2x.png"));
+            Path corruptArtwork = output.resolve("broken-artwork.png");
+            Files.writeString(corruptArtwork, "not a thumbnail PNG");
+            Path starBroken = Files.createDirectories(output.resolve("fixtures/star-broken"));
+            Files.writeString(starBroken.resolve("star.png"), "not a star PNG");
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
                 for (String name : List.of("greylooks", "greylooks-initial", "greylooks-set-selected", "greylooks-difficulty-selected",
                         "greylooks-hover", "greylooks-after-wheel", "greylooks-random", "greylooks-random-hover",
@@ -69,6 +79,14 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         "greylooks-expanded-many-first", "greylooks-expanded-many-last", "greylooks-expanded-single",
                         "greylooks-collapse-many", "greylooks-first-item", "greylooks-last-item", "greylooks-large-library", "missing", "row-only", "top-only", "bottom-only",
                         "normal-only", "high-only", "broken", "tiny", "unusual", "old", "latest", "malformed-colours"))
+                    scenes.add(new Scene(size[0],size[1],size[2],name));
+            for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
+                for (String name : List.of("phase2-idle", "phase2-long-english", "phase2-japanese", "phase2-chinese",
+                        "phase2-korean", "phase2-symbols", "phase2-long-mapper", "phase2-long-difficulty",
+                        "phase2-no-rating", "phase2-low-rating", "phase2-five-stars", "phase2-fractional",
+                        "phase2-high-rating", "phase2-hover", "phase2-missing-thumbnail", "phase2-portrait",
+                        "phase2-wide", "phase2-missing-star", "phase2-broken-star", "phase2-high-star",
+                        "phase2-v22", "phase2-thumbnail-fade", "phase2-default-fallback", "phase2-broken-thumbnail", "phase2-single", "phase2-many", "phase2-long-set"))
                     scenes.add(new Scene(size[0],size[1],size[2],name));
         } catch (Exception e) { throw new RuntimeException(e); }
     }
@@ -79,6 +97,32 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             pixmap.setColor(.6f + .4f * x / w,.7f,.85f,1); pixmap.drawLine(x,0,x,h-1);
         }
         PixmapIO.writePNG(Gdx.files.absolute(path.toString()),pixmap); pixmap.dispose();
+    }
+
+    private void artwork(Path path, int w, int h) {
+        var pixels = new Pixmap(w, h, Pixmap.Format.RGBA8888);
+        for (int y = 0; y < h; y++) {
+            pixels.setColor(.06f + .12f * y / h, .13f + .12f * y / h, .22f + .18f * y / h, 1);
+            pixels.drawLine(0, y, w - 1, y);
+        }
+        pixels.setColor(.95f, .55f, .35f, 1); pixels.fillCircle(w / 2, h / 3, Math.min(w, h) / 5);
+        pixels.setColor(.19f, .40f, .50f, 1); pixels.fillTriangle(0, h, w / 2, h / 2, w, h);
+        pixels.setColor(.35f, .60f, .60f, 1); pixels.fillTriangle(w / 3, h, w * 3 / 4, h / 2, w, h);
+        PixmapIO.writePNG(Gdx.files.absolute(path.toString()), pixels); pixels.dispose();
+    }
+
+    private void starPng(Path path) {
+        var pixels = new Pixmap(40, 40, Pixmap.Format.RGBA8888);
+        pixels.setColor(1, 1, 1, 1);
+        int[] x = new int[10], y = new int[10];
+        for (int i = 0; i < 10; i++) {
+            double angle = -Math.PI / 2 + i * Math.PI / 5;
+            int radius = i % 2 == 0 ? 18 : 8;
+            x[i] = 20 + (int) Math.round(Math.cos(angle) * radius);
+            y[i] = 20 + (int) Math.round(Math.sin(angle) * radius);
+        }
+        for (int i = 0; i < 10; i++) pixels.fillTriangle(20, 20, x[i], y[i], x[(i + 1) % 10], y[(i + 1) % 10]);
+        PixmapIO.writePNG(Gdx.files.absolute(path.toString()), pixels); pixels.dispose();
     }
 
     @Override public void render() {
@@ -103,15 +147,49 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         });
         var library = new BeatmapLibrary();
         int setCount = scene.name.equals("greylooks-large-library") ? 1000 : 7;
+        boolean phase2 = scene.name.startsWith("phase2");
+        var ratings = new IdentityHashMap<BeatmapDifficulty, OptionalDouble>();
         for (int i = 0; i < setCount; i++) {
             String title = setCount > 7 ? String.format(Locale.ROOT,"Local song %03d",i) : "Local song " + i;
+            if (scene.name.equals("phase2-long-set") && i == 2)
+                title = "Local song 2 — A Very Long English Title with Unicode 星の旅人 that extends beyond the row";
+            String mapper = "Harness", version = "Difficulty ";
+            Path image = artwork;
+            if (phase2 && i == 3) {
+                title = switch (scene.name) {
+                    case "phase2-long-english" -> "A Very Long Song Title That Keeps Going Beyond the Visible Carousel into a Beautiful Night";
+                    case "phase2-japanese" -> "夜明けの星空と夢の続きを描く物語";
+                    case "phase2-chinese" -> "夜空中最亮的星与漫长旅程的回忆";
+                    case "phase2-korean" -> "별빛 아래 우리들의 아름다운 이야기";
+                    case "phase2-symbols" -> "Starlight ✦ ∞ → Café e\u0301 👩‍🚀";
+                    default -> title;
+                };
+                if (scene.name.equals("phase2-long-mapper")) mapper = "A mapper with a remarkably long name 星の旅人 별빛 创作者";
+                if (scene.name.equals("phase2-long-difficulty")) version = "The Never Ending Journey Across the Constellations — 星の彼方への冒険 ";
+                image = switch (scene.name) {
+                    case "phase2-missing-thumbnail" -> output.resolve("missing-artwork.png");
+                    case "phase2-broken-thumbnail" -> output.resolve("broken-artwork.png");
+                    case "phase2-portrait" -> portrait;
+                    case "phase2-wide" -> wide;
+                    default -> artwork;
+                };
+            }
             List<BeatmapDifficulty> diffs = new ArrayList<>();
-            int difficultyCount = scene.name.equals("greylooks-expanded-single") ? 1
+            int difficultyCount = (scene.name.equals("greylooks-expanded-single") || scene.name.equals("phase2-single")) ? 1
                     : (scene.name.contains("many") && i == 3) ? 16 : 4;
-            for (int difficulty = 0; difficulty < difficultyCount; difficulty++) diffs.add(new BeatmapDifficulty(
-                    title,"Local artist","Harness","Difficulty " + (difficulty + 1),0,"","",DifficultySettings.defaults(),
-                    List.of(new TimingPoint(0,500,4,0,0,100,true,0)),List.of(),null,artwork));
-            library.add(new BeatmapSet("set" + i,title,"Local artist","Harness",null,artwork,diffs,List.of()));
+            for (int difficulty = 0; difficulty < difficultyCount; difficulty++) {
+                var diff = new BeatmapDifficulty(title,"Local artist",mapper,version + (difficulty + 1),0,"","",DifficultySettings.defaults(),
+                        List.of(new TimingPoint(0,500,4,0,0,100,true,0)),List.of(),null,image);
+                diffs.add(diff);
+                double rating = switch (scene.name) {
+                    case "phase2-low-rating" -> .65;
+                    case "phase2-five-stars" -> 5;
+                    case "phase2-high-rating" -> 12.84;
+                    default -> difficulty == 1 ? 5.42 : new double[]{1.25, 5.42, 6.75, 10.25}[difficulty % 4];
+                };
+                if (phase2 && !scene.name.equals("phase2-no-rating")) ratings.put(diff, OptionalDouble.of(rating));
+            }
+            library.add(new BeatmapSet("set" + i,title,"Local artist",mapper,null,image,diffs,List.of()));
         }
         var game = new OsuJavaGame(null,null) {
             @Override public SpriteBatch batch() { return batch; }
@@ -121,21 +199,47 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             @Override public BeatmapLibrary library() { return library; }
             @Override public dev.osujava.ruleset.osu.OsuRuleset osuRuleset() { return new dev.osujava.ruleset.osu.OsuRuleset(); }
         };
-        var resolver = scene.name.startsWith("greylooks") ? SkinAssetResolver.withBundledDefault(null,null)
-                : new SkinAssetResolver(output.resolve("fixtures").resolve(scene.name));
+        var resolver = switch (scene.name) {
+            case "phase2-missing-star" -> new SkinAssetResolver(output.resolve("fixtures/missing"));
+            case "phase2-broken-star" -> new SkinAssetResolver(output.resolve("fixtures/star-broken"));
+            case "phase2-high-star" -> new SkinAssetResolver(output.resolve("fixtures/star-high"));
+            case "phase2-default-fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), null);
+            case "phase2-v22" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/star-high"), null);
+            default -> scene.name.startsWith("greylooks") || phase2 ? SkinAssetResolver.withBundledDefault(null,null)
+                    : new SkinAssetResolver(output.resolve("fixtures").resolve(scene.name));
+        };
         var assets = new SongSelectSkinAssets(resolver);
         String preferredSet = scene.name.equals("greylooks-first-item") ? "set0"
                 : scene.name.equals("greylooks-last-item") ? "set6"
                 : scene.name.startsWith("greylooks-expanded") ? "set2" : "set3";
         int preferredDifficulty = scene.name.equals("greylooks-first-item") ? 0
                 : (scene.name.equals("greylooks-last-item") || scene.name.startsWith("greylooks-expanded")) ? 3 : 1;
-        var screen = new SongSelectScreen(game,preferredSet,preferredDifficulty,assets);
+        var screen = new SongSelectScreen(game,preferredSet,preferredDifficulty,assets, diff -> ratings.getOrDefault(diff, OptionalDouble.empty()));
         var fb = new FrameBuffer(Pixmap.Format.RGBA8888,scene.width * scene.density,scene.height * scene.density,false);
         try {
             screen.show(); screen.resize(scene.width,scene.height);
             fb.begin();
             for (int frame = 0; frame < 40; frame++) screen.render(1f / 60);
+            if (scene.name.equals("phase2-hover")) {
+                pointerRow(screen,carousel(screen).rows().stream().filter(r -> r.entry.difficultyIndex() == 1).findFirst().orElseThrow().entry.setIndex(),2,pointer,layout,scene.height);
+                for (int frame = 0; frame < 60; frame++) screen.render(1f / 60);
+            }
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if (scene.name.equals("phase2-thumbnail-fade")) {
+                // Simulate a newly resident image after entrance, without changing content/hitboxes.
+                try {
+                    var field = SongSelectScreen.class.getDeclaredField("thumbnails"); field.setAccessible(true);
+                    ((BeatmapThumbnails)field.get(screen)).close();
+                } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+                screen.render(0);
+                capture(fb, name + "-frame-00");
+                for (int frame = 1; frame <= 8; frame++) {
+                    screen.render(1f / 60);
+                    assertRenderedBounds(screen, layout);
+                    if (frame == 2 || frame == 4 || frame == 8) capture(fb, name + "-frame-" + String.format(Locale.ROOT,"%02d",frame));
+                }
+            }
+            if (phase2) assertPresentation(screen, assets, scene.name);
             switch (scene.name) {
                 case "greylooks-set-selected" -> {
                     pointerRow(screen,2,-1,pointer,layout,scene.height);
@@ -188,7 +292,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             capture(fb,name);
             assertRenderedBounds(screen,layout);
             assertScrollSettled(screen,name);
-            if (scene.name.equals("greylooks-large-library")) profileMotion(carousel(screen),name);
+            if (scene.name.equals("greylooks-large-library")) {
+                profileMotion(carousel(screen),name);
+                profileRender(screen, name);
+            }
             // Wheel scenes intentionally leave selection behind. A real difficulty change restores it.
             if (scene.name.contains("scroll") || scene.name.equals("greylooks-large-library")) {
                 processor[0].keyDown(Input.Keys.RIGHT); pointer[0] = 40;
@@ -213,7 +320,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             // Exactly one matching Set must remain, including after clicking Random.
             try {
                 var selected = SongSelectScreen.class.getDeclaredField("selectedSetIndex"); selected.setAccessible(true);
-                if (selected.getInt(screen) != 2) throw new AssertionError("Search/Random selection changed: " + name);
+                var setsField = SongSelectScreen.class.getDeclaredField("sets"); setsField.setAccessible(true);
+                var selectedSet = (BeatmapSet)((List<?>)setsField.get(screen)).get(selected.getInt(screen));
+                if (!selectedSet.id().equals("set2")) throw new AssertionError("Search/Random selection changed: " + name);
             } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
             // Selected difficulty re-click also reaches the production Play transition.
             pointer[0] = 40;
@@ -227,6 +336,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         } finally {
             screen.dispose(); screen.dispose();
             for (var image : SongSelectSkinAssets.Image.values()) if (assets.get(image) != null) throw new AssertionError("Texture retained");
+            if (assets.starTexture() != null) throw new AssertionError("Star texture retained after disposal");
             fb.dispose(); Gdx.graphics = actualGraphics; Gdx.input = actualInput;
         }
         if (++index == scenes.size()) {
@@ -234,6 +344,29 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             Gdx.app.exit();
         }
     }
+    private void assertPresentation(SongSelectScreen screen, SongSelectSkinAssets assets, String scene) {
+        try {
+            var field = SongSelectScreen.class.getDeclaredField("rowContent"); field.setAccessible(true);
+            for (Object item : ((Map<?, ?>)field.get(screen)).values()) {
+                var content = (SongSelectRowPresentation.Content)item;
+                if (scene.equals("phase2-no-rating") && content.stars().present()) throw new AssertionError("Invented rating");
+                if (content.stars().count() > 7) throw new AssertionError("Unbounded stars");
+            }
+            if (assets.starTexture() == null) throw new AssertionError("Missing procedural star fallback");
+            if (scene.equals("phase2-v22")) {
+                var colour = SongSelectScreen.class.getDeclaredField("activeText"); colour.setAccessible(true);
+                if (!((Color)colour.get(screen)).equals(UiTheme.TEXT)) throw new AssertionError("Dark unspecified text on skin-backed row");
+            }
+            if (scene.equals("phase2-default-fallback") && assets.get(SongSelectSkinAssets.Image.STAR).file().classpathResource() == null)
+                throw new AssertionError("Default star fallback did not resolve bundled asset");
+            if (scene.equals("phase2-missing-star") || scene.equals("phase2-broken-star")) {
+                if (assets.get(SongSelectSkinAssets.Image.STAR) != null) throw new AssertionError("Unexpected skin star");
+            }
+            if (scene.equals("phase2-high-star") && assets.get(SongSelectSkinAssets.Image.STAR).density() != 2)
+                throw new AssertionError("@2x star lost");
+        } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+
     private void capture(FrameBuffer fb, String name) {
         Pixmap capture = Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
         PixmapIO.writePNG(Gdx.files.absolute(output.resolve(name + ".png").toString()),capture,-1,true);
@@ -269,6 +402,16 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         System.out.printf(Locale.ROOT,"Motion profile %s: %d rows, mean %.3f ms, max %.3f ms (600 samples)%n",
                 name,model.rows().size(),total / 600.0 / 1_000_000,maximum / 1_000_000.0);
     }
+    private void profileRender(SongSelectScreen screen, String name) {
+        long total = 0, maximum = 0;
+        for (int frame = 0; frame < 240; frame++) {
+            long start = System.nanoTime(); screen.render(1f / 60); long elapsed = System.nanoTime() - start;
+            if (frame >= 60) { total += elapsed; maximum = Math.max(maximum, elapsed); }
+        }
+        System.out.printf(Locale.ROOT, "Idle render CPU submission %s: mean %.3f ms, max %.3f ms (180 samples, shared artwork)%n",
+                name, total / 180.0 / 1_000_000, maximum / 1_000_000.0);
+    }
+
     /** Production draw snapshots must exactly match Carousel output even during overlapping motion. */
     private void assertRenderedBounds(SongSelectScreen screen, UiLayout layout) {
         try {

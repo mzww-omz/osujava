@@ -58,3 +58,7 @@ The production visual harness captures 90 scenes plus 234 transition frames at 1
 Final run: `./gradlew build :lwjgl3:songSelectVisualHarness -PsongSelectOutput=/tmp/osujava-motion-phase1` succeeded. All **422 tests passed**, with zero failures/errors/skips; this phase adds 14 motion tests and two navigation/wheel tests. The harness passed all 90 scenes and saved 234 transition captures. Visual review covered all three resolution/density profiles, expansion/collapse/fast-scroll timelines, and missing/@2x/malformed skin fallbacks. Broken PNG fixture warnings are expected and verify programmatic fallback.
 
 A harness timing probe measures only `Carousel.advance` over 600 warmed samples with 1003 rows. The final local run averaged 0.006 ms in each profile, with a maximum of 0.036 ms. This is a local CPU motion measurement, not a full-render or cross-hardware benchmark. Physical mouse wheels/trackpads are represented by synthetic ordinary, tiny fractional, repeated fast and reversal deltas; direct device feel and the McOsu binary have not been compared.
+
+## Phase 2 static presentation
+
+[Row presentation](songselect-row-presentation.md) adds cached Title/byline/Difficulty hierarchy, bounded Unicode ellipsis, centered/fading thumbnails and optional trusted-rating icons. Carousel physics, row sizing/spacing and final-bounds interaction remain unchanged. The Phase 2 harness retains all Phase 1 motion scenes and adds idle content/asset edge cases. Production still has no calculated rating source and retains Library ordering.

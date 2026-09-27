@@ -14,9 +14,9 @@ All entries support `.png` and `@2x.png` through `SkinAssetResolver`.
 | `menu-back` | Aspect-preserving fit within the existing logical Back bounds. |
 | `selection-random`, `selection-random-over` | Normal image plus hover overlay in the same fitted rectangle; 140 ms fade and short F2 pulse. Click/F2 selects a matching Set, avoiding the current Set when alternatives exist. |
 | `selection-mode`, `selection-mods`, `selection-options` and their `-over` images | Asset-holder support only. No buttons are shown for unimplemented actions. |
-| `star` | Asset-holder support only. No star rating exists in the current BeatmapDifficulty model, so no fabricated rating or new calculator is introduced. |
+| `star` | Optional trusted-rating full/partial icons. Existing resolver priority is retained; all missing/corrupt candidates use a small owned procedural glyph. Production has no trusted rating source and hides this region. |
 
-Thumbnails reuse `BeatmapThumbnails` and `UiView.imageCover`: the source is cropped to cover its bounded destination without overflow. With a loaded row asset and Version >= 2.2, the Wiki's 115:85 ratio is adapted to the existing thumbnail height. Older skins (including bundled Greylooks Version 1.0) retain the original thumbnail rectangle. The carousel is clipped between header and toolbar, including at Retina density.
+Phase 2 typography, safe long-text fitting and optional ratings are described in [row presentation](songselect-row-presentation.md). Thumbnails are now vertically centered with fixed bounds and a 110 ms residency fade. They reuse `BeatmapThumbnails` and `UiView.imageCover`: the source is cropped to cover its bounded destination without overflow. With a loaded row asset and Version >= 2.2, the Wiki's 115:85 ratio is adapted to the existing thumbnail height. Older skins (including bundled Greylooks Version 1.0) retain the legacy aspect policy, within the centered fixed thumbnail rectangle. The carousel is clipped between header and toolbar, including at Retina density.
 
 ## Resolution and fallback
 
@@ -28,7 +28,7 @@ The selected skin.ini is self-contained, following the shared resolver's existin
 
 ## skin.ini
 
-`[Colours]` supports `SongSelectActiveText` and `SongSelectInactiveText`, stored in `SkinConfiguration.SongSelect`. Valid RGB triplets tint selected and inactive row text respectively. Absent settings retain osujava's existing palette. Malformed values are ignored, retaining previous valid values or the default. Existing Version parsing (including `latest` = 2.7) is unchanged; text colours apply independently of Version.
+`[Colours]` supports `SongSelectActiveText` and `SongSelectInactiveText`, stored in `SkinConfiguration.SongSelect`. Valid RGB triplets tint selected and inactive row text respectively. Absent settings use light selected text for skin-backed rows and dark selected text for the light procedural selection, with the existing inactive palette. Malformed values are ignored, retaining previous valid values or the default. Existing Version parsing (including `latest` = 2.7) is unchanged; text colours apply independently of Version.
 
 ## Intentional limits
 
