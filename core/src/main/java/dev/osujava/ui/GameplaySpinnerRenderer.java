@@ -4,6 +4,8 @@ import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.badlogic.gdx.math.Rectangle;
+import com.badlogic.gdx.scenes.scene2d.utils.ScissorStack;
 import dev.osujava.gameplay.SpinnerVisual;
 import dev.osujava.skin.LegacyHudLayout;
 import dev.osujava.skin.OsuSkinAssets;
@@ -70,16 +72,24 @@ final class GameplaySpinnerRenderer {
         var asset = assets.get(Image.SPINNER_METRE);
         if (asset == null) return;
         double visibleHeight = metreBars(s.progress(), assets.spinnerConfiguration().noBlink(), now, s.beatmapIndex()) / 10.0 * METRE_HEIGHT;
-        // Container Y=final-height, sprite Y=-container.Y; retain the native texture's absolute position.
+        // Framework AutoSize at TopLeft uses max(0, child.Y + child.DrawHeight).
+        // The container moves down, while the native sprite stays at TOP_OFFSET.
+        // 692 is the travel distance, not the texture height (short textures can be fully masked).
         double cut = METRE_HEIGHT - visibleHeight;
         double fullHeight = asset.logicalHeight() * SPRITE_SCALE;
         double retained = Math.max(0, fullHeight - cut);
         if (retained <= 0) return;
-        TextureRegion region = new TextureRegion(asset.texture());
-        region.setV((float) (cut / fullHeight));
-        batch.setColor(1, 1, 1, alpha);
-        batch.draw(region, c.x(0), c.y(TOP_OFFSET + fullHeight),
+        batch.flush();
+        // ScissorStack converts logical window coordinates through HdpiUtils.
+        var mask = new Rectangle(c.x(0), c.y(TOP_OFFSET + fullHeight),
                 c.length(asset.logicalWidth() * SPRITE_SCALE), c.length(retained));
+        if (!ScissorStack.pushScissors(mask)) return;
+        try {
+            image(batch, c, Image.SPINNER_METRE, 0, TOP_OFFSET, SPRITE_SCALE, 0, null, alpha, 0, 0);
+            batch.flush();
+        } finally {
+            ScissorStack.popScissors();
+        }
     }
     private void text(SpriteBatch batch, LegacySpinnerCoordinates c, String value, double x, double y,
                       double scale, float alpha, float originX, float originY) {

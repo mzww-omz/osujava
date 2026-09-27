@@ -50,6 +50,14 @@ Song Selectでは、1つの.oszに入った複数Difficultyを1つのBeatmap Set
 
 実行可能JARでは `java -Dosujava.skinDirectory="/path/to/skin" -jar lwjgl3/build/libs/osujava-0.1.0-all.jar` を使います。オプションを外して起動すると従来のベクター描画へ戻ります。
 
+欠落textureを別のローカルSkin directoryから補完する場合は、Gradleへ
+`-PskinFallbackDirectory="/path/to/fallback-skin"`、JARへ
+`-Dosujava.skinFallbackDirectory="/path/to/fallback-skin"`を追加します。
+customの通常解像度画像もfallbackの`@2x`より優先します。透明画像は置換しません。
+これは画像解決の補完のみで、fallbackの`skin.ini`設定の合成は行いません。
+default classic assetは同梱していないため、未指定時は欠落pieceを描画しません。
+Spinner bodyのOld/New選択はcustom providerのrootを優先し、fallback画像でstyleを変えません。
+
 `.osk`を直接指定する開発確認用オプションもあります。
 
 ~~~sh

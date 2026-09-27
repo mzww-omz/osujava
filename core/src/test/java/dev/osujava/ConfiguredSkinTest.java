@@ -13,6 +13,19 @@ import java.util.zip.ZipOutputStream;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ConfiguredSkinTest {
+    @Test void fallbackDirectoryIsOptionalLocalConfiguration() {
+        String key = "osujava.skinFallbackDirectory", previous = System.getProperty(key);
+        try {
+            System.clearProperty(key);
+            assertNull(new OsuJavaGame(null, temp).skinFallbackDirectory());
+            System.setProperty(key, temp.toString());
+            assertEquals(temp, new OsuJavaGame(null, temp).skinFallbackDirectory());
+            System.setProperty(key, "\u0000");
+            assertNull(new OsuJavaGame(null, temp).skinFallbackDirectory());
+        } finally {
+            if (previous == null) System.clearProperty(key); else System.setProperty(key, previous);
+        }
+    }
     @TempDir Path temp;
 
     @Test

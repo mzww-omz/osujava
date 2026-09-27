@@ -61,7 +61,7 @@ public final class GameplayScreen extends ScreenAdapter {
         this.set = set;
         this.difficulty = difficulty;
         this.runMode = runMode;
-        this.skinAssets = new OsuSkinAssets(game.skinDirectory());
+        this.skinAssets = new OsuSkinAssets(game.skinDirectory(), game.skinFallbackDirectory());
         this.renderer = new GameplayRenderer(game, GameplayVisualConfig.defaults(), skinAssets);
         this.cursorRenderer = new GameplayCursorRenderer(skinAssets);
         this.cursorVisual = cursorRenderer.createVisual();

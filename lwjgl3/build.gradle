@@ -41,6 +41,9 @@ run {
     if (project.hasProperty('skinArchive')) {
         systemProperty 'osujava.skinArchive', project.property('skinArchive')
     }
+    if (project.hasProperty('skinFallbackDirectory')) {
+        systemProperty 'osujava.skinFallbackDirectory', project.property('skinFallbackDirectory')
+    }
     setIgnoreExitValue(true)
 }
 
@@ -83,4 +86,7 @@ tasks.register('spinnerVisualHarness', JavaExec) {
     mainClass = 'dev.osujava.ui.LegacySpinnerVisualHarness'
     systemProperty 'java.awt.headless', 'true'
     args project.findProperty('spinnerOutput') ?: '/tmp/osujava-spinner'
+    if (project.hasProperty('spinnerReportedSkinArchive')) {
+        systemProperty 'osujava.spinnerReportedSkinArchive', project.property('spinnerReportedSkinArchive')
+    }
 }

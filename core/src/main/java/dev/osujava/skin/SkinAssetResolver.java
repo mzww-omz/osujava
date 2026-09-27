@@ -9,18 +9,34 @@ import java.util.Optional;
 /** File resolution only; no graphics context is required. */
 public final class SkinAssetResolver {
     private final Path directory;
+    private final Path fallbackDirectory;
 
     public SkinAssetResolver(Path directory) {
+        this(directory, null);
+    }
+
+    /** Local providers, custom first. A present (including transparent) file wins. */
+    public SkinAssetResolver(Path directory, Path fallbackDirectory) {
         this.directory = directory;
+        this.fallbackDirectory = fallbackDirectory;
     }
 
     public Optional<AssetFile> resolve(String name) {
-        if (directory == null) return Optional.empty();
         if (!name.matches("[\\p{L}\\p{N}_ -]+")) throw new IllegalArgumentException("Expected a skin image basename");
+        return resolveIn(directory, name).or(() -> resolveIn(fallbackDirectory, name));
+    }
+
+    private Optional<AssetFile> resolveIn(Path directory, String name) {
+        if (directory == null) return Optional.empty();
         Path highResolution = directory.resolve(name + "@2x.png");
         if (Files.isRegularFile(highResolution)) return Optional.of(new AssetFile(highResolution, 2));
         Path standard = directory.resolve(name + ".png");
         return Files.isRegularFile(standard) ? Optional.of(new AssetFile(standard, 1)) : Optional.empty();
+    }
+
+    public boolean isFallback(AssetFile file) {
+        return fallbackDirectory != null && file.path().getParent().equals(fallbackDirectory)
+                && (directory == null || !directory.equals(fallbackDirectory));
     }
 
     /** Legacy GetTextures("sliderb", animatable=true, separator=""): animation wins. */

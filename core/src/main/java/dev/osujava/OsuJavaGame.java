@@ -40,6 +40,13 @@ public class OsuJavaGame extends Game {
 
     public Path skinDirectory() { return skinDirectory; }
 
+    public Path skinFallbackDirectory() {
+        String value = System.getProperty("osujava.skinFallbackDirectory");
+        if (value == null || value.isBlank()) return null;
+        try { return Path.of(value); }
+        catch (InvalidPathException ignored) { return null; }
+    }
+
     private static Path configuredSkinDirectory() {
         String archive = System.getProperty("osujava.skinArchive");
         if (archive != null && !archive.isBlank()) {

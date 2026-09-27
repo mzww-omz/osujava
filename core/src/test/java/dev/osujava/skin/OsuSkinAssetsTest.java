@@ -18,6 +18,39 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class OsuSkinAssetsTest {
+    @Test void diagnosticsDistinguishMissingBrokenAndLoadedSpinnerPieces() throws IOException {
+        Files.createFile(directory.resolve("spinner-background.png"));
+        Files.createFile(directory.resolve("spinner-metre@2x.png"));
+        var assets = new OsuSkinAssets(directory, file -> {
+            if (file.path().getFileName().toString().startsWith("spinner-metre")) throw new GdxRuntimeException("broken PNG");
+            return new TestTexture();
+        });
+        assertEquals(OsuSkinAssets.LoadStatus.FAILED, assets.diagnostic(Image.SPINNER_METRE).status());
+        assertEquals(2, assets.diagnostic(Image.SPINNER_METRE).file().density());
+        assertEquals(OsuSkinAssets.LoadStatus.MISSING, assets.diagnostic(Image.SPINNER_RPM).status());
+        assertNotNull(assets.get(Image.SPINNER_BACKGROUND));
+        assertEquals(OsuSkinAssets.LoadStatus.LOADED, assets.diagnostic(Image.SPINNER_BACKGROUND).status());
+        assertNull(assets.get(Image.SPINNER_METRE));
+        assets.dispose();
+    }
+
+    @Test void localFallbackIsGeneralAndPreservesCustomProviderStyleAndTransparentFiles() throws IOException {
+        Path fallback = Files.createDirectory(directory.resolve("fallback"));
+        for (String name : List.of("spinner-background", "spinner-metre", "spinner-rpm", "cursor"))
+            Files.createFile(fallback.resolve(name + "@2x.png"));
+        Files.createFile(directory.resolve("spinner-top.png"));
+        Files.createFile(directory.resolve("cursor.png")); // including transparent custom files: never replace
+        var assets = new OsuSkinAssets(directory, fallback, file -> new TestTexture());
+        assertEquals(dev.osujava.ruleset.osu.render.LegacySpinnerAnimation.Style.NEW, assets.spinnerStyle());
+        for (Image image : List.of(Image.SPINNER_METRE, Image.SPINNER_RPM)) {
+            assertTrue(assets.diagnostic(image).fallback());
+            assertEquals(OsuSkinAssets.LoadStatus.LOADED, assets.diagnostic(image).status());
+            assertEquals(2, assets.get(image).density());
+        }
+        assertFalse(assets.diagnostic(Image.CURSOR).fallback());
+        assertEquals(1, assets.get(Image.CURSOR).density());
+        assets.dispose();
+    }
     @Test void everySpinnerPieceUsesStaticTwoXResolutionAndLoadsOnlyOnce() throws IOException {
         for (String name : List.of("background", "circle", "metre", "approachcircle", "glow", "bottom", "top", "middle2", "middle", "spin", "clear", "rpm")) {
             Files.createFile(directory.resolve("spinner-" + name + ".png"));

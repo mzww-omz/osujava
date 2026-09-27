@@ -38,6 +38,9 @@ public final class OsuSkinAssets implements Disposable {
     }
 
     private final EnumMap<Image, SkinTexture> textures = new EnumMap<>(Image.class);
+    public enum LoadStatus { MISSING, LOADED, FAILED }
+    public record AssetDiagnostic(LoadStatus status, SkinAssetResolver.AssetFile file, boolean fallback) { }
+    private final EnumMap<Image, AssetDiagnostic> diagnostics = new EnumMap<>(Image.class);
     private final Set<Texture> ownedTextures = Collections.newSetFromMap(new IdentityHashMap<>());
     private List<SkinTexture> sliderBallFrames = List.of();
     private List<SkinTexture> hitCircleDigits = List.of();
@@ -51,16 +54,27 @@ public final class OsuSkinAssets implements Disposable {
     private SkinConfiguration configuration = SkinConfiguration.defaults();
 
     public OsuSkinAssets(Path directory) {
-        this(directory, file -> new Texture(Gdx.files.absolute(file.path().toAbsolutePath().toString())));
+        this(directory, (Path) null);
+    }
+
+    public OsuSkinAssets(Path directory, Path fallbackDirectory) {
+        this(directory, fallbackDirectory, file -> new Texture(Gdx.files.absolute(file.path().toAbsolutePath().toString())));
     }
 
     /** Allows asset ownership/failure tests without an OpenGL context. */
     OsuSkinAssets(Path directory, Function<SkinAssetResolver.AssetFile, Texture> textureLoader) {
-        SkinAssetResolver resolver = new SkinAssetResolver(directory);
+        this(directory, null, textureLoader);
+    }
+
+    OsuSkinAssets(Path directory, Path fallbackDirectory, Function<SkinAssetResolver.AssetFile, Texture> textureLoader) {
+        SkinAssetResolver resolver = new SkinAssetResolver(directory, fallbackDirectory);
         for (Image image : Image.values()) {
+            diagnostics.put(image, new AssetDiagnostic(LoadStatus.MISSING, null, false));
             resolver.resolve(image.basename).ifPresent(file -> {
                 SkinTexture texture = load(file, textureLoader);
                 if (texture != null) textures.put(image, texture);
+                diagnostics.put(image, new AssetDiagnostic(texture == null ? LoadStatus.FAILED : LoadStatus.LOADED,
+                        file, resolver.isFallback(file)));
             });
         }
         try {
@@ -173,7 +187,14 @@ public final class OsuSkinAssets implements Disposable {
     public SkinConfiguration.Colours sliderColours() { return configuration.colours(); }
     public SkinConfiguration.Cursor cursorConfiguration() { return configuration.cursor(); }
     public SkinConfiguration.Spinner spinnerConfiguration() { return configuration.spinner(); }
+    /** Immutable load-time result; queries never reload or log per frame. */
+    public AssetDiagnostic diagnostic(Image image) { return diagnostics.get(image); }
     public dev.osujava.ruleset.osu.render.LegacySpinnerAnimation.Style spinnerStyle() {
+        // The provider supplying the body selects its style before sub-assets fall back.
+        boolean ownBackground = get(Image.SPINNER_BACKGROUND) != null && !diagnostic(Image.SPINNER_BACKGROUND).fallback();
+        boolean ownTop = get(Image.SPINNER_TOP) != null && !diagnostic(Image.SPINNER_TOP).fallback();
+        if (ownBackground || ownTop)
+            return dev.osujava.ruleset.osu.render.LegacySpinnerAnimation.select(ownBackground, ownTop);
         return dev.osujava.ruleset.osu.render.LegacySpinnerAnimation.select(
                 get(Image.SPINNER_BACKGROUND) != null, get(Image.SPINNER_TOP) != null);
     }

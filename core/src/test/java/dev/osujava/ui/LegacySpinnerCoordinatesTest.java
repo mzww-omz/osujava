@@ -2,6 +2,20 @@ package dev.osujava.ui;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 class LegacySpinnerCoordinatesTest {
+    @Test void rpmNativeFrameSlidesFromBelowScreenToWindowSpaceWithoutExtraTopOffset() {
+        var c = LegacySpinnerCoordinates.fit(1024, 768);
+        assertEquals(372.8, c.x(320 - 87), .001);
+        assertEquals(-11.2, c.y(445 + 50), .001);
+        assertEquals(68.8, c.y(445), .001);
+        assertEquals(18.8, c.y(445) - c.length(50 * .625), .001);
+        assertEquals(64, c.y(448), .001);
+        assertEquals(3 * c.unit(), c.y(445 + 12.5) - c.y(448 + 12.5), .001);
+        for (float[] size : new float[][]{{1280,720},{600,800},{2048,1536}}) {
+            var other = LegacySpinnerCoordinates.fit(size[0],size[1]);
+            assertTrue(other.y(445) < size[1]);
+            assertTrue(other.y(445) - other.length(50 * .625) > 0);
+        }
+    }
     @Test void circleRotationPreservesClockwiseDirectionAcrossYFlip() {
         assertEquals(-120, LegacySpinnerCoordinates.screenRotation(120));
         assertEquals(90, LegacySpinnerCoordinates.screenRotation(-90));
