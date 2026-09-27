@@ -528,7 +528,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         var best = child ? game.localScores().best(DifficultyIdentity.of(
                 sets.get(row.setIndex()).id(), sets.get(row.setIndex()).difficulties().get(row.difficultyIndex()))) : null;
         if (best != null) {
-            drawGrade(best.grade(), x, row.y() + row.height() / 2 - 17, 44, 34, thumbnailTint.set(1, 1, 1, detail.a));
+            drawGrade(best.grade(), x, row.y() + row.height() / 2 - 17, 44, 34, thumbnailTint.set(1, 1, 1, detail.a), detail);
             x += 52; width = Math.max(0, width - 52);
         }
         view.textSmooth(content.title(), x, row.y() + (child ? geometry.titleY() : row.height() / 2 + 8), width,
@@ -608,13 +608,13 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
-    private void drawGrade(OsuGrade grade, float x, float y, float w, float h, Color tint) {
+    private void drawGrade(OsuGrade grade, float x, float y, float w, float h, Color tint, Color textTint) {
         Image image = switch (grade) {
             case SS -> Image.GRADE_SS; case S -> Image.GRADE_S; case A -> Image.GRADE_A;
             case B -> Image.GRADE_B; case C -> Image.GRADE_C; case D -> Image.GRADE_D;
         };
         if (has(image)) skinImageFit(image, x, y, w, h, tint);
-        else view.textSmoothBold(grade.name(), x + 3, y + h * .35f, w - 6, 1.35f, tint);
+        else view.textSmoothBold(grade.name(), x + 3, y + h * .35f, w - 6, 1.35f, textTint);
     }
 
     private void drawRanking(UiLayout layout) {
@@ -631,7 +631,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         for (int slot = 0; slot < bounds.capacity() && scores.first() + slot < scores.rows().size(); slot++) {
             var row = scores.rows().get(scores.first() + slot);
             float y = bounds.rowY(slot), x = bounds.x();
-            drawGrade(row.score().grade(), x + 8, y + 13, 60, 40, UiTheme.TEXT);
+            drawGrade(row.score().grade(), x + 8, y + 13, 60, 40, UiTheme.TEXT, UiTheme.TEXT);
             float textX = x + 78, width = bounds.width() - 88;
             view.textSmoothBold(row.value(), textX, y + 44, width * .62f, .94f, UiTheme.TEXT);
             view.textSmooth(row.accuracy(), textX + width * .64f, y + 44, width * .36f, .82f, UiTheme.TEXT);
