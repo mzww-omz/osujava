@@ -25,6 +25,7 @@ import dev.osujava.ruleset.osu.render.SliderBodyGeometry;
 import dev.osujava.ruleset.osu.render.SliderBodyRenderer;
 import dev.osujava.ruleset.osu.render.LegacySliderColour;
 import dev.osujava.skin.SkinConfiguration;
+import dev.osujava.skin.ConfiguredGameplaySkin;
 import dev.osujava.gameplay.Judgement;
 import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.SliderVisual;
@@ -64,10 +65,10 @@ public final class GameplayRenderer {
 
     public GameplayRenderer(OsuJavaGame game, GameplaySkin visuals, OsuSkinAssets skinAssets) {
         this.game = game;
-        this.visuals = visuals;
+        this.visuals = skinAssets == null ? visuals : new ConfiguredGameplaySkin(visuals, skinAssets.sliderColours());
         this.skinAssets = skinAssets;
         this.spinners = new GameplaySpinnerRenderer(skinAssets);
-        this.hud = new GameplayHudRenderer(game, visuals, skinAssets);
+        this.hud = new GameplayHudRenderer(game, this.visuals, skinAssets);
         this.judgements = new GameplayJudgementRenderer(skinAssets);
     }
 
@@ -472,7 +473,8 @@ public final class GameplayRenderer {
         sprites(shapes, () -> {
             SpriteBatch batch = game.batch();
             // LegacySliderBall defaults to white. Rotation is gameplay-supplied visual data.
-            batch.setColor(1, 1, 1, alpha);
+            Color tint = skinAssets.sliderColours().allowSliderBallTint() ? visuals.comboColor(slider.comboColorIndex()) : Color.WHITE;
+            batch.setColor(tint.r, tint.g, tint.b, alpha);
             TextureRegion region = new TextureRegion(texture);
             // TextureRegion stores top/bottom V in the reverse order of the raw SpriteBatch UV overload.
             region.setRegion(size.u(), size.v2(), size.u2(), size.v());

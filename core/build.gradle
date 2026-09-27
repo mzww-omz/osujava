@@ -20,3 +20,9 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+
+// Exercise resources from an isolated built JAR, with no source resources on its classpath.
+tasks.named('test') {
+    dependsOn tasks.named('jar')
+    systemProperty 'osujava.coreJar', tasks.named('jar').get().archiveFile.get().asFile.absolutePath
+}

@@ -58,7 +58,7 @@ public final class OsuSkinAssets implements Disposable {
     }
 
     public OsuSkinAssets(Path directory, Path fallbackDirectory) {
-        this(directory, fallbackDirectory, file -> new Texture(Gdx.files.absolute(file.path().toAbsolutePath().toString())));
+        this(file -> new Texture(file.handle()), SkinAssetResolver.withBundledDefault(directory, fallbackDirectory));
     }
 
     /** Allows asset ownership/failure tests without an OpenGL context. */
@@ -67,10 +67,14 @@ public final class OsuSkinAssets implements Disposable {
     }
 
     OsuSkinAssets(Path directory, Path fallbackDirectory, Function<SkinAssetResolver.AssetFile, Texture> textureLoader) {
-        SkinAssetResolver resolver = new SkinAssetResolver(directory, fallbackDirectory);
+        this(textureLoader, new SkinAssetResolver(directory, fallbackDirectory));
+    }
+
+    OsuSkinAssets(Function<SkinAssetResolver.AssetFile, Texture> textureLoader, SkinAssetResolver resolver) {
         for (Image image : Image.values()) {
             diagnostics.put(image, new AssetDiagnostic(LoadStatus.MISSING, null, false));
-            resolver.resolve(image.basename).ifPresent(file -> {
+            resolver.resolve(image.basename, file -> load(file, textureLoader) != null)
+                    .or(() -> resolver.resolve(image.basename)).ifPresent(file -> {
                 SkinTexture texture = load(file, textureLoader);
                 if (texture != null) textures.put(image, texture);
                 diagnostics.put(image, new AssetDiagnostic(texture == null ? LoadStatus.FAILED : LoadStatus.LOADED,
@@ -78,13 +82,19 @@ public final class OsuSkinAssets implements Disposable {
             });
         }
         try {
-            configuration = SkinConfiguration.read(directory);
+            configuration = resolver.readConfiguration();
         } catch (IOException e) {
             logFallback("Could not read skin.ini; using combo number fallback.", e);
         }
-        resolver.resolveHitCircleDigits(configuration).ifPresent(files -> {
+        resolver.resolveHitCircleDigits(configuration).ifPresent(available -> {
+            var files = resolver.resolveHitCircleDigits(configuration, file -> load(file, textureLoader) != null);
+            if (files.isEmpty()) {
+                for (SkinTexture asset : new ArrayList<>(textureCache.values()))
+                    if (asset != null) disposeIfUnreferenced(asset.texture());
+                return;
+            }
             List<SkinTexture> loaded = new ArrayList<>(10);
-            for (var file : files) {
+            for (var file : files.get()) {
                 SkinTexture texture = load(file, textureLoader);
                 if (texture == null) {
                     for (SkinTexture digit : loaded) disposeIfUnreferenced(digit.texture());
@@ -98,7 +108,7 @@ public final class OsuSkinAssets implements Disposable {
             String prefix = font == HudFont.SCORE ? configuration.fonts().scorePrefix() : configuration.fonts().comboPrefix();
             Map<Character, SkinTexture> glyphs = new HashMap<>();
             for (char character : "0123456789.,%x".toCharArray()) {
-                resolver.resolveHudGlyph(prefix, character).ifPresent(file -> {
+                resolver.resolveHudGlyph(prefix, character, font == HudFont.COMBO, file -> load(file, textureLoader) != null).ifPresent(file -> {
                     SkinTexture texture = load(file, textureLoader);
                     if (texture != null) glyphs.put(character, texture);
                 });

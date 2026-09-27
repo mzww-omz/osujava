@@ -24,6 +24,7 @@ import dev.osujava.ruleset.osu.SliderPath;
 import dev.osujava.ruleset.osu.SliderTiming;
 import dev.osujava.ruleset.osu.DebugAutoPlayer;
 import dev.osujava.skin.OsuSkinAssets;
+import dev.osujava.skin.SkinAssetResolver;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -67,7 +68,8 @@ public final class GameplayScreen extends ScreenAdapter {
         this.cursorVisual = cursorRenderer.createVisual();
         this.cursorVisibility = new GameplayCursorVisibility(Gdx.graphics);
         this.audioPlayer = new GameplayAudioPlayer(difficulty.beatmapPath() == null
-                ? null : difficulty.beatmapPath().getParent());
+                ? null : difficulty.beatmapPath().getParent(),
+                SkinAssetResolver.withBundledDefault(game.skinDirectory(), game.skinFallbackDirectory()));
         long lastObjectEnd = 0;
         for (HitObject object : difficulty.hitObjects()) {
             if (object.type() == HitObject.Type.CIRCLE) {

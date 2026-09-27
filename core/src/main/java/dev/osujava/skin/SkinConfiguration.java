@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.TreeMap;
 
 /** Small, section-oriented skin.ini reader. Supports legacy Fonts, General, cursor, slider and Spinner settings. */
 public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber, double legacyVersion, Colours colours, Cursor cursor, Spinner spinner) {
@@ -31,7 +33,9 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
     public record Rgb(float r, float g, float b) { }
 
     /** Null track means use the HitObject accent colour. */
-    public record Colours(Rgb sliderBorder, Rgb sliderTrackOverride) {
+    public record Colours(Rgb sliderBorder, Rgb sliderTrackOverride, List<Rgb> comboColours, boolean allowSliderBallTint) {
+        public Colours { comboColours = List.copyOf(comboColours); }
+        public Colours(Rgb sliderBorder, Rgb sliderTrackOverride) { this(sliderBorder, sliderTrackOverride, List.of(), false); }
         public static Colours defaults() { return new Colours(new Rgb(1, 1, 1), null); }
     }
 
@@ -77,6 +81,8 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
         double version = 1;
         Rgb border = Colours.defaults().sliderBorder();
         Rgb track = null;
+        var comboColours = new TreeMap<Integer, Rgb>();
+        boolean allowSliderBallTint = false;
         boolean centre = true, rotate = true, expand = true, trailRotate = true, noBlink = false;
         Rgb spinnerBackground = Spinner.defaults().background();
         Boolean overlay = null;
@@ -108,6 +114,7 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
                 }
                 Boolean parsed = value.equals("1") ? Boolean.TRUE : value.equals("0") ? Boolean.FALSE : null;
                 if (parsed != null) {
+                    if (key.equalsIgnoreCase("AllowSliderBallTint")) allowSliderBallTint = parsed;
                     if (key.equalsIgnoreCase("SpinnerNoBlink")) noBlink = parsed;
                     if (key.equalsIgnoreCase("CursorCentre")) centre = parsed;
                     if (key.equalsIgnoreCase("CursorRotate")) rotate = parsed;
@@ -118,6 +125,10 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
                 }
             }
             if (section.equalsIgnoreCase("Colours")) {
+                if (key.matches("(?i)Combo[1-8]")) {
+                    Rgb parsed = parseRgb(value);
+                    if (parsed != null) comboColours.put(Integer.parseInt(key.substring(5)), parsed);
+                }
                 if (key.equalsIgnoreCase("SliderBorder")) {
                     Rgb parsed = parseRgb(value);
                     border = parsed != null ? parsed : Colours.defaults().sliderBorder();
@@ -147,6 +158,6 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             }
         }
         return new SkinConfiguration(new Fonts(prefix, overlap, scorePrefix, scoreOverlap, comboPrefix, comboOverlap), true,
-                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track), new Cursor(centre, rotate, expand, trailRotate), new Spinner(noBlink, spinnerBackground));
+                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track, List.copyOf(comboColours.values()), allowSliderBallTint), new Cursor(centre, rotate, expand, trailRotate), new Spinner(noBlink, spinnerBackground));
     }
 }

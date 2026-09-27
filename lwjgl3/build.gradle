@@ -109,3 +109,18 @@ tasks.register('mainMenuAudioSmoke', JavaExec) {
     mainClass = 'dev.osujava.ui.MainMenuAudioSmoke'
     args project.findProperty('mainMenuAudio') ?: '/tmp/osujava-main-menu-audio'
 }
+
+// Use -PskinHarnessJar=... to verify the same gameplay against only the packaged runtime.
+tasks.register('bundledSkinVisualHarness', JavaExec) {
+    dependsOn hudHarnessClasses
+    mainClass = 'dev.osujava.ui.BundledSkinVisualHarness'
+    if (project.hasProperty('skinHarnessJar')) {
+        classpath = files(sourceSets.hudHarness.output, project.property('skinHarnessJar'))
+    } else {
+        // IDE-style exploded classes/resources, rather than the core dependency JAR.
+        classpath = (sourceSets.hudHarness.runtimeClasspath - files(project(':core').tasks.named('jar').get().archiveFile))                 + project(':core').sourceSets.main.output
+    }
+    def output = project.findProperty('skinHarnessOutput') ?: '/tmp/osujava-bundled-skin'
+    args output
+    systemProperty 'user.home', "${output}/home"
+}

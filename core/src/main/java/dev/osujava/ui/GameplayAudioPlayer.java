@@ -4,6 +4,8 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import dev.osujava.gameplay.GameplayAudioCue;
+import dev.osujava.skin.SkinAssetResolver;
+import java.util.function.Function;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -17,18 +19,27 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
-/** Plays only local beatmap samples; a short generated click covers missing default samples. */
+/** Plays beatmap samples first, then selected/bundled skin sounds, then a generated click. */
 final class GameplayAudioPlayer implements AutoCloseable {
     private static final String[] EXTENSIONS = {".wav", ".ogg", ".mp3"};
     private final Path beatmapDirectory;
+    private final SkinAssetResolver skin;
+    private final Function<SkinAssetResolver.AssetFile, Sound> soundLoader;
     private final Map<String, Sound> loaded = new HashMap<>();
     private final Set<String> missing = new HashSet<>();
     private Path fallbackPath;
     private Sound fallback;
     private boolean fallbackAttempted;
 
-    GameplayAudioPlayer(Path beatmapDirectory) {
+    GameplayAudioPlayer(Path beatmapDirectory, SkinAssetResolver skin) {
+        this(beatmapDirectory, skin, file -> Gdx.audio.newSound(file.handle()));
+    }
+
+    GameplayAudioPlayer(Path beatmapDirectory, SkinAssetResolver skin,
+                        Function<SkinAssetResolver.AssetFile, Sound> soundLoader) {
         this.beatmapDirectory = beatmapDirectory;
+        this.skin = skin;
+        this.soundLoader = soundLoader;
     }
 
     void play(List<GameplayAudioCue> cues) {
@@ -66,17 +77,23 @@ final class GameplayAudioPlayer implements AutoCloseable {
             for (String extension : EXTENSIONS) {
                 Path file = beatmapDirectory.resolve(name + extension);
                 if (!Files.isRegularFile(file)) continue;
-                try {
-                    Sound sound = Gdx.audio.newSound(Gdx.files.absolute(file.toString()));
-                    loaded.put(name, sound);
-                    return sound;
-                } catch (GdxRuntimeException | IllegalArgumentException ignored) {
-                    // Try another local encoding, then the generated fallback.
-                }
+                if (tryLoad(name, new SkinAssetResolver.AssetFile(file, 1))) return loaded.get(name);
             }
         }
+        if (skin.resolveSound(name, file -> tryLoad(name, file)).isPresent()) return loaded.get(name);
         missing.add(name);
         return null;
+    }
+
+    private boolean tryLoad(String name, SkinAssetResolver.AssetFile file) {
+        try {
+            Sound sound = soundLoader.apply(file);
+            if (sound == null) return false;
+            loaded.put(name, sound);
+            return true;
+        } catch (GdxRuntimeException | IllegalArgumentException ignored) {
+            return false;
+        }
     }
 
     private Sound fallback() {

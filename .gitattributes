@@ -1,0 +1,2 @@
+# Preserve the original third-party skin.ini bytes and CRLF line endings on every platform.
+core/src/main/resources/skins/default/skin.ini -text whitespace=cr-at-eol
