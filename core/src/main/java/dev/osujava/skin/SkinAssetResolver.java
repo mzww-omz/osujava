@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Predicate;
 
 /** File resolution only; no graphics context is required. */
 public final class SkinAssetResolver {
@@ -22,47 +23,80 @@ public final class SkinAssetResolver {
     }
 
     public Optional<AssetFile> resolve(String name) {
+        validateName(name);
+        return resolveIn(directory, name, false).or(() -> resolveIn(fallbackDirectory, name, true));
+    }
+
+    private static void validateName(String name) {
         // Font prefixes may include skin-relative directories (e.g. Assets/score/score).
         // Validate each component; absolute paths, dot segments, empty segments and Windows paths remain invalid.
         if (!name.matches("[\\p{L}\\p{N}_ -]+(?:/[\\p{L}\\p{N}_ -]+)*"))
             throw new IllegalArgumentException("Expected a skin-relative image basename");
-        return resolveIn(directory, name, false).or(() -> resolveIn(fallbackDirectory, name, true));
     }
 
     private Optional<AssetFile> resolveIn(Path directory, String name, boolean fallback) {
-        if (directory == null) return Optional.empty();
-        Path highResolution = directory.resolve(name + "@2x.png");
-        if (Files.isRegularFile(highResolution)) return Optional.of(new AssetFile(highResolution, 2, fallback));
-        Path standard = directory.resolve(name + ".png");
-        return Files.isRegularFile(standard) ? Optional.of(new AssetFile(standard, 1, fallback)) : Optional.empty();
+        return resolveIn(directory, name, fallback, file -> true);
     }
 
     public boolean isFallback(AssetFile file) {
         return file.fallback();
     }
 
-    /** Legacy GetTextures("sliderb", animatable=true, separator=""): animation wins. */
+    private enum Provider { CUSTOM, FALLBACK }
+
+    /** Legacy GetTextures("sliderb", animatable=true, separator=""). */
     public List<AssetFile> resolveSliderBall() {
-        List<AssetFile> frames = new ArrayList<>();
-        for (int index = 0; ; index++) {
-            var frame = resolve("sliderb" + index);
-            if (frame.isEmpty()) break;
-            frames.add(frame.get());
-        }
-        if (!frames.isEmpty()) return List.copyOf(frames);
-        return resolve("sliderb").map(List::of).orElseGet(List::of);
+        return resolveSliderBall(file -> true);
     }
 
-    /** Legacy GetAnimation: zero-based contiguous frames win over a static PNG. */
+    List<AssetFile> resolveSliderBall(Predicate<AssetFile> loadable) {
+        return resolveAnimation("sliderb", "", loadable);
+    }
+
+    /** Select one provider by frame zero or static presence, then stop at the first missing frame. */
     public List<AssetFile> resolveAnimation(String name) {
-        List<AssetFile> frames = new ArrayList<>();
-        for (int index = 0; ; index++) {
-            var frame = resolve(name + "-" + index);
-            if (frame.isEmpty()) break;
-            frames.add(frame.get());
+        return resolveAnimation(name, file -> true);
+    }
+
+    /** Runtime lookup uses successful texture loads, matching lazer's GetTexture rather than file existence. */
+    List<AssetFile> resolveAnimation(String name, Predicate<AssetFile> loadable) {
+        return resolveAnimation(name, "-", loadable);
+    }
+
+    private List<AssetFile> resolveAnimation(String name, String separator, Predicate<AssetFile> loadable) {
+        // Validate even when neither provider exists, just as resolve() does.
+        validateName(name);
+        for (Provider provider : Provider.values()) {
+            var first = resolveIn(provider, name + separator + "0", loadable);
+            if (first.isEmpty()) {
+                var single = resolveIn(provider, name, loadable);
+                if (single.isPresent()) return List.of(single.get());
+                continue;
+            }
+            List<AssetFile> frames = new ArrayList<>();
+            frames.add(first.get());
+            for (int index = 1; ; index++) {
+                var frame = resolveIn(provider, name + separator + index, loadable);
+                if (frame.isEmpty()) break;
+                frames.add(frame.get());
+            }
+            return List.copyOf(frames);
         }
-        if (!frames.isEmpty()) return List.copyOf(frames);
-        return resolve(name).map(List::of).orElseGet(List::of);
+        return List.of();
+    }
+
+    private Optional<AssetFile> resolveIn(Provider provider, String name, Predicate<AssetFile> loadable) {
+        Path source = provider == Provider.CUSTOM ? directory : fallbackDirectory;
+        return resolveIn(source, name, provider == Provider.FALLBACK, loadable);
+    }
+
+    private Optional<AssetFile> resolveIn(Path source, String name, boolean fallback, Predicate<AssetFile> loadable) {
+        if (source == null) return Optional.empty();
+        AssetFile highResolution = new AssetFile(source.resolve(name + "@2x.png"), 2, fallback);
+        if (Files.isRegularFile(highResolution.path()) && loadable.test(highResolution))
+            return Optional.of(highResolution);
+        AssetFile standard = new AssetFile(source.resolve(name + ".png"), 1, fallback);
+        return Files.isRegularFile(standard.path()) && loadable.test(standard) ? Optional.of(standard) : Optional.empty();
     }
 
     /** An incomplete font, absent ini, or unsafe prefix always falls back as a whole. */

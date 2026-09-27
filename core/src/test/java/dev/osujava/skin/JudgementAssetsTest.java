@@ -43,7 +43,7 @@ class JudgementAssetsTest {
         assertEquals(Style.NEW, missing.judgementStyle(Result.MEH));
         assets.dispose(); missing.dispose();
     }
-    @Test void brokenAnimationOmitsOnlyItsResultAndDoesNotLeak() throws Exception {
+    @Test void brokenAnimationKeepsContiguousFramesAndDoesNotLeak() throws Exception {
         file("hit300-0"); file("hit300-1"); file("hit300"); file("hit100");
         List<TestTexture> loaded = new ArrayList<>();
         var assets = new OsuSkinAssets(dir, f -> {
@@ -51,9 +51,10 @@ class JudgementAssetsTest {
             assertFalse(f.path().endsWith("hit300.png"));
             var t = new TestTexture(); loaded.add(t); return t;
         });
-        assertEquals(Style.NONE, assets.judgementStyle(Result.GREAT));
+        assertEquals(Style.OLD, assets.judgementStyle(Result.GREAT));
+        assertEquals(1, assets.judgement(Result.GREAT).frames().size());
         assertEquals(Style.OLD, assets.judgementStyle(Result.OK));
-        assertEquals(2, loaded.size()); assertEquals(1, loaded.getFirst().disposals);
+        assertEquals(2, loaded.size()); assertEquals(0, loaded.getFirst().disposals);
         assets.dispose(); assets.dispose(); assertTrue(loaded.stream().allMatch(t -> t.disposals == 1));
     }
     @Test void animatedFramesAndParticlesShareExistingFontCacheAndDisposeOnce() throws Exception {
@@ -70,7 +71,7 @@ class JudgementAssetsTest {
         assertEquals(3, loaded.size()); assets.dispose(); assets.dispose();
         assertTrue(loaded.stream().allMatch(t -> t.disposals == 1)); assertNull(assets.judgement(Result.GREAT));
     }
-    @Test void failedAnimationNeverDisposesFrameSharedWithAnotherComponent() throws Exception {
+    @Test void truncatedAnimationReusesFrameSharedWithAnotherComponent() throws Exception {
         Files.writeString(dir.resolve("skin.ini"), "[Fonts]\nScorePrefix: hit300\n");
         file("hit300-0"); file("hit300-1");
         var texture = new TestTexture();
@@ -80,7 +81,7 @@ class JudgementAssetsTest {
             if (f.path().endsWith("hit300-1.png")) throw new GdxRuntimeException("broken");
             return texture;
         });
-        assertEquals(Style.NONE, assets.judgementStyle(Result.GREAT));
+        assertEquals(Style.OLD, assets.judgementStyle(Result.GREAT));
         assertSame(texture, assets.hudGlyph(OsuSkinAssets.HudFont.SCORE, '0').texture());
         assertEquals(0, texture.disposals);
         assertTrue(attempts.values().stream().allMatch(count -> count == 1));

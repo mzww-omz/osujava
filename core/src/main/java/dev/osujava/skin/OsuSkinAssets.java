@@ -109,7 +109,7 @@ public final class OsuSkinAssets implements Disposable {
             if (result == Result.SLIDER_TAIL_HIT && configuration.legacyVersion() >= 2) continue;
             List<SkinTexture> frames = new ArrayList<>();
             var files = result == Result.SLIDER_TAIL_HIT ? resolver.resolve(result.image).map(List::of).orElseGet(List::of)
-                    : resolver.resolveAnimation(result.image);
+                    : resolver.resolveAnimation(result.image, file -> load(file, textureLoader) != null);
             boolean failed = false;
             for (var file : files) {
                 SkinTexture frame = load(file, textureLoader);
@@ -127,10 +127,10 @@ public final class OsuSkinAssets implements Disposable {
                     result == Result.SLIDER_TAIL_HIT ? Style.SLIDER_POINT : particle == null ? Style.OLD : Style.NEW));
         }
         List<SkinTexture> ballFrames = new ArrayList<>();
-        for (var file : resolver.resolveSliderBall()) {
+        for (var file : resolver.resolveSliderBall(file -> load(file, textureLoader) != null)) {
             SkinTexture frame = load(file, textureLoader);
             if (frame == null) {
-                // A broken animation falls back as a whole; never skip or substitute frames.
+                // Resolution already checked loadability; retain defensive cleanup for a loader failure.
                 for (SkinTexture loaded : ballFrames) disposeIfUnreferenced(loaded.texture());
                 return;
             }
