@@ -1,5 +1,9 @@
 package dev.osujava.ui;
 
+import dev.osujava.score.LocalScoreStore;
+import dev.osujava.score.DifficultyIdentity;
+import dev.osujava.ruleset.osu.OsuGrade;
+
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
@@ -83,6 +87,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     void legacyThumbnailPreview(boolean enabled) { legacyThumbnailPreview = enabled; }
     private boolean showThumbnails() { return legacyThumbnailPreview || skin == null || skin.thumbnailsEnabled(); }
     private final SongBrowserModel browser;
+    private final ScoreBrowserModel scores;
     private final SongBrowserControls controls = new SongBrowserControls();
     private Map<String, String> groupLabels = Map.of();
     // Transient display indices only; browser identities are authoritative.
@@ -119,6 +124,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         this.skin = skin;
         view = new UiView(game);
         browser = new SongBrowserModel(game.library().all());
+        scores = new ScoreBrowserModel(game.localScores());
         sets = browser.librarySets();
         cacheRowContent();
         if (preferredSetId != null) {
@@ -193,7 +199,12 @@ public final class SongSelectScreen extends ScreenAdapter {
             @Override public boolean scrolled(float amountX, float amountY) {
                 if (!Float.isFinite(amountY) || amountY == 0
                         || !usesMouseWheelAt(Gdx.input.getX(), Gdx.input.getY())) return false;
-                if (!importing) carousel.scrollBy(Math.max(-10000, Math.min(10000, amountY)) * carousel.rowHeight());
+                if (!importing) {
+                    UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+                    var bounds = ScoreBrowserBounds.of(layout);
+                    if (bounds.contains(layout.pointerX(Gdx.input.getX()), layout.pointerY(Gdx.input.getY()))) scores.scroll(amountY);
+                    else carousel.scrollBy(Math.max(-10000, Math.min(10000, amountY)) * carousel.rowHeight());
+                }
                 return true;
             }
         });
@@ -206,13 +217,13 @@ public final class SongSelectScreen extends ScreenAdapter {
         visibleRows = layoutRows(layout, 0);
     }
 
-    /** Reserve the whole carousel viewport, including row gaps and empty results. */
+    /** Reserve each browser viewport, including row gaps and empty results. */
     public boolean usesMouseWheelAt(int screenX, int screenY) {
         if (closed || outgoing.pending()) return false;
         if (Gdx.graphics.getWidth() <= 0 || Gdx.graphics.getHeight() <= 0) return false;
         UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         float x = layout.pointerX(screenX), y = layout.pointerY(screenY);
-        return x >= layout.width() * .5f && x <= layout.width()
+        return ScoreBrowserBounds.of(layout).contains(x, y) || x >= layout.width() * .5f && x <= layout.width()
                 && y > SongSelectChrome.bottomHeight(layout.height()) && y < layout.height() - Metrics.HEADER_HEIGHT;
     }
 
@@ -238,7 +249,12 @@ public final class SongSelectScreen extends ScreenAdapter {
                 if (action == SongSelectAction.BACK) return;
             }
             else if (selectedDifficulty() != null && playCookie.hit(px, py)) { playSelected(); return; }
-            else { searchActive = false; handleRowClick(px, py); }
+            else {
+                searchActive = false;
+                int slot = ScoreBrowserBounds.of(layout).slot(px, py);
+                if (slot >= 0) scores.select(scores.first() + slot);
+                else handleRowClick(px, py);
+            }
         }
 
         view.clear();
@@ -266,8 +282,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (!has(Image.RANDOM)) view.box(Metrics.RANDOM_X, 0, Metrics.RANDOM_WIDTH, bottom, 0,
                 !randomEnabled ? LEFT : randomFade > 0 ? SIBLING_HOVER : OTHER);
         if (searchActive || !search.isEmpty()) view.box(searchX, top + 4, searchW, 25, 0, LEFT);
-        view.box(18, layout.height() - 158, layout.width() * .27f, 28, 0, TOP);
-        view.box(18, layout.height() - 205, layout.width() * .27f, 36, 0, LEFT);
+        view.box(18, layout.height() - 158, layout.width() * .35f, 28, 0, TOP);
+        drawScoreShapes(layout, px, py);
         view.box(layout.width() * .48f, 10, layout.width() * .22f, bottom - 20, 0, LEFT);
         if (toastSeconds > 0) view.box(18, bottom + 12, Math.min(450, layout.width() * .42f), 35, 0, BOTTOM);
         view.endShapes();
@@ -314,6 +330,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         cookieX = SongSelectChrome.cookieX(layout.width(), cookieRadius);
         cookieY = SongSelectChrome.cookieY(cookieRadius);
         playCookie.bounds(cookieX, cookieY, cookieRadius, bottom);
+        scores.capacity(ScoreBrowserBounds.of(layout).capacity());
     }
 
     private List<Row> layoutRows(UiLayout layout, float delta) {
@@ -508,6 +525,12 @@ public final class SongSelectScreen extends ScreenAdapter {
         detail.a *= row.revealAmount() * (row.difficultyIndex() >= 0 ? 1 : .72f);
         float x = row.x() + geometry.textX(), width = geometry.textWidth();
         boolean child = row.difficultyIndex() >= 0;
+        var best = child ? game.localScores().best(DifficultyIdentity.of(
+                sets.get(row.setIndex()).id(), sets.get(row.setIndex()).difficulties().get(row.difficultyIndex()))) : null;
+        if (best != null) {
+            drawGrade(best.grade(), x, row.y() + row.height() / 2 - 17, 44, 34, thumbnailTint.set(1, 1, 1, detail.a));
+            x += 52; width = Math.max(0, width - 52);
+        }
         view.textSmooth(content.title(), x, row.y() + (child ? geometry.titleY() : row.height() / 2 + 8), width,
                 .87f, primary);
         view.textSmooth(content.byline(), x, row.y() + (child ? geometry.bylineY() : row.height() / 2 - 12), width, .65f, secondary);
@@ -573,9 +596,55 @@ public final class SongSelectScreen extends ScreenAdapter {
                 19, layout.height() - 103, w, .63f, UiTheme.MUTED);
     }
 
+    private void drawScoreShapes(UiLayout layout, float px, float py) {
+        var bounds = ScoreBrowserBounds.of(layout);
+        for (int slot = 0; slot < bounds.capacity() && scores.first() + slot < scores.rows().size(); slot++) {
+            var row = scores.rows().get(scores.first() + slot);
+            boolean selected = row.score().playId().equals(scores.selected());
+            boolean hover = bounds.slot(px, py) == slot;
+            view.box(bounds.x(), bounds.rowY(slot), bounds.width(), ScoreBrowserBounds.HEIGHT, 0,
+                    selected ? SIBLING : hover ? TOP : LEFT);
+            if (selected) view.box(bounds.x(), bounds.rowY(slot), 3, ScoreBrowserBounds.HEIGHT, 0, UiTheme.ACCENT);
+        }
+    }
+
+    private void drawGrade(OsuGrade grade, float x, float y, float w, float h, Color tint) {
+        Image image = switch (grade) {
+            case SS -> Image.GRADE_SS; case S -> Image.GRADE_S; case A -> Image.GRADE_A;
+            case B -> Image.GRADE_B; case C -> Image.GRADE_C; case D -> Image.GRADE_D;
+        };
+        if (has(image)) skinImageFit(image, x, y, w, h, tint);
+        else view.textSmoothBold(grade.name(), x + 3, y + h * .35f, w - 6, 1.35f, tint);
+    }
+
     private void drawRanking(UiLayout layout) {
-        view.textSmooth("Local Rankings", 28, layout.height() - 147, layout.width() * .29f, .96f, UiTheme.TEXT);
-        view.textSmooth("No local scores", 28, layout.height() - 192, layout.width() * .29f, .72f, UiTheme.MUTED);
+        var bounds = ScoreBrowserBounds.of(layout);
+        view.textSmooth("Local Rankings", 28, layout.height() - 147, bounds.width() - 20, .96f, UiTheme.TEXT);
+        view.textSmooth("Score descending · " + scores.rows().size() + " local scores", 28,
+                layout.height() - 176, bounds.width() - 20, .64f, UiTheme.MUTED);
+        if (scores.rows().isEmpty()) {
+            String message = selectedDifficulty() == null ? (sets.isEmpty() ? "Import a beatmap to view rankings" : "Select a matching difficulty")
+                    : game.localScores().status() == LocalScoreStore.Status.UNAVAILABLE
+                    ? "Local score storage unavailable" : "No local scores";
+            view.textSmooth(message, 28, bounds.top() - 24, bounds.width() - 20, .72f, UiTheme.MUTED);
+        }
+        for (int slot = 0; slot < bounds.capacity() && scores.first() + slot < scores.rows().size(); slot++) {
+            var row = scores.rows().get(scores.first() + slot);
+            float y = bounds.rowY(slot), x = bounds.x();
+            drawGrade(row.score().grade(), x + 8, y + 13, 60, 40, UiTheme.TEXT);
+            float textX = x + 78, width = bounds.width() - 88;
+            view.textSmoothBold(row.value(), textX, y + 44, width * .62f, .94f, UiTheme.TEXT);
+            view.textSmooth(row.accuracy(), textX + width * .64f, y + 44, width * .36f, .82f, UiTheme.TEXT);
+            view.textSmooth(row.combo(), textX, y + 25, width, .73f, UiTheme.TEXT);
+            view.textSmooth(row.date(), textX, y + 8, width, .59f, UiTheme.MUTED);
+        }
+        if (scores.rows().size() > bounds.capacity()) view.textSmooth(
+                (scores.first() + 1) + "–" + Math.min(scores.rows().size(), scores.first() + bounds.capacity()) + " / " + scores.rows().size(),
+                28, bounds.bottom() - 17, bounds.width() - 20, .60f, UiTheme.MUTED);
+        if (game.localScores().status() != LocalScoreStore.Status.READY)
+            view.textSmooth(game.localScores().status() == LocalScoreStore.Status.PARTIAL
+                    ? "Some damaged score records were skipped" : "Local score storage unavailable", 28,
+                    bounds.bottom() - 33, bounds.width() - 20, .60f, UiTheme.ERROR);
         BeatmapDifficulty diff = selectedDifficulty();
         if (diff != null && !game.osuRuleset().supportsMode(diff.mode()))
             view.textSmooth("This mode cannot be played yet", 22, bottom + 25, layout.width() * .31f - 20, UiTheme.META, UiTheme.ERROR);
@@ -655,6 +724,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             selectedSetIndex = sets.indexOf(selected);
             selectedDifficultyIndex = selected.difficulties().indexOf(browser.selectedDifficulty());
         }
+        scores.target(selected == null ? null : DifficultyIdentity.of(selected.id(), browser.selectedDifficulty()));
         refreshSelection(rebuild);
     }
     // Package-local bridge for deterministic visual capture; production uses the controls.

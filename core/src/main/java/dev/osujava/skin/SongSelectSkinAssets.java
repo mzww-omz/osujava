@@ -17,6 +17,8 @@ import java.util.function.Function;
 public final class SongSelectSkinAssets implements Disposable {
     public enum Image {
         MENU_BUTTON_BACKGROUND("menu-button-background"), STAR("star"),
+        GRADE_SS("ranking-X-small"), GRADE_S("ranking-S-small"), GRADE_A("ranking-A-small"),
+        GRADE_B("ranking-B-small"), GRADE_C("ranking-C-small"), GRADE_D("ranking-D-small"),
         TOP("songselect-top"), BOTTOM("songselect-bottom"), BACK("menu-back"),
         MODE("selection-mode"), MODE_OVER("selection-mode-over"),
         MODS("selection-mods"), MODS_OVER("selection-mods-over"),

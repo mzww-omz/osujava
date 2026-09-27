@@ -52,13 +52,13 @@ class SongSelectWheelTest {
     }
     private void pointer(float x, float y) { pointerX = Math.round(width * x); pointerY = Math.round(height * y); }
 
-    @Test void outsideCarouselHeaderAndToolbarAdjustVolumeWithoutF4AtAllResolutions() {
+    @Test void outsideBothBrowsersHeaderAndToolbarAdjustVolumeWithoutF4AtAllResolutions() {
         addBeatmap();
         for (int[] size : new int[][]{{1280,720},{1920,1080},{2560,1440}}) {
             width = size[0]; height = size[1];
             var game = game(); var screen = new SongSelectScreen(game); game.navigate(screen);
             try {
-                for (float[] point : new float[][]{{.05f,.5f},{.8f,.02f},{.8f,.98f},{.99f,.95f}}) {
+                for (float[] point : new float[][]{{.42f,.5f},{.8f,.02f},{.8f,.98f},{.99f,.95f}}) {
                     game.volumeHud().close(); pointer(point[0],point[1]);
                     assertFalse(screen.usesMouseWheelAt(pointerX,pointerY));
                     int before = game.volumeHud().percent(Channel.MASTER);
@@ -71,6 +71,43 @@ class SongSelectWheelTest {
             } finally { screen.dispose(); }
         }
     }
+    @Test void leftBrowserReservesWheelWithoutMovingCarousel() throws Exception {
+        addBeatmap(); var game=game(); var screen=new SongSelectScreen(game); game.navigate(screen);
+        try {
+            pointer(.05f,.5f); assertTrue(screen.usesMouseWheelAt(pointerX,pointerY));
+            var field=SongSelectScreen.class.getDeclaredField("carousel"); field.setAccessible(true);
+            var carousel=(SongSelectCarousel)field.get(screen);
+            var before=carousel.rows(); assertTrue(processor.scrolled(0,1)); assertSame(before,carousel.rows());
+            assertEquals(100,game.volumeHud().percent(Channel.MASTER)); assertFalse(game.volumeHud().active());
+        } finally { screen.dispose(); }
+    }
+    @Test void scoreScrollAndCarouselTargetsAreIndependentAndDifficultyRefreshIsImmediate() throws Exception {
+        var a = new BeatmapDifficulty("Song","Artist","Creator","Easy",0,"","",DifficultySettings.defaults(),List.of(),List.of(),null,null,java.nio.file.Path.of("easy.osu"));
+        var b = new BeatmapDifficulty("Song","Artist","Creator","Hard",0,"","",DifficultySettings.defaults(),List.of(),List.of(),null,null,java.nio.file.Path.of("hard.osu"));
+        library.add(new BeatmapSet("fixture","Song","Artist","Creator",null,null,List.of(a,b),List.of()));
+        var game=game();
+        var identity=dev.osujava.score.DifficultyIdentity.of("fixture",a);
+        for(int i=0;i<100;i++)game.localScores().save(new dev.osujava.score.LocalScore(new java.util.UUID(0,i+1),identity,0,
+                new dev.osujava.gameplay.ScoreState(i,0,1,1,0,0,0,1)),dev.osujava.gameplay.GameplayRunMode.MANUAL);
+        var screen=new SongSelectScreen(game); game.navigate(screen); screen.resize(width,height);
+        try {
+            var f=SongSelectScreen.class.getDeclaredField("scores"); f.setAccessible(true); var scores=(ScoreBrowserModel)f.get(screen);
+            var carousel=carousel(screen); float before=carousel.scrollTarget();
+            pointer(.05f,.5f); assertTrue(processor.scrolled(0,3)); assertEquals(3,scores.first()); assertEquals(before,carousel.scrollTarget());
+            pointer(.8f,.5f); assertTrue(processor.scrolled(0,1)); assertEquals(3,scores.first());
+            processor.keyDown(Input.Keys.RIGHT); assertEquals(dev.osujava.score.DifficultyIdentity.of("fixture",b),scores.target());
+            assertTrue(scores.rows().isEmpty()); assertEquals(0,scores.first());
+            processor.keyDown(Input.Keys.LEFT); assertEquals(100,scores.rows().size()); assertEquals(identity,scores.target());
+            for(var sort:SongBrowserModel.Sort.values())for(var group:SongBrowserModel.Group.values()) {
+                screen.browserMode(sort,group); assertEquals(identity,scores.target()); assertEquals(100,scores.rows().size());
+            }
+            for(char c:"nonexistent".toCharArray())processor.keyTyped(c);
+            assertNull(scores.target()); assertTrue(scores.rows().isEmpty());
+            for(int i=0;i<11;i++)processor.keyDown(Input.Keys.BACKSPACE);
+            assertEquals(identity,scores.target()); assertEquals(100,scores.rows().size());
+        } finally { screen.dispose(); }
+    }
+
     @Test void carouselKeepsWheelUnlessAltOrAnExplicitHudOverridesIt() {
         addBeatmap(); var game = game(); var screen = new SongSelectScreen(game); game.navigate(screen);
         try {
@@ -166,7 +203,7 @@ class SongSelectWheelTest {
     @Test void volumeFeedbackFromOutsideCarouselDoesNotStealWheelAfterPointerReturns() {
         addBeatmap(); var game=game(); var screen=new SongSelectScreen(game); game.navigate(screen);
         try {
-            pointer(.05f,.5f); assertTrue(processor.scrolled(0,1));
+            pointer(.42f,.5f); assertTrue(processor.scrolled(0,1));
             assertEquals(95,game.volumeHud().percent(Channel.MASTER)); assertTrue(game.volumeHud().active());
             pointer(.51f,.5f); assertTrue(processor.scrolled(0,1));
             assertEquals(95,game.volumeHud().percent(Channel.MASTER));

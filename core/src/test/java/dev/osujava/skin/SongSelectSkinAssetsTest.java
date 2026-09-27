@@ -178,6 +178,28 @@ class SongSelectSkinAssetsTest {
         assertNull(broken.get(Image.STAR)); assertNull(broken.starTexture()); broken.dispose();
     }
 
+    @Test void gradeCandidatesUseSkinFallbackBundledAndDensity() throws Exception {
+        Path fallback=Files.createDirectory(directory.resolve("grade-fallback"));
+        Files.createFile(directory.resolve("ranking-X-small.png"));
+        Files.createFile(fallback.resolve("ranking-X-small@2x.png"));
+        var resolver=new SkinAssetResolver(directory,fallback,SkinAssetResolver.DEFAULT_RESOURCE_ROOT);
+        var custom=new SongSelectSkinAssets(resolver,file -> new TestTexture(64,48));
+        assertEquals(directory.resolve("ranking-X-small.png"),custom.get(Image.GRADE_SS).file().path());
+        assertEquals(1,custom.get(Image.GRADE_SS).density()); custom.dispose();
+        var broken=new SongSelectSkinAssets(resolver,file -> {
+            if(!file.fallback())throw new GdxRuntimeException("Corrupt grade"); return new TestTexture(64,48);
+        });
+        assertEquals(fallback.resolve("ranking-X-small@2x.png"),broken.get(Image.GRADE_SS).file().path());
+        assertEquals(32,broken.get(Image.GRADE_SS).logicalWidth()); broken.dispose();
+        var bundled=new SongSelectSkinAssets(resolver,file -> {
+            if(file.classpathResource()==null)throw new GdxRuntimeException("Corrupt grade"); return new TestTexture(64,48);
+        });
+        for(var grade:List.of(Image.GRADE_SS,Image.GRADE_S,Image.GRADE_A,Image.GRADE_B,Image.GRADE_C,Image.GRADE_D)) {
+            assertEquals("skins/default/"+grade.basename+"@2x.png",bundled.get(grade).file().classpathResource());
+        }
+        bundled.dispose();
+    }
+
     private static class TestTexture extends Texture {
         int disposals;
         final int width, height;
