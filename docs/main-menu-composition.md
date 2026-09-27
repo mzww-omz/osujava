@@ -6,7 +6,9 @@ This replaces the previous stable-inspired, left-aligned cookie and always-visib
 
 `MainMenuModel` owns `CLOSED → OPENING → OPEN → CLOSING → CLOSED`. `MainMenuScreen` draws that model, and `MainMenuInput` requests actions. Transition reversal starts from the current width/scale, avoiding jumps.
 
-CLOSED shows cover artwork, a centred osu!java logo and radial visualisation. Only artist/title and BPM appear quietly at bottom right. There is no top panel, footer, library count, clock or permanent dark action strip. OPEN adds EXIT on the left and PLAY on the right, growing from behind the logo. Background dim increases from .16 to .33; gradients at the top/bottom provide a light vignette. Missing/broken artwork uses a dark gradient.
+CLOSED shows cover artwork, a centred java! logo and radial visualisation. Only artist/title and BPM appear quietly at bottom right. There is no top panel, footer, library count, clock or permanent dark action strip. OPEN adds EXIT on the left and PLAY on the right, growing from behind the logo. Background dim increases from .16 to .33; gradients at the top/bottom provide a light vignette. Missing/broken artwork uses a dark gradient.
+
+The Main Menu logo uses the supplied 1400×1400 RGBA `java!` artwork, bundled unchanged as `core/src/main/resources/ui/main-menu-logo.png`. Transparent corners expose the background; mipmapped filtering keeps the logo smooth at reduced OPEN size and Retina density. The texture follows the existing animated circular bounds, so beat/hover/press/transition scales, visualiser circumference and hitbox remain aligned. The former drawn pink disk and separate text are replaced by this asset. The screen owns and disposes the texture.
 
 Both wedge roots stay at the logo centre. The outer edge has a 20-unit diagonal. Drawing and hit testing share `MainMenuLayout.outer()`, including hover width; the circle obscuring the wedge is excluded from the button hitbox. Buttons become clickable at 80% expansion, and closing/pending navigation disables them. Press and release must target the same visible element; dragging outside cancels the click.
 

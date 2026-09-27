@@ -3,11 +3,18 @@ package dev.osujava.ui;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.utils.Align;
+import com.badlogic.gdx.graphics.Texture;
 import dev.osujava.ui.theme.UiView;
 
 /** Main Menu only; Song Select retains its existing OsuCookie. Pure drawing of supplied layers. */
-final class MainMenuLogo {
+final class MainMenuLogo implements AutoCloseable {
+    private Texture texture;
+
+    MainMenuLogo() {
+        texture = new Texture(Gdx.files.classpath("ui/main-menu-logo.png"), true);
+        texture.setFilter(Texture.TextureFilter.MipMapLinearLinear, Texture.TextureFilter.Linear);
+    }
+
     void visualiser(UiView view, MainMenuLayout m, float scale, float[] bins) {
         float radius = m.radius() * scale;
         float lengthScale = m.radius() / 200 * scale;
@@ -29,19 +36,22 @@ final class MainMenuLogo {
         view.endShapes();
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
     }
-    void shape(UiView view, MainMenuLayout m, MainMenuModel model) {
+    void draw(UiView view, MainMenuLayout m, MainMenuModel model) {
         float r = m.radius() * model.scale();
+        view.beginShapes();
         for (int i = 10; i > 0; i--) view.circle(m.cx(), m.cy(), r + i * 2.2f, new Color(1, .4f, .65f, .01f));
-        Color ring = new Color(1, .98f, .99f, 1);
-        view.radialDisk(m.cx(), m.cy(), r, m.cx(), m.cy(), ring, ring);
-        Color edge = new Color(.78f, .19f, .42f, 1), centre = new Color(.96f, .32f, .57f, 1);
-        if (model.pressed()) { edge.mul(.9f, .9f, .9f, 1); centre.mul(.9f, .9f, .9f, 1); }
-        view.radialDisk(m.cx(), m.cy(), r * .945f, m.cx() - r * .055f, m.cy() + r * .14f, centre, edge);
-        if (model.flash() > .001f) view.circle(m.cx(), m.cy(), r * .945f, new Color(1, 1, 1, model.flash()));
+        view.endShapes();
+        view.beginText();
+        view.imageCover(texture, m.cx() - r, m.cy() - r, r * 2, r * 2);
+        view.endText();
+        if (model.flash() > .001f) {
+            view.beginShapes();
+            view.circle(m.cx(), m.cy(), r * .945f, new Color(1, 1, 1, model.flash()));
+            view.endShapes();
+        }
     }
-    void text(UiView view, MainMenuLayout m, MainMenuModel model) {
-        float r = m.radius() * model.scale();
-        view.textSmooth("osu!", m.cx() - r, m.cy() + r * .08f, r * 2, r / 23f, Color.WHITE, Align.center);
-        view.textSmooth("java", m.cx() - r, m.cy() - r * .31f, r * 2, r / 72f, Color.WHITE, Align.center);
+    @Override public void close() {
+        if (texture != null) texture.dispose();
+        texture = null;
     }
 }

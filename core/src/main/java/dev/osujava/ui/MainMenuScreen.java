@@ -97,7 +97,7 @@ public final class MainMenuScreen extends ScreenAdapter {
         for (int b = 0; b < 2; b++) buttonShape(m, snapshot, b);
         view.endShapes();
         logo.visualiser(view, m, snapshot.scale(), bins);
-        view.beginShapes(); logo.shape(view, m, snapshot); view.endShapes();
+        logo.draw(view, m, snapshot);
         view.beginText();
         for (int b = 0; b < 2; b++) {
             float extent = m.extent(snapshot.reveal(), snapshot.hover(b), snapshot.explosion(b));
@@ -108,7 +108,6 @@ public final class MainMenuScreen extends ScreenAdapter {
             view.textSmooth(b == 0 ? "PLAY" : "EXIT", x + m.direction(b) * snapshot.hover(b) * 5,
                     m.cy() + 11, width, b == 0 ? 1.5f : 1.25f, color, Align.center);
         }
-        logo.text(view, m, snapshot);
         if (!title.isBlank()) {
             view.textSmooth(title, 24, 38, m.width() - 48, .72f, new Color(1,1,1,.65f), Align.right);
             view.textSmooth(Math.round(60000 / beat.lengthMs()) + " BPM", 24, 20, m.width() - 48, .62f,
@@ -132,6 +131,6 @@ public final class MainMenuScreen extends ScreenAdapter {
     MainMenuState menuState() { return model.state(); }
     @Override public void dispose() {
         if (disposed) return;
-        disposed = true; audio.close(); analysis.close(); artwork.close();
+        disposed = true; audio.close(); analysis.close(); artwork.close(); logo.close();
     }
 }
