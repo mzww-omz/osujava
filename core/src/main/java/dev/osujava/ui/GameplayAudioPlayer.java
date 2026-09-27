@@ -3,6 +3,7 @@ package dev.osujava.ui;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.utils.GdxRuntimeException;
+import dev.osujava.audio.AudioVolumes;
 import dev.osujava.gameplay.GameplayAudioCue;
 import dev.osujava.skin.SkinAssetResolver;
 import java.util.function.Function;
@@ -22,6 +23,7 @@ import java.util.Set;
 /** Plays beatmap samples first, then selected/bundled skin sounds, then a generated click. */
 final class GameplayAudioPlayer implements AutoCloseable {
     private static final String[] EXTENSIONS = {".wav", ".ogg", ".mp3"};
+    private final AudioVolumes volumes;
     private final Path beatmapDirectory;
     private final SkinAssetResolver skin;
     private final Function<SkinAssetResolver.AssetFile, Sound> soundLoader;
@@ -32,11 +34,21 @@ final class GameplayAudioPlayer implements AutoCloseable {
     private boolean fallbackAttempted;
 
     GameplayAudioPlayer(Path beatmapDirectory, SkinAssetResolver skin) {
-        this(beatmapDirectory, skin, file -> Gdx.audio.newSound(file.handle()));
+        this(beatmapDirectory, skin, new AudioVolumes());
+    }
+
+    GameplayAudioPlayer(Path beatmapDirectory, SkinAssetResolver skin, AudioVolumes volumes) {
+        this(beatmapDirectory, skin, file -> Gdx.audio.newSound(file.handle()), volumes);
     }
 
     GameplayAudioPlayer(Path beatmapDirectory, SkinAssetResolver skin,
                         Function<SkinAssetResolver.AssetFile, Sound> soundLoader) {
+        this(beatmapDirectory, skin, soundLoader, new AudioVolumes());
+    }
+
+    GameplayAudioPlayer(Path beatmapDirectory, SkinAssetResolver skin,
+                        Function<SkinAssetResolver.AssetFile, Sound> soundLoader, AudioVolumes volumes) {
+        this.volumes = volumes;
         this.beatmapDirectory = beatmapDirectory;
         this.skin = skin;
         this.soundLoader = soundLoader;
@@ -44,13 +56,14 @@ final class GameplayAudioPlayer implements AutoCloseable {
 
     void play(List<GameplayAudioCue> cues) {
         for (GameplayAudioCue cue : cues) {
-            if (cue.volume() <= 0) continue;
+            float output = cue.volume() * volumes.effectOutput();
+            if (output <= 0) continue;
             boolean played = false;
             for (String name : cue.sampleNames()) {
                 Sound sound = load(name);
                 if (sound == null) continue;
                 try {
-                    sound.play(cue.volume());
+                    sound.play(output);
                     played = true;
                 } catch (GdxRuntimeException ignored) {
                     // A failed local sample must not stop gameplay.
@@ -60,7 +73,7 @@ final class GameplayAudioPlayer implements AutoCloseable {
                 Sound click = fallback();
                 if (click != null) {
                     try {
-                        click.play(cue.volume() * 0.5f);
+                        click.play(output * 0.5f);
                     } catch (GdxRuntimeException ignored) {
                         // Audio hardware can disappear while a local game is running.
                     }

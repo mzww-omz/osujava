@@ -2,6 +2,7 @@ package dev.osujava.ui;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.audio.Music;
+import dev.osujava.audio.AudioVolumes;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Function;
@@ -10,14 +11,21 @@ import java.util.function.Function;
 final class MenuAmbientAudio implements AutoCloseable {
     private final Path path;
     private final Function<Path, Music> factory;
+    private final AudioVolumes volumes;
     private Music music;
     private double silentMs;
     private boolean entered, paused;
     private double pausedPositionMs;
     MenuAmbientAudio(Path path) {
-        this(path, p -> Files.isRegularFile(p) ? Gdx.audio.newMusic(Gdx.files.absolute(p.toString())) : null);
+        this(path, new AudioVolumes());
     }
-    MenuAmbientAudio(Path path, Function<Path, Music> factory) { this.path = path; this.factory = factory; }
+    MenuAmbientAudio(Path path, AudioVolumes volumes) {
+        this(path, p -> Files.isRegularFile(p) ? Gdx.audio.newMusic(Gdx.files.absolute(p.toString())) : null, volumes);
+    }
+    MenuAmbientAudio(Path path, Function<Path, Music> factory) { this(path, factory, new AudioVolumes()); }
+    MenuAmbientAudio(Path path, Function<Path, Music> factory, AudioVolumes volumes) {
+        this.path = path; this.factory = factory; this.volumes = volumes;
+    }
     void enter() { enter(false); }
     void enter(boolean startPaused) {
         if (entered) return;
@@ -26,7 +34,7 @@ final class MenuAmbientAudio implements AutoCloseable {
         try {
             music = factory.apply(path);
             if (music != null) {
-                music.setLooping(true); music.setVolume(.65f);
+                music.setLooping(true); volumes.musicGain(music, .65f);
                 paused = startPaused; pausedPositionMs = 0;
                 if (!paused) music.play();
             }
@@ -35,7 +43,7 @@ final class MenuAmbientAudio implements AutoCloseable {
     void advance(double deltaMs, float fade) {
         if (!paused) silentMs += Math.max(0, deltaMs);
         if (music == null) return;
-        try { music.setVolume(.65f * (1 - Math.max(0, Math.min(1, fade)))); }
+        try { volumes.musicGain(music, .65f * (1 - Math.max(0, Math.min(1, fade)))); }
         catch (RuntimeException ex) { release(); }
     }
     double positionMs() {
@@ -66,6 +74,7 @@ final class MenuAmbientAudio implements AutoCloseable {
     private void release() {
         Music old = music; music = null; paused = false;
         if (old == null) return;
+        volumes.removeMusic(old);
         try { old.stop(); } catch (RuntimeException ignored) { }
         finally { try { old.dispose(); } catch (RuntimeException ignored) { } }
     }

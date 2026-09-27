@@ -1,10 +1,15 @@
 package dev.osujava;
 
 import com.badlogic.gdx.Game;
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
+import com.badlogic.gdx.InputMultiplexer;
+import com.badlogic.gdx.InputProcessor;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import dev.osujava.audio.AudioVolumes;
 import dev.osujava.library.BeatmapArchiveImporter;
 import dev.osujava.library.BeatmapLibrary;
 import dev.osujava.library.PropertiesBeatmapLibraryStorage;
@@ -13,6 +18,10 @@ import dev.osujava.skin.SkinImporter;
 import dev.osujava.skin.SkinImportException;
 import dev.osujava.ui.BeatmapFileChooser;
 import dev.osujava.ui.MainMenuScreen;
+import dev.osujava.ui.SongSelectScreen;
+import dev.osujava.ui.VolumeHud;
+import dev.osujava.ui.VolumeHudInput;
+import dev.osujava.ui.VolumeHudRenderer;
 import dev.osujava.ui.theme.SmoothUiFont;
 
 import java.nio.file.InvalidPathException;
@@ -29,6 +38,12 @@ public class OsuJavaGame extends Game {
     private BeatmapLibrary library;
     private BeatmapArchiveImporter importer;
     private OsuRuleset osuRuleset;
+    private final AudioVolumes audioVolumes = new AudioVolumes();
+    private final VolumeHud volumeHud = new VolumeHud(audioVolumes);
+    private final VolumeHudInput volumeInput = new VolumeHudInput(volumeHud,
+            () -> getScreen() instanceof SongSelectScreen,
+            () -> Gdx.input.isKeyPressed(Input.Keys.ALT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.ALT_RIGHT));
+    private VolumeHudRenderer volumeRenderer;
 
     public OsuJavaGame(BeatmapFileChooser fileChooser) {
         this(fileChooser, configuredSkinDirectory());
@@ -79,6 +94,7 @@ public class OsuJavaGame extends Game {
         shapes = new ShapeRenderer();
         font = new BitmapFont();
         smoothFont = new SmoothUiFont();
+        volumeRenderer = new VolumeHudRenderer(this);
         Path libraryRoot = localDataRoot().resolve("library");
         library = new BeatmapLibrary(new PropertiesBeatmapLibraryStorage(libraryRoot));
         importer = new BeatmapArchiveImporter(libraryRoot);
@@ -88,9 +104,31 @@ public class OsuJavaGame extends Game {
 
     public void navigate(Screen next) {
         Screen previous = getScreen();
-        super.setScreen(next);
+        setScreen(next);
         if (previous != null && previous != next) previous.dispose();
     }
+
+    @Override public void setScreen(Screen next) {
+        super.setScreen(next);
+        installGlobalInput();
+    }
+
+    private void installGlobalInput() {
+        InputProcessor screenInput = Gdx.input.getInputProcessor();
+        if (screenInput == volumeInput || screenInput instanceof InputMultiplexer multiplexer
+                && multiplexer.getProcessors().contains(volumeInput, true)) return;
+        Gdx.input.setInputProcessor(screenInput == null ? volumeInput : new InputMultiplexer(volumeInput, screenInput));
+    }
+
+    @Override public void render() {
+        volumeHud.advance(Gdx.graphics.getDeltaTime());
+        super.render();
+        if (volumeRenderer != null) volumeRenderer.draw(volumeHud);
+    }
+
+    @Override public void resume() { super.resume(); installGlobalInput(); }
+    public AudioVolumes audioVolumes() { return audioVolumes; }
+    public VolumeHud volumeHud() { return volumeHud; }
 
     public SpriteBatch batch() {
         return batch;

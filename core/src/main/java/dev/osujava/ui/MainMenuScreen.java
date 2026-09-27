@@ -40,7 +40,7 @@ public final class MainMenuScreen extends ScreenAdapter {
     }
     /** Harness injects fixed amplitudes; decoding never enters the renderer. */
     MainMenuScreen(OsuJavaGame game, BeatmapSet ambient, MenuAudioAnalysis analysis, Runnable play, Runnable exit) {
-        this(game,ambient,analysis,play,exit,MenuAmbientAudio::new);
+        this(game,ambient,analysis,play,exit,path -> new MenuAmbientAudio(path, game.audioVolumes()));
     }
     MainMenuScreen(OsuJavaGame game, BeatmapSet ambient, MenuAudioAnalysis analysis, Runnable play, Runnable exit,
                    Function<Path, MenuAmbientAudio> audioFactory) {

@@ -69,7 +69,7 @@ public final class GameplayScreen extends ScreenAdapter {
         this.cursorVisibility = new GameplayCursorVisibility(Gdx.graphics);
         this.audioPlayer = new GameplayAudioPlayer(difficulty.beatmapPath() == null
                 ? null : difficulty.beatmapPath().getParent(),
-                SkinAssetResolver.withBundledDefault(game.skinDirectory(), game.skinFallbackDirectory()));
+                SkinAssetResolver.withBundledDefault(game.skinDirectory(), game.skinFallbackDirectory()), game.audioVolumes());
         long lastObjectEnd = 0;
         for (HitObject object : difficulty.hitObjects()) {
             if (object.type() == HitObject.Type.CIRCLE) {
@@ -91,10 +91,16 @@ public final class GameplayScreen extends ScreenAdapter {
         if (audioPath != null && Files.isRegularFile(audioPath)) {
             try {
                 loadedMusic = Gdx.audio.newMusic(Gdx.files.absolute(audioPath.toString()));
+                game.audioVolumes().musicGain(loadedMusic, 1);
                 MusicGameClock musicClock = new MusicGameClock(loadedMusic);
                 musicClock.start();
                 selectedClock = musicClock;
             } catch (GdxRuntimeException | IllegalArgumentException e) {
+                if (loadedMusic != null) {
+                    game.audioVolumes().removeMusic(loadedMusic);
+                    loadedMusic.dispose();
+                    loadedMusic = null;
+                }
                 audioNotice = "Audio could not be opened; running with a local timer.";
                 selectedClock = new ElapsedGameClock(finishAt);
             }
@@ -162,6 +168,7 @@ public final class GameplayScreen extends ScreenAdapter {
         skinAssets.dispose();
         audioPlayer.close();
         if (music != null) {
+            game.audioVolumes().removeMusic(music);
             music.stop();
             music.dispose();
         }

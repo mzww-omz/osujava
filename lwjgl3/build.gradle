@@ -124,3 +124,12 @@ tasks.register('bundledSkinVisualHarness', JavaExec) {
     args output
     systemProperty 'user.home', "${output}/home"
 }
+
+// Actual screens + procedural HUD at 720p, 1080p, 1440p and Retina density.
+tasks.register('volumeHudVisualHarness', JavaExec) {
+    dependsOn hudHarnessClasses
+    classpath = sourceSets.hudHarness.runtimeClasspath
+    mainClass = 'dev.osujava.ui.VolumeHudVisualHarness'
+    systemProperty 'java.awt.headless', 'true'
+    args project.findProperty('volumeHudOutput') ?: '/tmp/osujava-volume-hud'
+}

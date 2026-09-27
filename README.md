@@ -32,6 +32,16 @@ macOSではlauncherがGLFWの非同期起動設定を使います。
 4. HitCircleはタイミングに合わせてクリックします。左/右クリックまたはZ/Xキーで操作できます。Sliderは頭を押してから、押したままカーソルでボールを追います。
 5. 曲が終わるとResultsを表示します。
 
+### 音量HUD
+
+全画面共通の円形HUDで `master` / `music` / `effect` を調整できます。`F4`で開閉し、開いた直後はmasterを選択します。表示中は `Tab` / `←` / `→` で対象を切り替え、`↑` / `↓` またはマウスホイールで5%ずつ調整します。`Escape`は表示中のHUDを閉じ、HUDが閉じている場合は従来の画面操作です。Z/X・クリック・カーソル移動はHUD表示中もGameplayへ届き、曲と判定は進行します。
+
+Main Menu・Gameplay・ResultsではホイールだけでHUDを開いて音量を変更できます。Song SelectはHUD非表示時のホイール選曲を維持し、`F4`でHUDを開いてからホイール、または `Alt`＋ホイールで音量を変更します。Alt＋ホイールは全画面で利用できます。
+
+音量は0〜100%に制限し、Musicはmaster×music、hitsoundはmaster×effect×譜面sample音量を使います。Main Menuの既存の65%基準ゲインと画面遷移fadeもその上に掛けます。設定は画面間で共有し、アプリを再起動すると100%へ戻ります。120msのfade-inと軽いscale-in、1.5秒の無操作後に220msのfade-out、約90msの円弧追従、選択時250msのglow強調があります。描画は独自の円・円弧・文字で、全画面を暗くする処理はありません。
+
+視覚確認用の `./gradlew lwjgl3:volumeHudVisualHarness` はMain Menu・Song Select・Gameplay・Resultsを1280×720、1920×1080、2560×1440、720pの2倍バックバッファ密度で撮影し、0%・50%・100%も確認します。画像は `/tmp/osujava-volume-hud` に出力し、HUD外の背景とScreenの描画行列が変わらないことも検査します。
+
 ### 開発確認用 Debug Auto
 
 Song SelectでDifficultyを選び、`F6`を押すとDebug Auto Playを開始します。検索欄が入力中の間はショートカットは動作しません。`Enter`またはPlay Cookieは通常のManual Playです。Debug Autoは既存のGameplay入力・判定経路に入力を送り、カーソルには目視確認用のcrosshairを表示します。Resultsには`AUTO / DEBUG`と表示されます。これはModsではなく、将来の通常プレイ用Local Rankingへ含めない開発用の実行種別です。Gameplay中の`Escape`でSong Selectへ戻れます。
