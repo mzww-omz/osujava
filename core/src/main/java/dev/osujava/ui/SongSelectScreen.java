@@ -2,21 +2,17 @@ package dev.osujava.ui;
 
 import dev.osujava.score.LocalScoreStore;
 import dev.osujava.score.DifficultyIdentity;
-import dev.osujava.ruleset.osu.OsuGrade;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import dev.osujava.OsuJavaGame;
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapSet;
-import dev.osujava.beatmap.HitObject;
-import dev.osujava.beatmap.TimingPoint;
 import dev.osujava.gameplay.GameplayRunMode;
 import dev.osujava.library.BeatmapImportException;
 import dev.osujava.library.ImportResult;
@@ -45,18 +41,16 @@ public final class SongSelectScreen extends ScreenAdapter {
     private static final Color BOTTOM = new Color(.025f, .022f, .045f, .91f);
     private static final Color DIM = new Color(.025f, .022f, .045f, .18f);
     private static final Color OTHER = new Color(.58f, .30f, .49f, .90f);
-    private static final Color OTHER_HOVER = new Color(.73f, .38f, .59f, .96f);
-    private static final Color PLAYED = new Color(.79f, .46f, .23f, .92f);
-    private static final Color PLAYED_HOVER = new Color(.90f, .57f, .30f, .98f);
     private static final Color SIBLING = new Color(.25f, .54f, .73f, .92f);
     private static final Color SIBLING_HOVER = new Color(.34f, .66f, .84f, .98f);
     private static final Color SELECTED = new Color(.96f, .95f, .98f, .98f);
     private static final Color DARK_TEXT = new Color(.14f, .10f, .18f, 1f);
-    private static final Color THUMB_FALLBACK = new Color(.23f, .20f, .31f, 1f);
     private static final Color BACK_PINK = new Color(.83f, .28f, .55f, 1f);
 
     private final OsuJavaGame game;
     private final UiView view;
+    private final SongSelectRowRenderer rowRenderer;
+    private List<SongSelectRowRenderer.Presentation> rowPresentations = List.of();
     private SongSelectSkinAssets skin;
     private Color activeText = DARK_TEXT, inactiveText;
     private final SongSelectToolboxState toolbox = new SongSelectToolboxState();
@@ -64,13 +58,11 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final Color actionTint = new Color(Color.WHITE);
     private final java.util.EnumSet<Selection> renderedSelectionProcedural = java.util.EnumSet.noneOf(Selection.class);
     boolean renderedSelectionProcedural(Selection action) { return renderedSelectionProcedural.contains(action); }
-    private final Color rowTint = new Color(), thumbnailTint = new Color();
-    private final Color primaryTint = new Color(), secondaryTint = new Color(), detailTint = new Color(), starTint = new Color();
     private final Map<Object, SongSelectRowPresentation.Content> rowContent = new IdentityHashMap<>();
     private final Function<BeatmapDifficulty, OptionalDouble> ratings;
     private BeatmapDifficulty metadataDifficulty;
     private BeatmapSet metadataSet;
-    private String metadataTitle, metadataMapper, metadataSummary, metadataStats, metadataStatus;
+    private SongSelectDetails details;
     private final UiTransition entrance = new UiTransition();
     private final UiNavigation outgoing = new UiNavigation();
     private Texture rowFill;
@@ -137,6 +129,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         this.game = game;
         this.skin = skin;
         view = new UiView(game);
+        rowRenderer = new SongSelectRowRenderer(game.batch(), view);
         browser = new SongBrowserModel(game.library().all());
         scores = new ScoreBrowserModel(game.localScores());
         scoreSnapshot = new SongSelectScoreSnapshot(game.localScores());
@@ -272,6 +265,12 @@ public final class SongSelectScreen extends ScreenAdapter {
     @Override public void render(float delta) {
         if (outgoing.advance(delta)) return;
         UiLayout layout = view.prepare();
+        if (!update(layout, delta)) return;
+        draw(layout, delta);
+    }
+
+    /** Input, model synchronization, animation and resource preparation precede drawing. */
+    private boolean update(UiLayout layout, float delta) {
         seconds += Math.min(delta, .05f);
         setClickGuard = Math.max(0, setClickGuard - Math.max(0, delta));
         calculateLayout(layout);
@@ -295,9 +294,9 @@ public final class SongSelectScreen extends ScreenAdapter {
                         || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT))) action = SongSelectAction.PREVIOUS_RANDOM;
                 if (action == SongSelectAction.RANDOM) searchActive = false;
                 perform(action);
-                if (action == SongSelectAction.BACK) return;
+                if (action == SongSelectAction.BACK) return false;
             }
-            else if (selectedDifficulty() != null && playCookie.hit(px, py)) { playSelected(); return; }
+            else if (selectedDifficulty() != null && playCookie.hit(px, py)) { playSelected(); return false; }
             else {
                 searchActive = false;
                 int slot = scoreBounds(layout).slot(px, py);
@@ -306,9 +305,16 @@ public final class SongSelectScreen extends ScreenAdapter {
             }
         }
 
-        view.clear();
+        prepareRowPresentations();
         backgroundFade = Math.min(1, backgroundFade + Math.max(0, delta) / .22f);
-        view.background(thumbnails.get(backgroundPath), .72f * backgroundFade);
+        return true;
+    }
+
+    /** Composition policy is documented in song-select-stable-reference.md. No selection writes. */
+    private void draw(UiLayout layout, float delta) {
+        float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
+        view.clear();
+        view.background(thumbnails.resident(backgroundPath), .72f * backgroundFade);
         view.beginShapes();
         view.box(0, 0, layout.width(), layout.height(), 0, DIM);
         renderedTopProcedural = SongSelectChrome.procedural(skin, Image.TOP);
@@ -459,6 +465,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (contentWidth > 0) updateContent(new UiLayout(contentWidth, viewportHeight, 1));
         carousel.select(selectedRowKey());
         if (contentWidth > 0) visibleRows = layoutRows(new UiLayout(contentWidth, viewportHeight, 1), 0);
+        updateDetails();
         selectBackground();
     }
 
@@ -516,14 +523,6 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (hover) skinImage(action.hover,geometry.hover().image(),actionTint);
     }
 
-    private void skinImageFit(Image image, float x, float y, float w, float h, Color tint) {
-        if (!has(image)) return;
-        var asset = skin.get(image);
-        float scale = Math.min(w / asset.logicalWidth(), h / asset.logicalHeight());
-        float width = asset.logicalWidth() * scale, height = asset.logicalHeight() * scale;
-        skinImage(image, x + (w - width) / 2, y, width, height, tint);
-    }
-
     private static Color textColor(SkinConfiguration.Rgb rgb, Color fallback) {
         return rgb == null ? fallback : new Color(rgb.r(), rgb.g(), rgb.b(), 1);
     }
@@ -537,16 +536,37 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
+    /** Resource lookup and score projection happen before any drawing. */
+    private void prepareRowPresentations() {
+        var paths = new java.util.HashSet<Path>();
+        if (backgroundPath != null) paths.add(backgroundPath);
+        if (showThumbnails()) for (var row : visibleRows) {
+            if (row.setIndex() < 0) continue;
+            var set = sets.get(row.setIndex());
+            var content = rowContent.get(row.difficultyIndex() < 0 ? set : set.difficulties().get(row.difficultyIndex()));
+            if (content.thumbnail() != null) paths.add(content.thumbnail());
+        }
+        thumbnails.prepare(paths);
+        var result = new ArrayList<SongSelectRowRenderer.Presentation>(visibleRows.size());
+        for (var row : visibleRows) {
+            if (row.setIndex() < 0) {
+                result.add(new SongSelectRowRenderer.Presentation(row, null, false, null, null, 0));
+                continue;
+            }
+            var set = sets.get(row.setIndex());
+            var diff = row.difficultyIndex() < 0 ? null : set.difficulties().get(row.difficultyIndex());
+            var content = rowContent.get(diff == null ? set : diff);
+            var best = diff == null ? null : scoreSnapshot.best(set, diff);
+            boolean played = diff == null ? scoreSnapshot.played(set) : best != null;
+            result.add(new SongSelectRowRenderer.Presentation(row, content, played, best == null ? null : best.grade(),
+                    showThumbnails() ? thumbnails.resident(content.thumbnail()) : null, thumbnails.opacity(content.thumbnail())));
+        }
+        rowPresentations = List.copyOf(result);
+    }
+
     private void drawRows(UiLayout layout) {
-        // Crop the carousel to its existing logical area, including partially visible rows.
-        float scaleX = Gdx.graphics.getBackBufferWidth() / layout.width();
-        float scaleY = Gdx.graphics.getBackBufferHeight() / layout.height();
-        Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
-        Gdx.gl.glScissor(0, Math.round(bottom * scaleY), Math.round(layout.width() * scaleX), Math.round((top - bottom) * scaleY));
-        try {
-            for (SongSelectRow row : visibleRows) if (!row.selected()) drawRow(row);
-            for (SongSelectRow row : visibleRows) if (row.selected()) drawRow(row);
-        } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
+        rowRenderer.draw(rowPresentations, new SongSelectRowRenderer.Style(contentWidth, skin, rowFill,
+                activeText, inactiveText, showThumbnails()), layout, bottom, top);
         if (visibleRows.isEmpty()) {
             view.beginShapes();
             view.box(layout.width() * .59f, bottom + 155, layout.width() * .38f, 66, 0, LEFT);
@@ -558,104 +578,12 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
-    private void drawRow(SongSelectRow row) {
-        if (row.revealAmount() < .01f) return;
-        if (row.setIndex() < 0) {
-            // Compact divider at the row center; no beatmap body, thumbnail, hover or play target.
-            view.beginShapes();
-            view.box(row.x() + 12, row.y() + row.height() / 2 - 13, row.width(), 26, 0, TOP);
-            view.endShapes();
-            view.beginText();
-            view.textSmoothBold(row.header(), row.x() + 22,
-                    row.y() + row.height() / 2 + 2, contentWidth - row.x() - 30, .74f, UiTheme.TEXT);
-            view.endText();
-            return;
-        }
-        BeatmapSet set = sets.get(row.setIndex());
-        boolean played = row.difficultyIndex() < 0 ? scoreSnapshot.played(set)
-                : scoreSnapshot.played(set,set.difficulties().get(row.difficultyIndex()));
-        var tone = SongSelectRowPresentation.tone(row.selected(),row.sibling(),played);
-        Color color = rowTint.set(switch (tone) {
-            case SELECTED -> SELECTED; case SIBLING -> SIBLING; case PLAYED -> PLAYED; case UNPLAYED -> OTHER;
-        });
-        if (!row.selected()) color.lerp(row.sibling() ? SIBLING_HOVER : played ? PLAYED_HOVER : OTHER_HOVER,row.hoverAmount());
-        color.a *= row.revealAmount();
-        float x = row.x(), y = row.y();
-        if (has(Image.MENU_BUTTON_BACKGROUND)) {
-            view.beginText();
-            var body = skin.rowBody();
-            float imageWidth = row.width() / body.width(), imageHeight = row.height() / body.height();
-            skinImage(Image.MENU_BUTTON_BACKGROUND, x - body.left() * imageWidth,
-                    y - body.bottom() * imageHeight, imageWidth, imageHeight, color);
-        } else {
-            view.beginShapes();
-            view.quad(x, y, x + row.width(), y, x + row.width(), y + row.height(), x + 9, y + row.height(), color);
-            view.endShapes();
-            view.beginText();
-        }
-        SongSelectRowPresentation.Content content = rowContent.get(row.difficultyIndex() < 0
-                ? set : set.difficulties().get(row.difficultyIndex()));
-        var geometry = SongSelectRowPresentation.geometry(row.width(), row.height(), contentWidth - x,
-                showThumbnails());
-        float tx = x + geometry.thumbnailX(), ty = y + geometry.thumbnailY();
-        if (showThumbnails()) {
-            // Keep body, thumbnail fallback, cover and text in the same sprite batch.
-            game.batch().setColor(thumbnailTint.set(THUMB_FALLBACK.r, THUMB_FALLBACK.g, THUMB_FALLBACK.b, row.revealAmount()));
-            game.batch().draw(rowFill, tx, ty, geometry.thumbnailWidth(), geometry.thumbnailHeight());
-            var texture = thumbnails.get(content.thumbnail());
-            float brightness = row.selected() ? 1 : .78f + row.hoverAmount() * .12f;
-            game.batch().setColor(brightness, brightness, brightness, row.revealAmount() * thumbnails.opacity(content.thumbnail()));
-            view.imageCover(texture, tx, ty, geometry.thumbnailWidth(), geometry.thumbnailHeight());
-            game.batch().setColor(Color.WHITE);
-        }
-        drawRowLabel(row, content, geometry);
-        view.endText();
-    }
-
-    private void drawRowLabel(SongSelectRow row, SongSelectRowPresentation.Content content, SongSelectRowPresentation.Geometry geometry) {
-        Color base = row.selected() ? activeText : inactiveText != null ? inactiveText : UiTheme.TEXT;
-        Color primary = primaryTint.set(base);
-        primary.a *= row.revealAmount() * (row.sibling() ? .24f : 1);
-        Color secondary = secondaryTint.set(base);
-        secondary.a *= row.revealAmount() * (row.sibling() ? .20f : .80f);
-        Color detail = detailTint.set(base);
-        detail.a *= row.revealAmount() * (row.difficultyIndex() >= 0 ? 1 : .72f);
-        float x = row.x() + geometry.textX(), width = geometry.textWidth();
-        boolean child = row.difficultyIndex() >= 0;
-        var set = sets.get(row.setIndex());
-        var best = child ? scoreSnapshot.best(set,set.difficulties().get(row.difficultyIndex())) : null;
-        if (best != null) {
-            drawGrade(best.grade(), x, row.y() + row.height() / 2 - 17, 44, 34, thumbnailTint.set(1, 1, 1, detail.a), detail);
-            x += 52; width = Math.max(0, width - 52);
-        }
-        view.textSmooth(content.title(), x, row.y() + (child ? geometry.titleY() : row.height() / 2 + 8), width,
-                .87f, primary);
-        view.textSmooth(content.byline(), x, row.y() + (child ? geometry.bylineY() : row.height() / 2 - 12), width, .65f, secondary);
-        if (child) view.textSmoothBold(content.detail(), x, row.y() + geometry.detailY(), width, .90f, detail);
-        var stars = content.stars();
-        if (stars.present() && width >= stars.width()) drawStars(stars, x,
-                row.y() + geometry.starsY(), detail, row.selected());
-    }
-
-    private void drawStars(SongSelectRowPresentation.Stars stars, float x, float y, Color tint, boolean selected) {
-        var texture = skin == null ? null : skin.starTexture();
-        if (texture == null) return;
-        float scale = Math.min(15f / texture.getWidth(), 15f / texture.getHeight());
-        float w = texture.getWidth() * scale, h = texture.getHeight() * scale;
-        for (int i = 0; i < stars.slots(); i++) {
-            float sx = x + i * 18 + (15 - w) / 2, sy = y + (15 - h) / 2;
-            game.batch().setColor(starTint.set(tint.r, tint.g, tint.b, tint.a * .24f));
-            game.batch().draw(texture, sx, sy, w, h);
-            float fill = stars.fill(i);
-            game.batch().setColor(starTint.set(tint.r, tint.g, tint.b, tint.a * (selected ? 1 : .88f)));
-            if (fill > 0) {
-                if (skin.configuration().legacyVersion() >= 2.2)
-                    game.batch().draw(texture, sx + w * (1 - fill) / 2, sy + h * (1 - fill) / 2, w * fill, h * fill);
-                else game.batch().draw(texture, sx, sy, w * fill, h, 0, 1, fill, 0);
-            }
-        }
-        game.batch().setColor(Color.WHITE);
-        view.textSmooth(stars.label(), x + stars.slots() * 18 + 3, y + 3, stars.numericWidth() - 3, .62f, tint);
+    private void updateDetails() {
+        var set = selectedSet();
+        var diff = selectedDifficulty();
+        if (metadataSet == set && metadataDifficulty == diff) return;
+        metadataSet = set; metadataDifficulty = diff;
+        details = set == null || diff == null ? null : SongSelectDetails.of(set, diff, rowContent.get(diff).stars());
     }
 
     private void drawMetadata(UiLayout layout) {
@@ -665,31 +593,12 @@ public final class SongSelectScreen extends ScreenAdapter {
             view.textSmooth("SONG SELECT", 21, layout.height() - 26, layout.width() * .52f, UiTheme.TITLE, UiTheme.TEXT);
             return;
         }
-        if (metadataDifficulty != diff || metadataSet != set) {
-            metadataDifficulty = diff; metadataSet = set;
-            metadataTitle = set.title() + " [" + diff.version() + "]";
-            metadataMapper = set.artist() + " // Mapped by " + diff.creator();
-            long circles = diff.hitObjects().stream().filter(o -> o.type() == HitObject.Type.CIRCLE).count();
-            long sliders = diff.hitObjects().stream().filter(o -> o.type() == HitObject.Type.SLIDER).count();
-            long spinners = diff.hitObjects().stream().filter(o -> o.type() == HitObject.Type.SPINNER).count();
-            long firstMs = diff.hitObjects().stream().mapToLong(o -> (long) o.timeMs()).min().orElse(0);
-            long lastMs = diff.hitObjects().stream().mapToLong(o -> (long) o.endTimeMs()).max().orElse(0);
-            String bpm = bpmText(diff);
-            metadataSummary = "Length " + formatTime(Math.max(0, lastMs - firstMs)) + "    BPM " + bpm + "    Objects " + diff.hitObjects().size();
-            var rating = rowContent.get(diff).stars();
-            metadataStatus = "Local beatmap" + (rating.present() ? "    Stars " + rating.label() : "");
-            metadataStats = "Circles " + circles + "   Sliders " + sliders + "   Spinners " + spinners
-                    + "    OD " + oneDecimal(diff.settings().overallDifficulty())
-                    + "   AR " + oneDecimal(diff.settings().approachRate())
-                    + "   CS " + oneDecimal(diff.settings().circleSize())
-                    + "   HP " + oneDecimal(diff.settings().hpDrainRate());
-        }
         float w = layout.width() * .52f - 28;
-        view.textSmoothBold(metadataTitle, 18, layout.height() - 20, w, 1.05f, UiTheme.TEXT);
-        view.textSmooth(metadataMapper, 19, layout.height() - 42, w, .74f, UiTheme.TEXT);
-        view.textSmooth(metadataSummary, 19, layout.height() - 63, w, .70f, UiTheme.TEXT);
-        view.textSmooth(metadataStats, 19, layout.height() - 83, w, .64f, UiTheme.MUTED);
-        view.textSmooth(metadataStatus,
+        view.textSmoothBold(details.title(), 18, layout.height() - 20, w, 1.05f, UiTheme.TEXT);
+        view.textSmooth(details.mapper(), 19, layout.height() - 42, w, .74f, UiTheme.TEXT);
+        view.textSmooth(details.summary(), 19, layout.height() - 63, w, .70f, UiTheme.TEXT);
+        view.textSmooth(details.stats(), 19, layout.height() - 83, w, .64f, UiTheme.MUTED);
+        view.textSmooth(details.status(),
                 19, layout.height() - 103, w, .63f, UiTheme.MUTED);
     }
 
@@ -703,15 +612,6 @@ public final class SongSelectScreen extends ScreenAdapter {
                     selected ? SIBLING : hover ? TOP : LEFT);
             if (selected) view.box(bounds.x(), bounds.rowY(slot), 3, ScoreBrowserBounds.HEIGHT, 0, UiTheme.ACCENT);
         }
-    }
-
-    private void drawGrade(OsuGrade grade, float x, float y, float w, float h, Color tint, Color textTint) {
-        Image image = switch (grade) {
-            case SS -> Image.GRADE_SS; case S -> Image.GRADE_S; case A -> Image.GRADE_A;
-            case B -> Image.GRADE_B; case C -> Image.GRADE_C; case D -> Image.GRADE_D;
-        };
-        if (has(image)) skinImageFit(image, x, y, w, h, tint);
-        else view.textSmoothBold(grade.name(), x + 3, y + h * .35f, w - 6, 1.35f, textTint);
     }
 
     private void drawRanking(UiLayout layout) {
@@ -728,7 +628,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         for (int slot = 0; slot < bounds.capacity() && scores.first() + slot < scores.rows().size(); slot++) {
             var row = scores.rows().get(scores.first() + slot);
             float y = bounds.rowY(slot), x = bounds.x();
-            drawGrade(row.score().grade(), x + 8, y + 13, 60, 40, UiTheme.TEXT, UiTheme.TEXT);
+            rowRenderer.drawGrade(row.score().grade(), x + 8, y + 13, 60, 40, UiTheme.TEXT, UiTheme.TEXT);
             float textX = x + 78, width = bounds.width() - 88;
             view.textSmoothBold(row.value(), textX, y + 44, width * .62f, .94f, UiTheme.TEXT);
             view.textSmooth(row.accuracy(), textX + width * .64f, y + 44, width * .36f, .82f, UiTheme.TEXT);
@@ -829,17 +729,6 @@ public final class SongSelectScreen extends ScreenAdapter {
             backgroundPath = next;
             backgroundFade = 0;
         }
-    }
-    private String oneDecimal(double value) { return String.format(Locale.ROOT, "%.1f", value); }
-    private String formatTime(long ms) { return (ms / 60000) + ":" + String.format(Locale.ROOT, "%02d", (ms / 1000) % 60); }
-    private String bpmText(BeatmapDifficulty diff) {
-        double min = Double.POSITIVE_INFINITY, max = 0;
-        for (TimingPoint point : diff.timingPoints()) if (point.uninherited() && point.beatLength() > 0) {
-            double bpm = 60000 / point.beatLength();
-            min = Math.min(min, bpm); max = Math.max(max, bpm);
-        }
-        if (max == 0) return "—";
-        return Math.round(min) == Math.round(max) ? "" + Math.round(max) : Math.round(min) + "–" + Math.round(max);
     }
     private void perform(SongSelectAction action) {
         if (toolbox.open() || importing || outgoing.pending()) return;

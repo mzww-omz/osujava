@@ -7,11 +7,25 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
 
 /** Small bounded texture cache for visible song select rows. */
 final class BeatmapThumbnails implements AutoCloseable {
     private static final int LIMIT = 18;
+    private final Function<Path, Texture> loader;
+
+    BeatmapThumbnails() {
+        this(path -> {
+            if (!Files.isRegularFile(path)) return null;
+            Texture texture = new Texture(Gdx.files.absolute(path.toString()));
+            texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+            return texture;
+        });
+    }
+    BeatmapThumbnails(Function<Path, Texture> loader) { this.loader = loader; }
     private float elapsed;
+    private Set<Path> framePaths = Set.of();
     private final Map<Path, Float> loadedAt = new LinkedHashMap<>();
     private final LinkedHashMap<Path, Texture> textures = new LinkedHashMap<>(20, .75f, true);
 
@@ -20,9 +34,7 @@ final class BeatmapThumbnails implements AutoCloseable {
         if (textures.containsKey(path)) return textures.get(path);
         Texture texture = null;
         try {
-            if (!Files.isRegularFile(path)) { textures.put(path, null); trim(); return null; }
-            texture = new Texture(Gdx.files.absolute(path.toString()));
-            texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+            texture = loader.apply(path);
         } catch (GdxRuntimeException ignored) { }
         textures.put(path, texture);
         if (texture != null) loadedAt.put(path, elapsed);
@@ -30,12 +42,24 @@ final class BeatmapThumbnails implements AutoCloseable {
         return texture;
     }
 
+    /** Pin this frame's resources before building snapshots; eviction cannot invalidate draw input. */
+    void prepare(Set<Path> paths) {
+        framePaths = Set.copyOf(paths);
+        for (Path path : paths) get(path);
+        trim();
+    }
+
+    /** Draw-side lookup never loads a file or changes residency. */
+    Texture resident(Path path) { return path == null ? null : textures.get(path); }
+
     private void trim() {
-        if (textures.size() > LIMIT) {
-            Map.Entry<Path, Texture> eldest = textures.entrySet().iterator().next();
+        var iterator = textures.entrySet().iterator();
+        while (textures.size() > LIMIT && iterator.hasNext()) {
+            Map.Entry<Path, Texture> eldest = iterator.next();
+            if (framePaths.contains(eldest.getKey())) continue;
             if (eldest.getValue() != null) eldest.getValue().dispose();
             loadedAt.remove(eldest.getKey());
-            textures.remove(eldest.getKey());
+            iterator.remove();
         }
     }
 
@@ -50,5 +74,6 @@ final class BeatmapThumbnails implements AutoCloseable {
         for (Texture texture : textures.values()) if (texture != null) texture.dispose();
         textures.clear();
         loadedAt.clear();
+        framePaths = Set.of();
     }
 }
