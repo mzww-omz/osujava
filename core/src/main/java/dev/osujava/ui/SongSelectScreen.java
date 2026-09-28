@@ -398,7 +398,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private float rowWidth(UiLayout layout) { return SongSelectMetrics.rowWidth(layout.width()); }
 
     private void updateContent(UiLayout layout) {
-        float height = SongSelectMetrics.rowHeight(layout.width(), skin);
+        float height = SongSelectMetrics.rowHeight(layout.height());
         float viewportHeight = top - bottom;
         if (contentDirty || contentWidth != layout.width() || contentViewportHeight != viewportHeight || contentRowHeight != height) {
             List<SongSelectCarousel.Entry> entries = new ArrayList<>();

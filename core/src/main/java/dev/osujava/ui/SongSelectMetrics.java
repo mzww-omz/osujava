@@ -1,15 +1,11 @@
 package dev.osujava.ui;
 
-import dev.osujava.skin.SongSelectSkinAssets;
-
 /** Song Select geometry in UiLayout's 720-high logical units, never framebuffer pixels.
- * Carousel positions use the supplied Stable build's 480-high UI; body safety bounds remain local.
+ * Carousel positions use the supplied Stable build's 480-high UI; row bodies share the pitch so adjacent labels cannot be covered.
  * Skin chrome alone uses the documented 768-high legacy asset canvas.
  */
 final class SongSelectMetrics {
     static final float LEGACY_CANVAS_HEIGHT = 768;
-    static final float DEFAULT_ROW_HEIGHT = 80;
-    static final float MIN_ROW_HEIGHT = 76, MAX_ROW_HEIGHT = 88;
     static final float CAROUSEL_HEIGHT = 480;
     static final float ROW_PITCH = 48;
     static final float SELECTION_Y = 220;
@@ -21,12 +17,10 @@ final class SongSelectMetrics {
 
     private SongSelectMetrics() { }
     static float rowWidth(float width) { return width * .50f + 18; }
-    static float rowHeight(float width, SongSelectSkinAssets skin) {
-        var image = skin == null ? null : skin.get(SongSelectSkinAssets.Image.MENU_BUTTON_BACKGROUND);
-        float height = image == null ? DEFAULT_ROW_HEIGHT
-                : SongSelectCarousel.skinRowHeight(image.logicalWidth(), image.logicalHeight(), rowWidth(width))
-                    * skin.rowBody().height() / skin.rowBody().width();
-        return Math.max(MIN_ROW_HEIGHT, Math.min(MAX_ROW_HEIGHT, height));
+    static float rowHeight(float height) {
+        // Artwork is fitted into this body, not used to derive it. Previously a 72-unit
+        // pitch with an 88-unit skin body covered the next row's title and hit bounds.
+        return rowPitch(height);
     }
     static float wheelLeft(float width, float height) {
         float leftmostBody = width - ROW_RIGHT_OFFSET * carouselScale(height) - width * GROUP_INDENT

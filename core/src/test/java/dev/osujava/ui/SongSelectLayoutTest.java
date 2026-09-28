@@ -11,9 +11,28 @@ class SongSelectLayoutTest {
         var full = UiLayout.fromPixels(1920, 1080);
         var retina = UiLayout.fromPixels(2560, 1440);
         for (var layout : List.of(hd, full, retina)) {
-            assertEquals(80, SongSelectMetrics.rowHeight(layout.width(), null));
+            assertEquals(72, SongSelectMetrics.rowHeight(layout.height()));
             assertEquals(SongSelectMetrics.rowWidth(hd.width()), SongSelectMetrics.rowWidth(layout.width()));
             assertEquals(300, layout.pointerY(Math.round(420 * layout.scale())));
+        }
+    }
+    @Test void settledBodiesDoNotCoverAdjacentLabelsOrHitBounds() {
+        for (var layout : List.of(UiLayout.fromPixels(1100, 720), UiLayout.fromPixels(1280, 720),
+                UiLayout.fromPixels(1920, 1080), UiLayout.fromPixels(2560, 1440))) {
+            float body = SongSelectMetrics.rowHeight(layout.height());
+            var model = new SongSelectCarousel();
+            var entries = java.util.stream.IntStream.range(0, 8)
+                    .mapToObj(n -> new SongSelectCarousel.Entry("set#" + n, 0, n)).toList();
+            model.content(entries, 574, body, SongSelectMetrics.rowPitch(layout.height()),
+                    SongSelectMetrics.rowPitch(layout.height()), "set#3", layout.height(), 658);
+            for (int frame = 0; frame < 120; frame++) model.advance(1f / 60, null);
+            for (int i = 1; i < model.rows().size(); i++) {
+                float upperBottom = model.renderY(model.rows().get(i - 1), 658);
+                float lowerTop = model.renderY(model.rows().get(i), 658) + body;
+                assertTrue(lowerTop <= upperBottom + .001f, "An upper row must not cover its neighbour");
+            }
+            assertEquals(390, model.renderY(model.rows().get(3), 658) + body / 2, .001);
+            assertTrue(SongSelectRowPresentation.geometry(650, body, 500, true).starsY() >= 0);
         }
     }
     @Test void hitPriorityMatchesSelectedLastCompositingAndClipping() {
