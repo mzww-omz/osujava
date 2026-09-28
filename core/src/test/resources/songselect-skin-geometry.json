@@ -1,0 +1,5542 @@
+[
+  {
+    "id": "Greylooks",
+    "effective_version": 1.0,
+    "assets": [
+      {
+        "filename": "menu-back.png",
+        "asset": "menu-back",
+        "density": 1,
+        "sha256": "70f9d2987f3e06bf13390e408f9daa157ef381009219decfb8d0922c50adb40d",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          174,
+          90
+        ],
+        "logical": [
+          174.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          5,
+          12,
+          174,
+          89
+        ],
+        "alpha_coverage": 0.780013,
+        "alpha_mass": 0.777161,
+        "transparent_margins": [
+          5,
+          12,
+          0,
+          1
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "menu-back@2x.png",
+        "asset": "menu-back",
+        "density": 2,
+        "sha256": "24701700fb4b1716e7b500d07117912a54cb29cb9bc95c3fdd5743dcedae313a",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          348,
+          180
+        ],
+        "logical": [
+          174.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          10,
+          24,
+          348,
+          178
+        ],
+        "alpha_coverage": 0.777985,
+        "alpha_mass": 0.776653,
+        "transparent_margins": [
+          10,
+          24,
+          0,
+          2
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "menu-button-background.png",
+        "asset": "menu-button-background",
+        "density": 1,
+        "sha256": "bda225d5996979904363b08721eff24e17b233fb017d98bb1f28d547734b9cf5",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          700,
+          117
+        ],
+        "logical": [
+          700.0,
+          117.0
+        ],
+        "alpha_bounds": [
+          1,
+          0,
+          700,
+          117
+        ],
+        "alpha_coverage": 0.994689,
+        "alpha_mass": 0.739037,
+        "transparent_margins": [
+          1,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "menu-button-background@2x.png",
+        "asset": "menu-button-background",
+        "density": 2,
+        "sha256": "8d82a9bd8e643b887495e838491784ae296801e8875c2bbb8532bc3ee310f092",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          1400,
+          234
+        ],
+        "logical": [
+          700.0,
+          117.0
+        ],
+        "alpha_bounds": [
+          3,
+          0,
+          1400,
+          234
+        ],
+        "alpha_coverage": 0.994225,
+        "alpha_mass": 0.738668,
+        "transparent_margins": [
+          3,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-A-small.png",
+        "asset": "ranking-A-small",
+        "density": 1,
+        "sha256": "4236e8017f088aac300e941467ec3c0db7368ddea09029071aafc4b5bc6e016e",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          41,
+          44
+        ],
+        "logical": [
+          41.0,
+          44.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          41,
+          44
+        ],
+        "alpha_coverage": 0.751109,
+        "alpha_mass": 0.338455,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-A-small@2x.png",
+        "asset": "ranking-A-small",
+        "density": 2,
+        "sha256": "ce17e8c89d3a8982eb9bf0aafeccdd04140778a1468c54291a775e2c9b5e4775",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          82,
+          88
+        ],
+        "logical": [
+          41.0,
+          44.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          82,
+          88
+        ],
+        "alpha_coverage": 0.745843,
+        "alpha_mass": 0.338129,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-B-small.png",
+        "asset": "ranking-B-small",
+        "density": 1,
+        "sha256": "9d87e375d25c1da57c107915f7043ca5d383c4c21016b30c14bc47c6cbec9b6f",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          39,
+          44
+        ],
+        "logical": [
+          39.0,
+          44.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          39,
+          44
+        ],
+        "alpha_coverage": 0.925991,
+        "alpha_mass": 0.436421,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-B-small@2x.png",
+        "asset": "ranking-B-small",
+        "density": 2,
+        "sha256": "36b9c2a31652aebffe51798482320cb93d1752d29b10734f91bd99e019e25b83",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          78,
+          88
+        ],
+        "logical": [
+          39.0,
+          44.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          78,
+          88
+        ],
+        "alpha_coverage": 0.915501,
+        "alpha_mass": 0.436016,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-C-small.png",
+        "asset": "ranking-C-small",
+        "density": 1,
+        "sha256": "b3798902d6f0c743c5acd179a7f6f81a34c06216b42723cc4546b8854fb33726",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          38,
+          45
+        ],
+        "logical": [
+          38.0,
+          45.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          38,
+          45
+        ],
+        "alpha_coverage": 0.831579,
+        "alpha_mass": 0.317645,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-C-small@2x.png",
+        "asset": "ranking-C-small",
+        "density": 2,
+        "sha256": "5daaaeb9f58bd2b3bb15cc11c7bd03dec47588f529f53e655ee662dc60e15888",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          76,
+          90
+        ],
+        "logical": [
+          38.0,
+          45.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          76,
+          90
+        ],
+        "alpha_coverage": 0.829825,
+        "alpha_mass": 0.317316,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-D-small.png",
+        "asset": "ranking-D-small",
+        "density": 1,
+        "sha256": "9897d1e932a4b94d614e9eed72a439f20d18fc4671e1607234a6886408cdf28e",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          41,
+          48
+        ],
+        "logical": [
+          41.0,
+          48.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          41,
+          48
+        ],
+        "alpha_coverage": 0.851626,
+        "alpha_mass": 0.348511,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-D-small@2x.png",
+        "asset": "ranking-D-small",
+        "density": 2,
+        "sha256": "e292bbc775fffb91103f4ffa730d727d2cca40bb7546e7073db491b2af634acc",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          82,
+          96
+        ],
+        "logical": [
+          41.0,
+          48.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          82,
+          96
+        ],
+        "alpha_coverage": 0.847053,
+        "alpha_mass": 0.348142,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-F-small.png",
+        "asset": "ranking-F-small",
+        "density": 1,
+        "sha256": "82e6d2fda5dd3d50b0242bd7334de15cfa5d74364e5a1658a57db66ce548941c",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          37,
+          44
+        ],
+        "logical": [
+          37.0,
+          44.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          37,
+          44
+        ],
+        "alpha_coverage": 0.81941,
+        "alpha_mass": 0.340589,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-F-small@2x.png",
+        "asset": "ranking-F-small",
+        "density": 2,
+        "sha256": "4402cd05a83d69aaa1e85e80d0e6d748b9834a764f7bf1f57de822c01057dcf3",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          74,
+          88
+        ],
+        "logical": [
+          37.0,
+          44.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          74,
+          88
+        ],
+        "alpha_coverage": 0.808814,
+        "alpha_mass": 0.340178,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-S-small.png",
+        "asset": "ranking-S-small",
+        "density": 1,
+        "sha256": "fcfbff2486e47e1fb011985c6eb769d4c27f5bf24c5283fd7b5eb6f93737750a",
+        "provider": "current",
+        "flags": [
+          "density-size-mismatch"
+        ],
+        "raw": [
+          36,
+          45
+        ],
+        "logical": [
+          36.0,
+          45.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          36,
+          45
+        ],
+        "alpha_coverage": 0.89321,
+        "alpha_mass": 0.382481,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-S-small@2x.png",
+        "asset": "ranking-S-small",
+        "density": 2,
+        "sha256": "be84ceef1c84125be65ed5acb823c94bb09f081edeb406148cdcdaf65ccdf0de",
+        "provider": "current",
+        "flags": [
+          "density-size-mismatch"
+        ],
+        "raw": [
+          71,
+          90
+        ],
+        "logical": [
+          35.5,
+          45.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          71,
+          90
+        ],
+        "alpha_coverage": 0.889671,
+        "alpha_mass": 0.382435,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-SH-small.png",
+        "asset": "ranking-SH-small",
+        "density": 1,
+        "sha256": "36bf1244d013b39084a69c7fa1a6a1db1eb4b13fd0df061f410c764f5b0c7728",
+        "provider": "current",
+        "flags": [
+          "density-size-mismatch"
+        ],
+        "raw": [
+          36,
+          45
+        ],
+        "logical": [
+          36.0,
+          45.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          36,
+          45
+        ],
+        "alpha_coverage": 0.89321,
+        "alpha_mass": 0.382498,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-SH-small@2x.png",
+        "asset": "ranking-SH-small",
+        "density": 2,
+        "sha256": "48aefd9223712e2ad10c5e323ca07db5eec4bcd5b0e9a30178769a55c4afe227",
+        "provider": "current",
+        "flags": [
+          "density-size-mismatch"
+        ],
+        "raw": [
+          71,
+          90
+        ],
+        "logical": [
+          35.5,
+          45.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          71,
+          90
+        ],
+        "alpha_coverage": 0.889671,
+        "alpha_mass": 0.382399,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-X-small.png",
+        "asset": "ranking-X-small",
+        "density": 1,
+        "sha256": "9ba0407fa76fd6cbd7eb6eaff194f4d6469a3e43481a713884bc79d14338a4c7",
+        "provider": "current",
+        "flags": [
+          "density-size-mismatch"
+        ],
+        "raw": [
+          40,
+          50
+        ],
+        "logical": [
+          40.0,
+          50.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          40,
+          50
+        ],
+        "alpha_coverage": 0.872,
+        "alpha_mass": 0.463171,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-X-small@2x.png",
+        "asset": "ranking-X-small",
+        "density": 2,
+        "sha256": "a8c8320512e3a1ab8228505340260c9b7ff513de19c7372edf7e90857d70d520",
+        "provider": "current",
+        "flags": [
+          "density-size-mismatch"
+        ],
+        "raw": [
+          80,
+          99
+        ],
+        "logical": [
+          40.0,
+          49.5
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          80,
+          99
+        ],
+        "alpha_coverage": 0.869444,
+        "alpha_mass": 0.463274,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-XH-small.png",
+        "asset": "ranking-XH-small",
+        "density": 1,
+        "sha256": "11c3756d004d102a1303dfc5601788955d61d6895d9c4d83e25f2cba752c7c0b",
+        "provider": "current",
+        "flags": [
+          "density-size-mismatch"
+        ],
+        "raw": [
+          40,
+          50
+        ],
+        "logical": [
+          40.0,
+          50.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          40,
+          50
+        ],
+        "alpha_coverage": 0.872,
+        "alpha_mass": 0.463188,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-XH-small@2x.png",
+        "asset": "ranking-XH-small",
+        "density": 2,
+        "sha256": "a35d2b19c039dbecfa1f8915f3685746fee760745ff7db59b5a1c5298aac5fc1",
+        "provider": "current",
+        "flags": [
+          "density-size-mismatch"
+        ],
+        "raw": [
+          80,
+          99
+        ],
+        "logical": [
+          40.0,
+          49.5
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          80,
+          99
+        ],
+        "alpha_coverage": 0.869444,
+        "alpha_mass": 0.463253,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode-over.png",
+        "asset": "selection-mode-over",
+        "density": 1,
+        "sha256": "3019a170055fc82b0dc1aaacbc5146c4ce0cf9106b595d70e0d9a800a5bc3cb0",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          92,
+          85
+        ],
+        "logical": [
+          92.0,
+          85.0
+        ],
+        "alpha_bounds": [
+          0,
+          8,
+          92,
+          85
+        ],
+        "alpha_coverage": 0.905882,
+        "alpha_mass": 0.905633,
+        "transparent_margins": [
+          0,
+          8,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          92.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode.png",
+          "selection-mode@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode-over@2x.png",
+        "asset": "selection-mode-over",
+        "density": 2,
+        "sha256": "7522780ffa33dc1f5a1d5c96cb849e9cebc4064acc48dd90e5c2f14abf3ab74e",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          184,
+          170
+        ],
+        "logical": [
+          92.0,
+          85.0
+        ],
+        "alpha_bounds": [
+          0,
+          16,
+          184,
+          170
+        ],
+        "alpha_coverage": 0.905691,
+        "alpha_mass": 0.905631,
+        "transparent_margins": [
+          0,
+          16,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          92.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode.png",
+          "selection-mode@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode.png",
+        "asset": "selection-mode",
+        "density": 1,
+        "sha256": "c483b38f5c254d2703104aa89bfad7c61162497711c1b44408f4aa36834f6094",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          92,
+          85
+        ],
+        "logical": [
+          92.0,
+          85.0
+        ],
+        "alpha_bounds": [
+          0,
+          8,
+          92,
+          85
+        ],
+        "alpha_coverage": 0.905882,
+        "alpha_mass": 0.905633,
+        "transparent_margins": [
+          0,
+          8,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          92.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode-over.png",
+          "selection-mode-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode@2x.png",
+        "asset": "selection-mode",
+        "density": 2,
+        "sha256": "f57e3608d46fc7af4de6d691bf298648d33001feb27ad4d1e42fae32ebda5ac8",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          184,
+          170
+        ],
+        "logical": [
+          92.0,
+          85.0
+        ],
+        "alpha_bounds": [
+          0,
+          16,
+          184,
+          170
+        ],
+        "alpha_coverage": 0.905691,
+        "alpha_mass": 0.905631,
+        "transparent_margins": [
+          0,
+          16,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          92.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode-over.png",
+          "selection-mode-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods-over.png",
+        "asset": "selection-mods-over",
+        "density": 1,
+        "sha256": "3d23d8c4483fa607fd89a5c458d68487776ea226f9ec04598d2ab56c165b3c21",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          77,
+          86
+        ],
+        "logical": [
+          77.0,
+          86.0
+        ],
+        "alpha_bounds": [
+          0,
+          8,
+          77,
+          85
+        ],
+        "alpha_coverage": 0.895349,
+        "alpha_mass": 0.895349,
+        "transparent_margins": [
+          0,
+          8,
+          0,
+          1
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          1.0,
+          77.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-mods.png",
+          "selection-mods@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods-over@2x.png",
+        "asset": "selection-mods-over",
+        "density": 2,
+        "sha256": "a7bcdf5a85a892e4dcb681c8ab49ca3ece658df3060bbbc93028d3af9e15d343",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          154,
+          172
+        ],
+        "logical": [
+          77.0,
+          86.0
+        ],
+        "alpha_bounds": [
+          0,
+          16,
+          154,
+          170
+        ],
+        "alpha_coverage": 0.895349,
+        "alpha_mass": 0.895349,
+        "transparent_margins": [
+          0,
+          16,
+          0,
+          2
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          1.0,
+          77.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-mods.png",
+          "selection-mods@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods.png",
+        "asset": "selection-mods",
+        "density": 1,
+        "sha256": "ea07a0e26201f36abb93c0e680088744741e8046711df2557022724f59895ca6",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          77,
+          86
+        ],
+        "logical": [
+          77.0,
+          86.0
+        ],
+        "alpha_bounds": [
+          0,
+          8,
+          77,
+          85
+        ],
+        "alpha_coverage": 0.895349,
+        "alpha_mass": 0.895349,
+        "transparent_margins": [
+          0,
+          8,
+          0,
+          1
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          1.0,
+          77.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-mods-over.png",
+          "selection-mods-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods@2x.png",
+        "asset": "selection-mods",
+        "density": 2,
+        "sha256": "aa7bfd179052a1260403c3b3225adebbac0d8bcc155df01ff8bd8d83a58fde76",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          154,
+          172
+        ],
+        "logical": [
+          77.0,
+          86.0
+        ],
+        "alpha_bounds": [
+          0,
+          16,
+          154,
+          170
+        ],
+        "alpha_coverage": 0.895349,
+        "alpha_mass": 0.895349,
+        "transparent_margins": [
+          0,
+          16,
+          0,
+          2
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          1.0,
+          77.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-mods-over.png",
+          "selection-mods-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options-over.png",
+        "asset": "selection-options-over",
+        "density": 1,
+        "sha256": "998dfac4e101521144845244253a63cc803ea28967c227a0e2bc1dca76a0e8b5",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          77,
+          86
+        ],
+        "logical": [
+          77.0,
+          86.0
+        ],
+        "alpha_bounds": [
+          0,
+          8,
+          77,
+          85
+        ],
+        "alpha_coverage": 0.895349,
+        "alpha_mass": 0.895055,
+        "transparent_margins": [
+          0,
+          8,
+          0,
+          1
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          1.0,
+          77.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-options.png",
+          "selection-options@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options-over@2x.png",
+        "asset": "selection-options-over",
+        "density": 2,
+        "sha256": "77b102208563e829978561566452d8afdbfafeeb5ef9f034fe766adc3c786b42",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          154,
+          172
+        ],
+        "logical": [
+          77.0,
+          86.0
+        ],
+        "alpha_bounds": [
+          0,
+          16,
+          154,
+          170
+        ],
+        "alpha_coverage": 0.895122,
+        "alpha_mass": 0.895053,
+        "transparent_margins": [
+          0,
+          16,
+          0,
+          2
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          1.0,
+          77.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-options.png",
+          "selection-options@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options.png",
+        "asset": "selection-options",
+        "density": 1,
+        "sha256": "00fcf32f14c050aeb69dc6d885059bb6e604e2edfe5d5b6d81ceb1dbd61bb883",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          77,
+          86
+        ],
+        "logical": [
+          77.0,
+          86.0
+        ],
+        "alpha_bounds": [
+          0,
+          8,
+          77,
+          85
+        ],
+        "alpha_coverage": 0.895349,
+        "alpha_mass": 0.895055,
+        "transparent_margins": [
+          0,
+          8,
+          0,
+          1
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          1.0,
+          77.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-options-over.png",
+          "selection-options-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options@2x.png",
+        "asset": "selection-options",
+        "density": 2,
+        "sha256": "29de16b37acb30a33c161b33b5633c434d2564889ffa468e370d86626661ad56",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          154,
+          172
+        ],
+        "logical": [
+          77.0,
+          86.0
+        ],
+        "alpha_bounds": [
+          0,
+          16,
+          154,
+          170
+        ],
+        "alpha_coverage": 0.895122,
+        "alpha_mass": 0.895053,
+        "transparent_margins": [
+          0,
+          16,
+          0,
+          2
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          1.0,
+          77.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-options-over.png",
+          "selection-options-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random-over.png",
+        "asset": "selection-random-over",
+        "density": 1,
+        "sha256": "61bfd3dfbfebe0db5e7e9048936aa2141f2f5b4564f77ab26f41a35a69d22095",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          77,
+          86
+        ],
+        "logical": [
+          77.0,
+          86.0
+        ],
+        "alpha_bounds": [
+          0,
+          8,
+          77,
+          85
+        ],
+        "alpha_coverage": 0.895349,
+        "alpha_mass": 0.895349,
+        "transparent_margins": [
+          0,
+          8,
+          0,
+          1
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          1.0,
+          77.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-random.png",
+          "selection-random@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random-over@2x.png",
+        "asset": "selection-random-over",
+        "density": 2,
+        "sha256": "4e489f7fb2f08382b71a01cc04dc49020f4a3ce1a28b2dcf51d116c4fa91417f",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          154,
+          172
+        ],
+        "logical": [
+          77.0,
+          86.0
+        ],
+        "alpha_bounds": [
+          0,
+          16,
+          154,
+          170
+        ],
+        "alpha_coverage": 0.895349,
+        "alpha_mass": 0.895349,
+        "transparent_margins": [
+          0,
+          16,
+          0,
+          2
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          1.0,
+          77.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-random.png",
+          "selection-random@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random.png",
+        "asset": "selection-random",
+        "density": 1,
+        "sha256": "e832433c23d9f3f47d4adb3e45371a96341eaebf47884bb433e25b0f6ad6506e",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          77,
+          86
+        ],
+        "logical": [
+          77.0,
+          86.0
+        ],
+        "alpha_bounds": [
+          0,
+          8,
+          77,
+          85
+        ],
+        "alpha_coverage": 0.895349,
+        "alpha_mass": 0.895349,
+        "transparent_margins": [
+          0,
+          8,
+          0,
+          1
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          1.0,
+          77.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-random-over.png",
+          "selection-random-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random@2x.png",
+        "asset": "selection-random",
+        "density": 2,
+        "sha256": "def7b182bf05b8b9e43cc8329a1be9e310f95fa8e932eb3c761fafacf5efdc90",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          154,
+          172
+        ],
+        "logical": [
+          77.0,
+          86.0
+        ],
+        "alpha_bounds": [
+          0,
+          16,
+          154,
+          170
+        ],
+        "alpha_coverage": 0.895349,
+        "alpha_mass": 0.895349,
+        "transparent_margins": [
+          0,
+          16,
+          0,
+          2
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          1.0,
+          77.0,
+          77.0
+        ],
+        "normal_hover_pair": [
+          "selection-random-over.png",
+          "selection-random-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "songselect-bottom.png",
+        "asset": "songselect-bottom",
+        "density": 1,
+        "sha256": "527c09b36cf794b6521bf5d10157d77594a3f7abdc6c35b3429e479aeef49def",
+        "provider": "current",
+        "flags": [
+          "giant",
+          "extreme-aspect"
+        ],
+        "raw": [
+          1366,
+          90
+        ],
+        "logical": [
+          1366.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          1366,
+          90
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 1.0,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "songselect-bottom@2x.png",
+        "asset": "songselect-bottom",
+        "density": 2,
+        "sha256": "970347b2d88853b1d30d92918d2848fd9ba0301e63ad4a65f7558394ef3e0e7f",
+        "provider": "current",
+        "flags": [
+          "giant",
+          "extreme-aspect"
+        ],
+        "raw": [
+          2732,
+          180
+        ],
+        "logical": [
+          1366.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          2732,
+          180
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 1.0,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "songselect-top.png",
+        "asset": "songselect-top",
+        "density": 1,
+        "sha256": "48200ff8e4f2025a7e9c242df9399814e233fc38bdd928ba2f47ba558907d06e",
+        "provider": "current",
+        "flags": [
+          "giant"
+        ],
+        "raw": [
+          1366,
+          149
+        ],
+        "logical": [
+          1366.0,
+          149.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          1366,
+          149
+        ],
+        "alpha_coverage": 0.688892,
+        "alpha_mass": 0.684146,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "songselect-top@2x.png",
+        "asset": "songselect-top",
+        "density": 2,
+        "sha256": "6447edfbafc5bcbefc8c1a836cdd0e546c78061706b6d9501886a9de5ed886cf",
+        "provider": "current",
+        "flags": [
+          "giant"
+        ],
+        "raw": [
+          2732,
+          298
+        ],
+        "logical": [
+          1366.0,
+          149.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          2732,
+          298
+        ],
+        "alpha_coverage": 0.683235,
+        "alpha_mass": 0.682936,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "star.png",
+        "asset": "star",
+        "density": 1,
+        "sha256": "53c0c92d2745e1a5cf0592438ec9d8de20c0884904ad6b38f3c35f7806f2c8e8",
+        "provider": "current",
+        "flags": [
+          "large-transparent-margin"
+        ],
+        "raw": [
+          45,
+          45
+        ],
+        "logical": [
+          45.0,
+          45.0
+        ],
+        "alpha_bounds": [
+          4,
+          10,
+          40,
+          45
+        ],
+        "alpha_coverage": 0.311111,
+        "alpha_mass": 0.275474,
+        "transparent_margins": [
+          4,
+          10,
+          5,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "star@2x.png",
+        "asset": "star",
+        "density": 2,
+        "sha256": "6ac3c68b1715db4c73d33b60d7de0245f501da01ebdd23d18a9f77f463b0b689",
+        "provider": "current",
+        "flags": [
+          "large-transparent-margin"
+        ],
+        "raw": [
+          90,
+          90
+        ],
+        "logical": [
+          45.0,
+          45.0
+        ],
+        "alpha_bounds": [
+          8,
+          20,
+          80,
+          89
+        ],
+        "alpha_coverage": 0.291358,
+        "alpha_mass": 0.275414,
+        "transparent_margins": [
+          8,
+          20,
+          10,
+          1
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      }
+    ]
+  },
+  {
+    "id": "WhiteCat",
+    "effective_version": 2.5,
+    "assets": [
+      {
+        "filename": "menu-back-0.png",
+        "asset": "menu-back-0",
+        "density": 1,
+        "sha256": "013e81dfab6f87daefff97b9b4a8111ade4bd46258389970a99c19fa9341e146",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          272,
+          91
+        ],
+        "logical": [
+          272.0,
+          91.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          272,
+          91
+        ],
+        "alpha_coverage": 0.926673,
+        "alpha_mass": 0.924044,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": 0,
+        "animation_frames": 166,
+        "contiguous_animation_frames": 166
+      },
+      {
+        "filename": "menu-back-0@2x.png",
+        "asset": "menu-back-0",
+        "density": 2,
+        "sha256": "01d4672ab83b49a3b74ed6a9b1fd7f8bf9c2e385699cf42cacc045f4c4536871",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          544,
+          182
+        ],
+        "logical": [
+          272.0,
+          91.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          544,
+          182
+        ],
+        "alpha_coverage": 0.925693,
+        "alpha_mass": 0.924047,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": 0,
+        "animation_frames": 166,
+        "contiguous_animation_frames": 166
+      },
+      {
+        "filename": "menu-button-background.png",
+        "asset": "menu-button-background",
+        "density": 1,
+        "sha256": "2a71f19713b9f2cf7d3482255be8feab73b0409107289cacd6bfba83ec018bf4",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          700,
+          106
+        ],
+        "logical": [
+          700.0,
+          106.0
+        ],
+        "alpha_bounds": [
+          0,
+          3,
+          700,
+          106
+        ],
+        "alpha_coverage": 0.970782,
+        "alpha_mass": 0.961187,
+        "transparent_margins": [
+          0,
+          3,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "menu-button-background@2x.png",
+        "asset": "menu-button-background",
+        "density": 2,
+        "sha256": "8bca4ff9677325cf413c363d0a057d1cdb818b0407e2ef2e6a586e112d07017e",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          1400,
+          212
+        ],
+        "logical": [
+          700.0,
+          106.0
+        ],
+        "alpha_bounds": [
+          0,
+          7,
+          1400,
+          212
+        ],
+        "alpha_coverage": 0.962049,
+        "alpha_mass": 0.961154,
+        "transparent_margins": [
+          0,
+          7,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-A-small.png",
+        "asset": "ranking-A-small",
+        "density": 1,
+        "sha256": "1236b52b0ab65a27e1a2e506d50bbfb88423559b1d0e7dfd5f93e290e04fd57c",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          40,
+          40
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          3,
+          3,
+          37,
+          38
+        ],
+        "alpha_coverage": 0.48625,
+        "alpha_mass": 0.342326,
+        "transparent_margins": [
+          3,
+          3,
+          3,
+          2
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-A-small@2x.png",
+        "asset": "ranking-A-small",
+        "density": 2,
+        "sha256": "cf3cc0f80b22ffca0706d74f59a1a7d0363b9d99a1f7a5156bdef394a03d11e9",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          80,
+          80
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          6,
+          6,
+          74,
+          75
+        ],
+        "alpha_coverage": 0.461562,
+        "alpha_mass": 0.342173,
+        "transparent_margins": [
+          6,
+          6,
+          6,
+          5
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-B-small.png",
+        "asset": "ranking-B-small",
+        "density": 1,
+        "sha256": "d21ea42d4fea6eadf62491d610be2b42b6a2a2f0b2a9ba8b3a9313528e1c26c8",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          40,
+          40
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          3,
+          3,
+          37,
+          38
+        ],
+        "alpha_coverage": 0.47375,
+        "alpha_mass": 0.321488,
+        "transparent_margins": [
+          3,
+          3,
+          3,
+          2
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-B-small@2x.png",
+        "asset": "ranking-B-small",
+        "density": 2,
+        "sha256": "f4486e8e660672756650c53bcb99586136fe71e95ba3c1e516557290fa0739d3",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          80,
+          80
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          6,
+          6,
+          74,
+          75
+        ],
+        "alpha_coverage": 0.446406,
+        "alpha_mass": 0.321347,
+        "transparent_margins": [
+          6,
+          6,
+          6,
+          5
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-C-small.png",
+        "asset": "ranking-C-small",
+        "density": 1,
+        "sha256": "3efd25a68b2b0b62a03df28675cb06e57f8adf74e619edb173e89879cdb00457",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          40,
+          40
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          3,
+          3,
+          37,
+          38
+        ],
+        "alpha_coverage": 0.401875,
+        "alpha_mass": 0.252189,
+        "transparent_margins": [
+          3,
+          3,
+          3,
+          2
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-C-small@2x.png",
+        "asset": "ranking-C-small",
+        "density": 2,
+        "sha256": "4474ff2f1c2349bd2a5e549dc9c6832cada3921a6259176ff7590be025dc359c",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          80,
+          80
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          6,
+          6,
+          74,
+          75
+        ],
+        "alpha_coverage": 0.370937,
+        "alpha_mass": 0.252066,
+        "transparent_margins": [
+          6,
+          6,
+          6,
+          5
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-D-small.png",
+        "asset": "ranking-D-small",
+        "density": 1,
+        "sha256": "b8112b7c0493f9dd4d52e840b3be275684b4093b2373a8572f3137dc5021faef",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          40,
+          40
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          3,
+          3,
+          37,
+          38
+        ],
+        "alpha_coverage": 0.385625,
+        "alpha_mass": 0.218022,
+        "transparent_margins": [
+          3,
+          3,
+          3,
+          2
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-D-small@2x.png",
+        "asset": "ranking-D-small",
+        "density": 2,
+        "sha256": "61a567534e85f7e0a7d37857b14eadafb195a1dbe20c83d5f5916efc0d71dd08",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          80,
+          80
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          6,
+          6,
+          74,
+          75
+        ],
+        "alpha_coverage": 0.344062,
+        "alpha_mass": 0.217925,
+        "transparent_margins": [
+          6,
+          6,
+          6,
+          5
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-S-small.png",
+        "asset": "ranking-S-small",
+        "density": 1,
+        "sha256": "8e8acc3bd6f9e58b1da587c92ac14f06974c7e0e4d375482e475ac4c8d077f96",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          40,
+          40
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          3,
+          3,
+          37,
+          38
+        ],
+        "alpha_coverage": 0.545625,
+        "alpha_mass": 0.407681,
+        "transparent_margins": [
+          3,
+          3,
+          3,
+          2
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-S-small@2x.png",
+        "asset": "ranking-S-small",
+        "density": 2,
+        "sha256": "83e7c06ca023b09616a1fb2ebc3f2e97380c2fecb4221894d3eba7b0ad0711fe",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          80,
+          80
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          6,
+          6,
+          74,
+          75
+        ],
+        "alpha_coverage": 0.52375,
+        "alpha_mass": 0.407553,
+        "transparent_margins": [
+          6,
+          6,
+          6,
+          5
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-SH-small.png",
+        "asset": "ranking-SH-small",
+        "density": 1,
+        "sha256": "73081bfdf012982698d29f55a182a3a1627c83f47c422167722ae5eca2696186",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          40,
+          40
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          3,
+          3,
+          37,
+          38
+        ],
+        "alpha_coverage": 0.57125,
+        "alpha_mass": 0.447228,
+        "transparent_margins": [
+          3,
+          3,
+          3,
+          2
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-SH-small@2x.png",
+        "asset": "ranking-SH-small",
+        "density": 2,
+        "sha256": "3b77ae43d29718e6c37b855e54d9bacd0a397c65e5edc225066bb4668cb7b5fd",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          80,
+          80
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          6,
+          6,
+          74,
+          75
+        ],
+        "alpha_coverage": 0.55375,
+        "alpha_mass": 0.447084,
+        "transparent_margins": [
+          6,
+          6,
+          6,
+          5
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-X-small.png",
+        "asset": "ranking-X-small",
+        "density": 1,
+        "sha256": "879f5659681dff93e37f9921c47d11288bd3aba19666bab7b878ef9bfea3c957",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          40,
+          40
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          3,
+          3,
+          37,
+          38
+        ],
+        "alpha_coverage": 0.6,
+        "alpha_mass": 0.490324,
+        "transparent_margins": [
+          3,
+          3,
+          3,
+          2
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-X-small@2x.png",
+        "asset": "ranking-X-small",
+        "density": 2,
+        "sha256": "173c43f548d8158564f43183c2446cb586da88afd345b4c5de68bf867ef04ee0",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          80,
+          80
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          6,
+          6,
+          74,
+          75
+        ],
+        "alpha_coverage": 0.583438,
+        "alpha_mass": 0.490179,
+        "transparent_margins": [
+          6,
+          6,
+          6,
+          5
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-XH-small.png",
+        "asset": "ranking-XH-small",
+        "density": 1,
+        "sha256": "a7d5eef0ee4e189123d253d67649c61ee9c366fc43642978289a11284f5219f1",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          40,
+          40
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          3,
+          3,
+          37,
+          38
+        ],
+        "alpha_coverage": 0.60125,
+        "alpha_mass": 0.510956,
+        "transparent_margins": [
+          3,
+          3,
+          3,
+          2
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-XH-small@2x.png",
+        "asset": "ranking-XH-small",
+        "density": 2,
+        "sha256": "66b7107806d8afa94418f1fa84097798fdad5f14e8d40e8d5ee70942a5dddfdf",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          80,
+          80
+        ],
+        "logical": [
+          40.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          6,
+          6,
+          74,
+          75
+        ],
+        "alpha_coverage": 0.586875,
+        "alpha_mass": 0.510811,
+        "transparent_margins": [
+          6,
+          6,
+          6,
+          5
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode-over.png",
+        "asset": "selection-mode-over",
+        "density": 1,
+        "sha256": "e163d3e883e5737e228606362d1a92e938e65d607f061acef674ee56d8408888",
+        "provider": "current",
+        "flags": [
+          "large-transparent-margin"
+        ],
+        "raw": [
+          82,
+          110
+        ],
+        "logical": [
+          82.0,
+          110.0
+        ],
+        "alpha_bounds": [
+          47,
+          15,
+          82,
+          65
+        ],
+        "alpha_coverage": 0.188914,
+        "alpha_mass": 0.186635,
+        "transparent_margins": [
+          47,
+          15,
+          0,
+          45
+        ],
+        "classification": "decorated-button",
+        "interaction_content": [
+          47.0,
+          45.0,
+          35.0,
+          45.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode.png",
+          "selection-mode@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode-over@2x.png",
+        "asset": "selection-mode-over",
+        "density": 2,
+        "sha256": "ba7bd8ff8982bd8cc6a03a03fda86eda4816aac298ec6a22b8e978a9d350491d",
+        "provider": "current",
+        "flags": [
+          "large-transparent-margin"
+        ],
+        "raw": [
+          164,
+          220
+        ],
+        "logical": [
+          82.0,
+          110.0
+        ],
+        "alpha_bounds": [
+          94,
+          30,
+          164,
+          130
+        ],
+        "alpha_coverage": 0.187639,
+        "alpha_mass": 0.186633,
+        "transparent_margins": [
+          94,
+          30,
+          0,
+          90
+        ],
+        "classification": "decorated-button",
+        "interaction_content": [
+          47.0,
+          45.0,
+          35.0,
+          45.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode.png",
+          "selection-mode@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode.png",
+        "asset": "selection-mode",
+        "density": 1,
+        "sha256": "c594b2ea6b26dc56532dc9638eb4555b627de3ff50040f7f5127be844057b360",
+        "provider": "current",
+        "flags": [
+          "giant",
+          "outside-reference-size"
+        ],
+        "raw": [
+          1143,
+          930
+        ],
+        "logical": [
+          1143.0,
+          930.0
+        ],
+        "alpha_bounds": [
+          0,
+          85,
+          1143,
+          930
+        ],
+        "alpha_coverage": 0.221798,
+        "alpha_mass": 0.201527,
+        "transparent_margins": [
+          0,
+          85,
+          0,
+          0
+        ],
+        "classification": "composite-canvas",
+        "interaction_content": [
+          0.0,
+          0.0,
+          92.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode-over.png",
+          "selection-mode-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode@2x.png",
+        "asset": "selection-mode",
+        "density": 2,
+        "sha256": "335c6decc3fd09f647f8649b78b08bb71d21b4c7304a508ac150c95f1cd3a078",
+        "provider": "current",
+        "flags": [
+          "giant",
+          "outside-reference-size"
+        ],
+        "raw": [
+          2286,
+          1860
+        ],
+        "logical": [
+          1143.0,
+          930.0
+        ],
+        "alpha_bounds": [
+          0,
+          170,
+          2286,
+          1860
+        ],
+        "alpha_coverage": 0.220515,
+        "alpha_mass": 0.201505,
+        "transparent_margins": [
+          0,
+          170,
+          0,
+          0
+        ],
+        "classification": "composite-canvas",
+        "interaction_content": [
+          0.0,
+          0.0,
+          92.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode-over.png",
+          "selection-mode-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods-over.png",
+        "asset": "selection-mods-over",
+        "density": 1,
+        "sha256": "99b96d5105c3d5b48c746a62725c644da39f5b3d3fa05ccbcbdd4c52bad32ed7",
+        "provider": "current",
+        "flags": [
+          "large-transparent-margin"
+        ],
+        "raw": [
+          61,
+          90
+        ],
+        "logical": [
+          61.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          9,
+          0,
+          61,
+          40
+        ],
+        "alpha_coverage": 0.373042,
+        "alpha_mass": 0.36901,
+        "transparent_margins": [
+          9,
+          0,
+          0,
+          50
+        ],
+        "classification": "decorated-button",
+        "interaction_content": [
+          9.0,
+          50.0,
+          52.0,
+          40.0
+        ],
+        "normal_hover_pair": [
+          "selection-mods.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods-over@2x.png",
+        "asset": "selection-mods-over",
+        "density": 2,
+        "sha256": "5b7df6455285c72e5a366cb8216bd4748354809fc87a86636da4b074248ddd5c",
+        "provider": "current",
+        "flags": [
+          "large-transparent-margin"
+        ],
+        "raw": [
+          122,
+          180
+        ],
+        "logical": [
+          61.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          18,
+          0,
+          122,
+          80
+        ],
+        "alpha_coverage": 0.37122,
+        "alpha_mass": 0.369005,
+        "transparent_margins": [
+          18,
+          0,
+          0,
+          100
+        ],
+        "classification": "decorated-button",
+        "interaction_content": [
+          9.0,
+          50.0,
+          52.0,
+          40.0
+        ],
+        "normal_hover_pair": [
+          "selection-mods.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods.png",
+        "asset": "selection-mods",
+        "density": 1,
+        "sha256": "3eb10792d1f0c7e07e7248273540f1952d9a5a2996f4b5df70ab026cd9f05517",
+        "provider": "current",
+        "flags": [
+          "1x1",
+          "fully-transparent",
+          "outside-reference-size"
+        ],
+        "raw": [
+          1,
+          1
+        ],
+        "logical": [
+          1.0,
+          1.0
+        ],
+        "alpha_bounds": null,
+        "alpha_coverage": 0.0,
+        "alpha_mass": 0.0,
+        "transparent_margins": null,
+        "classification": "transparent-replacement",
+        "interaction_content": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [
+          "selection-mods-over.png",
+          "selection-mods-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options-over.png",
+        "asset": "selection-options-over",
+        "density": 1,
+        "sha256": "abed0cdb3514d0d66261a79589674896a08747775d6b41ee63f6e851913508e8",
+        "provider": "current",
+        "flags": [
+          "large-transparent-margin"
+        ],
+        "raw": [
+          67,
+          90
+        ],
+        "logical": [
+          67.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          15,
+          0,
+          67,
+          40
+        ],
+        "alpha_coverage": 0.339635,
+        "alpha_mass": 0.335965,
+        "transparent_margins": [
+          15,
+          0,
+          0,
+          50
+        ],
+        "classification": "decorated-button",
+        "interaction_content": [
+          15.0,
+          50.0,
+          52.0,
+          40.0
+        ],
+        "normal_hover_pair": [
+          "selection-options.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options-over@2x.png",
+        "asset": "selection-options-over",
+        "density": 2,
+        "sha256": "26b7b355d506b306e84899fe5294939fc6d0e728f8215c1ac18ee663b448e246",
+        "provider": "current",
+        "flags": [
+          "large-transparent-margin"
+        ],
+        "raw": [
+          134,
+          180
+        ],
+        "logical": [
+          67.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          30,
+          0,
+          134,
+          80
+        ],
+        "alpha_coverage": 0.337977,
+        "alpha_mass": 0.33596,
+        "transparent_margins": [
+          30,
+          0,
+          0,
+          100
+        ],
+        "classification": "decorated-button",
+        "interaction_content": [
+          15.0,
+          50.0,
+          52.0,
+          40.0
+        ],
+        "normal_hover_pair": [
+          "selection-options.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options.png",
+        "asset": "selection-options",
+        "density": 1,
+        "sha256": "3eb10792d1f0c7e07e7248273540f1952d9a5a2996f4b5df70ab026cd9f05517",
+        "provider": "current",
+        "flags": [
+          "1x1",
+          "fully-transparent",
+          "outside-reference-size"
+        ],
+        "raw": [
+          1,
+          1
+        ],
+        "logical": [
+          1.0,
+          1.0
+        ],
+        "alpha_bounds": null,
+        "alpha_coverage": 0.0,
+        "alpha_mass": 0.0,
+        "transparent_margins": null,
+        "classification": "transparent-replacement",
+        "interaction_content": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [
+          "selection-options-over.png",
+          "selection-options-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random-over.png",
+        "asset": "selection-random-over",
+        "density": 1,
+        "sha256": "eefda580bb01628560a63a0b8fd4eba8134da884003fd06e636dba0034a271bf",
+        "provider": "current",
+        "flags": [
+          "large-transparent-margin"
+        ],
+        "raw": [
+          66,
+          90
+        ],
+        "logical": [
+          66.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          13,
+          0,
+          66,
+          40
+        ],
+        "alpha_coverage": 0.349495,
+        "alpha_mass": 0.341076,
+        "transparent_margins": [
+          13,
+          0,
+          0,
+          50
+        ],
+        "classification": "decorated-button",
+        "interaction_content": [
+          14.0,
+          50.0,
+          51.0,
+          40.0
+        ],
+        "normal_hover_pair": [
+          "selection-random.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random-over@2x.png",
+        "asset": "selection-random-over",
+        "density": 2,
+        "sha256": "7c2f3d3e742e789b1084934c9ce015fd06a2b1ba050c88a58f638876bfb37ef1",
+        "provider": "current",
+        "flags": [
+          "large-transparent-margin"
+        ],
+        "raw": [
+          132,
+          180
+        ],
+        "logical": [
+          66.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          27,
+          0,
+          131,
+          80
+        ],
+        "alpha_coverage": 0.343098,
+        "alpha_mass": 0.34105,
+        "transparent_margins": [
+          27,
+          0,
+          1,
+          100
+        ],
+        "classification": "decorated-button",
+        "interaction_content": [
+          13.5,
+          50.0,
+          52.0,
+          40.0
+        ],
+        "normal_hover_pair": [
+          "selection-random.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random.png",
+        "asset": "selection-random",
+        "density": 1,
+        "sha256": "3eb10792d1f0c7e07e7248273540f1952d9a5a2996f4b5df70ab026cd9f05517",
+        "provider": "current",
+        "flags": [
+          "1x1",
+          "fully-transparent",
+          "outside-reference-size"
+        ],
+        "raw": [
+          1,
+          1
+        ],
+        "logical": [
+          1.0,
+          1.0
+        ],
+        "alpha_bounds": null,
+        "alpha_coverage": 0.0,
+        "alpha_mass": 0.0,
+        "transparent_margins": null,
+        "classification": "transparent-replacement",
+        "interaction_content": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [
+          "selection-random-over.png",
+          "selection-random-over@2x.png"
+        ],
+        "animation_frame": null
+      }
+    ]
+  },
+  {
+    "id": "Seoul",
+    "effective_version": 2.7,
+    "assets": [
+      {
+        "filename": "menu-back.png",
+        "asset": "menu-back",
+        "density": 1,
+        "sha256": "2efd4562d6d7f2a86d3031a7845bf4c81dd3159044f2dc034277c64c9462317e",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          262,
+          148
+        ],
+        "logical": [
+          262.0,
+          148.0
+        ],
+        "alpha_bounds": [
+          0,
+          1,
+          260,
+          148
+        ],
+        "alpha_coverage": 0.629719,
+        "alpha_mass": 0.611553,
+        "transparent_margins": [
+          0,
+          1,
+          2,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "menu-back@2x.png",
+        "asset": "menu-back",
+        "density": 2,
+        "sha256": "eff49e48a2a4b9ebe882308cdcf4042e38f8d0203dd9c6c10f2e20d0a48a81f3",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          524,
+          296
+        ],
+        "logical": [
+          262.0,
+          148.0
+        ],
+        "alpha_bounds": [
+          0,
+          3,
+          518,
+          296
+        ],
+        "alpha_coverage": 0.616012,
+        "alpha_mass": 0.611572,
+        "transparent_margins": [
+          0,
+          3,
+          6,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "menu-button-background.png",
+        "asset": "menu-button-background",
+        "density": 1,
+        "sha256": "1d8770efbf39894410c445b922674d3512737b9c08820377a4eef652056e529f",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          699,
+          103
+        ],
+        "logical": [
+          699.0,
+          103.0
+        ],
+        "alpha_bounds": [
+          5,
+          6,
+          694,
+          99
+        ],
+        "alpha_coverage": 0.853411,
+        "alpha_mass": 0.770229,
+        "transparent_margins": [
+          5,
+          6,
+          5,
+          4
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "menu-button-background@2x.png",
+        "asset": "menu-button-background",
+        "density": 2,
+        "sha256": "4113b380ad08682a712c670a07e45925137d7f5625e847423bf97ec55f3a893f",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          1398,
+          206
+        ],
+        "logical": [
+          699.0,
+          103.0
+        ],
+        "alpha_bounds": [
+          12,
+          13,
+          1388,
+          196
+        ],
+        "alpha_coverage": 0.835719,
+        "alpha_mass": 0.769935,
+        "transparent_margins": [
+          12,
+          13,
+          10,
+          10
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-A-small.png",
+        "asset": "ranking-A-small",
+        "density": 1,
+        "sha256": "08754b50fe24e744c7fc6c703eee6075fc95d110a4956df80f5221c1a3a4ff50",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          34,
+          38
+        ],
+        "logical": [
+          34.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          1,
+          0,
+          32,
+          37
+        ],
+        "alpha_coverage": 0.399381,
+        "alpha_mass": 0.235094,
+        "transparent_margins": [
+          1,
+          0,
+          2,
+          1
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-A-small@2x.png",
+        "asset": "ranking-A-small",
+        "density": 2,
+        "sha256": "1b87ee7684293b45f150de3560dcf05da7d04f4dfc3763ec02846bf9ebfc3902",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          68,
+          76
+        ],
+        "logical": [
+          34.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          3,
+          0,
+          64,
+          73
+        ],
+        "alpha_coverage": 0.361649,
+        "alpha_mass": 0.235447,
+        "transparent_margins": [
+          3,
+          0,
+          4,
+          3
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-B-small.png",
+        "asset": "ranking-B-small",
+        "density": 1,
+        "sha256": "c72367de6bc396ec035402866922ff43b303a6488f9d70232812593b9ca2a580",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          33,
+          38
+        ],
+        "logical": [
+          33.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          3,
+          1,
+          29,
+          36
+        ],
+        "alpha_coverage": 0.460925,
+        "alpha_mass": 0.275439,
+        "transparent_margins": [
+          3,
+          1,
+          4,
+          2
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-B-small@2x.png",
+        "asset": "ranking-B-small",
+        "density": 2,
+        "sha256": "ea6fa81385243d1effce9376bb5ec7e5e1d8334a305019bf96dd4c90a0585b3c",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          66,
+          76
+        ],
+        "logical": [
+          33.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          6,
+          2,
+          57,
+          72
+        ],
+        "alpha_coverage": 0.418062,
+        "alpha_mass": 0.275938,
+        "transparent_margins": [
+          6,
+          2,
+          9,
+          4
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-C-small.png",
+        "asset": "ranking-C-small",
+        "density": 1,
+        "sha256": "79c92cd76a5b8585b7511aab397c329bd22d01987712831a21f492bd71af80a9",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          30,
+          38
+        ],
+        "logical": [
+          30.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          2,
+          0,
+          29,
+          37
+        ],
+        "alpha_coverage": 0.348246,
+        "alpha_mass": 0.197988,
+        "transparent_margins": [
+          2,
+          0,
+          1,
+          1
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-C-small@2x.png",
+        "asset": "ranking-C-small",
+        "density": 2,
+        "sha256": "68798a8a9f3c9bda213b6d93c9f347bd1f8a8ba8d0df8f66790a58d1d14052a1",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          60,
+          76
+        ],
+        "logical": [
+          30.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          4,
+          0,
+          57,
+          74
+        ],
+        "alpha_coverage": 0.316228,
+        "alpha_mass": 0.198287,
+        "transparent_margins": [
+          4,
+          0,
+          3,
+          2
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-D-small.png",
+        "asset": "ranking-D-small",
+        "density": 1,
+        "sha256": "09f1e703d9fbae96d38eb232f6e5579535d410842ca3ab113ccda9813891f667",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          33,
+          38
+        ],
+        "logical": [
+          33.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          2,
+          0,
+          31,
+          38
+        ],
+        "alpha_coverage": 0.456938,
+        "alpha_mass": 0.273928,
+        "transparent_margins": [
+          2,
+          0,
+          2,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-D-small@2x.png",
+        "asset": "ranking-D-small",
+        "density": 2,
+        "sha256": "30ebca0c4d4427c6b922e0a54b2546a4f40eab632bc6af4ff9898ae668368ac3",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          66,
+          76
+        ],
+        "logical": [
+          33.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          4,
+          1,
+          62,
+          75
+        ],
+        "alpha_coverage": 0.422049,
+        "alpha_mass": 0.27444,
+        "transparent_margins": [
+          4,
+          1,
+          4,
+          1
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-S-small.png",
+        "asset": "ranking-S-small",
+        "density": 1,
+        "sha256": "15cd8f903f67eadc210a4c4cae6040609dac365a448544f85bbad5453c073007",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          31,
+          38
+        ],
+        "logical": [
+          31.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          3,
+          1,
+          29,
+          37
+        ],
+        "alpha_coverage": 0.377759,
+        "alpha_mass": 0.214874,
+        "transparent_margins": [
+          3,
+          1,
+          2,
+          1
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-S-small@2x.png",
+        "asset": "ranking-S-small",
+        "density": 2,
+        "sha256": "519172201e72cd7f0a7af75360303929b3d1276bc6d50a1b1c134384286e8d25",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          62,
+          76
+        ],
+        "logical": [
+          31.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          6,
+          2,
+          57,
+          74
+        ],
+        "alpha_coverage": 0.341256,
+        "alpha_mass": 0.215273,
+        "transparent_margins": [
+          6,
+          2,
+          5,
+          2
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-SH-small.png",
+        "asset": "ranking-SH-small",
+        "density": 1,
+        "sha256": "8a66dccbc9609b28452c87da2bdbcc5ba27782083b173c2716d61f212a353ab4",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          31,
+          38
+        ],
+        "logical": [
+          31.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          3,
+          1,
+          28,
+          37
+        ],
+        "alpha_coverage": 0.370119,
+        "alpha_mass": 0.208516,
+        "transparent_margins": [
+          3,
+          1,
+          3,
+          1
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-SH-small@2x.png",
+        "asset": "ranking-SH-small",
+        "density": 2,
+        "sha256": "77e21b716207f4c3e954db10b0a10c857c81acb79125d3d96a2a6b062c6c2192",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          62,
+          76
+        ],
+        "logical": [
+          31.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          6,
+          2,
+          56,
+          73
+        ],
+        "alpha_coverage": 0.331494,
+        "alpha_mass": 0.208905,
+        "transparent_margins": [
+          6,
+          2,
+          6,
+          3
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-X-small.png",
+        "asset": "ranking-X-small",
+        "density": 1,
+        "sha256": "c8150eb9e20691fe789dead4d255841cc3bd861996fcbc393d03112986b7879e",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          34,
+          40
+        ],
+        "logical": [
+          34.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          3,
+          1,
+          32,
+          39
+        ],
+        "alpha_coverage": 0.427941,
+        "alpha_mass": 0.264986,
+        "transparent_margins": [
+          3,
+          1,
+          2,
+          1
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-X-small@2x.png",
+        "asset": "ranking-X-small",
+        "density": 2,
+        "sha256": "fb64b0308d064d6fa69de45676790b6c86663784a1350ff285e7de75a73a7a5e",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          68,
+          80
+        ],
+        "logical": [
+          34.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          7,
+          2,
+          64,
+          78
+        ],
+        "alpha_coverage": 0.401838,
+        "alpha_mass": 0.265193,
+        "transparent_margins": [
+          7,
+          2,
+          4,
+          2
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-XH-small.png",
+        "asset": "ranking-XH-small",
+        "density": 1,
+        "sha256": "f2256c53ed436372f1df8d7d73f9e990ef9aac919511a26c62e2c7cb56d920aa",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          34,
+          41
+        ],
+        "logical": [
+          34.0,
+          41.0
+        ],
+        "alpha_bounds": [
+          3,
+          2,
+          31,
+          40
+        ],
+        "alpha_coverage": 0.414634,
+        "alpha_mass": 0.250603,
+        "transparent_margins": [
+          3,
+          2,
+          3,
+          1
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-XH-small@2x.png",
+        "asset": "ranking-XH-small",
+        "density": 2,
+        "sha256": "74c5ece8210dca49704d7ed9c991f4643c1594927027ea913a3f60320e48bbc1",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          68,
+          82
+        ],
+        "logical": [
+          34.0,
+          41.0
+        ],
+        "alpha_bounds": [
+          6,
+          4,
+          61,
+          79
+        ],
+        "alpha_coverage": 0.380201,
+        "alpha_mass": 0.25073,
+        "transparent_margins": [
+          6,
+          4,
+          7,
+          3
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode-over.png",
+        "asset": "selection-mode-over",
+        "density": 1,
+        "sha256": "9075d15c743fcd68f4a91a1e8943091b4ff85567df02c9724f4067bcdcde7a2c",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          93,
+          90
+        ],
+        "logical": [
+          93.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          3,
+          93,
+          90
+        ],
+        "alpha_coverage": 0.966667,
+        "alpha_mass": 0.468457,
+        "transparent_margins": [
+          0,
+          3,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          61.0,
+          72.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode.png",
+          "selection-mode@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode-over@2x.png",
+        "asset": "selection-mode-over",
+        "density": 2,
+        "sha256": "eb841006188122a7c053f1f15b31ea342b6e9971cf9c62b3118a546b3852e407",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          186,
+          180
+        ],
+        "logical": [
+          93.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          7,
+          186,
+          180
+        ],
+        "alpha_coverage": 0.961111,
+        "alpha_mass": 0.468507,
+        "transparent_margins": [
+          0,
+          7,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          61.0,
+          79.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode.png",
+          "selection-mode@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode.png",
+        "asset": "selection-mode",
+        "density": 1,
+        "sha256": "4922aa9ea0f40bb87c8c3360f469910c9de0ec4adf68556ce5d0648ed55e4d66",
+        "provider": "current",
+        "flags": [
+          "giant",
+          "large-transparent-margin",
+          "outside-reference-size"
+        ],
+        "raw": [
+          1150,
+          540
+        ],
+        "logical": [
+          1150.0,
+          540.0
+        ],
+        "alpha_bounds": [
+          0,
+          253,
+          1150,
+          540
+        ],
+        "alpha_coverage": 0.193583,
+        "alpha_mass": 0.146432,
+        "transparent_margins": [
+          0,
+          253,
+          0,
+          0
+        ],
+        "classification": "composite-canvas",
+        "interaction_content": [
+          0.0,
+          0.0,
+          92.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode-over.png",
+          "selection-mode-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode@2x.png",
+        "asset": "selection-mode",
+        "density": 2,
+        "sha256": "93f85a83595a602ae86c73df9ddbeba10c97a4a0ea2bd3c0327213310b85c5d0",
+        "provider": "current",
+        "flags": [
+          "giant",
+          "large-transparent-margin",
+          "outside-reference-size"
+        ],
+        "raw": [
+          2300,
+          1080
+        ],
+        "logical": [
+          1150.0,
+          540.0
+        ],
+        "alpha_bounds": [
+          0,
+          712,
+          2300,
+          1080
+        ],
+        "alpha_coverage": 0.191653,
+        "alpha_mass": 0.146142,
+        "transparent_margins": [
+          0,
+          712,
+          0,
+          0
+        ],
+        "classification": "composite-canvas",
+        "interaction_content": [
+          0.0,
+          0.0,
+          92.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode-over.png",
+          "selection-mode-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods-over.png",
+        "asset": "selection-mods-over",
+        "density": 1,
+        "sha256": "8dd3cbd0b24c804d15933a7801b910ffb15dcd73e7993ab4b85cc61f4cd73192",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          78,
+          90
+        ],
+        "logical": [
+          78.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          78,
+          90
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 0.167631,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          24.0,
+          23.0,
+          29.0,
+          43.0
+        ],
+        "normal_hover_pair": [
+          "selection-mods.png",
+          "selection-mods@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods-over@2x.png",
+        "asset": "selection-mods-over",
+        "density": 2,
+        "sha256": "2ccba77b70f965ae1ffb8c40046522fa2fcf70d7378f9bd9ea3fce410c4a93af",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          156,
+          180
+        ],
+        "logical": [
+          78.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          156,
+          180
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 0.167852,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          24.5,
+          23.0,
+          29.0,
+          43.5
+        ],
+        "normal_hover_pair": [
+          "selection-mods.png",
+          "selection-mods@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods.png",
+        "asset": "selection-mods",
+        "density": 1,
+        "sha256": "5e39c03e5c751819aec6d254820fc06a5513f6275a51598e0866dd4ef443fe67",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          78,
+          90
+        ],
+        "logical": [
+          78.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          3,
+          78,
+          90
+        ],
+        "alpha_coverage": 0.966667,
+        "alpha_mass": 0.413458,
+        "transparent_margins": [
+          0,
+          3,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          19.0,
+          54.0,
+          48.0
+        ],
+        "normal_hover_pair": [
+          "selection-mods-over.png",
+          "selection-mods-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods@2x.png",
+        "asset": "selection-mods",
+        "density": 2,
+        "sha256": "f7b808567b221544dcaa6fbda575788867b67ccde925110c5e9184277ffb2cb8",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          156,
+          180
+        ],
+        "logical": [
+          78.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          7,
+          156,
+          180
+        ],
+        "alpha_coverage": 0.961111,
+        "alpha_mass": 0.41351,
+        "transparent_margins": [
+          0,
+          7,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          9.5,
+          53.5,
+          65.5
+        ],
+        "normal_hover_pair": [
+          "selection-mods-over.png",
+          "selection-mods-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options-over.png",
+        "asset": "selection-options-over",
+        "density": 1,
+        "sha256": "f96747f4ca73d92f913f27bdc7eb625b444763e6ded9d32c447822bf46f8a5b0",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          78,
+          90
+        ],
+        "logical": [
+          78.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          78,
+          90
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 0.163079,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          17.0,
+          23.0,
+          44.0,
+          39.0
+        ],
+        "normal_hover_pair": [
+          "selection-options.png",
+          "selection-options@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options-over@2x.png",
+        "asset": "selection-options-over",
+        "density": 2,
+        "sha256": "f4deb62817282f3e51d54abfdf8f2e6387e3cbb6653e4a5c1757f63e59b0811f",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          156,
+          180
+        ],
+        "logical": [
+          78.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          156,
+          180
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 0.163349,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          17.0,
+          23.0,
+          44.0,
+          39.0
+        ],
+        "normal_hover_pair": [
+          "selection-options.png",
+          "selection-options@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options.png",
+        "asset": "selection-options",
+        "density": 1,
+        "sha256": "db3e0c3f2f817dae6671bc8de52aca31e3a3f4d8445f5a3f90cfda08b98bd612",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          78,
+          90
+        ],
+        "logical": [
+          78.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          3,
+          78,
+          90
+        ],
+        "alpha_coverage": 0.966667,
+        "alpha_mass": 0.410959,
+        "transparent_margins": [
+          0,
+          3,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          19.0,
+          61.0,
+          47.0
+        ],
+        "normal_hover_pair": [
+          "selection-options-over.png",
+          "selection-options-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options@2x.png",
+        "asset": "selection-options",
+        "density": 2,
+        "sha256": "823e195e69be16d27c6b8f37d8a1ebc80646e89fc40e84f3cc5b86df342c59f5",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          156,
+          180
+        ],
+        "logical": [
+          78.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          7,
+          156,
+          180
+        ],
+        "alpha_coverage": 0.961111,
+        "alpha_mass": 0.411036,
+        "transparent_margins": [
+          0,
+          7,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          9.5,
+          61.0,
+          65.5
+        ],
+        "normal_hover_pair": [
+          "selection-options-over.png",
+          "selection-options-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random-over.png",
+        "asset": "selection-random-over",
+        "density": 1,
+        "sha256": "35e594522f8c3cfe8986ac3659a451755d9d0d6f1a70c5906bb89eda077e3f66",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          78,
+          90
+        ],
+        "logical": [
+          78.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          78,
+          90
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 0.173081,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          18.0,
+          23.0,
+          42.0,
+          41.0
+        ],
+        "normal_hover_pair": [
+          "selection-random.png",
+          "selection-random@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random-over@2x.png",
+        "asset": "selection-random-over",
+        "density": 2,
+        "sha256": "bdd238907ad79d91acbd5b2464b3b9714fac2f7f3cf5cdf6ff48d335e3b68a4b",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          156,
+          180
+        ],
+        "logical": [
+          78.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          156,
+          180
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 0.173394,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          17.5,
+          23.0,
+          42.5,
+          41.0
+        ],
+        "normal_hover_pair": [
+          "selection-random.png",
+          "selection-random@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random.png",
+        "asset": "selection-random",
+        "density": 1,
+        "sha256": "0754c6c4edc38e9ac2163ee84a58b15c47a006fa6c3ec34e950207b183dd8de1",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          78,
+          90
+        ],
+        "logical": [
+          78.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          3,
+          78,
+          90
+        ],
+        "alpha_coverage": 0.966667,
+        "alpha_mass": 0.417626,
+        "transparent_margins": [
+          0,
+          3,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          19.0,
+          60.0,
+          47.0
+        ],
+        "normal_hover_pair": [
+          "selection-random-over.png",
+          "selection-random-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random@2x.png",
+        "asset": "selection-random",
+        "density": 2,
+        "sha256": "30e54a69b1bc2ee730cf12bcedfcc832f293db29ae8bc775b43017d48b0d8052",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          156,
+          180
+        ],
+        "logical": [
+          78.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          7,
+          156,
+          180
+        ],
+        "alpha_coverage": 0.961111,
+        "alpha_mass": 0.417722,
+        "transparent_margins": [
+          0,
+          7,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          9.5,
+          60.0,
+          65.5
+        ],
+        "normal_hover_pair": [
+          "selection-random-over.png",
+          "selection-random-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "star.png",
+        "asset": "star",
+        "density": 1,
+        "sha256": "249c70a7f33f3ebadc3ca0922a44198b14d0b44f3e91813f824dd8b2d334f4f9",
+        "provider": "current",
+        "flags": [
+          "large-transparent-margin"
+        ],
+        "raw": [
+          52,
+          50
+        ],
+        "logical": [
+          52.0,
+          50.0
+        ],
+        "alpha_bounds": [
+          9,
+          7,
+          46,
+          44
+        ],
+        "alpha_coverage": 0.291154,
+        "alpha_mass": 0.177575,
+        "transparent_margins": [
+          9,
+          7,
+          6,
+          6
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      }
+    ]
+  },
+  {
+    "id": "Default",
+    "effective_version": 2.7,
+    "assets": [
+      {
+        "filename": "menu-back.png",
+        "asset": "menu-back",
+        "density": 1,
+        "sha256": "d258b93c0a664a945e2cea7021d3c53b34fc13010b45323fa3c0ab93e9639578",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          125,
+          125
+        ],
+        "logical": [
+          125.0,
+          125.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          116,
+          125
+        ],
+        "alpha_coverage": 0.672896,
+        "alpha_mass": 0.553232,
+        "transparent_margins": [
+          0,
+          0,
+          9,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "menu-back@2x.png",
+        "asset": "menu-back",
+        "density": 2,
+        "sha256": "4fcdb4ee44da492907be85e1440e69ff40d6ef9e72dd6998c7dff5f5c27e0c56",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          250,
+          250
+        ],
+        "logical": [
+          125.0,
+          125.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          231,
+          250
+        ],
+        "alpha_coverage": 0.668544,
+        "alpha_mass": 0.552109,
+        "transparent_margins": [
+          0,
+          0,
+          19,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "menu-button-background.png",
+        "asset": "menu-button-background",
+        "density": 1,
+        "sha256": "8c2aad7208c5af9c7f5d310c6f94c5209688c3f5c86b4fccfcb0d864597e3cd7",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          699,
+          103
+        ],
+        "logical": [
+          699.0,
+          103.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          699,
+          103
+        ],
+        "alpha_coverage": 0.999167,
+        "alpha_mass": 0.847817,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "menu-button-background@2x.png",
+        "asset": "menu-button-background",
+        "density": 2,
+        "sha256": "7f1b42857002229247a6aabef4f55f501d80c6e780c31f7a948650f986724a99",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          1398,
+          206
+        ],
+        "logical": [
+          699.0,
+          103.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          1397,
+          206
+        ],
+        "alpha_coverage": 0.998108,
+        "alpha_mass": 0.846484,
+        "transparent_margins": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-A-small.png",
+        "asset": "ranking-A-small",
+        "density": 1,
+        "sha256": "a79593248a5af436759c0ef8416855d0a6e196e91b51a87b867d0edbc3564087",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          34,
+          38
+        ],
+        "logical": [
+          34.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          34,
+          38
+        ],
+        "alpha_coverage": 0.568885,
+        "alpha_mass": 0.371899,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-A-small@2x.png",
+        "asset": "ranking-A-small",
+        "density": 2,
+        "sha256": "521d63fdc861cdb7589d4f545e910c75c33c7e47b9d19d6a5a5c0ff64415c2f8",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          68,
+          76
+        ],
+        "logical": [
+          34.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          67,
+          76
+        ],
+        "alpha_coverage": 0.573723,
+        "alpha_mass": 0.372379,
+        "transparent_margins": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-B-small.png",
+        "asset": "ranking-B-small",
+        "density": 1,
+        "sha256": "3f6c732b50a84babdc375be5fc2b13bc593232b1a51e51c58e54b366734e3c03",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          33,
+          38
+        ],
+        "logical": [
+          33.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          33,
+          38
+        ],
+        "alpha_coverage": 0.763955,
+        "alpha_mass": 0.512071,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-B-small@2x.png",
+        "asset": "ranking-B-small",
+        "density": 2,
+        "sha256": "d6050b0bd3a0d75bb4da44d93c6d057d6424c5cb37ad9b9b9973215bf60428a4",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          66,
+          76
+        ],
+        "logical": [
+          33.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          0,
+          1,
+          65,
+          76
+        ],
+        "alpha_coverage": 0.75638,
+        "alpha_mass": 0.512579,
+        "transparent_margins": [
+          0,
+          1,
+          1,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-C-small.png",
+        "asset": "ranking-C-small",
+        "density": 1,
+        "sha256": "b1baa0c3fe3c8a4a3e0bb787609ba2ed8efdc1245e0e046154f08f487f4c4cf9",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          30,
+          38
+        ],
+        "logical": [
+          30.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          30,
+          38
+        ],
+        "alpha_coverage": 0.569298,
+        "alpha_mass": 0.35484,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-C-small@2x.png",
+        "asset": "ranking-C-small",
+        "density": 2,
+        "sha256": "28486b90f2575a5a41e0de8b8da5a78364a3997f379d7ee7fe4073b90825dc54",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          60,
+          76
+        ],
+        "logical": [
+          30.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          60,
+          76
+        ],
+        "alpha_coverage": 0.566228,
+        "alpha_mass": 0.355271,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-D-small.png",
+        "asset": "ranking-D-small",
+        "density": 1,
+        "sha256": "3dbee7b0065fafb463e5ab825e93c8d6caf1044df68a7ca397382fd83a78cd91",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          33,
+          38
+        ],
+        "logical": [
+          33.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          33,
+          38
+        ],
+        "alpha_coverage": 0.700159,
+        "alpha_mass": 0.456681,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-D-small@2x.png",
+        "asset": "ranking-D-small",
+        "density": 2,
+        "sha256": "ef11312f928286d529d8a3eab2a2e60eef086d3e9c1fd8fcb91858bbb389cd88",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          66,
+          76
+        ],
+        "logical": [
+          33.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          66,
+          76
+        ],
+        "alpha_coverage": 0.69996,
+        "alpha_mass": 0.4572,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-S-small.png",
+        "asset": "ranking-S-small",
+        "density": 1,
+        "sha256": "cb3f0ae702a4e9c81101895f0b7ee619fef22f471951a3d86ab45c002e7ff222",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          31,
+          38
+        ],
+        "logical": [
+          31.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          31,
+          38
+        ],
+        "alpha_coverage": 0.656197,
+        "alpha_mass": 0.409511,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-S-small@2x.png",
+        "asset": "ranking-S-small",
+        "density": 2,
+        "sha256": "998c725fc420f539b8b14d622af27822db02fc0b29da92c6f70766c90bfed9a0",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          62,
+          76
+        ],
+        "logical": [
+          31.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          62,
+          76
+        ],
+        "alpha_coverage": 0.653862,
+        "alpha_mass": 0.410012,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-SH-small.png",
+        "asset": "ranking-SH-small",
+        "density": 1,
+        "sha256": "3fa8ecbfa99f10edc789b7d3fdb217e7dc67ec7588b5e5e8a4ae68646bbb45c8",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          31,
+          38
+        ],
+        "logical": [
+          31.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          31,
+          38
+        ],
+        "alpha_coverage": 0.656197,
+        "alpha_mass": 0.411122,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-SH-small@2x.png",
+        "asset": "ranking-SH-small",
+        "density": 2,
+        "sha256": "99d000876fba6f50b53bf71b42dc4b211aa534e9b76e05a462cb297e9eea1a2a",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          62,
+          76
+        ],
+        "logical": [
+          31.0,
+          38.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          62,
+          76
+        ],
+        "alpha_coverage": 0.654711,
+        "alpha_mass": 0.411618,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-X-small.png",
+        "asset": "ranking-X-small",
+        "density": 1,
+        "sha256": "5a49de79d28bee997e31a879fd371fec6e702280c06caf31f892409b73793af2",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          34,
+          40
+        ],
+        "logical": [
+          34.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          33,
+          40
+        ],
+        "alpha_coverage": 0.7125,
+        "alpha_mass": 0.493697,
+        "transparent_margins": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-X-small@2x.png",
+        "asset": "ranking-X-small",
+        "density": 2,
+        "sha256": "c29d2b86bdd834e98e283b69373625822790623a8ccf85213afa98bcb45b97be",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          68,
+          80
+        ],
+        "logical": [
+          34.0,
+          40.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          67,
+          80
+        ],
+        "alpha_coverage": 0.706801,
+        "alpha_mass": 0.494162,
+        "transparent_margins": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-XH-small.png",
+        "asset": "ranking-XH-small",
+        "density": 1,
+        "sha256": "6ed2bba8ff0dcd6dbc089e6fcf6774ba82894380903b13c2c3a4e960a86dd9a2",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          34,
+          41
+        ],
+        "logical": [
+          34.0,
+          41.0
+        ],
+        "alpha_bounds": [
+          0,
+          1,
+          33,
+          41
+        ],
+        "alpha_coverage": 0.685796,
+        "alpha_mass": 0.482288,
+        "transparent_margins": [
+          0,
+          1,
+          1,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "ranking-XH-small@2x.png",
+        "asset": "ranking-XH-small",
+        "density": 2,
+        "sha256": "fa3a228b6cf83db63902a5974165c26e4cf73dc6403228cc1c38f43300ea85d7",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          68,
+          82
+        ],
+        "logical": [
+          34.0,
+          41.0
+        ],
+        "alpha_bounds": [
+          0,
+          1,
+          67,
+          82
+        ],
+        "alpha_coverage": 0.700323,
+        "alpha_mass": 0.482787,
+        "transparent_margins": [
+          0,
+          1,
+          1,
+          0
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode-over.png",
+        "asset": "selection-mode-over",
+        "density": 1,
+        "sha256": "7dacb5aea7c00b9499a7bdd067d7f33e67b75925b19bd0e8ea96a0a73e5c1e8e",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          88,
+          90
+        ],
+        "logical": [
+          88.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          88,
+          90
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 1.0,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          88.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode.png",
+          "selection-mode@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode-over@2x.png",
+        "asset": "selection-mode-over",
+        "density": 2,
+        "sha256": "7c617c26fc9d62ceb749c35b5d7cac48f9211f58fe6b8775db9878b9cef2239a",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          176,
+          180
+        ],
+        "logical": [
+          88.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          176,
+          180
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 1.0,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          88.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode.png",
+          "selection-mode@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode.png",
+        "asset": "selection-mode",
+        "density": 1,
+        "sha256": "25f27189497e8e5a47d67d9028eecfc3f70bdcb9468b55d016f3c9d6a107eab4",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          88,
+          90
+        ],
+        "logical": [
+          88.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          88,
+          90
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 0.64044,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          88.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode-over.png",
+          "selection-mode-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mode@2x.png",
+        "asset": "selection-mode",
+        "density": 2,
+        "sha256": "1825e2bbcfc11ced520970df9008fa6a90a6f5142db16450c86cc449f5de733b",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          176,
+          180
+        ],
+        "logical": [
+          88.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          176,
+          180
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 0.640666,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          88.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-mode-over.png",
+          "selection-mode-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods-over.png",
+        "asset": "selection-mods-over",
+        "density": 1,
+        "sha256": "00ad75d0f9b484cf9b65efaa596a55444a853a8b41e26876f8cf3504e7c79394",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          74,
+          90
+        ],
+        "logical": [
+          74.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          74,
+          90
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 0.993217,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          73.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-mods.png",
+          "selection-mods@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods-over@2x.png",
+        "asset": "selection-mods-over",
+        "density": 2,
+        "sha256": "1603508d0b8fc87ca3574eb1a9cd3b98b77820c9f06869118d42ad777a07288a",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          148,
+          180
+        ],
+        "logical": [
+          74.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          147,
+          180
+        ],
+        "alpha_coverage": 0.993243,
+        "alpha_mass": 0.993243,
+        "transparent_margins": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          73.5,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-mods.png",
+          "selection-mods@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods.png",
+        "asset": "selection-mods",
+        "density": 1,
+        "sha256": "6cec2c7d3f912c526d4733e041525168a47a3d7a23cbca7be1f448eda860db89",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          74,
+          90
+        ],
+        "logical": [
+          74.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          74,
+          90
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 0.641546,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          73.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-mods-over.png",
+          "selection-mods-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-mods@2x.png",
+        "asset": "selection-mods",
+        "density": 2,
+        "sha256": "0d37622fb1623c209fa2247fa2943dbee0a68b0d5897ed1f031c6c237d7a0b8f",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          148,
+          180
+        ],
+        "logical": [
+          74.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          147,
+          180
+        ],
+        "alpha_coverage": 0.993243,
+        "alpha_mass": 0.641827,
+        "transparent_margins": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          73.5,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-mods-over.png",
+          "selection-mods-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options-over.png",
+        "asset": "selection-options-over",
+        "density": 1,
+        "sha256": "efd9b315251d093bb061db9d8a6a49673016a31e457c8591455774da22b9a7ae",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          77,
+          90
+        ],
+        "logical": [
+          77.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          76,
+          90
+        ],
+        "alpha_coverage": 0.964502,
+        "alpha_mass": 0.954592,
+        "transparent_margins": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          1.0,
+          0.0,
+          73.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-options.png",
+          "selection-options@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options-over@2x.png",
+        "asset": "selection-options-over",
+        "density": 2,
+        "sha256": "2f659d0997e4b7ac42fcd319c9d231d018200f239568cae888961dd454fa6318",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          154,
+          180
+        ],
+        "logical": [
+          77.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          153,
+          180
+        ],
+        "alpha_coverage": 0.95974,
+        "alpha_mass": 0.954621,
+        "transparent_margins": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.5,
+          0.0,
+          73.5,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-options.png",
+          "selection-options@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options.png",
+        "asset": "selection-options",
+        "density": 1,
+        "sha256": "2e10878ff416baf10a09a8f245e93ff8138a2956196305498934f91ab0ede459",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          77,
+          90
+        ],
+        "logical": [
+          77.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          76,
+          90
+        ],
+        "alpha_coverage": 0.964502,
+        "alpha_mass": 0.644863,
+        "transparent_margins": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          1.0,
+          0.0,
+          73.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-options-over.png",
+          "selection-options-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-options@2x.png",
+        "asset": "selection-options",
+        "density": 2,
+        "sha256": "8fdac57ba1d231e3543aa3fc017fd045199e23e6d6252419b70c0415d607753e",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          154,
+          180
+        ],
+        "logical": [
+          77.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          153,
+          180
+        ],
+        "alpha_coverage": 0.95974,
+        "alpha_mass": 0.64547,
+        "transparent_margins": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.5,
+          0.0,
+          73.5,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-options-over.png",
+          "selection-options-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random-over.png",
+        "asset": "selection-random-over",
+        "density": 1,
+        "sha256": "29560e2d4a3dbdbbf113ac6524a31650c329f0faa04af5bb47e6c0980a299d97",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          74,
+          90
+        ],
+        "logical": [
+          74.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          74,
+          90
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 0.993217,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          73.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-random.png",
+          "selection-random@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random-over@2x.png",
+        "asset": "selection-random-over",
+        "density": 2,
+        "sha256": "27500fe554a455718d8738d5ade78e117f5adc98d4273d448830b55b9a33bb79",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          148,
+          180
+        ],
+        "logical": [
+          74.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          147,
+          180
+        ],
+        "alpha_coverage": 0.993243,
+        "alpha_mass": 0.993243,
+        "transparent_margins": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          73.5,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-random.png",
+          "selection-random@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random.png",
+        "asset": "selection-random",
+        "density": 1,
+        "sha256": "0253f97e03f33e71f57c9274197d48dda337eba70e6442c5abff5fac8d05ecdd",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          74,
+          90
+        ],
+        "logical": [
+          74.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          74,
+          90
+        ],
+        "alpha_coverage": 1.0,
+        "alpha_mass": 0.64888,
+        "transparent_margins": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          73.0,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-random-over.png",
+          "selection-random-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "selection-random@2x.png",
+        "asset": "selection-random",
+        "density": 2,
+        "sha256": "996343e9c7a98fbd1a622e5b336961506e7587d636a35976ed8f47932afd1278",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          148,
+          180
+        ],
+        "logical": [
+          74.0,
+          90.0
+        ],
+        "alpha_bounds": [
+          0,
+          0,
+          147,
+          180
+        ],
+        "alpha_coverage": 0.993243,
+        "alpha_mass": 0.649224,
+        "transparent_margins": [
+          0,
+          0,
+          1,
+          0
+        ],
+        "classification": "button-like",
+        "interaction_content": [
+          0.0,
+          0.0,
+          73.5,
+          90.0
+        ],
+        "normal_hover_pair": [
+          "selection-random-over.png",
+          "selection-random-over@2x.png"
+        ],
+        "animation_frame": null
+      },
+      {
+        "filename": "star.png",
+        "asset": "star",
+        "density": 1,
+        "sha256": "03d07effb76e0e37d9476f4a25f74b307ae9eed024cee76f0047199ef0e25279",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          52,
+          51
+        ],
+        "logical": [
+          52.0,
+          51.0
+        ],
+        "alpha_bounds": [
+          1,
+          1,
+          52,
+          50
+        ],
+        "alpha_coverage": 0.514329,
+        "alpha_mass": 0.292964,
+        "transparent_margins": [
+          1,
+          1,
+          0,
+          1
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      },
+      {
+        "filename": "star@2x.png",
+        "asset": "star",
+        "density": 2,
+        "sha256": "f4d9c03ea076285594a1ec6fdcfa53211db21fc06b1d4f40afdb8ffbff121ff5",
+        "provider": "current",
+        "flags": [],
+        "raw": [
+          104,
+          102
+        ],
+        "logical": [
+          52.0,
+          51.0
+        ],
+        "alpha_bounds": [
+          1,
+          1,
+          104,
+          101
+        ],
+        "alpha_coverage": 0.535256,
+        "alpha_mass": 0.29348,
+        "transparent_margins": [
+          1,
+          1,
+          0,
+          1
+        ],
+        "normal_hover_pair": [],
+        "animation_frame": null
+      }
+    ]
+  }
+]
