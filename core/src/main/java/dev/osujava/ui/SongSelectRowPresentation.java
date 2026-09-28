@@ -31,12 +31,12 @@ final class SongSelectRowPresentation {
 
     /** A future grade slot sits between thumbnail and text, never at the trailing edge. */
     static Geometry geometry(float width, float height, float visibleWidth, boolean thumbnails, float gradeWidth) {
-        float inset = height * .035f;
-        float thumbHeight = thumbnails ? height - inset * 2 : 0;
+        float inset = height * 9f / 85; // Official SD thumbnail inset, independent of texture pixels.
+        float thumbHeight = thumbnails ? height : 0;
         float thumbWidth = thumbHeight * 115f / 85;
         float textX = thumbnails ? inset + thumbWidth + height * .13f : height * .20f;
         textX += Math.max(0, gradeWidth);
-        return new Geometry(inset, inset, thumbWidth, thumbHeight,
+        return new Geometry(inset, 0, thumbWidth, thumbHeight,
                 textX, Math.max(0, Math.min(width, visibleWidth) - textX - 16),
                 height - 16, height - 31, height - 48, height - 66);
     }

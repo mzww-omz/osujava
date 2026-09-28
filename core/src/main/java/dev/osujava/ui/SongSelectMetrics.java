@@ -1,7 +1,7 @@
 package dev.osujava.ui;
 
 /** Song Select geometry in UiLayout's 720-high logical units, never framebuffer pixels.
- * Carousel positions use the supplied Stable build's 480-high UI; row bodies share the pitch so adjacent labels cannot be covered.
+ * Inherited carousel parameters use a 480-high space; exact stable motion remains unmeasured (see stable-spec).
  * Skin chrome alone uses the documented 768-high legacy asset canvas.
  */
 final class SongSelectMetrics {

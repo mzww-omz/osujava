@@ -13,6 +13,7 @@ final class SongSelectCarousel {
     static final class Row {
         final Entry entry;
         final float logicalY;
+        int logicalIndex;
         float hoverAmount, separationY, selectedAmount, groupAmount;
         float selectionSeparationY, expansionY, expansionVelocityY, expansionX, revealAmount = 1;
         Row(Entry entry, float logicalY) { this.entry = entry; this.logicalY = logicalY; }
@@ -82,6 +83,7 @@ final class SongSelectCarousel {
             else if (i > 0) logicalY += (entries.get(i - 1).difficultyIndex() >= 0 && entry.difficultyIndex() >= 0
                     && entries.get(i - 1).setIndex() == entry.setIndex()) ? childStep : rowStep;
             Row row = new Row(entry, logicalY);
+            row.logicalIndex = i;
             row.groupAmount = !initialized && entry.difficultyIndex() >= 0 ? 1 : 0;
             Row old = previous.get(entry.key());
             if (old != null) copyEmphasis(old, row);
@@ -164,6 +166,14 @@ final class SongSelectCarousel {
         if (Math.signum(travel) != Math.signum(scrollVelocity)) scrollVelocity = 0;
         float limit = rowHeight * VELOCITY_LIMIT_ROWS;
         scrollVelocity = Math.max(-limit, Math.min(limit, scrollVelocity + travel * 9));
+    }
+
+    /** Direct manipulation cancels selection tracking and stale wheel momentum. */
+    void dragBy(float distance) {
+        if (!Float.isFinite(distance)) return;
+        scrollOffset = clamp(scrollOffset + distance);
+        scrollTarget = scrollOffset;
+        viewportVelocity = scrollVelocity = velocityInfluence = 0;
     }
 
     /** Briefly retain hover across gaps; speed affects its strength, never selection. */
@@ -250,6 +260,21 @@ final class SongSelectCarousel {
         if (!Float.isFinite(aspect) || aspect < 2.5f || aspect > 12) aspect = 6;
         return Math.max(68, Math.min(110, carouselWidth / aspect));
     }
+    /** Settled, unhovered destination; transient hover and velocity offsets are excluded. */
+    float[] targetPosition(int index, float width, float top) {
+        if (index < 0) return new float[]{0, 0};
+        var row = rows.get(index);
+        float down = row.logicalY - scrollTarget;
+        float x = SongSelectMetrics.curveX(screenHeight - viewportTop + down, width, screenHeight)
+                - (row.entry.difficultyIndex() >= 0 ? width * SongSelectMetrics.GROUP_INDENT : 0)
+                - (row.entry.key().equals(selectedKey) ? SongSelectMetrics.SELECTED_INDENT : 0);
+        x = Math.max(width * SongSelectMetrics.MIN_ROW_X, Math.min(width * SongSelectMetrics.MAX_ROW_X, x));
+        var selected = byKey.get(selectedKey);
+        float separation = selected == null ? 0 : Math.signum(selected.logicalY - row.logicalY)
+                * rowHeight * SongSelectMetrics.SELECTION_SPACING;
+        return new float[]{x, top - down + separation - rowHeight / 2};
+    }
+
     private static float validSize(float value, float fallback) {
         return Float.isFinite(value) && value > 0 ? Math.min(value, 10000) : fallback;
     }

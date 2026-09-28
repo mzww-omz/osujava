@@ -16,7 +16,7 @@ import java.util.List;
 /** Draw-only row pass. Receives immutable presentation and resident textures, never a browser or Library. */
 final class SongSelectRowRenderer {
     record Presentation(SongSelectRow row, SongSelectRowPresentation.Content content, boolean played,
-                        OsuGrade grade, Texture thumbnail, float thumbnailOpacity) { }
+                        OsuGrade grade, Texture thumbnail, float thumbnailOpacity, SongSelectLayout.RowGeometry geometry) { }
     record Style(float width, SongSelectSkinAssets skin, Texture fill, Color activeText,
                  Color inactiveText, boolean thumbnails) { }
     private final SpriteBatch batch;
@@ -44,9 +44,17 @@ final class SongSelectRowRenderer {
         Gdx.gl.glScissor(0, Math.round(bottom * scaleY), Math.round(layout.width() * scaleX),
                 Math.max(0, Math.round((top - bottom) * scaleY)));
         try {
-            for (var row : rows) if (!row.row().selected()) drawRow(row);
-            for (var row : rows) if (row.row().selected()) drawRow(row);
+            for (var row : rows) if (!row.row().selected()) drawClipped(row, scaleX, scaleY);
+            for (var row : rows) if (row.row().selected()) drawClipped(row, scaleX, scaleY);
         } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
+    }
+
+    private void drawClipped(Presentation row, float scaleX, float scaleY) {
+        var clip = row.geometry().clip();
+        if (clip.width() <= 0 || clip.height() <= 0) return;
+        Gdx.gl.glScissor(Math.round(clip.x() * scaleX), Math.round(clip.y() * scaleY),
+                Math.max(0, Math.round(clip.width() * scaleX)), Math.max(0, Math.round(clip.height() * scaleY)));
+        drawRow(row);
     }
 
     private boolean has(Image image) { return style.skin() != null && style.skin().get(image) != null; }
@@ -85,8 +93,7 @@ final class SongSelectRowRenderer {
             view.beginText();
         }
         var content = item.content();
-        var geometry = SongSelectRowPresentation.geometry(row.width(), row.height(), style.width() - x,
-                style.thumbnails());
+        var geometry = item.geometry().text();
         float tx = x + geometry.thumbnailX(), ty = y + geometry.thumbnailY();
         if (style.thumbnails()) {
             // Keep body, thumbnail fallback, cover and text in the same sprite batch.
@@ -115,8 +122,8 @@ final class SongSelectRowRenderer {
         float x = row.x() + geometry.textX(), width = geometry.textWidth();
         boolean child = row.difficultyIndex() >= 0;
         if (item.grade() != null) {
-            drawGrade(item.grade(), x, row.y() + row.height() / 2 - 17, 44, 34, thumbnailTint.set(1, 1, 1, detail.a), detail);
-            x += 52; width = Math.max(0, width - 52);
+            drawGrade(item.grade(), x - 52, row.y() + row.height() / 2 - 17, 44, 34, thumbnailTint.set(1, 1, 1, detail.a), detail);
+
         }
         view.textSmooth(content.title(), x, row.y() + (child ? geometry.titleY() : row.height() / 2 + 8), width,
                 .87f, primary);

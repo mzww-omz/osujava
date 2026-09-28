@@ -5,7 +5,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
 
 /** Keyboard/search priority and wheel routing, independent of drawing and row geometry. */
-final class SongSelectInput extends InputAdapter {
+class SongSelectInput extends InputAdapter {
     interface Target {
         String search();
         boolean searchActive();
@@ -30,7 +30,6 @@ final class SongSelectInput extends InputAdapter {
     }
     @Override public boolean keyDown(int key) {
         if (AppShortcuts.handleQuit(key)) return true;
-        suppressedTyped = 0;
         if (toolbox.open()) {
             if (key == Input.Keys.ESCAPE || key == Input.Keys.NUM_2
                     || key == Input.Keys.F1 && toolbox.overlay() == SongSelectToolboxState.Overlay.MODS) {
@@ -61,7 +60,7 @@ final class SongSelectInput extends InputAdapter {
             target.perform(action);
             return true;
         }
-        // Arrow roles follow the public shortcuts; executable tracing establishes ten-entry paging.
+        // Arrow roles follow the public shortcuts; page distance remains a provisional local policy.
         switch (key) {
             case Input.Keys.UP -> target.difficulty(-1);
             case Input.Keys.DOWN -> target.difficulty(1);
@@ -78,6 +77,9 @@ final class SongSelectInput extends InputAdapter {
         suppressedTyped = 0;
         if (suppressed != 0 && Character.toLowerCase(character) == suppressed) return true;
         if (toolbox.open()) return true;
+        if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT)
+                || Gdx.input.isKeyPressed(Input.Keys.ALT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.ALT_RIGHT)
+                || Gdx.input.isKeyPressed(Input.Keys.SYM)) return true;
         if (Character.isISOControl(character)) return false;
         controls.close();
         target.searchActive(true);

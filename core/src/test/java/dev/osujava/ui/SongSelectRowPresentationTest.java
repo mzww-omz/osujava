@@ -70,7 +70,9 @@ class SongSelectRowPresentationTest {
             assertTrue(geometry.textX() + geometry.textWidth() <= 410);
             if (modern) {
                 assertEquals(115f / 85, geometry.thumbnailWidth() / geometry.thumbnailHeight(), .0001f);
-                assertEquals(.93f, geometry.thumbnailHeight() / height, .0001f);
+                // Official skinning documentation specifies 115x85 with a 9 SD-unit left inset.
+                assertEquals(1f, geometry.thumbnailHeight() / height, .0001f);
+                assertEquals(9f / 85, geometry.thumbnailX() / height, .0001f);
             } else assertEquals(0, geometry.thumbnailWidth());
             assertTrue(geometry.detailY() > geometry.starsY());
             assertTrue(geometry.titleY() > geometry.bylineY()); assertTrue(geometry.bylineY() > geometry.detailY());

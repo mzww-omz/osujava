@@ -32,12 +32,12 @@ final class SongBrowserControls {
         }
         close(); return false;
     }
-    void drawLabels(UiView view, float w, float h, SongBrowserModel browser) {
+    void drawLabels(UiView view, float w, float h, SongSelectRenderer.BrowserView browser) {
         var g = groupBounds(w,h); var s = sortBounds(w,h);
         view.textSmooth("Group: " + browser.group().label + "  ▾", g.x(), h - 22, g.width(), .76f, UiTheme.TEXT);
         view.textSmooth("Sort: " + browser.sort().label + "  ▾", s.x(), h - 22, s.width(), .76f, UiTheme.TEXT);
     }
-    void drawMenu(UiView view, float w, float h, SongBrowserModel browser) {
+    void drawMenu(UiView view, float w, float h, SongSelectRenderer.BrowserView browser) {
         if (menu == null) return;
         var b = menu == Menu.GROUP ? groupBounds(w,h) : sortBounds(w,h);
         int count = menu == Menu.GROUP ? SongBrowserModel.Group.values().length : SongBrowserModel.Sort.values().length;

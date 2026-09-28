@@ -18,7 +18,7 @@ class SongSelectNavigationTest {
     private final BeatmapLibrary library = new BeatmapLibrary();
     private SongSelectScreen screen;
     private int importRequests;
-    private boolean shift, pointerPressed, pointerClicked;
+    private boolean shift, control, alt, pointerPressed, pointerClicked;
     private int pointerX, pointerY;
 
     @BeforeEach void setup() {
@@ -30,7 +30,7 @@ class SongSelectNavigationTest {
             case "getY" -> pointerY;
             case "isButtonPressed" -> pointerPressed;
             case "isButtonJustPressed" -> pointerClicked;
-            case "isKeyPressed" -> shift && ((int)a[0] == Input.Keys.SHIFT_LEFT || (int)a[0] == Input.Keys.SHIFT_RIGHT);
+            case "isKeyPressed" -> control && (int)a[0] == Input.Keys.CONTROL_LEFT || alt && (int)a[0] == Input.Keys.ALT_LEFT || shift && ((int)a[0] == Input.Keys.SHIFT_LEFT || (int)a[0] == Input.Keys.SHIFT_RIGHT);
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
         for (String title : List.of("Alpha", "Beta", "Gamma")) {
@@ -372,6 +372,44 @@ class SongSelectNavigationTest {
         pointerPressed = false; update.invoke(screen, layout, 0f);
         selected(2, 0, "Gamma-easy.png");
         assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+
+    @Test void modifiedTextNeverEntersSearchAndOrdinaryUnicodeStillDoes() throws Exception {
+        open("Beta", 0);
+        control = true; processor.keyTyped('c'); control = false;
+        alt = true; processor.keyTyped('i'); alt = false;
+        assertEquals("", field("search"));
+        processor.keyTyped('星'); assertEquals("星", field("search"));
+    }
+    @Test void unrelatedKeyDownDoesNotReleaseConsumedImportCharacter() throws Exception {
+        open("Beta", 0);
+        processor.keyDown(Input.Keys.I);
+        processor.keyDown(Input.Keys.SHIFT_LEFT);
+        processor.keyTyped('i');
+        assertEquals("", field("search"));
+        assertEquals(1, importRequests);
+    }
+
+    @Test void productionDragPublishesReleaseGeometryWithoutChangingSelection() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle();
+        var row = ((List<?>) field("visibleRows")).stream().map(SongSelectRow.class::cast)
+                .filter(r -> r.selected()).findFirst().orElseThrow();
+        pointerX = Math.round(row.x() + 120); pointerY = 720 - Math.round(row.y() + row.height() / 2);
+        var update = SongSelectScreen.class.getDeclaredMethod("update", dev.osujava.ui.theme.UiLayout.class, float.class);
+        update.setAccessible(true);
+        var layout = dev.osujava.ui.theme.UiLayout.fromPixels(1280, 720);
+        float before = carousel().scrollOffset();
+        pointerClicked = true; pointerPressed = true; update.invoke(screen, layout, 0f);
+        pointerClicked = false; pointerY -= 40; update.invoke(screen, layout, 0f);
+        assertEquals(before + 40, carousel().scrollOffset(), .001);
+        pointerPressed = false; pointerY -= 20; update.invoke(screen, layout, 0f);
+        assertEquals(before + 60, carousel().scrollOffset(), .001);
+        selected(1, 0, "Beta-easy.png");
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        for (var geometry : screen.rowGeometrySnapshot()) {
+            var motion = carousel().rows().get(geometry.logicalIndex());
+            assertEquals(carousel().renderY(motion, 658), geometry.body().y(), .001);
+        }
     }
 
 }
