@@ -27,10 +27,23 @@ public final class SongSelectSkinAssets implements Disposable {
         MODS("selection-mods"), MODS_OVER("selection-mods-over"),
         RANDOM("selection-random"), RANDOM_OVER("selection-random-over"),
         OPTIONS("selection-options"), OPTIONS_OVER("selection-options-over"),
-        CURSOR("cursor"), CURSOR_TRAIL("cursortrail"), CURSOR_MIDDLE("cursormiddle");
+        CURSOR("cursor"), CURSOR_TRAIL("cursortrail"), CURSOR_MIDDLE("cursormiddle"),
+        TAB("selection-tab"), PARTICLE("star2"),
+        MODE_OSU("mode-osu"), MODE_TAIKO("mode-taiko"), MODE_CATCH("mode-fruits"), MODE_MANIA("mode-mania"),
+        MODE_OSU_SMALL("mode-osu-small"), MODE_TAIKO_SMALL("mode-taiko-small"), MODE_CATCH_SMALL("mode-fruits-small"), MODE_MANIA_SMALL("mode-mania-small"),
+        MODE_OSU_MED("mode-osu-med"), MODE_TAIKO_MED("mode-taiko-med"), MODE_CATCH_MED("mode-fruits-med"), MODE_MANIA_MED("mode-mania-med"),
+        MOD_NF("selection-mod-nofail"), MOD_EZ("selection-mod-easy"), MOD_HT("selection-mod-halftime"),
+        MOD_HD("selection-mod-hidden"), MOD_HR("selection-mod-hardrock"), MOD_SD("selection-mod-suddendeath"),
+        MOD_DT("selection-mod-doubletime"), MOD_FL("selection-mod-flashlight"), MOD_RX("selection-mod-relax"),
+        MOD_AP("selection-mod-relax2"), MOD_SO("selection-mod-spunout"), MOD_AUTO("selection-mod-autoplay");
 
         public final String basename;
         Image(String basename) { this.basename = basename; }
+    }
+
+    public static Image modeImage(int mode, int size) {
+        int index = mode >= 0 && mode < 4 ? mode : 0;
+        return Image.values()[(size == 0 ? Image.MODE_OSU : size == 1 ? Image.MODE_OSU_SMALL : Image.MODE_OSU_MED).ordinal() + index];
     }
 
     public record SkinTexture(Texture texture, SkinAssetResolver.AssetFile file) {

@@ -14,6 +14,23 @@ import static org.junit.jupiter.api.Assertions.*;
 class SongSelectSkinAssetsTest {
     @TempDir Path directory;
 
+    @Test void newInterfaceFamiliesPreserveDensityTransparentPresenceAndDispose() throws Exception {
+        for (var image : new Image[]{Image.TAB,Image.MODE_OSU_SMALL,Image.MODE_MANIA_MED,Image.MOD_HD,Image.PARTICLE})
+            Files.createFile(directory.resolve(image.basename + "@2x.png"));
+        List<TestTexture> owned = new ArrayList<>();
+        var assets = new SongSelectSkinAssets(new SkinAssetResolver(directory),file -> {
+            var texture = new TestTexture(2,2); owned.add(texture); return texture;
+        });
+        for (var image : new Image[]{Image.TAB,Image.MODE_OSU_SMALL,Image.MODE_MANIA_MED,Image.MOD_HD,Image.PARTICLE}) {
+            assertEquals("current",assets.provider(image));
+            assertEquals(1,assets.get(image).logicalWidth());
+        }
+        assertEquals(Image.MODE_MANIA_MED,SongSelectSkinAssets.modeImage(3,2));
+        assertNull(assets.get(Image.MODE_OSU));
+        assets.dispose(); assets.dispose();
+        for (var texture : owned) assertEquals(1,texture.disposals);
+    }
+
     @Test void backAnimationKeepsProviderFramesDensityTimingAndOwnership() throws Exception {
         Files.writeString(directory.resolve("skin.ini"), "[General]\nAnimationFramerate: 2\n");
         for (String name : new String[]{"menu-back-0.png", "menu-back-1@2x.png", "menu-back-3.png", "menu-back.png"})

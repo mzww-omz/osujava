@@ -16,6 +16,22 @@ final class SongSelectToolboxState {
         final String acronym, label;
         final int group;
         Mod(String acronym, String label, int group) { this.acronym = acronym; this.label = label; this.group = group; }
+        dev.osujava.skin.SongSelectSkinAssets.Image image() {
+            return switch (this) {
+                case NO_FAIL -> dev.osujava.skin.SongSelectSkinAssets.Image.MOD_NF;
+                case EASY -> dev.osujava.skin.SongSelectSkinAssets.Image.MOD_EZ;
+                case HALF_TIME -> dev.osujava.skin.SongSelectSkinAssets.Image.MOD_HT;
+                case HIDDEN -> dev.osujava.skin.SongSelectSkinAssets.Image.MOD_HD;
+                case HARD_ROCK -> dev.osujava.skin.SongSelectSkinAssets.Image.MOD_HR;
+                case SUDDEN_DEATH -> dev.osujava.skin.SongSelectSkinAssets.Image.MOD_SD;
+                case DOUBLE_TIME -> dev.osujava.skin.SongSelectSkinAssets.Image.MOD_DT;
+                case FLASHLIGHT -> dev.osujava.skin.SongSelectSkinAssets.Image.MOD_FL;
+                case RELAX -> dev.osujava.skin.SongSelectSkinAssets.Image.MOD_RX;
+                case AUTOPILOT -> dev.osujava.skin.SongSelectSkinAssets.Image.MOD_AP;
+                case SPUN_OUT -> dev.osujava.skin.SongSelectSkinAssets.Image.MOD_SO;
+                case AUTO -> dev.osujava.skin.SongSelectSkinAssets.Image.MOD_AUTO;
+            };
+        }
         Capability capability() { return this == AUTO ? Capability.DEBUG_ONLY : Capability.ABSENT; }
         boolean available() { return capability() == Capability.IMPLEMENTED; }
     }
