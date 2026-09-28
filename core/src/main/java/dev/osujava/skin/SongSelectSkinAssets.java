@@ -36,7 +36,23 @@ public final class SongSelectSkinAssets implements Disposable {
         public float logicalHeight() { return file.logicalSize(texture.getHeight()); }
     }
 
+    /** Official selection action family. Widths describe control canvases, never composite PNGs. */
+    public enum Selection {
+        MODE(Image.MODE, Image.MODE_OVER, 92), MODS(Image.MODS, Image.MODS_OVER, 77),
+        RANDOM(Image.RANDOM, Image.RANDOM_OVER, 77), OPTIONS(Image.OPTIONS, Image.OPTIONS_OVER, 77);
+        public final Image normal, hover;
+        public final float logicalWidth;
+        Selection(Image normal, Image hover, float logicalWidth) {
+            this.normal = normal; this.hover = hover; this.logicalWidth = logicalWidth;
+        }
+        public static Selection of(Image image) {
+            for (var action : values()) if (action.normal == image || action.hover == image) return action;
+            return null;
+        }
+    }
+
     private final EnumMap<Image, SongSelectBodyBounds> actionBodies = new EnumMap<>(Image.class);
+    private final EnumMap<Image, SelectionAssetBounds> selectionBounds = new EnumMap<>(Image.class);
     private final EnumMap<Image, SkinTexture> textures = new EnumMap<>(Image.class);
     private final Set<Texture> owned = Collections.newSetFromMap(new IdentityHashMap<>());
     private Texture fallbackStar;
@@ -67,13 +83,13 @@ public final class SongSelectSkinAssets implements Disposable {
                     texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
                     textures.put(image, new SkinTexture(texture, file));
                     owned.add(texture);
-                    if ((image == Image.TOP || image == Image.BOTTOM) && Gdx.app != null)
+                    if ((image == Image.TOP || image == Image.BOTTOM || Selection.of(image) != null) && Gdx.app != null)
                         Gdx.app.log("SongSelect skin", image.basename + " loaded: " + file.path()
                                 + " provider=" + (file.classpathResource() != null ? "bundled" : file.fallback() ? "fallback" : "current")
                                 + " density=" + file.density() + " logical=" + file.logicalSize(texture.getWidth())
                                 + "x" + file.logicalSize(texture.getHeight()));
                     if ((image == Image.MENU_BUTTON_BACKGROUND || image == Image.BACK
-                            || image == Image.RANDOM || image == Image.RANDOM_OVER || image == Image.TOP) && Gdx.gl != null) {
+                            || Selection.of(image) != null || image == Image.TOP) && Gdx.gl != null) {
                         Pixmap pixels = null;
                         try {
                             pixels = new Pixmap(file.handle());
@@ -81,6 +97,12 @@ public final class SongSelectSkinAssets implements Disposable {
                             if (image == Image.TOP) {
                                 topCoverage = SongSelectTopCoverage.detect(pixels.getWidth(), pixels.getHeight(),
                                         file.density(), (x,y) -> source.getPixel(x,y) & 255);
+                            } else if (Selection.of(image) != null) {
+                                var action = Selection.of(image);
+                                boolean legacy = configuration.legacyVersion() < 2;
+                                selectionBounds.put(image, SelectionAssetBounds.detect(pixels.getWidth(), pixels.getHeight(),
+                                        file.density(), action.logicalWidth, legacy ? 87 : 90, legacy,
+                                        (x, y) -> source.getPixel(x, y) & 255));
                             } else {
                                 var body = SongSelectBodyBounds.detect(pixels.getWidth(), pixels.getHeight(),
                                         (x, y) -> source.getPixel(x, y) & 255);
@@ -107,6 +129,12 @@ public final class SongSelectSkinAssets implements Disposable {
     }
 
     public SkinTexture get(Image image) { return textures.get(image); }
+    public SelectionAssetBounds selectionBounds(Image image) { return selectionBounds.get(image); }
+    public String provider(Image image) {
+        var asset = get(image);
+        return asset == null ? "procedural" : asset.file().classpathResource() != null ? "bundled"
+                : asset.file().fallback() ? "fallback" : "current";
+    }
     public float topDepth(float start, float end) {
         var top = get(Image.TOP);
         return top == null ? 0 : topCoverage == null ? top.logicalHeight() : topCoverage.depth(start,end);
@@ -146,6 +174,7 @@ public final class SongSelectSkinAssets implements Disposable {
         owned.clear();
         textures.clear();
         actionBodies.clear();
+        selectionBounds.clear();
         fallbackStar = null;
         topCoverage = null;
     }

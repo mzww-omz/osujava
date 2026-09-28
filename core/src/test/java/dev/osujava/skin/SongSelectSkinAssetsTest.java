@@ -14,6 +14,33 @@ import static org.junit.jupiter.api.Assertions.*;
 class SongSelectSkinAssetsTest {
     @TempDir Path directory;
 
+    @ParameterizedTest @ValueSource(strings = {"selection-mode", "selection-mode-over", "selection-mods",
+            "selection-mods-over", "selection-random", "selection-random-over", "selection-options", "selection-options-over"})
+    void selectionFamilyPreservesEveryProviderAndDensityPriority(String basename) throws Exception {
+        Image image = Arrays.stream(Image.values()).filter(i -> i.basename.equals(basename)).findFirst().orElseThrow();
+        Path fallback = Files.createDirectory(directory.resolve("fallback"));
+        Files.createFile(directory.resolve(basename + ".png"));
+        Files.createFile(fallback.resolve(basename + "@2x.png"));
+        var resolver = SkinAssetResolver.withBundledDefault(directory, fallback);
+        var current = new SongSelectSkinAssets(resolver, f -> new TestTexture(77,90));
+        assertEquals("current", current.provider(image)); assertEquals(1,current.get(image).density()); current.dispose();
+        Files.createFile(directory.resolve(basename + "@2x.png"));
+        var high = new SongSelectSkinAssets(resolver, f -> new TestTexture(154,180));
+        assertEquals("current", high.provider(image)); assertEquals(2,high.get(image).density()); high.dispose();
+        var broken = new SongSelectSkinAssets(resolver, f -> {
+            if (!f.fallback()) throw new GdxRuntimeException("Malformed current PNG");
+            return new TestTexture(154,180);
+        });
+        assertEquals("fallback",broken.provider(image)); broken.dispose();
+        var bundled = new SongSelectSkinAssets(resolver, f -> {
+            if (f.classpathResource() == null) throw new GdxRuntimeException("Malformed local PNG");
+            return new TestTexture(154,180);
+        });
+        assertEquals("bundled",bundled.provider(image)); bundled.dispose();
+        var missing = new SongSelectSkinAssets(new SkinAssetResolver(directory), f -> { throw new GdxRuntimeException("Malformed"); });
+        assertEquals("procedural",missing.provider(image)); assertNull(missing.get(image)); missing.dispose();
+    }
+
     @ParameterizedTest @ValueSource(strings = {"1.0", "2.1", "2.2", "latest"})
     void thumbnailPolicyUsesSkinVersionRatherThanSkinName(String version) throws Exception {
         Files.writeString(directory.resolve("skin.ini"), "[General]\nName: Arbitrary\nVersion: " + version + "\n");
