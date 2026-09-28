@@ -92,7 +92,7 @@ class MainMenuMusicTest {
         var paused = new MainMenuFrame.Info(2,0,"18:20","",false,true,true);
         var unavailable = new MainMenuFrame.Info(2,0,"18:20","",false,false,true);
         var single = new MainMenuFrame.Info(1,0,"18:20","",true,false,false);
-        for (int[] size : new int[][]{{1024,768},{1280,720},{1920,1080},{600,800}}) {
+        for (int[] size : new int[][]{{1024,768},{1280,720},{1366,768},{1920,1080},{2560,1440},{600,800}}) {
             var m = MainMenuFrame.layout(UiLayout.fromPixels(size[0],size[1]));
             assertTrue(m.trackWidth() > 98 * m.unit());
             for (int control = 0; control < 3; control++) {
@@ -103,6 +103,8 @@ class MainMenuMusicTest {
                 assertEquals(control == 1 ? -1 : control,MainMenuFrame.controlAt(m,x,y,unavailable,false));
                 assertEquals(control == 1 ? 1 : -1,MainMenuFrame.controlAt(m,x,y,single,false));
                 assertEquals(-1,MainMenuFrame.controlAt(m,x,y - 27 * m.unit(),active,false));
+                // The 2-unit gap must not activate either neighbouring transport control.
+                assertEquals(-1,MainMenuFrame.controlAt(m,MainMenuFrame.controlX(m,control) + 23 * m.unit(),y,active,false));
             }
         }
     }

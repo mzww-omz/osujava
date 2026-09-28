@@ -67,7 +67,7 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
             }
             artwork = output.resolve("artwork-fixture.png");
             PixmapIO.writePNG(Gdx.files.absolute(artwork.toString()),pixmap); pixmap.dispose();
-            for (int[] size : new int[][]{{1024,768,1},{1280,720,1},{1920,1080,1},{600,800,1},{1280,720,2},{600,800,2}})
+            for (int[] size : new int[][]{{1024,768,1},{1280,720,1},{1366,768,1},{1920,1080,1},{2560,1440,1},{600,800,1},{1280,720,2},{600,800,2}})
                 for (boolean bg : new boolean[]{false,true}) {
                     for (String name : new String[]{"closed", "beat-phase-0", "beat-impact", "between-beats", "audio-low", "audio-high", "visualiser-active", "logo-pressed"}) {
                         double playback = switch(name) { case "beat-phase-0" -> 0; case "beat-impact" -> 1000; case "between-beats" -> 1250; default -> 1170; };
@@ -128,7 +128,7 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
             for (int attempt = 0; attempt < 2; attempt++) {
                 fb.begin();
                 screen.capture(scene.state,scene.transitionMs,scene.playbackMs,x,y,scene.name.equals("logo-pressed"),
-                        new MainMenuFrame.Info(scene.name.equals("frame-no-track") ? 0 : 563,3600,"18:20",MainMenuFrame.version(),
+                        new MainMenuFrame.Info(scene.name.equals("frame-no-track") ? 0 : 12345,359999,"18:20",MainMenuFrame.version(),
                                 !scene.name.equals("frame-no-track") && !scene.name.equals("frame-selected-track")
                                         && !scene.name.equals("music-paused") && !scene.name.equals("music-unavailable"),
                                 scene.name.equals("music-paused"), !scene.name.equals("frame-no-track") && !scene.name.equals("music-single-track")));
@@ -151,7 +151,7 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
             if (scene.name.equals("open-idle") && scene.background) { checkInteraction(scene); checkMusicInteraction(scene); }
         } finally { screen.dispose(); fb.dispose(); Gdx.graphics = actual; }
         if (++index == scenes.size()) {
-            System.out.println("Main Menu harness: " + index + " captures, all repeated framebuffer bytes identical; 60 navigation and 6 music Screen interaction sequences passed: " + output);
+            System.out.println("Main Menu harness: " + index + " captures, all repeated framebuffer bytes identical; 80 navigation and 8 music Screen interaction sequences passed: " + output);
             Gdx.app.exit();
         }
     }

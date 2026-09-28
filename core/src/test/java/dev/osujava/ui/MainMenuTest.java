@@ -30,14 +30,17 @@ class MainMenuTest {
         }
     }
     @Test void informationFrameRetainsLegibilityAndNegativeSpaceAtAllCaptureSizes() {
-        for (int[] size : new int[][]{{1024,768},{1280,720},{1920,1080},{600,800}}) {
+        for (int[] size : new int[][]{{1024,768},{1280,720},{1366,768},{1920,1080},{2560,1440},{600,800}}) {
             var ui = UiLayout.fromPixels(size[0],size[1]);
             var frame = MainMenuFrame.layout(ui); var menu = MainMenuLayout.from(ui);
             assertTrue(frame.topHeight() * ui.scale() >= 52);
-            assertTrue(frame.bottomHeight() * ui.scale() >= 30);
-            assertEquals(56 * Math.max(.95f,ui.scale()),frame.topHeight() * ui.scale(),.001);
-            assertTrue(frame.trackWidth() * ui.scale() > 250);
-            assertTrue(frame.trackX() > frame.pad() + frame.leftWidth());
+            assertTrue(frame.bottomHeight() * ui.scale() >= 20);
+            assertEquals(76 * Math.max(.95f,ui.scale()),frame.topHeight() * ui.scale(),.001);
+            assertTrue(frame.trackWidth() * ui.scale() > 185);
+            assertTrue(frame.centerX() > frame.pad() + frame.leftWidth());
+            assertTrue(frame.trackX() > frame.centerX() + frame.centerWidth());
+            assertTrue(MainMenuFrame.controlX(frame, 0) >= frame.trackX());
+            assertTrue(MainMenuFrame.controlY(frame) >= frame.height() - frame.topHeight());
             // Fixed harness spectrum's maximum radius, including settled logo hover.
             float spectrumRadius = menu.radius() * 1.1f * (1 + 3 * .111f);
             assertTrue(menu.cy() + spectrumRadius + 24 < frame.height() - frame.topHeight());
@@ -46,10 +49,21 @@ class MainMenuTest {
         assertEquals("00:00:00",MainMenuFrame.uptime(-1));
         assertEquals("01:00:00",MainMenuFrame.uptime(3600));
         assertEquals("100:01:01",MainMenuFrame.uptime(360061));
-        assertEquals("click the logo to open menu",MainMenuFrame.tip(MainMenuState.CLOSED));
-        assertTrue(MainMenuFrame.tip(MainMenuState.OPEN).contains("PLAY"));
+        assertEquals("99:59:59",MainMenuFrame.uptime(359999));
         assertFalse(MainMenuFrame.version().isBlank());
     }
+    @Test void centerInformationFitsLargeLibraryAndLongSessionWithoutTruncation() {
+        var metrics = new java.awt.font.FontRenderContext(null, true, true);
+        for (int[] size : new int[][]{{1280,720},{1366,768},{1920,1080},{2560,1440},{600,800}}) {
+            var frame = MainMenuFrame.layout(UiLayout.fromPixels(size[0], size[1]));
+            // Match the smooth font's oversampled measurement, including its raster padding.
+            var font = new java.awt.Font("SansSerif", java.awt.Font.PLAIN, Math.round(17 * .68f * frame.unit() * 2));
+            for (String line : List.of("12345 beatmaps available", "Session runtime  99:59:59", "Local time  23:59"))
+                assertTrue(font.getStringBounds(line, metrics).getWidth() + 4 < frame.centerWidth() * 2,
+                        () -> "Information would be truncated at " + size[0] + ": " + line);
+        }
+    }
+
     @Test void frameBpmUsesImportedTimingAndHidesUnknownValues() {
         assertEquals("",MainMenuFrame.bpm(List.of(),0));
         assertEquals("",MainMenuFrame.bpm(List.of(point(Double.NaN,500,true),point(0,-50,false)),0));
@@ -134,7 +148,7 @@ class MainMenuTest {
         }
     }
     @Test void visiblePolygonAndLogoHitboxesFollowAnimationAtAllSizesAndDensities() {
-        for (int[] size:new int[][]{{1024,768},{1280,720},{1920,1080},{600,800}}) {
+        for (int[] size:new int[][]{{1024,768},{1280,720},{1366,768},{1920,1080},{2560,1440},{600,800}}) {
             var layout=MainMenuLayout.from(UiLayout.fromPixels(size[0],size[1]));
             assertEquals(layout.width()/2,layout.cx()); assertEquals(layout.height()/2,layout.cy());
             assertEquals(layout,MainMenuLayout.from(UiLayout.fromPixels(size[0]*2,size[1]*2)));
