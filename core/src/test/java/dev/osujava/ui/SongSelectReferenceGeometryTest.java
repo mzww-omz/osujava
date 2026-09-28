@@ -23,8 +23,8 @@ class SongSelectReferenceGeometryTest {
                 new SongSelectCarousel.Entry("c#-1",2,-1)), 574, 80, 80 * .96f, 80 * 1.02f, "b#0");
         for (int i = 0; i < 120; i++) model.advance(1f/60, null);
         for (var row : model.rows()) {
-            float d = (658 - model.renderY(row,658) - 40 - 287) / 287;
-            float shift = SongSelectCarousel.curveX(d,1280) - model.renderX(row,1280);
+            float screenDown = 658 - model.renderY(row,658) - 40;
+            float shift = SongSelectMetrics.curveX(screenDown,1280,574) - model.renderX(row,1280);
             if (row.entry.difficultyIndex() >= 0) assertTrue(shift / 1280 > .05 && shift / 1280 < .06);
             else assertEquals(0, shift, .01);
         }
@@ -49,9 +49,9 @@ class SongSelectReferenceGeometryTest {
         assertEquals(1,model.rows().get(1).groupAmount,.001);
         assertEquals(1,model.rows().get(2).groupAmount,.001);
     }
-    @Test void curveExcursionIsShallowAndSmoothAwayFromCentre() {
+    @Test void curveUsesConfirmedScreenRelativeLinearIndentation() {
         float width = 1280;
-        assertTrue((SongSelectCarousel.curveX(1,width) - SongSelectCarousel.curveX(0,width)) / width < .04);
+        assertEquals(56.25, SongSelectCarousel.curveX(1,width) - SongSelectCarousel.curveX(0,width), .001);
         assertTrue(SongSelectCarousel.curveX(.2f,width) > SongSelectCarousel.curveX(.1f,width));
         assertEquals(SongSelectCarousel.curveX(-.6f,width), SongSelectCarousel.curveX(.6f,width));
     }

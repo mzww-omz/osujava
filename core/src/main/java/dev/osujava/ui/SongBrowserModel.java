@@ -119,6 +119,22 @@ final class SongBrowserModel {
         select(target.id(), step < 0 ? target.difficulties().size() - 1 : 0);
     }
 
+    /** Traverse the current visible row projection once, never counting collapsed children or headers. */
+    void movePage(int direction) {
+        if (selectedSet() == null || direction == 0) return;
+        var candidates = entries.stream().filter(entry -> entry.kind() != Kind.GROUP_HEADER).toList();
+        int start = -1;
+        for (int i = 0; i < candidates.size(); i++) {
+            var entry = candidates.get(i);
+            if (entry.difficulty() == selectedDifficulty()) { start = i; break; }
+        }
+        if (start < 0) return;
+        // The reference stops a long page traversal after one complete circuit, at the origin.
+        int distance = Math.min(10, candidates.size()) * Integer.signum(direction);
+        var target = candidates.get(Math.floorMod(start + distance, candidates.size()));
+        select(target.set().id(), target.difficulty() == null ? 0 : target.set().difficulties().indexOf(target.difficulty()));
+    }
+
     void moveSet(int direction) {
         BeatmapSet current = selectedSet();
         if (current == null || direction == 0) return;

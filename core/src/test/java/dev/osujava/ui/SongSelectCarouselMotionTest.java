@@ -125,17 +125,17 @@ class SongSelectCarouselMotionTest {
             model.advance(1f / 60, null);
             for (var row : model.rows()) {
                 float center = model.renderY(row, 658) + model.rowHeight() / 2;
-                float distance = (658 - center - 310) / 310;
-                float baseline = SongSelectCarousel.curveX(distance, 1280) - 3 * row.selectedAmount;
+                float baseline = SongSelectMetrics.curveX(658 - center, 1280, 620) - 3 * row.selectedAmount;
+                baseline = Math.max(1280 * .40f, Math.min(1280 * .85f, baseline));
                 assertTrue(Math.abs(model.renderX(row, 1280) - baseline) <= 5.01);
-                assertTrue(model.renderX(row, 1280) >= 1280 * .52f);
-                assertTrue(model.renderX(row, 1280) <= 1280 * .74f);
+                assertTrue(model.renderX(row, 1280) >= 1280 * .40f);
+                assertTrue(model.renderX(row, 1280) <= 1280 * .85f);
             }
         }
         settle(model);
         var row = row(model, "s20#-1");
         float center = model.renderY(row, 658) + model.rowHeight() / 2;
-        assertEquals(SongSelectCarousel.curveX((658 - center - 310) / 310, 1280), model.renderX(row, 1280), .01);
+        assertEquals(SongSelectMetrics.curveX(658 - center, 1280, 620), model.renderX(row, 1280), .01);
     }
 
     @Test void expansionAndCollapsePreserveEverySurvivingRowIncludingInterruptedMotion() {
@@ -158,7 +158,7 @@ class SongSelectCarouselMotionTest {
             assertEquals(belowY, model.renderY(row(model, "s5#-1"), 658), .001);
             assertEquals(parentY, model.renderY(row(model, "s4#-1"), 658), .001);
             settle(model);
-            assertEquals(348, model.renderY(row(model, "s4#-1"), 658) + 38, .01);
+            assertEquals(373.83333, model.renderY(row(model, "s4#-1"), 658) + 38, .01);
         }
     }
 
@@ -169,7 +169,7 @@ class SongSelectCarouselMotionTest {
             model.content(expanded(30, set, 16), 620, 76, 72, "s" + set + "#" + difficulty);
             var row = row(model, "s" + set + "#" + difficulty);
             assertEquals(y, model.renderY(row, 658), .001);
-            settle(model); assertEquals(348, model.renderY(row, 658) + 38, .01);
+            settle(model); assertEquals(373.83333, model.renderY(row, 658) + 38, .01);
             assertTrue(model.scrollOffset() >= 0 && model.scrollOffset() <= model.maxScroll());
         }
     }
@@ -213,10 +213,10 @@ class SongSelectCarouselMotionTest {
                 model.advance(1f/60,null);
                 float center = model.renderY(selected,658) + 38;
                 assertTrue(center >= previous - .001f, "Expansion must not initially move away from the snap destination");
-                assertTrue(center <= 348.01f, "Opposing expansion/viewport rates must not overshoot the center");
+                assertTrue(center <= 373.84333f, "Opposing expansion/viewport rates must not overshoot the center");
                 previous = center;
             }
-            assertEquals(348,previous,.01);
+            assertEquals(373.83333,previous,.01);
         }
     }
 
@@ -227,11 +227,11 @@ class SongSelectCarouselMotionTest {
         assertEquals(72,model.scrollTarget());
         model.scrollBy(200);
         model.content(collapsed(30),620,76,72,"s4#-1");
-        assertEquals(4 * 72 + 200,model.scrollTarget());
+        assertEquals(4 * 72 + 200,model.scrollTarget(), .001);
         model.content(List.of(),620,76,72,"s4#-1");
         model.content(filtered,620,76,72,"s4#-1");
         assertEquals(72,model.scrollTarget());
-        settle(model); assertEquals(348,model.renderY(row(model,"s4#-1"),658) + 38,.01);
+        settle(model); assertEquals(373.83333,model.renderY(row(model,"s4#-1"),658) + 38,.01);
     }
 
 }

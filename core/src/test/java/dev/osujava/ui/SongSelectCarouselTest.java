@@ -28,13 +28,13 @@ class SongSelectCarouselTest {
         model.advance(1f / 60, null);
         assertTrue(model.scrollOffset() > 0 && model.scrollOffset() < model.scrollTarget());
         settle(model);
-        assertEquals(348, model.renderY(rows.get(12), 658) + model.rowHeight() / 2, .01);
+        assertEquals(373.83333, model.renderY(rows.get(12), 658) + model.rowHeight() / 2, .01);
     }
     @Test void selectedRowAtEitherEndCanCenterInsideValidScrollRange() {
         var model = model(25);
         model.select("set#24"); settle(model);
         assertEquals(model.maxScroll(), model.scrollOffset(), .01);
-        assertEquals(310, model.rows().get(24).logicalY - model.scrollOffset(), .01);
+        assertEquals(284.16667, model.rows().get(24).logicalY - model.scrollOffset(), .01);
         model.select("set#0"); settle(model);
         assertEquals(0, model.scrollOffset(), .01);
     }
@@ -80,7 +80,7 @@ class SongSelectCarouselTest {
         model.content(List.of(),620,76,72,null);
         assertEquals(0,model.scrollOffset()); assertEquals(0,model.scrollTarget()); assertEquals(0,model.maxScroll());
         model.content(entries(1),620,76,72,"set#0"); settle(model);
-        assertEquals(310,model.rows().get(0).logicalY - model.scrollOffset());
+        assertEquals(284.16667,model.rows().get(0).logicalY - model.scrollOffset(), .001);
     }
     @Test void viewportResizeKeepsSelectionCenteredAndMotionStateSurvivesContentRefresh() {
         var model = model(8); model.select("set#4"); settle(model); model.advance(.1f,"set#4");
@@ -88,7 +88,7 @@ class SongSelectCarouselTest {
         model.content(entries(8),420,90,93,"set#4");
         assertEquals(hover,model.rows().get(4).hoverAmount);
         settle(model);
-        assertEquals(210,model.rows().get(4).logicalY - model.scrollOffset(),.01);
+        assertEquals(192.5,model.rows().get(4).logicalY - model.scrollOffset(),.01);
     }
     @Test void continuousCurveIsSymmetricAndGradualWithMoreThanThreeOffsets() {
         float previous = SongSelectCarousel.curveX(0,1280);
@@ -125,7 +125,7 @@ class SongSelectCarouselTest {
         model.scrollBy(-10000); assertEquals(0,model.scrollTarget());
         model.scrollBy(Float.NaN); model.scrollBy(Float.POSITIVE_INFINITY);
         assertEquals(0,model.scrollTarget());
-        model.select("set#4"); assertEquals(4*72,model.scrollTarget());
+        model.select("set#4"); assertEquals(4*72,model.scrollTarget(), .001);
     }
 
 }

@@ -67,6 +67,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final BeatmapThumbnails thumbnails = new BeatmapThumbnails();
     private final OsuCookie playCookie = new OsuCookie();
     private final SongSelectCarousel carousel = new SongSelectCarousel();
+    private final SongSelectPointer rowPointer = new SongSelectPointer();
     private boolean contentDirty = true;
     private float contentWidth, contentViewportHeight, contentRowHeight;
     private boolean legacyThumbnailPreview;
@@ -175,7 +176,8 @@ public final class SongSelectScreen extends ScreenAdapter {
             @Override public void difficulty(int direction) { advance(direction); }
             @Override public void set(int direction) { advanceSet(direction); }
             @Override public void page(int direction) {
-                carousel.scrollBy(direction * SongSelectMetrics.pageDistance(top - bottom, carousel.rowHeight()));
+                var previous = browser.selectedSet();
+                browser.movePage(direction); syncBrowser(previous != browser.selectedSet());
             }
             @Override public boolean scroll(float amount) { return scrollAtPointer(amount); }
         }));
@@ -211,11 +213,12 @@ public final class SongSelectScreen extends ScreenAdapter {
         UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         float x = layout.pointerX(screenX), y = layout.pointerY(screenY);
         var chrome = chromeBounds(layout);
-        return scoreBounds(layout).contains(x, y) || x >= layout.width() * .5f && x <= layout.width()
+        return scoreBounds(layout).contains(x, y) || x >= SongSelectMetrics.wheelLeft(layout.width(), layout.height()) && x <= layout.width()
                 && y > chrome.bottom() && y < chrome.carouselTop();
     }
 
     @Override public void render(float delta) {
+        delta = Float.isFinite(delta) ? Math.max(0, Math.min(2, delta)) : 0;
         if (outgoing.advance(delta)) return;
         UiLayout layout = view.prepare();
         if (!update(layout, delta)) return;
@@ -224,7 +227,7 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     /** Input, model synchronization, animation and resource preparation precede drawing. */
     private boolean update(UiLayout layout, float delta) {
-        seconds += Math.min(delta, .05f);
+        seconds += delta;
         setClickGuard = Math.max(0, setClickGuard - Math.max(0, delta));
         calculateLayout(layout);
         if (scoreSnapshot.refresh(sets)) {
@@ -235,6 +238,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         visibleRows = layoutRows(layout, delta);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+            rowPointer.cancel();
             var oldSort = browser.sort(); var oldGroup = browser.group();
             if (toolbox.open()) SongSelectToolboxOverlay.click(toolbox,layout,px,py);
             else if (controls.click(px, py, layout.width(), layout.height(), browser)) {
@@ -254,10 +258,18 @@ public final class SongSelectScreen extends ScreenAdapter {
                 searchActive = false;
                 int slot = scoreBounds(layout).slot(px, py);
                 if (slot >= 0) scores.select(scores.first() + slot);
-                else handleRowClick(px, py);
+                else {
+                    var row = hitRow(px, py);
+                    rowPointer.press(row == null ? null : rowKey(row.setIndex(), row.difficultyIndex()), px, py);
+                }
             }
         }
 
+        if (toolbox.open() || importing || outgoing.pending()) rowPointer.cancel();
+        var releasedRow = hitRow(px, py);
+        if (rowPointer.update(Gdx.input.isButtonPressed(Input.Buttons.LEFT),
+                releasedRow == null ? null : rowKey(releasedRow.setIndex(), releasedRow.difficultyIndex()), px, py) != null)
+            handleRowClick(px, py);
         prepareRowPresentations();
         backgroundFade = Math.min(1, backgroundFade + Math.max(0, delta) / .22f);
         return true;
@@ -404,7 +416,8 @@ public final class SongSelectScreen extends ScreenAdapter {
                 }
             }
             groupLabels = Map.copyOf(labels);
-            carousel.content(entries, viewportHeight, height, height * SongSelectMetrics.SET_PITCH, height * SongSelectMetrics.DIFFICULTY_PITCH, selectedRowKey());
+            carousel.content(entries, viewportHeight, height, SongSelectMetrics.rowPitch(layout.height()), SongSelectMetrics.rowPitch(layout.height()),
+                    selectedRowKey(), layout.height(), top);
             contentDirty = false;
             contentWidth = layout.width(); contentViewportHeight = viewportHeight; contentRowHeight = height;
         }
@@ -494,7 +507,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         var paths = new java.util.HashSet<Path>();
         if (backgroundPath != null) paths.add(backgroundPath);
         if (showThumbnails()) for (var row : visibleRows) {
-            if (row.setIndex() < 0) continue;
+            if (row.setIndex() < 0 || row.revealAmount() < .01f) continue;
             var set = sets.get(row.setIndex());
             var content = rowContent.get(row.difficultyIndex() < 0 ? set : set.difficulties().get(row.difficultyIndex()));
             if (content.thumbnail() != null) paths.add(content.thumbnail());

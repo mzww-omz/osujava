@@ -18,13 +18,18 @@ class SongSelectNavigationTest {
     private final BeatmapLibrary library = new BeatmapLibrary();
     private SongSelectScreen screen;
     private int importRequests;
-    private boolean shift;
+    private boolean shift, pointerPressed, pointerClicked;
+    private int pointerX, pointerY;
 
     @BeforeEach void setup() {
         oldInput = Gdx.input;
         Gdx.input = (Input) Proxy.newProxyInstance(Input.class.getClassLoader(),new Class[]{Input.class},(p,m,a) -> switch(m.getName()) {
             case "setInputProcessor" -> { processor = (InputProcessor)a[0]; yield null; }
             case "getInputProcessor" -> processor;
+            case "getX" -> pointerX;
+            case "getY" -> pointerY;
+            case "isButtonPressed" -> pointerPressed;
+            case "isButtonJustPressed" -> pointerClicked;
             case "isKeyPressed" -> shift && ((int)a[0] == Input.Keys.SHIFT_LEFT || (int)a[0] == Input.Keys.SHIFT_RIGHT);
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
@@ -164,7 +169,7 @@ class SongSelectNavigationTest {
         assertSame(rows,carousel().rows()); assertEquals(offset,carousel().scrollOffset());
         assertTrue(carousel().scrollTarget() > offset); settle();
         var selected = carousel().rows().stream().filter(r -> r.entry.setIndex() == 1 && r.entry.difficultyIndex() == 1).findFirst().orElseThrow();
-        assertEquals(371,carousel().renderY(selected,658) + carousel().rowHeight()/2,.01);
+        assertEquals(390,carousel().renderY(selected,658) + carousel().rowHeight()/2,.01);
     }
 
     @Test void expansionIncludesEveryDifficultyInLibraryOrderAndCollapsesPreviousSet() throws Exception {
@@ -191,13 +196,13 @@ class SongSelectNavigationTest {
         for (String title : List.of("Delta", "Epsilon"))
             library.add(new BeatmapSet(title,title,"Artist","Creator",null,null,List.of(diff),List.of()));
         open("Beta",0); screen.resize(1280,720);
-        var row = carousel().rows().stream().filter(r -> r.entry.setIndex() == 3).findFirst().orElseThrow();
+        var row = carousel().rows().stream().filter(r -> r.entry.setIndex() == 4).findFirst().orElseThrow();
         float x = 1245, y = carousel().renderY(row,658) + carousel().rowHeight()/2;
         assertTrue(y > 84 && y < 140, "Row overlaps the logo artwork");
         assertFalse(((OsuCookie)field("playCookie")).hit(x,y));
         var method = SongSelectScreen.class.getDeclaredMethod("handleRowClick",float.class,float.class);
         method.setAccessible(true); method.invoke(screen,x,y);
-        selected(3,0,"Alpha-easy.png");
+        selected(4,0,"Gamma-easy.png");
         assertFalse(((UiNavigation)field("outgoing")).pending());
     }
 
@@ -218,7 +223,7 @@ class SongSelectNavigationTest {
             assertEquals(2,carousel().rows().stream().filter(r -> r.entry.setIndex() == (int)uncheckedField("selectedSetIndex")).count());
             settle();
             var row = carousel().rows().stream().filter(r -> r.entry.setIndex() == (int)uncheckedField("selectedSetIndex") && r.entry.difficultyIndex() == 0).findFirst().orElseThrow();
-            assertEquals(371,carousel().renderY(row,658) + carousel().rowHeight()/2,.01);
+            assertEquals(390,carousel().renderY(row,658) + carousel().rowHeight()/2,.01);
         }
     }
     private Object uncheckedField(String name) {
@@ -318,19 +323,31 @@ class SongSelectNavigationTest {
         }
     }
 
-    @Test void pageKeysScrollWithoutChangingSelectionAndArrowKeysChooseSets() throws Exception {
+    @Test void shortPageTraversalReturnsToOriginAndArrowKeysChooseSets() throws Exception {
         open("Beta", 1); screen.resize(1280, 720);
         var browser = (SongBrowserModel) field("browser");
         var selection = browser.selection();
-        float initial = carousel().scrollTarget();
-        key(Input.Keys.PAGE_DOWN);
-        assertTrue(carousel().scrollTarget() > initial);
-        assertEquals(selection, browser.selection());
-        key(Input.Keys.PAGE_UP);
-        assertTrue(carousel().scrollTarget() < initial);
-        assertEquals(selection, browser.selection());
+        key(Input.Keys.PAGE_DOWN); assertEquals(selection, browser.selection());
+        key(Input.Keys.PAGE_UP); assertEquals(selection, browser.selection());
         key(Input.Keys.RIGHT); selected(2, 0, "Gamma-easy.png");
         key(Input.Keys.LEFT); selected(1, 0, "Beta-easy.png");
+    }
+
+    @Test void productionPointerSelectsOnlyAfterReleaseOverThePressedRow() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle();
+        var row = ((List<?>) field("visibleRows")).stream().map(SongSelectRow.class::cast)
+                .filter(r -> r.setIndex() == 2 && r.difficultyIndex() == -1).findFirst().orElseThrow();
+        pointerX = Math.round(row.x() + 120); pointerY = 720 - Math.round(row.y() + row.height() / 2);
+        var update = SongSelectScreen.class.getDeclaredMethod("update", dev.osujava.ui.theme.UiLayout.class, float.class);
+        update.setAccessible(true);
+        var layout = dev.osujava.ui.theme.UiLayout.fromPixels(1280, 720);
+        pointerClicked = true; pointerPressed = true; update.invoke(screen, layout, 0f);
+        selected(1, 0, "Beta-easy.png");
+        pointerClicked = false; update.invoke(screen, layout, 0f);
+        selected(1, 0, "Beta-easy.png");
+        pointerPressed = false; update.invoke(screen, layout, 0f);
+        selected(2, 0, "Gamma-easy.png");
+        assertFalse(((UiNavigation) field("outgoing")).pending());
     }
 
 }

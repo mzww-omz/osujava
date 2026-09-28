@@ -23,6 +23,7 @@ final class SongSelectCarousel {
     private String selectedKey, hoverKey;
     private float hoverAbsence, viewportHeight, rowHeight = 76, scrollOffset, scrollTarget, maxScroll;
     private boolean initialized;
+    private float selectionAnchor, screenHeight, viewportTop, referenceScale;
     private float scrollVelocity, velocityInfluence, viewportVelocity, rowStep = 72;
     private static final float SPRING_RATE = 18;
     private static final float VELOCITY_DECAY = 5;
@@ -43,6 +44,11 @@ final class SongSelectCarousel {
     }
 
     void content(List<Entry> entries, float height, float size, float setPitch, float difficultyPitch, String selection) {
+        content(entries, height, size, setPitch, difficultyPitch, selection, height, height);
+    }
+
+    void content(List<Entry> entries, float height, float size, float setPitch, float difficultyPitch,
+                 String selection, float fullHeight, float top) {
         Map<String, Row> previous = new HashMap<>(byKey);
         // Representatives let both expansion and collapse inherit the actual on-screen position.
         Map<String, Row> representatives = new HashMap<>();
@@ -55,16 +61,20 @@ final class SongSelectCarousel {
             anchor = representatives.get(setKey(entry));
             break;
         }
-        float oldOffset = scrollOffset, oldTarget = scrollTarget, oldStep = rowStep, oldHeight = viewportHeight;
+        float oldOffset = scrollOffset, oldTarget = scrollTarget, oldStep = rowStep, oldAnchor = selectionAnchor;
         float anchorY = anchor == null ? 0 : anchor.logicalY - oldOffset;
         viewportHeight = validSize(height, 620);
+        screenHeight = validSize(fullHeight, viewportHeight);
+        viewportTop = Float.isFinite(top) ? top : screenHeight;
+        referenceScale = SongSelectMetrics.carouselScale(screenHeight);
+        selectionAnchor = SongSelectMetrics.selectionAnchor(screenHeight, viewportTop, viewportHeight);
         rowHeight = validSize(size, 76);
         rowStep = validSize(setPitch, 72);
         float childStep = validSize(difficultyPitch, rowStep);
         scrollVelocity = Math.max(-rowHeight * VELOCITY_LIMIT_ROWS, Math.min(rowHeight * VELOCITY_LIMIT_ROWS, scrollVelocity));
         byKey.clear();
         List<Row> next = new ArrayList<>(entries.size());
-        float logicalY = viewportHeight / 2;
+        float logicalY = selectionAnchor;
         for (int i = 0; i < entries.size(); i++) {
             Entry entry = entries.get(i);
             if (i > 0 && (entry.header() || entries.get(i - 1).header()))
@@ -79,7 +89,7 @@ final class SongSelectCarousel {
             byKey.put(entry.key(), row);
         }
         rows = List.copyOf(next);
-        maxScroll = Math.max(0, logicalY - viewportHeight / 2);
+        maxScroll = Math.max(0, logicalY - selectionAnchor);
         Row newAnchor = byKey.get(selection);
         if (initialized && anchor != null && newAnchor != null)
             scrollOffset = newAnchor.logicalY - anchorY;
@@ -101,8 +111,8 @@ final class SongSelectCarousel {
         }
         if (!java.util.Objects.equals(selection, selectedKey) || !initialized) select(selection);
         else if (newAnchor != null) {
-            float browsingOffset = anchor == null ? 0 : oldTarget - anchor.logicalY + oldHeight / 2;
-            scrollTarget = clamp(newAnchor.logicalY - viewportHeight / 2 + browsingOffset * rowStep / oldStep);
+            float browsingOffset = anchor == null ? 0 : oldTarget - anchor.logicalY + oldAnchor;
+            scrollTarget = clamp(newAnchor.logicalY - selectionAnchor + browsingOffset * rowStep / oldStep);
         } else scrollTarget = clamp(oldTarget * rowStep / oldStep);
         if (!initialized) {
             scrollOffset = scrollTarget;
@@ -132,14 +142,14 @@ final class SongSelectCarousel {
         if (initialized && java.util.Objects.equals(selectedKey, key)) return;
         selectedKey = key;
         Row selected = byKey.get(key);
-        scrollTarget = clamp(selected == null ? scrollOffset : selected.logicalY - viewportHeight / 2);
+        scrollTarget = clamp(selected == null ? scrollOffset : selected.logicalY - selectionAnchor);
     }
 
     /** Reordering has no spatial correspondence: discard row travel and center selection. */
     void reordered() {
         for (Row row : rows) { row.expansionY = 0; row.expansionVelocityY = 0; }
         Row selected = byKey.get(selectedKey);
-        scrollTarget = clamp(selected == null ? 0 : selected.logicalY - viewportHeight / 2);
+        scrollTarget = clamp(selected == null ? 0 : selected.logicalY - selectionAnchor);
         scrollVelocity = 0;
     }
 
@@ -187,7 +197,7 @@ final class SongSelectCarousel {
         float selectionEase = ease(dt, 10), expansionEase = ease(dt, 9);
         for (Row row : rows) {
             float selectionSpace = selected == null ? 0 : Math.signum(selected.logicalY - row.logicalY) * rowHeight * SongSelectMetrics.SELECTION_SPACING;
-            float separation = hovered == null ? 0 : Math.signum(hovered.logicalY - row.logicalY) * rowHeight * SongSelectMetrics.HOVER_SPACING * hoverStrength;
+            float separation = hovered == null ? 0 : Math.signum(hovered.logicalY - row.logicalY) * referenceScale * SongSelectMetrics.HOVER_SPACING * hoverStrength;
             float down = visualDown(row);
             if ((down < -rowHeight * 2 || down > viewportHeight + rowHeight * 2)
                     && Math.abs(row.expansionY) < .01f && Math.abs(row.expansionVelocityY) < .01f && row.hoverAmount < .01f && row.selectedAmount < .01f
@@ -219,21 +229,20 @@ final class SongSelectCarousel {
     }
     float renderY(Row row, float top) { return top - visualDown(row) - rowHeight / 2; }
     float renderX(Row row, float width) {
-        float normalized = (visualDown(row) - viewportHeight / 2) / (viewportHeight / 2);
-        float distance = Math.min(1, Math.abs(normalized));
-        // A gentle push at the center and pinch toward it near the ends, bounded to 5 UI units.
+        float screenDown = screenHeight - viewportTop + visualDown(row);
+        float distance = Math.min(1, Math.abs(screenDown - screenHeight / 2) / (screenHeight / 2));
         float velocityOffset = (3 - 8 * distance) * velocityInfluence;
         return Math.max(width * SongSelectMetrics.MIN_ROW_X, Math.min(width * SongSelectMetrics.MAX_ROW_X,
-                curveX(normalized, width) - width * SongSelectMetrics.GROUP_INDENT * row.groupAmount
-                        - SongSelectMetrics.SELECTED_INDENT * row.selectedAmount - SongSelectMetrics.HOVER_INDENT * row.hoverAmount
+                SongSelectMetrics.curveX(screenDown, width, screenHeight) - width * SongSelectMetrics.GROUP_INDENT * row.groupAmount
+                        - SongSelectMetrics.SELECTED_INDENT * row.selectedAmount
+                        - SongSelectMetrics.HOVER_INDENT * referenceScale * row.hoverAmount
                         + velocityOffset + row.expansionX));
     }
 
-    /** A smooth bounded arch, designed for osujava rather than sampled from another client. */
+    /** Normalized screen-center distance on the usual 720-high logical viewport. */
     static float curveX(float distance, float width) {
         float bounded = Float.isFinite(distance) ? Math.min(100, Math.abs(distance)) : 100;
-        float squared = bounded * bounded;
-        return width * (SongSelectMetrics.CURVE_ORIGIN + SongSelectMetrics.CURVE_DEPTH * squared / (1 + squared));
+        return SongSelectMetrics.curveX(360 + bounded * 360, width, 720);
     }
 
     static float skinRowHeight(float logicalWidth, float logicalHeight, float carouselWidth) {

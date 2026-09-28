@@ -180,4 +180,21 @@ class SongBrowserModelTest {
         assertSame(first.difficulties().getFirst(), model.selectedDifficulty());
     }
 
+    @Test void pagingCountsVisibleRowsOnceAndNeverExpandsIntermediateSets() {
+        var sets = new ArrayList<BeatmapSet>();
+        for (int i = 0; i < 20; i++) sets.add(set("set" + i, String.format("Song %02d", i), "Artist", "Mapper", 120, 1000));
+        var model = new SongBrowserModel(sets);
+        model.group(SongBrowserModel.Group.ARTIST);
+        model.movePage(1);
+        assertEquals("set10", model.selectedSet().id());
+        model.movePage(-1);
+        assertEquals("set0", model.selectedSet().id());
+        model.movePage(-1);
+        assertEquals("set10", model.selectedSet().id());
+        model.search("Song 00");
+        var selected = model.selection();
+        model.movePage(1); assertEquals(selected, model.selection());
+        model.search("no match"); model.movePage(1); assertNull(model.selectedSet());
+    }
+
 }

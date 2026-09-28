@@ -55,7 +55,7 @@ final class SongSelectInput extends InputAdapter {
         }
         var action = SongSelectAction.shortcut(key, false);
         if (action != null) { target.perform(action); return true; }
-        // Public Stable shortcut semantics; page distance remains an independent local metric.
+        // Arrow roles follow the public shortcuts; executable tracing establishes ten-entry paging.
         switch (key) {
             case Input.Keys.UP -> target.difficulty(-1);
             case Input.Keys.DOWN -> target.difficulty(1);
