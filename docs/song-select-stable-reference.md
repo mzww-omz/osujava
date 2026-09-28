@@ -164,3 +164,28 @@ Motion update `0x06003254` exponentially decays velocity using shared elapsed ti
 Direct binary evidence supersedes the initial Page-key assumption and permits independent layout metrics to use the confirmed 480-high coordinate basis. Row pitch must be independent from unusual texture padding/dimensions, while image placement can preserve the authored asset. Hover and selection remain distinct.
 
 Keep tested osujava spring convergence, identity/empty-library repair, Unicode fit, local-only services and provider fallback unless a scoped implementation step changes them with regression tests. Do not claim exact stable motion, Set-focus timing, raw hitboxes, font baselines, Random distribution or asset resolver internals: those remain partially or wholly unverified. The client itself has still not been executed, so direct screen comparisons remain outstanding.
+
+## Follow-up chrome coordinate trace (2026-09-28)
+
+Same reference executable/hash as above, read-only. Method/field tokens below are
+identifiers in this build, not portable API names. No restored code is included.
+Runtime startup failed before Song Select; see `song-select-repair.md`. This table
+records static observations and their limits, not live visual parity.
+
+| Stable specification / evidence | Stable implementation locator | osujava current behaviour | Follow-up decision |
+| --- | --- | --- | --- |
+| Standard UI scale is screen height / 480; asset canvas scale is screen height / 768 | Display constructor `0x06001dc8` initializes reference height field `0x04001397` to 768; getters `0x06001dcb`, `0x06001dd1` | Carousel uses height/480; chrome uses height/768; UiLayout then maps once to window/framebuffer | Retain. Greylooks dimension logs show no duplicate density factor |
+| Texture width/height accessors divide underlying dimensions by a texture divisor | `0x06000739`, `0x0600073a`, divisor field `0x0400033c` | Resolver normalizes SD/@2x once | Retain; the complete divisor initialization/lookup chain has not been established here |
+| Bottom sprite uses BottomLeft origin at standard `(0,480)`; X scale is derived from screen width divided by image width×0.625, Y scale remains 1 | Song Select constructor `0x0600136e`, offsets `1c94–1d10`; sprite constructor `0x060040a7`, Origins enum `0x02000aec`, origin calculation `0x060040bc` | Bottom image stretches in X, uses native SD height×height/768, anchored at bottom 0 in bottom-left Java coordinates | Retain ordinary sizing. Giant-image clipping/reservation still unverified; do not label the 30% cap a Stable rule |
+| Top uses TopLeft origin, standard `(0,0)`; additional right extension uses a one-column crop | `0x0600136e`, offsets `1b3a–1c2c`, crop fields `0x04002852`/`0x04002851`; sprite field type 6 scales position by height/480 in `0x060040af` | Top-left native SD artwork plus repeating edge strip | No change: physical-width threshold and texture crop interpretation require further verification |
+| Legacy selection artwork uses standard top-left Y=426; newer artwork uses bottom-oriented field type 12 and BottomLeft origin; widescreen X=140 versus 120, then first step 57.6 and later steps 48 | `0x0600136e`, offsets `0803–0ef8`; `0x060040af` field-type dispatch | Legacy top uses 87 SD above bottom; modern bottom at 0; X=224/192 SD, widths 92/77 SD | Existing values are near-rounded asset-canvas equivalents, not identical constants. Do not silently claim exact parity (legacy top differs by 0.6 SD) |
+| Back artwork uses BottomLeft at standard `(0,480)` | Back controller constructor `0x06003a15`, sprite origin code `0x060040bc` | Native SD bottom-left, alpha-bounded input restricted to navigation slot | Retain anchor. Full Stable hit policy/animated sizing not confirmed here |
+| Row pitch=48, selection target=220, horizontal reference=screen logical width−340, hover displacement=45 and neighbour displacement=10 in 480-high coordinates | Previously traced `0x0600325a`, `0x06003250`/`3251`, `0x0600322c`, `0x0600325d`/`325f`; preceding sections document clock/input/call chain | Converted once into 720-high UI; local expansion/spring and group indentation remain | Overlay now exposes actual computed rectangles and target line; no new claim that local group offsets reproduce Stable |
+| Pointer press/release candidate, wheel velocity/decay and cyclic keyboard/page traversal | Previously traced `0x06003243–3247`, `3254`, `3276–3277` | Shared animated row hitboxes, local wheel spring and immediate keyboard selection | No behaviour changes in this pass; prior intentional differences remain |
+| Metadata title and detail text positions are distinct; constructor includes title at `(21,-3)`, subsequent positions `(23,12)`, `(1,24)`, `(1,36)`, `(1,48)`, `(1,56)` | `0x0600136e` beginning around offset `03d3` | Existing 720-high metadata layout and local ranking panel | Parent transforms, text origin and font scaling remain to be resolved. These literals alone do not justify moving Java labels |
+| Thumbnail, ranking panel overall bounds and corner Cookie | Not established by this follow-up; old public-reference observations remain limited | Existing thumbnail version gate, local ranking panel and generated java Cookie | No speculative sizing change; retain as explicitly unresolved parity items |
+
+The scale relation `0.625 = 480/768` explains why skin image dimensions and
+standard UI coordinates cannot be used interchangeably. A 90-SD-pixel bottom image
+has height `90×720/768 = 84.375` at 720p, not 90×720/480. This particular dimension
+matches current osujava; it does not validate its layering or giant-asset policy.
