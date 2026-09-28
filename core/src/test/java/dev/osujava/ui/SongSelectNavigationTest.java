@@ -103,6 +103,40 @@ class SongSelectNavigationTest {
         selected(1,1,"Beta-hard.png");
     }
 
+    @Test void modsOverlayConsumesNavigationSearchImportPlayAndDebugUntilClosed() throws Exception {
+        open("Beta",1); key(Input.Keys.F1);
+        var toolbox = (SongSelectToolboxState) field("toolbox");
+        assertEquals(SongSelectToolboxState.Overlay.MODS,toolbox.overlay());
+        for (int k : new int[]{Input.Keys.F2,Input.Keys.F3,Input.Keys.I,Input.Keys.ENTER,Input.Keys.F6,Input.Keys.DOWN}) key(k);
+        assertTrue(processor.keyTyped('A')); assertTrue(processor.scrolled(0,1));
+        assertEquals("",field("search")); assertEquals(0,importRequests);
+        selected(1,1,"Beta-hard.png"); assertFalse(((UiNavigation)field("outgoing")).pending());
+        assertTrue(toolbox.active().isEmpty());
+        for (var mod : SongSelectToolboxState.Mod.values()) { assertFalse(mod.available()); assertFalse(toolbox.toggle(mod)); }
+        key(Input.Keys.NUM_1); assertTrue(toolbox.active().isEmpty());
+        key(Input.Keys.ESCAPE); assertFalse(toolbox.open());
+        screen.browserMode(SongBrowserModel.Sort.BPM,SongBrowserModel.Group.ARTIST);
+        key(Input.Keys.F1); key(Input.Keys.F1); assertFalse(toolbox.open());
+        key(Input.Keys.RIGHT); selected(1,1,"Beta-hard.png");
+    }
+
+    @Test void optionsShortcutReportsUnavailableWithoutOpeningFakeMenuOrGameplay() throws Exception {
+        open("Beta",1); key(Input.Keys.F3);
+        assertTrue(((String)field("toast")).contains("unavailable"));
+        assertFalse(((SongSelectToolboxState)field("toolbox")).open());
+        assertFalse(((UiNavigation)field("outgoing")).pending()); selected(1,1,"Beta-hard.png");
+    }
+
+    @Test void modeViewOnlyReportsActuallySupportedRulesetAndEscClosesIt() throws Exception {
+        open("Beta",1);
+        var perform = SongSelectScreen.class.getDeclaredMethod("perform",SongSelectAction.class); perform.setAccessible(true);
+        perform.invoke(screen,SongSelectAction.MODE);
+        assertEquals(SongSelectToolboxState.Overlay.MODE,((SongSelectToolboxState)field("toolbox")).overlay());
+        for (int k : new int[]{Input.Keys.F2,Input.Keys.ENTER,Input.Keys.I}) key(k);
+        selected(1,1,"Beta-hard.png"); assertEquals(0,importRequests);
+        key(Input.Keys.ESCAPE); assertFalse(((SongSelectToolboxState)field("toolbox")).open());
+    }
+
     @Test void enterSpaceDebugAutoAndBackStillRequestTheirTransition() throws Exception {
         for (int key : new int[]{Input.Keys.ENTER,Input.Keys.SPACE,Input.Keys.F6,Input.Keys.ESCAPE}) {
             open("Beta",1); key(key);

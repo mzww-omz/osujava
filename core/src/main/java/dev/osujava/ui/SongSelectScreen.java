@@ -23,6 +23,7 @@ import dev.osujava.library.ImportResult;
 import dev.osujava.skin.SkinConfiguration;
 import dev.osujava.skin.SongSelectSkinAssets;
 import dev.osujava.skin.SongSelectSkinAssets.Image;
+import dev.osujava.skin.SongSelectSkinAssets.Selection;
 import dev.osujava.ui.theme.UiLayout;
 import dev.osujava.ui.theme.UiNavigation;
 import dev.osujava.ui.theme.UiTheme;
@@ -57,8 +58,10 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final UiView view;
     private SongSelectSkinAssets skin;
     private Color activeText = DARK_TEXT, inactiveText;
-    private float randomFade, randomPulse;
-    private final Color randomOverlayTint = new Color(Color.WHITE);
+    private final SongSelectToolboxState toolbox = new SongSelectToolboxState();
+    private final Color actionTint = new Color(Color.WHITE);
+    private final java.util.EnumSet<Selection> renderedSelectionProcedural = java.util.EnumSet.noneOf(Selection.class);
+    boolean renderedSelectionProcedural(Selection action) { return renderedSelectionProcedural.contains(action); }
     private final Color rowTint = new Color(), thumbnailTint = new Color();
     private final Color primaryTint = new Color(), secondaryTint = new Color(), detailTint = new Color(), starTint = new Color();
     private final Map<Object, SongSelectRowPresentation.Content> rowContent = new IdentityHashMap<>();
@@ -92,7 +95,8 @@ public final class SongSelectScreen extends ScreenAdapter {
     private float toastSeconds, seconds, setClickGuard;
     private float backgroundFade;
     private Path backgroundPath;
-    private SongSelectChrome.Bottom bottomLayout;
+    private SongSelectToolboxLayout bottomLayout;
+    private float toolboxWidth = -1, toolboxHeight = -1;
     private SongSelectChrome.Content chromeContent;
     private float chromeWidth = -1, chromeHeight = -1;
     SongSelectChrome.Content chromeBounds(UiLayout layout) {
@@ -166,10 +170,18 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
         contentDirty = true;
         chromeContent = null;
+        bottomLayout = null;
         syncBrowser(true);
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override public boolean keyDown(int key) {
                 if (AppShortcuts.handleQuit(key)) return true;
+                if (toolbox.open()) {
+                    if (key == Input.Keys.ESCAPE || key == Input.Keys.NUM_2
+                            || key == Input.Keys.F1 && toolbox.overlay() == SongSelectToolboxState.Overlay.MODS) toolbox.close();
+                    else if (key == Input.Keys.NUM_1 && toolbox.overlay() == SongSelectToolboxState.Overlay.MODS) toolbox.reset();
+                    return true;
+                }
+                if (key == Input.Keys.F1 || key == Input.Keys.F3) { perform(SongSelectAction.shortcut(key,false)); return true; }
                 if (key == Input.Keys.F2) {
                     perform(SongSelectAction.shortcut(key, Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)));
                     return true;
@@ -197,6 +209,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 return false;
             }
             @Override public boolean keyTyped(char character) {
+                if (toolbox.open()) return true;
                 if (Character.isISOControl(character)) return false;
                 controls.close();
                 searchActive = true;
@@ -208,6 +221,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 return true;
             }
             @Override public boolean scrolled(float amountX, float amountY) {
+                if (toolbox.open()) return true;
                 if (!Float.isFinite(amountY) || amountY == 0
                         || !usesMouseWheelAt(Gdx.input.getX(), Gdx.input.getY())) return false;
                 if (!importing) {
@@ -231,6 +245,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     /** Reserve each browser viewport, including row gaps and empty results. */
     public boolean usesMouseWheelAt(int screenX, int screenY) {
         if (closed || outgoing.pending()) return false;
+        if (toolbox.open()) return true;
         if (Gdx.graphics.getWidth() <= 0 || Gdx.graphics.getHeight() <= 0) return false;
         UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         float x = layout.pointerX(screenX), y = layout.pointerY(screenY);
@@ -250,12 +265,15 @@ public final class SongSelectScreen extends ScreenAdapter {
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             var oldSort = browser.sort(); var oldGroup = browser.group();
-            if (controls.click(px, py, layout.width(), layout.height(), browser)) {
+            if (toolbox.open()) SongSelectToolboxOverlay.click(toolbox,layout,px,py);
+            else if (controls.click(px, py, layout.width(), layout.height(), browser)) {
                 if (oldSort != browser.sort() || oldGroup != browser.group()) { refreshBrowserOrder(); }
             }
             else if (px >= searchX && px <= searchX + searchW && py >= layout.height() - 58 && py <= layout.height() - 33) searchActive = true;
             else if (SongSelectAction.bottom(px, py, bottomLayout) != null) {
                 var action = SongSelectAction.bottom(px, py, bottomLayout);
+                if (action == SongSelectAction.RANDOM && (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)
+                        || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT))) action = SongSelectAction.PREVIOUS_RANDOM;
                 if (action == SongSelectAction.RANDOM) searchActive = false;
                 perform(action);
                 if (action == SongSelectAction.BACK) return;
@@ -272,11 +290,6 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.clear();
         backgroundFade = Math.min(1, backgroundFade + Math.max(0, delta) / .22f);
         view.background(thumbnails.get(backgroundPath), .72f * backgroundFade);
-        randomPulse = Math.max(0, randomPulse - Math.max(0, delta));
-        boolean randomEnabled = !visibleRows.isEmpty() && !importing && !outgoing.pending();
-        float fadeTarget = randomEnabled && (randomHit(px, py) || randomPulse > 0) ? 1 : 0;
-        float fadeStep = Math.max(0, delta) / .14f;
-        randomFade += Math.max(-fadeStep, Math.min(fadeStep, fadeTarget - randomFade));
         view.beginShapes();
         view.box(0, 0, layout.width(), layout.height(), 0, DIM);
         renderedTopProcedural = SongSelectChrome.procedural(skin, Image.TOP);
@@ -288,48 +301,59 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.endShapes();
         view.beginText();
         drawTopSkin(layout);
-        skinImage(Image.BOTTOM, bottomLayout.skinBounds(), Color.WHITE);
+        skinImage(Image.BOTTOM, bottomLayout.chrome, Color.WHITE);
         view.endText();
         view.beginShapes();
-        if (!has(Image.BACK)) chromeBox(bottomLayout.back(), BACK_PINK);
-        if (!has(Image.RANDOM)) chromeBox(bottomLayout.random(),
-                !randomEnabled ? LEFT : randomFade > 0 ? SIBLING_HOVER : OTHER);
+        if (!has(Image.BACK)) chromeBox(bottomLayout.back, BACK_PINK);
+        renderedSelectionProcedural.clear();
+        for (var action : Selection.values()) if (!has(action.normal)) {
+            renderedSelectionProcedural.add(action);
+            var slot = bottomLayout.control(action).slot();
+            boolean hover = !toolbox.open() && bottomLayout.control(action).interaction().contains(px,py);
+            chromeBox(slot,!selectionEnabled(action) ? LEFT : hover ? SIBLING_HOVER : OTHER);
+        }
         if (searchActive || !search.isEmpty()) view.box(searchX, layout.height() - 58, searchW, 25, 0, LEFT);
         view.box(18, chromeContent.rankingHeaderTop() - 28, layout.width() * .35f, 28, 0, TOP);
         drawScoreShapes(layout, px, py);
         if (toastSeconds > 0) view.box(18, bottom + 12, Math.min(450, layout.width() * .42f), 35, 0, BOTTOM);
         view.endShapes();
+        // Composite selection artwork belongs under browser content and the independent Cookie.
+        view.beginText();
+        for (var action : Selection.values()) drawSelection(action,px,py);
+        view.endText();
         drawRows(layout);
         if (selectedDifficulty() != null) {
-            playCookie.draw(view, seconds, playCookie.hit(px, py), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
+            playCookie.draw(view, seconds, !toolbox.open() && playCookie.hit(px, py),
+                    !toolbox.open() && Gdx.input.isButtonPressed(Input.Buttons.LEFT));
         }
         view.beginText();
-        drawAction(Image.BACK, bottomLayout.back(), Color.WHITE);
-        Color randomTint = randomEnabled ? Color.WHITE : RANDOM_DISABLED;
-        drawAction(Image.RANDOM, bottomLayout.random(), randomTint);
-        if (has(Image.RANDOM) && randomEnabled)
-            drawAction(Image.RANDOM_OVER, bottomLayout.random(), randomOverlayTint.set(1, 1, 1, randomFade));
+        skinImage(Image.BACK,bottomLayout.backImage,Color.WHITE);
         drawMetadata(layout);
         drawRanking(layout);
         controls.drawLabels(view, layout.width(), layout.height(), browser);
         view.textSmooth(search.isEmpty() ? "Search: type to search" : search + (searchActive ? "|" : ""),
                 searchX + 9, layout.height() - 51, searchW - 18, .75f, search.isEmpty() ? UiTheme.MUTED : UiTheme.TEXT);
-        float labelY = bottomLayout.controlBaseline() + bottomLayout.actionHeight() * .5f;
-        if (!has(Image.BACK)) view.textSmooth("‹  back", bottomLayout.back().x() + 22, labelY,
-                bottomLayout.back().width() - 30, 1.2f, UiTheme.TEXT);
-        var importBounds = bottomLayout.importAction();
-        // Local helper: quiet text in the common action slot, without a primary navigation panel.
-        view.textSmooth("Import", importBounds.x() + 14, labelY + 5, importBounds.width() - 24, .72f, UiTheme.MUTED);
-        view.textSmooth(".osz / .osu", importBounds.x() + 14, labelY - 13, importBounds.width() - 24, .55f, UiTheme.MUTED);
-        if (!has(Image.RANDOM)) view.textSmooth("F2 Random", bottomLayout.random().x() + 7, labelY,
-                bottomLayout.random().width() - 14, .70f, !randomEnabled ? UiTheme.MUTED : UiTheme.TEXT);
-        view.textSmooth("Local Library", layout.width() * .49f, labelY + 7, layout.width() * .20f, .72f, UiTheme.MUTED);
-        view.textSmooth(browser.visibleSets().size() + " / " + sets.size() + " sets", layout.width() * .49f, labelY - 12,
-                layout.width() * .20f, .62f, UiTheme.MUTED);
-        view.textSmooth("F6  DEBUG AUTO", layout.width() * .73f, labelY - 12, 132, .55f, UiTheme.MUTED);
+        float labelY = bottomLayout.baseline + bottomLayout.controlHeight * .5f;
+        if (!has(Image.BACK)) view.textSmooth("‹  back", bottomLayout.back.x() + 22, labelY,
+                bottomLayout.back.width() - 30, 1.2f, UiTheme.TEXT);
+        for (var action : Selection.values()) if (!has(action.normal)) {
+            var slot = bottomLayout.control(action).slot();
+            view.textSmooth(action.name().substring(0,1) + action.name().substring(1).toLowerCase(Locale.ROOT),
+                    slot.x()+7,labelY,slot.width()-14,.65f,selectionEnabled(action) ? UiTheme.TEXT : UiTheme.MUTED);
+        }
+        var importBounds = bottomLayout.importAction;
+        view.textSmooth("I  Import",importBounds.x()+4,importBounds.y()+importBounds.height()*.55f,
+                importBounds.width()-8,.65f,UiTheme.MUTED);
+        var status = bottomLayout.status;
+        view.textSmooth(browser.visibleSets().size() + " / " + sets.size() + " local sets",status.x(),status.y()+8,status.width(),.60f,UiTheme.MUTED);
+        var debug = bottomLayout.debug;
+        view.textSmooth("F6  DEBUG AUTO",debug.x(),debug.y()+5,debug.width(),.50f,UiTheme.MUTED);
+        if (!toolbox.open() && bottomLayout.control(Selection.OPTIONS).interaction().contains(px,py))
+            view.textSmooth("Beatmap Options unavailable",bottomLayout.control(Selection.OPTIONS).slot().x(),bottom+14,220,.62f,UiTheme.MUTED);
         if (toastSeconds > 0) view.textSmooth(toast, 27, bottom + 34, Math.min(430, layout.width() * .4f), UiTheme.META, toastColor);
         view.endText();
         controls.drawMenu(view, layout.width(), layout.height(), browser);
+        SongSelectToolboxOverlay.draw(view,layout,toolbox);
         toastSeconds = Math.max(0, toastSeconds - Math.max(0, delta));
         view.fade(entrance, delta);
         view.cover(outgoing.opacity());
@@ -339,13 +363,16 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     private void calculateLayout(UiLayout layout) {
         viewportHeight = layout.height();
-        bottomLayout = SongSelectChrome.bottom(layout.width(), layout.height(), skin);
+        if (bottomLayout == null || toolboxWidth != layout.width() || toolboxHeight != layout.height()) {
+            bottomLayout = SongSelectToolboxLayout.create(layout.width(),layout.height(),skin);
+            toolboxWidth = layout.width(); toolboxHeight = layout.height();
+        }
         chromeContent = chromeBounds(layout);
         bottom = chromeContent.bottom();
         top = chromeContent.carouselTop();
         searchW = layout.width() * .36f;
         searchX = layout.width() - searchW - 16;
-        var cookie = bottomLayout.cookie();
+        var cookie = bottomLayout.cookie;
         cookieRadius = cookie.width() / 2;
         cookieX = cookie.x() + cookieRadius;
         cookieY = cookie.y() + cookieRadius;
@@ -356,7 +383,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private List<Row> layoutRows(UiLayout layout, float delta) {
         updateContent(layout);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
-        Row hit = hitRow(px, py);
+        Row hit = toolbox.open() ? null : hitRow(px, py);
         carousel.advance(delta, hit == null || hit.setIndex() < 0 ? null : rowKey(hit.setIndex(), hit.difficultyIndex()));
         List<Row> result = new ArrayList<>();
         for (SongSelectCarousel.Row entry : carousel.rows()) {
@@ -420,11 +447,15 @@ public final class SongSelectScreen extends ScreenAdapter {
         game.batch().setColor(Color.WHITE);
     }
 
+    private void skinImage(Image image, SongSelectToolboxLayout.Bounds bounds, Color tint) {
+        skinImage(image, bounds.x(), bounds.y(), bounds.width(), bounds.height(), tint);
+    }
+
     private void skinImage(Image image, SongSelectChrome.Bounds bounds, Color tint) {
         skinImage(image, bounds.x(), bounds.y(), bounds.width(), bounds.height(), tint);
     }
 
-    private void chromeBox(SongSelectChrome.Bounds bounds, Color tint) {
+    private void chromeBox(SongSelectToolboxLayout.Bounds bounds, Color tint) {
         view.box(bounds.x(), bounds.y(), bounds.width(), bounds.height(), 0, tint);
     }
 
@@ -445,17 +476,20 @@ public final class SongSelectScreen extends ScreenAdapter {
         skinImage(Image.TOP, bounds, Color.WHITE);
     }
 
-    private void drawAction(Image image, SongSelectChrome.Bounds slot, Color tint) {
-        if (!has(image)) return;
-        var asset = skin.get(image);
-        var body = skin.actionBody(image);
-        var bounds = SongSelectChrome.actionImage(slot, asset, body);
-        // An unusually wider overlay is fitted independently; never distort it to the normal canvas.
-        if (bounds.width() > slot.width()) {
-            float height = slot.width() * asset.logicalHeight() / asset.logicalWidth();
-            bounds = new SongSelectChrome.Bounds(slot.x(), slot.y() - body.bottom() * height, slot.width(), height);
-        }
-        skinImage(image, bounds, tint);
+    private boolean selectionEnabled(Selection action) {
+        return !importing && !outgoing.pending() && action != Selection.OPTIONS
+                && (action != Selection.RANDOM || !browser.visibleSets().isEmpty());
+    }
+
+    private void drawSelection(Selection action, float px, float py) {
+        var geometry = bottomLayout.control(action);
+        boolean hover = !toolbox.open() && geometry.interaction().contains(px,py);
+        boolean enabled = selectionEnabled(action);
+        boolean pressed = hover && enabled && Gdx.input.isButtonPressed(Input.Buttons.LEFT);
+        float brightness = !enabled ? .54f : pressed ? .78f : hover && !has(action.hover) ? 1 : .94f;
+        actionTint.set(brightness,brightness,brightness,1);
+        skinImage(action.normal,geometry.normal().image(),actionTint);
+        if (hover) skinImage(action.hover,geometry.hover().image(),actionTint);
     }
 
     private void skinImageFit(Image image, float x, float y, float w, float h, Color tint) {
@@ -635,7 +669,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         for (int slot = 0; slot < bounds.capacity() && scores.first() + slot < scores.rows().size(); slot++) {
             var row = scores.rows().get(scores.first() + slot);
             boolean selected = row.score().playId().equals(scores.selected());
-            boolean hover = bounds.slot(px, py) == slot;
+            boolean hover = !toolbox.open() && bounds.slot(px, py) == slot;
             view.box(bounds.x(), bounds.rowY(slot), bounds.width(), ScoreBrowserBounds.HEIGHT, 0,
                     selected ? SIBLING : hover ? TOP : LEFT);
             if (selected) view.box(bounds.x(), bounds.rowY(slot), 3, ScoreBrowserBounds.HEIGHT, 0, UiTheme.ACCENT);
@@ -712,13 +746,9 @@ public final class SongSelectScreen extends ScreenAdapter {
             setClickGuard = .24f;
         }
     }
-    private boolean randomHit(float x, float y) {
-        return SongSelectAction.bottom(x, y, bottomLayout) == SongSelectAction.RANDOM;
-    }
-
     private void randomize() {
         if (importing || outgoing.pending()) return;
-        browser.random(); syncBrowser(true); randomPulse = .20f;
+        browser.random(); syncBrowser(true);
     }
     private void previousRandom() {
         if (importing || outgoing.pending()) return;
@@ -800,7 +830,13 @@ public final class SongSelectScreen extends ScreenAdapter {
         return Math.round(min) == Math.round(max) ? "" + Math.round(max) : Math.round(min) + "–" + Math.round(max);
     }
     private void perform(SongSelectAction action) {
+        if (toolbox.open() || importing || outgoing.pending()) return;
         switch (action) {
+            case MODE, MODS -> {
+                controls.close(); searchActive = false;
+                toolbox.open(action == SongSelectAction.MODE ? SongSelectToolboxState.Overlay.MODE : SongSelectToolboxState.Overlay.MODS);
+            }
+            case OPTIONS -> showToast("Beatmap Options unavailable in this version.",UiTheme.MUTED);
             case BACK -> goBack();
             case IMPORT -> requestImport();
             case RANDOM -> randomize();

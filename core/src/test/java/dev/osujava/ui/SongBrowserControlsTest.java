@@ -19,14 +19,19 @@ class SongBrowserControlsTest {
             c.click(s.x()+5,s.y()+5,w,h,m); assertFalse(c.click(40,100,w,h,m)); assertFalse(c.open());
         }
     }
-    @Test void unsupportedShortcutsAndBottomGapsHaveNoFakeActions() {
-        assertNull(SongSelectAction.shortcut(Input.Keys.F1,false)); assertNull(SongSelectAction.shortcut(Input.Keys.F3,false));
+    @Test void toolboxShortcutsAndGapsRouteToExplicitActions() {
+        assertEquals(SongSelectAction.MODS,SongSelectAction.shortcut(Input.Keys.F1,false));
+        assertEquals(SongSelectAction.OPTIONS,SongSelectAction.shortcut(Input.Keys.F3,false));
         assertEquals(SongSelectAction.RANDOM,SongSelectAction.shortcut(Input.Keys.F2,false));
         assertEquals(SongSelectAction.PREVIOUS_RANDOM,SongSelectAction.shortcut(Input.Keys.F2,true));
-        assertEquals(SongSelectAction.BACK,SongSelectAction.bottom(30,40,84));
-        assertEquals(SongSelectAction.IMPORT,SongSelectAction.bottom(200,40,84));
-        assertEquals(SongSelectAction.RANDOM,SongSelectAction.bottom(340,40,84));
-        assertNull(SongSelectAction.bottom(400,40,84)); assertNull(SongSelectAction.bottom(340,84,84));
+        var layout = SongSelectToolboxLayout.create(1280,720,null);
+        assertEquals(SongSelectAction.BACK,SongSelectAction.bottom(30,40,layout));
+        assertEquals(SongSelectAction.MODE,SongSelectAction.bottom(200,40,layout));
+        assertEquals(SongSelectAction.RANDOM,SongSelectAction.bottom(340,40,layout));
+        assertEquals(SongSelectAction.OPTIONS,SongSelectAction.bottom(400,40,layout));
+        assertEquals(SongSelectAction.IMPORT,SongSelectAction.bottom(layout.importAction.x()+5,layout.importAction.y()+5,layout));
+        assertNull(SongSelectAction.bottom(600,40,layout));
+        assertNull(SongSelectAction.bottom(340,layout.controlHeight,layout));
     }
     @Test void compactHeadersShareMotionWithoutChangingBeatmapPitch() {
         var c = new SongSelectCarousel();
