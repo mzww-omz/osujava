@@ -1,5 +1,7 @@
 # Song Select Phase 3 — local Song Browser
 
+Historical Phase 3 report. Current toolbox actions, F1/F3 routing and played-state projection are documented in [Phase 5A](songselect-toolbox.md).
+
 ## References and scope
 
 Research: 2026-09-27. Phase 2.5 baselines: `a4b0ebe`, `e16bf55`. Primary: [stable interface](https://osu.ppy.sh/wiki/en/Client/Interface), [official illustration](https://osu.ppy.sh/wiki/images/Client/Interface/img/song-selection.jpg), [shortcuts](https://osu.ppy.sh/wiki/en/Client/Keyboard_shortcuts). Secondary: read-only McOsu `db2add2`, `OsuSongBrowser2.cpp` (sort comparators, group creation, search update, visible candidate random/history, separate top controls) and the Phase 2.5 cross-file survey. No stable binaries were examined. No McOsu code, formulas or constants were copied. Everything remains local; gameplay, main menu, scores, mods, collections and online features are unchanged.

@@ -25,6 +25,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     private BitmapFont font;
     private SmoothUiFont smooth;
     private Path artwork, portrait, wide, customSkin;
+    private final Map<Integer,Path> compatibilitySkins = new LinkedHashMap<>();
+    private int captures, transitionFrames;
     private int index;
 
     private SongSelectVisualHarness(Path output) { this.output = output; }
@@ -32,6 +34,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         if (System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("mac")) Lwjgl3ApplicationConfiguration.useGlfwAsync();
         var config = new Lwjgl3ApplicationConfiguration();
         config.setTitle("osu!java SongSelect capture"); config.setWindowedMode(1280,720); config.setForegroundFPS(30);
+        // Captures use explicit FBOs; avoid primary-monitor centering in display-less macOS sessions.
+        config.setWindowPosition(0,0); config.setInitialVisible(false);
         new Lwjgl3Application(new SongSelectVisualHarness(Path.of(args[0])), config);
     }
 
@@ -137,9 +141,55 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
                     scenes.add(new Scene(size[0],size[1],size[2],"phasechrome-custom"));
             }
+            createToolboxFixtures();
+            String compatibility = System.getProperty("osujava.songSelectCompatibilitySkins", "");
+            for (String source : compatibility.split("\\|")) if (!source.isBlank()) {
+                Path path = Path.of(source);
+                compatibilitySkins.put(compatibilitySkins.size(), source.toLowerCase(Locale.ROOT).endsWith(".osk")
+                        ? new SkinImporter(output.resolve("imported-skins")).importFile(path) : path);
+            }
+            for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}}) {
+                for (String fixture : List.of("all", "normal", "high", "missing", "malformed", "composite", "fallback", "bundled"))
+                    scenes.add(new Scene(size[0],size[1],size[2],"phase5a-assets-" + fixture));
+                for (String state : toolboxStates()) {
+                    scenes.add(new Scene(size[0],size[1],size[2],"phase5a-current-" + state));
+                    for (int profile : compatibilitySkins.keySet())
+                        scenes.add(new Scene(size[0],size[1],size[2],"phase5a-profile-" + profile + "-" + state));
+                }
+                for (String state : List.of("unplayed", "played", "sibling", "selected-played", "selected-unplayed", "save-reload", "aborted", "transitions",
+                        "large-idle", "large-hover", "large-mods", "large-scroll"))
+                    scenes.add(new Scene(size[0],size[1],size[2],"phase5a-state-" + state));
+            }
             String phase = System.getProperty("osujava.songSelectPhase", "all");
             if (!phase.equals("all")) scenes.removeIf(scene -> !scene.name.startsWith("phase" + phase + "-"));
         } catch (Exception e) { throw new RuntimeException(e); }
+    }
+
+    private List<String> toolboxStates() {
+        return List.of("idle", "mode-hover", "mods-hover", "random-hover", "options-hover",
+                "mode-pressed", "mods-pressed", "random-pressed", "options-pressed", "back-hover", "import-hover", "cookie-hover",
+                "back-pressed", "import-pressed", "cookie-pressed", "disabled", "mode-view", "mods-view", "active-none");
+    }
+
+    private void createToolboxFixtures() throws Exception {
+        for (String name : List.of("all", "normal", "high", "missing", "malformed", "composite")) {
+            Path dir = Files.createDirectories(output.resolve("fixtures/toolbox-" + name));
+            Files.writeString(dir.resolve("skin.ini"),"[General]\nVersion: 2.5\n");
+            if (name.equals("missing")) continue;
+            for (var action : SongSelectSkinAssets.Selection.values()) for (var image : List.of(action.normal,action.hover)) {
+                if (name.equals("normal") && image == action.hover) continue;
+                int density = name.equals("high") ? 2 : 1;
+                Path file = dir.resolve(image.basename + (density == 2 ? "@2x" : "") + ".png");
+                if (name.equals("malformed")) { Files.writeString(file,"not a PNG"); continue; }
+                int width = (int)action.logicalWidth*density, height = 90*density;
+                if (name.equals("composite") && image == SongSelectSkinAssets.Image.MODE) { width=1150; height=540; }
+                var p = new Pixmap(width,height,Pixmap.Format.RGBA8888);
+                p.setColor(image == action.hover ? new Color(.95f,.65f,.45f,1) : new Color(.4f,.55f,.75f,1));
+                p.fillRectangle(3*density,height-80*density,(int)action.logicalWidth*density-6*density,73*density);
+                if (width > 500) { p.setColor(.5f,.3f,.5f,.8f); p.fillRectangle(0,height-140,width,30); }
+                PixmapIO.writePNG(Gdx.files.absolute(file.toString()),p); p.dispose();
+            }
+        }
     }
 
     private void assertChrome(SongSelectScreen screen, SongSelectSkinAssets assets, String name, Path greylooks) {
@@ -242,6 +292,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         });
         InputProcessor[] processor = {null};
         boolean[] clicked = {false};
+        boolean[] pressed = {false};
         UiLayout layout = UiLayout.fromPixels(scene.width,scene.height);
         int[] pointer = {40,scene.height / 2};
         if (scene.name.equals("greylooks-random-hover") || scene.name.equals("phasechrome-current-hover")) { pointer[0] = Math.round(344 * layout.scale()); pointer[1] = scene.height - Math.round(19 * layout.scale()); }
@@ -250,10 +301,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "getInputProcessor" -> processor[0];
             case "getX" -> pointer[0]; case "getY" -> pointer[1];
             case "isButtonJustPressed" -> clicked[0];
+            case "isButtonPressed" -> pressed[0];
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
         var library = new BeatmapLibrary();
-        int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern") || scene.name.equals("phase3-large-library") || scene.name.startsWith("phase4-large")) ? 1000 : 7;
+        int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern") || scene.name.equals("phase3-large-library") || scene.name.startsWith("phase4-large") || scene.name.startsWith("phase5a-state-large")) ? 1000 : 7;
         boolean phase2 = scene.name.startsWith("phase2");
         var ratings = new IdentityHashMap<BeatmapDifficulty, OptionalDouble>();
         for (int i = 0; i < setCount; i++) {
@@ -298,7 +350,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         List.of(new TimingPoint(0,browserScene ? 60000.0 / (80 + (i % 6) * 55) : 500,4,0,0,100,true,0)),
                         browserScene ? List.of(new dev.osujava.beatmap.HitObject(0,0,1000,dev.osujava.beatmap.HitObject.Type.CIRCLE,1,0),
                                 new dev.osujava.beatmap.HitObject(0,0,1000 + (i % 7 + 1) * 90000,dev.osujava.beatmap.HitObject.Type.CIRCLE,1,0)) : List.of(),null,image);
-                if (scene.name.startsWith("phase4")) diff = diff.withAssets(null, image, output.resolve("maps/set" + i + "/難易度" + difficulty + ".osu"));
+                if (scene.name.startsWith("phase4") || scene.name.startsWith("phase5a")) diff = diff.withAssets(null, image, output.resolve("maps/set" + i + "/難易度" + difficulty + ".osu"));
                 diffs.add(diff);
                 double rating = switch (scene.name) {
                     case "phase2-low-rating" -> .65;
@@ -312,8 +364,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             library.add(new BeatmapSet("set" + i,title,artist,mapper,null,image,diffs,List.of()));
         }
-        var localScores = new dev.osujava.score.LocalScoreStore();
+        var localScores = scene.name.equals("phase5a-state-save-reload")
+                ? new dev.osujava.score.LocalScoreStore(output.resolve("score-reload-" + scene.width + "-" + scene.density))
+                : new dev.osujava.score.LocalScoreStore();
         if (scene.name.startsWith("phase4")) populateScores(localScores, library, scene.name);
+        if (scene.name.startsWith("phase5a")) populatePlayed(localScores,library,scene.name);
         Screen[] destination = {null};
         var game = new OsuJavaGame(null,null) {
             @Override public void navigate(Screen next) { destination[0] = next; }
@@ -353,6 +408,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             default -> scene.name.startsWith("greylooks") || phase2 || scene.name.startsWith("phase3") || scene.name.startsWith("phase4") ? SkinAssetResolver.withBundledDefault(null,null)
                     : new SkinAssetResolver(output.resolve("fixtures").resolve(scene.name));
         };
+        if (scene.name.startsWith("phase5a")) resolver = toolboxResolver(scene.name,greylooks);
         var assets = scene.name.startsWith("phasechrome-current") || scene.name.equals("phasechrome-custom") ? null : new SongSelectSkinAssets(resolver);
         String preferredSet = scene.name.equals("greylooks-first-item") ? "set0"
                 : scene.name.equals("greylooks-last-item") ? "set6"
@@ -379,6 +435,18 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if (scene.name.startsWith("phase5a")) {
+                configureToolbox(screen,scene,processor[0],pointer,clicked,pressed,layout,localScores,library);
+                if (scene.name.equals("phase5a-state-transitions")) toolboxTransitions(screen,processor[0],fb,name,layout);
+                assertToolbox(screen,assets,scene.name,layout);
+                capture(fb,name);
+                if (scene.name.contains("large")) profileToolbox(screen,processor[0],name,scene.name);
+                if (toolboxState(screen).open()) processor[0].keyDown(Input.Keys.ESCAPE);
+                pressed[0] = false; pointer[0] = 40;
+                fb.end();
+                advanceScene();
+                return;
+            }
             if (scene.name.equals("phase2-thumbnail-fade")) {
                 // Simulate a newly resident image after entrance, without changing content/hitboxes.
                 try {
@@ -390,6 +458,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (int frame = 1; frame <= 8; frame++) {
                     screen.render(1f / 60);
                     assertRenderedBounds(screen, layout);
+                    transitionFrames++;
                     if (frame == 2 || frame == 4 || frame == 8) capture(fb, name + "-frame-" + String.format(Locale.ROOT,"%02d",frame));
                 }
             }
@@ -439,6 +508,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     if (scene.name.equals("greylooks-scroll-reverse") && frame <= 12) processor[0].scrolled(0,frame <= 6 ? 2 : -2);
                     screen.render(1f/60);
                     assertRenderedBounds(screen,layout);
+                    transitionFrames++;
                     if (frame == 1 || frame == 4 || frame == 10 || frame == 20 || frame == 40 || frame == 60)
                         capture(fb,name + "-frame-" + String.format(Locale.ROOT,"%02d",frame));
                 }
@@ -450,6 +520,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     if (stage == 2) { screen.browserSearch("",false); screen.browserMode(SongBrowserModel.Sort.LENGTH,SongBrowserModel.Group.BPM); }
                     for (int frame=0;frame<=60;frame++) {
                         screen.render(1f/60); assertRenderedBounds(screen,layout);
+                        transitionFrames++;
                         if (frame == 0 || frame == 8 || frame == 24 || frame == 60) capture(fb,name+"-stage-"+stage+"-frame-"+frame);
                     }
                 }
@@ -460,6 +531,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     assertScoreTarget(screen);
                     for (int frame=0;frame<=24;frame++) {
                         screen.render(1f/60); assertRenderedBounds(screen,layout);
+                        transitionFrames++;
                         if (frame == 0 || frame == 8 || frame == 24) capture(fb,name+"-stage-"+stage+"-frame-"+frame);
                     }
                 }
@@ -557,10 +629,206 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if (assets.starTexture() != null) throw new AssertionError("Star texture retained after disposal");
             fb.dispose(); Gdx.graphics = actualGraphics; Gdx.input = actualInput;
         }
+        advanceScene();
+    }
+
+    private void advanceScene() {
         if (++index == scenes.size()) {
-            System.out.println("SongSelect harness: " + index + " captures + navigation/disposal checks passed: " + output);
+            System.out.println("SongSelect harness: " + index + " scenes, " + captures + " PNG captures, " + transitionFrames
+                    + " scripted transition frames + navigation/disposal checks passed: " + output);
             Gdx.app.exit();
         }
+    }
+
+    private SkinAssetResolver toolboxResolver(String name, Path greylooks) {
+        if (name.startsWith("phase5a-profile-")) {
+            int profile = Integer.parseInt(name.split("-")[2]);
+            return SkinAssetResolver.withBundledDefault(compatibilitySkins.get(profile),null);
+        }
+        String prefix = "phase5a-assets-";
+        if (!name.startsWith(prefix)) return SkinAssetResolver.withBundledDefault(greylooks,null);
+        String fixture = name.substring(prefix.length());
+        return switch (fixture) {
+            case "fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"),greylooks);
+            case "bundled" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"),null);
+            case "malformed" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/toolbox-malformed"),null);
+            default -> new SkinAssetResolver(output.resolve("fixtures/toolbox-" + fixture));
+        };
+    }
+    private Object screenField(SongSelectScreen screen, String name) {
+        try { var f = SongSelectScreen.class.getDeclaredField(name); f.setAccessible(true); return f.get(screen); }
+        catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+    private SongSelectToolboxLayout toolboxLayout(SongSelectScreen screen) { return (SongSelectToolboxLayout)screenField(screen,"bottomLayout"); }
+    private SongSelectToolboxState toolboxState(SongSelectScreen screen) { return (SongSelectToolboxState)screenField(screen,"toolbox"); }
+    private SongBrowserModel browser(SongSelectScreen screen) { return (SongBrowserModel)screenField(screen,"browser"); }
+    private void point(SongSelectToolboxLayout.Bounds b, int[] pointer, UiLayout layout, int height) {
+        pointer[0] = Math.round((b.x()+b.width()/2)*layout.scale());
+        pointer[1] = height-Math.round((b.y()+b.height()/2)*layout.scale());
+    }
+    private void populatePlayed(dev.osujava.score.LocalScoreStore store, BeatmapLibrary library, String name) {
+        if (name.startsWith("phase5a-state-large")) {
+            for (var set : library.all()) if (Integer.parseInt(set.id().substring(3)) % 2 == 0) savePlayed(store,set,0);
+            var selected = library.all().stream().filter(s -> s.id().equals("set3")).findFirst().orElseThrow();
+            for (int i = 0; i < 10; i++) savePlayed(store,selected,1);
+        } else if (name.equals("phase5a-state-played") || name.equals("phase5a-state-sibling")
+                || name.equals("phase5a-state-selected-played") || name.equals("phase5a-state-selected-unplayed")) {
+            for (var set : library.all()) if (set.id().equals("set2") || set.id().equals("set4")) savePlayed(store,set,0);
+            if (!name.equals("phase5a-state-played")) {
+                var selected = library.all().stream().filter(s -> s.id().equals("set3")).findFirst().orElseThrow();
+                savePlayed(store,selected,name.equals("phase5a-state-selected-played") ? 1 : 0);
+            }
+        }
+    }
+    private void savePlayed(dev.osujava.score.LocalScoreStore store, BeatmapSet set, int difficulty) {
+        store.save(new dev.osujava.score.LocalScore(UUID.randomUUID(),dev.osujava.score.DifficultyIdentity.of(set.id(),set.difficulties().get(difficulty)),
+                1_790_467_200_000L,new dev.osujava.gameplay.ScoreState(123456,0,100,100,0,0,0,1)),dev.osujava.gameplay.GameplayRunMode.MANUAL);
+    }
+    private void configureToolbox(SongSelectScreen screen, Scene scene, InputProcessor input,
+            int[] pointer, boolean[] clicked, boolean[] pressed, UiLayout layout,
+            dev.osujava.score.LocalScoreStore store, BeatmapLibrary library) {
+        String state = scene.name.replaceFirst("phase5a-profile-[0-9]+-", "").replaceFirst("phase5a-(current|state|assets)-", "");
+        var geometry = toolboxLayout(screen);
+        for (var action : SongSelectSkinAssets.Selection.values()) if (state.equals(action.name().toLowerCase(Locale.ROOT)+"-hover")
+                || state.equals(action.name().toLowerCase(Locale.ROOT)+"-pressed")) point(geometry.control(action).interaction(),pointer,layout,scene.height);
+        if (state.startsWith("back-")) point(geometry.backInteraction,pointer,layout,scene.height);
+        if (state.startsWith("import-")) point(geometry.importAction,pointer,layout,scene.height);
+        if (state.startsWith("cookie-")) point(new SongSelectToolboxLayout.Bounds(layout.width()-60,10,50,35),pointer,layout,scene.height);
+        pressed[0] = state.endsWith("pressed");
+        if (state.equals("disabled")) screen.browserSearch("no matching beatmap at all",false);
+        if (state.equals("mode-view")) {
+            point(geometry.control(SongSelectSkinAssets.Selection.MODE).interaction(),pointer,layout,scene.height);
+            clicked[0] = true; screen.render(0); clicked[0] = false;
+            if (toolboxState(screen).overlay() != SongSelectToolboxState.Overlay.MODE) throw new AssertionError("Mode did not open capability view");
+        }
+        if (state.equals("mods-view") || state.equals("active-none") || state.equals("large-mods")) {
+            if (state.equals("mods-view")) {
+                point(geometry.control(SongSelectSkinAssets.Selection.MODS).interaction(),pointer,layout,scene.height);
+                clicked[0] = true; screen.render(0); clicked[0] = false;
+            } else input.keyDown(Input.Keys.F1);
+            if (toolboxState(screen).overlay() != SongSelectToolboxState.Overlay.MODS || !toolboxState(screen).active().isEmpty())
+                throw new AssertionError("Mods selector invented gameplay capabilities");
+        }
+        if (toolboxState(screen).open()) {
+            var selected = browser(screen).selectedDifficulty(); String search = (String)screenField(screen,"search");
+            var scores = scoreBrowser(screen); int first = scores.first(); var selectedScore = scores.selected();
+            for (var b : List.of(geometry.control(SongSelectSkinAssets.Selection.RANDOM).interaction(),geometry.cookie,
+                    new SongSelectToolboxLayout.Bounds(800,590,70,40),new SongSelectToolboxLayout.Bounds(30,560,70,30))) {
+                point(b,pointer,layout,scene.height); clicked[0] = true; screen.render(0); clicked[0] = false;
+            }
+            for (int key : new int[]{Input.Keys.F2,Input.Keys.F3,Input.Keys.I,Input.Keys.ENTER,Input.Keys.F6,Input.Keys.DOWN}) input.keyDown(key);
+            input.keyTyped('x'); input.scrolled(0,3);
+            if (browser(screen).selectedDifficulty() != selected || !screenField(screen,"search").equals(search)
+                    || pending(screen) || scores.first() != first || !Objects.equals(scores.selected(),selectedScore))
+                throw new AssertionError("Selector input leaked to underlying UI");
+        }
+        if (state.equals("save-reload")) {
+            var selected = browser(screen).selectedSet(); var diff = browser(screen).selectedDifficulty();
+            savePlayed(store,selected,selected.difficulties().indexOf(diff)); screen.render(0);
+            var snapshot = (SongSelectScoreSnapshot)screenField(screen,"scoreSnapshot");
+            var reloaded = new dev.osujava.score.LocalScoreStore(output.resolve("score-reload-" + scene.width + "-" + scene.density));
+            var restart = new SongSelectScoreSnapshot(reloaded); restart.refresh(browser(screen).librarySets());
+            if (!snapshot.played(selected,diff) || !restart.played(selected,diff) || scoreBrowser(screen).rows().isEmpty())
+                throw new AssertionError("Saved score did not update browser and survive reload");
+        }
+        if (state.equals("aborted")) {
+            long revision = store.revision();
+            var game = new OsuJavaGame(null,null) {
+                @Override public SpriteBatch batch() { return batch; }
+                @Override public ShapeRenderer shapes() { return shapes; }
+                @Override public BitmapFont font() { return font; }
+                @Override public SmoothUiFont smoothFont() { return smooth; }
+                @Override public BeatmapLibrary library() { return library; }
+                @Override public dev.osujava.score.LocalScoreStore localScores() { return store; }
+                @Override public dev.osujava.ruleset.osu.OsuRuleset osuRuleset() { return new dev.osujava.ruleset.osu.OsuRuleset(); }
+                @Override public void navigate(Screen next) { next.dispose(); }
+            };
+            var gameplay = new GameplayScreen(game,browser(screen).selectedSet(),browser(screen).selectedDifficulty());
+            gameplay.show(); Gdx.input.getInputProcessor().keyDown(Input.Keys.ESCAPE); gameplay.dispose(); Gdx.input.setInputProcessor(input);
+            if (store.revision() != revision) throw new AssertionError("Aborted gameplay marked played");
+        }
+        if (state.equals("large-hover")) point(geometry.control(SongSelectSkinAssets.Selection.RANDOM).interaction(),pointer,layout,scene.height);
+        if (state.equals("large-scroll")) for (int i=0;i<12;i++) { carousel(screen).scrollBy(80); screen.render(1f/60); }
+        screen.render(1f/60);
+        assertRenderedBounds(screen,layout);
+    }
+
+    private void assertToolbox(SongSelectScreen screen, SongSelectSkinAssets assets, String name, UiLayout layout) {
+        var geometry = toolboxLayout(screen);
+        for (var action : SongSelectSkinAssets.Selection.values()) {
+            var control = geometry.control(action);
+            if (control.slot().y() != geometry.baseline || control.slot().height() != geometry.controlHeight
+                    || control.interaction().width() > control.slot().width()+.01f || control.interaction().height() > control.slot().height()+.01f
+                    || control.slot().x()+control.slot().width() > geometry.cookie.x()) throw new AssertionError("Toolbox geometry diverged");
+            if (screen.renderedSelectionProcedural(action) != (assets.get(action.normal) == null)) throw new AssertionError("Current selection asset lost to procedural");
+            for (var image : List.of(action.normal,action.hover)) {
+                var texture = assets.get(image);
+                if (name.startsWith("phase5a-current") && (texture == null || texture.file().fallback() || texture.density() != 2))
+                    throw new AssertionError("Current @2x selection did not win: " + image);
+                if (name.startsWith("phase5a-profile-")) {
+                    Path path = compatibilitySkins.get(Integer.parseInt(name.split("-")[2]));
+                    var local = new SkinAssetResolver(path).resolve(image.basename);
+                    if (local.isPresent() && (texture == null || texture.file().fallback() || !texture.file().path().equals(local.get().path())))
+                        throw new AssertionError("Composite current asset replaced: " + image);
+                }
+                if (name.equals("phase5a-assets-normal") && image == action.hover && texture != null) throw new AssertionError("Normal-only fixture supplied hover");
+                if (name.equals("phase5a-assets-high") && (texture == null || texture.density() != 2)) throw new AssertionError("Selection density lost");
+                String expected = name.equals("phase5a-assets-fallback") ? "fallback"
+                        : name.equals("phase5a-assets-bundled") || name.equals("phase5a-assets-malformed") ? "bundled"
+                        : name.equals("phase5a-assets-missing") ? "procedural" : null;
+                if (expected != null && !assets.provider(image).equals(expected)) throw new AssertionError("Selection provider priority: " + name + " " + image);
+                System.out.println("SELECTION PASS " + name + " asset=" + image.basename + " provider=" + assets.provider(image)
+                        + " density=" + (texture == null ? 0 : texture.density()) + " procedural=" + (texture == null)
+                        + " image=" + (image == action.normal ? control.normal().image() : control.hover().image())
+                        + " opaque=" + (image == action.normal ? control.normal().opaque() : control.hover().opaque())
+                        + " interaction=" + control.interaction());
+            }
+        }
+        if (geometry.importAction.height() >= geometry.controlHeight*.5f) throw new AssertionError("Import gained primary visual weight");
+        var snapshot = (SongSelectScoreSnapshot)screenField(screen,"scoreSnapshot");
+        for (var set : browser(screen).librarySets()) {
+            boolean played = set.difficulties().stream().anyMatch(d -> snapshot.best(set,d) != null);
+            if (snapshot.played(set) != played) throw new AssertionError("Set played projection wrong");
+        }
+        if (name.equals("phase5a-state-unplayed") || name.equals("phase5a-state-aborted")) {
+            if (browser(screen).librarySets().stream().anyMatch(snapshot::played)) throw new AssertionError("Unplayed/aborted Set changed colour");
+        }
+        if (name.equals("phase5a-state-selected-played") && !snapshot.played(browser(screen).selectedSet(),browser(screen).selectedDifficulty()))
+            throw new AssertionError("Selected played fixture lacks real score");
+        if (name.equals("phase5a-state-selected-unplayed") && snapshot.played(browser(screen).selectedSet(),browser(screen).selectedDifficulty()))
+            throw new AssertionError("Selected unplayed fixture gained score");
+    }
+
+    private void toolboxTransitions(SongSelectScreen screen, InputProcessor input, FrameBuffer fb, String name, UiLayout layout) {
+        for (int stage = 0; stage < 5; stage++) {
+            if (stage == 0) input.keyDown(Input.Keys.F1);
+            if (stage == 1) input.keyDown(Input.Keys.ESCAPE);
+            if (stage == 2) screen.browserMode(SongBrowserModel.Sort.ARTIST,SongBrowserModel.Group.ARTIST);
+            if (stage == 3) screen.browserSearch("Local song 2",false);
+            if (stage == 4) { screen.browserSearch("",false); input.keyDown(Input.Keys.F2); }
+            for (int frame = 0; frame < 25; frame++) {
+                screen.render(1f/60); assertRenderedBounds(screen,layout); transitionFrames++;
+                if (frame == 0 || frame == 8 || frame == 24) capture(fb,name+"-stage-"+stage+"-frame-"+frame);
+            }
+        }
+    }
+    private void profileToolbox(SongSelectScreen screen, InputProcessor input, String name, String state) {
+        long[] samples = new long[180];
+        for (int frame = 0; frame < 240; frame++) {
+            if (state.endsWith("scroll")) carousel(screen).scrollBy(frame < 120 ? 90 : -90);
+            long start = System.nanoTime(); screen.render(1f/60);
+            if (frame >= 60) samples[frame-60] = System.nanoTime()-start;
+        }
+        Arrays.sort(samples);
+        System.out.printf(Locale.ROOT,"Toolbox CPU submission %s: mean %.3f ms, p95 %.3f ms, max %.3f ms (180 samples)%n",name,
+                Arrays.stream(samples).average().orElseThrow()/1e6,samples[170]/1e6,samples[179]/1e6);
+        if (toolboxState(screen).open()) input.keyDown(Input.Keys.ESCAPE);
+        long[] switches = new long[100];
+        for (int i=0;i<140;i++) { long start=System.nanoTime(); input.keyDown(i%2==0 ? Input.Keys.RIGHT : Input.Keys.LEFT);
+            if(i>=40)switches[i-40]=System.nanoTime()-start; }
+        Arrays.sort(switches);
+        System.out.printf(Locale.ROOT,"Toolbox difficulty switch %s: mean %.3f ms, p95 %.3f ms, max %.3f ms%n",name,
+                Arrays.stream(switches).average().orElseThrow()/1e6,switches[94]/1e6,switches[99]/1e6);
     }
     private void populateScores(dev.osujava.score.LocalScoreStore store, BeatmapLibrary library, String name) {
         var set = library.all().stream().filter(b -> b.id().equals("set3")).findFirst().orElseThrow();
@@ -674,6 +942,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         Pixmap capture = Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
         PixmapIO.writePNG(Gdx.files.absolute(output.resolve(name + ".png").toString()),capture,-1,true);
         capture.dispose();
+        captures++;
     }
     private Object valueUnchecked(Class<?> type, Object object, String name) {
         try { return value(type,object,name); } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }

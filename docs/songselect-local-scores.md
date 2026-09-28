@@ -1,5 +1,7 @@
 # Song Select Phase 4 — local scores and grades
 
+Historical Phase 4 report. [Phase 5A](songselect-toolbox.md) adds played colours from these scores and the audited Mods selector foundation; schema v1 and ordinary grade calculation remain unchanged.
+
 Research date: 2026-09-27. Baseline: Phase 3 `fcf9e03`, `389dbfa`, `85adb2c`, `eee808b`.
 
 ## Existing flow and data audit (before implementation)

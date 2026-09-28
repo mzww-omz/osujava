@@ -27,7 +27,7 @@ macOSではlauncherがGLFWの非同期起動設定を使います。
 ## 遊び方
 
 1. Main Menuの中央Logoをクリックしてmenuを開き、右側のPlayを選びます（`P` / `Enter` / `Space`でも直接移動できます）。
-2. Song SelectのImport .osz / .osuから譜面を選びます。
+2. Song Selectの小さなImportボタン（または`I`）から譜面を選びます。
 3. Beatmap SetとDifficultyを選択してPlayを押します。
 4. HitCircleはタイミングに合わせてクリックします。左/右クリックまたはZ/Xキーで操作できます。Sliderは頭を押してから、押したままカーソルでボールを追います。
 5. 曲が終わるとResultsを表示します。
@@ -48,7 +48,9 @@ Song SelectでDifficultyを選び、`F6`を押すとDebug Auto Playを開始し�
 
 終了はウィンドウの閉じるボタン、macOSのCmd+Q、Windows / LinuxのCtrl+Qで行えます。
 
-Song Selectでは、1つの.oszに入った複数Difficultyを1つのBeatmap Setとして表示します。taiko / catch / maniaのmode情報も保持して表示しますが、Gameplay対応はosu!standardのHitCircle、Slider、Spinnerです。Mods、Replay、Editor、オンライン機能は未実装です。
+Song Selectでは、1つの.oszに入った複数Difficultyを1つのBeatmap Setとして表示します。taiko / catch / maniaのmode情報も保持して表示しますが、Gameplay対応はosu!standardのHitCircle、Slider、Spinnerです。ModsのGameplay効果、Replay、Editor、オンライン機能は未実装です。
+
+下部はMode / Mods / Random / Optionsの共通Toolboxで、normal / hover / `@2x`と合成skin画像に対応します。Modeはstandardのみplayableと表示し、Modsボタン／`F1`は未対応Modをdisabled表示するselector foundationを開きます。`Escape`で閉じます。Options／`F3`は未対応を明示します。Set内の難易度に保存Scoreがあればplayedの橙、なければ未プレイの桃で表示し、選択中の白とsiblingの水色が優先されます。Skin inventory、Mods audit、geometryと検証結果は[Song Select Phase 5A](docs/songselect-toolbox.md)を参照してください。
 
 Song Select右上のGroup / SortでLibraryを分類・並べ替えできます。入力するとTitle / Artist / Creator / Difficulty名を対象に、空白区切りの全tokenで検索します。Unicode入力にも対応しています。`F2`は現在の検索結果内からRandom、`Shift+F2`は以前のRandom selectionへ戻ります。検索・Sort・Group変更時は譜面identityを維持し、検索解除時は自動fallback前の選択、または検索中に明示的に選んだ譜面を復元します。実装した分類、数値の根拠、保留項目と検証結果は[Song Browser Phase 3](docs/songselect-browser.md)を参照してください。
 

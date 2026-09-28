@@ -146,4 +146,7 @@ tasks.register('songSelectVisualHarness', JavaExec) {
     if (project.hasProperty('songSelectCustomSkin')) {
         systemProperty 'osujava.songSelectCustomSkin', project.property('songSelectCustomSkin')
     }
+    if (project.hasProperty('songSelectCompatibilitySkins')) {
+        systemProperty 'osujava.songSelectCompatibilitySkins', project.property('songSelectCompatibilitySkins')
+    }
 }

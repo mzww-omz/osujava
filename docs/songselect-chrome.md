@@ -1,5 +1,7 @@
 # Song Select chrome integration
 
+Historical Phase 4.5 report. The bottom model has been superseded by [Phase 5A's common toolbox geometry](songselect-toolbox.md), retaining this chrome/content separation and Cookie policy.
+
 Scope: chrome rendering and bottom action geometry only. Song Browser, Score Browser and Gameplay models are unchanged. Cookie is retained with its existing cropped bottom/right edge position and interaction policy.
 
 ## Investigation and reference

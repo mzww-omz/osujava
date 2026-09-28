@@ -1,113 +1,113 @@
-profile	asset	density	status	pixels	logical	alpha_bounds_top_left	substantial_alpha_bounds_top_left	resolved_provider
-Greylooks current	selection-mode.png	1	valid	92x85	92x85	(0, 8, 92, 85)	(0, 8, 92, 85)	current
-Greylooks current	selection-mode@2x.png	2	valid	184x170	92x85	(0, 16, 184, 170)	(0, 16, 184, 170)	current
-Greylooks current	selection-mode-over.png	1	valid	92x85	92x85	(0, 8, 92, 85)	(0, 8, 92, 85)	current
-Greylooks current	selection-mode-over@2x.png	2	valid	184x170	92x85	(0, 16, 184, 170)	(0, 16, 184, 170)	current
-Greylooks current	selection-mods.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	current
-Greylooks current	selection-mods@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	current
-Greylooks current	selection-mods-over.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	current
-Greylooks current	selection-mods-over@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	current
-Greylooks current	selection-random.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	current
-Greylooks current	selection-random@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	current
-Greylooks current	selection-random-over.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	current
-Greylooks current	selection-random-over@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	current
-Greylooks current	selection-options.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	current
-Greylooks current	selection-options@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	current
-Greylooks current	selection-options-over.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	current
-Greylooks current	selection-options-over@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	current
-Seoul current	selection-mode.png	1	valid	1150x540	1150x540	(0, 253, 1150, 540)	(0, 356, 1150, 540)	current
-Seoul current	selection-mode@2x.png	2	valid	2300x1080	1150x540	(0, 712, 2300, 1080)	(0, 712, 2300, 1080)	current
-Seoul current	selection-mode-over.png	1	valid	93x90	93x90	(0, 3, 93, 90)	(0, 18, 93, 90)	current
-Seoul current	selection-mode-over@2x.png	2	valid	186x180	93x90	(0, 7, 186, 180)	(0, 22, 186, 180)	current
-Seoul current	selection-mods.png	1	valid	78x90	78x90	(0, 3, 78, 90)	(0, 23, 78, 71)	current
-Seoul current	selection-mods@2x.png	2	valid	156x180	78x90	(0, 7, 156, 180)	(0, 30, 156, 161)	current
-Seoul current	selection-mods-over.png	1	valid	78x90	78x90	(0, 0, 78, 90)	(24, 24, 53, 67)	current
-Seoul current	selection-mods-over@2x.png	2	valid	156x180	78x90	(0, 0, 156, 180)	(49, 47, 107, 134)	current
-Seoul current	selection-random.png	1	valid	78x90	78x90	(0, 3, 78, 90)	(0, 24, 78, 71)	current
-Seoul current	selection-random@2x.png	2	valid	156x180	78x90	(0, 7, 156, 180)	(0, 30, 156, 161)	current
-Seoul current	selection-random-over.png	1	valid	78x90	78x90	(0, 0, 78, 90)	(18, 26, 60, 67)	current
-Seoul current	selection-random-over@2x.png	2	valid	156x180	78x90	(0, 0, 156, 180)	(35, 52, 120, 134)	current
-Seoul current	selection-options.png	1	valid	78x90	78x90	(0, 3, 78, 90)	(0, 24, 78, 71)	current
-Seoul current	selection-options@2x.png	2	valid	156x180	78x90	(0, 7, 156, 180)	(0, 30, 156, 161)	current
-Seoul current	selection-options-over.png	1	valid	78x90	78x90	(0, 0, 78, 90)	(17, 28, 61, 67)	current
-Seoul current	selection-options-over@2x.png	2	valid	156x180	78x90	(0, 0, 156, 180)	(34, 56, 122, 134)	current
-WhiteCat current	selection-mode.png	1	valid	1143x930	1143x930	(0, 85, 1143, 930)	(0, 85, 1143, 930)	current
-WhiteCat current	selection-mode@2x.png	2	valid	2286x1860	1143x930	(0, 170, 2286, 1860)	(0, 171, 2286, 1860)	current
-WhiteCat current	selection-mode-over.png	1	valid	82x110	82x110	(47, 15, 82, 65)	(47, 15, 82, 65)	current
-WhiteCat current	selection-mode-over@2x.png	2	valid	164x220	82x110	(94, 30, 164, 130)	(94, 30, 164, 130)	current
-WhiteCat current	selection-mods.png	1	transparent	1x1	1x1	None	None	current
-WhiteCat current	selection-mods@2x.png	2	missing	-	-	-	-	bundled
-WhiteCat current	selection-mods-over.png	1	valid	61x90	61x90	(9, 0, 61, 40)	(9, 0, 61, 40)	current
-WhiteCat current	selection-mods-over@2x.png	2	valid	122x180	61x90	(18, 0, 122, 80)	(18, 0, 122, 80)	current
-WhiteCat current	selection-random.png	1	transparent	1x1	1x1	None	None	current
-WhiteCat current	selection-random@2x.png	2	missing	-	-	-	-	bundled
-WhiteCat current	selection-random-over.png	1	valid	66x90	66x90	(13, 0, 66, 40)	(14, 0, 65, 40)	current
-WhiteCat current	selection-random-over@2x.png	2	valid	132x180	66x90	(27, 0, 131, 80)	(27, 0, 131, 80)	current
-WhiteCat current	selection-options.png	1	transparent	1x1	1x1	None	None	current
-WhiteCat current	selection-options@2x.png	2	missing	-	-	-	-	bundled
-WhiteCat current	selection-options-over.png	1	valid	67x90	67x90	(15, 0, 67, 40)	(15, 0, 67, 40)	current
-WhiteCat current	selection-options-over@2x.png	2	valid	134x180	67x90	(30, 0, 134, 80)	(30, 0, 134, 80)	current
-Default template current	selection-mode.png	1	valid	88x90	88x90	(0, 0, 88, 90)	(0, 0, 88, 90)	current
-Default template current	selection-mode@2x.png	2	valid	176x180	88x90	(0, 0, 176, 180)	(0, 0, 176, 180)	current
-Default template current	selection-mode-over.png	1	valid	88x90	88x90	(0, 0, 88, 90)	(0, 0, 88, 90)	current
-Default template current	selection-mode-over@2x.png	2	valid	176x180	88x90	(0, 0, 176, 180)	(0, 0, 176, 180)	current
-Default template current	selection-mods.png	1	valid	74x90	74x90	(0, 0, 74, 90)	(0, 0, 73, 90)	current
-Default template current	selection-mods@2x.png	2	valid	148x180	74x90	(0, 0, 147, 180)	(0, 0, 147, 180)	current
-Default template current	selection-mods-over.png	1	valid	74x90	74x90	(0, 0, 74, 90)	(0, 0, 73, 90)	current
-Default template current	selection-mods-over@2x.png	2	valid	148x180	74x90	(0, 0, 147, 180)	(0, 0, 147, 180)	current
-Default template current	selection-random.png	1	valid	74x90	74x90	(0, 0, 74, 90)	(0, 0, 73, 90)	current
-Default template current	selection-random@2x.png	2	valid	148x180	74x90	(0, 0, 147, 180)	(0, 0, 147, 180)	current
-Default template current	selection-random-over.png	1	valid	74x90	74x90	(0, 0, 74, 90)	(0, 0, 73, 90)	current
-Default template current	selection-random-over@2x.png	2	valid	148x180	74x90	(0, 0, 147, 180)	(0, 0, 147, 180)	current
-Default template current	selection-options.png	1	valid	77x90	77x90	(0, 0, 76, 90)	(1, 0, 74, 90)	current
-Default template current	selection-options@2x.png	2	valid	154x180	77x90	(0, 0, 153, 180)	(1, 0, 148, 180)	current
-Default template current	selection-options-over.png	1	valid	77x90	77x90	(0, 0, 76, 90)	(1, 0, 74, 90)	current
-Default template current	selection-options-over@2x.png	2	valid	154x180	77x90	(0, 0, 153, 180)	(1, 0, 148, 180)	current
-xishu current	selection-mode.png	1	transparent	1x1	1x1	None	None	current
-xishu current	selection-mode@2x.png	2	missing	-	-	-	-	bundled
-xishu current	selection-mode-over.png	1	missing	-	-	-	-	bundled
-xishu current	selection-mode-over@2x.png	2	missing	-	-	-	-	bundled
-xishu current	selection-mods.png	1	valid	73x86	73x86	(1, 1, 72, 86)	(1, 1, 72, 86)	current
-xishu current	selection-mods@2x.png	2	missing	-	-	-	-	bundled
-xishu current	selection-mods-over.png	1	valid	73x86	73x86	(0, 0, 73, 86)	(1, 1, 72, 86)	current
-xishu current	selection-mods-over@2x.png	2	missing	-	-	-	-	bundled
-xishu current	selection-random.png	1	valid	73x86	73x86	(1, 1, 72, 86)	(1, 1, 72, 86)	current
-xishu current	selection-random@2x.png	2	missing	-	-	-	-	bundled
-xishu current	selection-random-over.png	1	valid	73x86	73x86	(0, 0, 73, 86)	(1, 1, 72, 86)	current
-xishu current	selection-random-over@2x.png	2	missing	-	-	-	-	bundled
-xishu current	selection-options.png	1	valid	73x86	73x86	(1, 1, 72, 86)	(1, 1, 72, 86)	current
-xishu current	selection-options@2x.png	2	missing	-	-	-	-	bundled
-xishu current	selection-options-over.png	1	valid	73x86	73x86	(0, 0, 73, 86)	(1, 1, 73, 86)	current
-xishu current	selection-options-over@2x.png	2	missing	-	-	-	-	bundled
-Greylooks bundled	selection-mode.png	1	valid	92x85	92x85	(0, 8, 92, 85)	(0, 8, 92, 85)	bundled
-Greylooks bundled	selection-mode@2x.png	2	valid	184x170	92x85	(0, 16, 184, 170)	(0, 16, 184, 170)	bundled
-Greylooks bundled	selection-mode-over.png	1	valid	92x85	92x85	(0, 8, 92, 85)	(0, 8, 92, 85)	bundled
-Greylooks bundled	selection-mode-over@2x.png	2	valid	184x170	92x85	(0, 16, 184, 170)	(0, 16, 184, 170)	bundled
-Greylooks bundled	selection-mods.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	bundled
-Greylooks bundled	selection-mods@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	bundled
-Greylooks bundled	selection-mods-over.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	bundled
-Greylooks bundled	selection-mods-over@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	bundled
-Greylooks bundled	selection-random.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	bundled
-Greylooks bundled	selection-random@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	bundled
-Greylooks bundled	selection-random-over.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	bundled
-Greylooks bundled	selection-random-over@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	bundled
-Greylooks bundled	selection-options.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	bundled
-Greylooks bundled	selection-options@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	bundled
-Greylooks bundled	selection-options-over.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	bundled
-Greylooks bundled	selection-options-over@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	bundled
-fallback missing	selection-mode.png	1	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-mode@2x.png	2	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-mode-over.png	1	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-mode-over@2x.png	2	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-mods.png	1	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-mods@2x.png	2	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-mods-over.png	1	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-mods-over@2x.png	2	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-random.png	1	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-random@2x.png	2	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-random-over.png	1	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-random-over@2x.png	2	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-options.png	1	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-options@2x.png	2	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-options-over.png	1	missing	-	-	-	-	procedural (no providers)
-fallback missing	selection-options-over@2x.png	2	missing	-	-	-	-	procedural (no providers)
+profile	asset	density	status	pixels	logical	alpha_bounds_top_left	substantial_alpha_bounds_top_left	resolved_provider	resolved_asset
+Greylooks current	selection-mode.png	1	valid	92x85	92x85	(0, 8, 92, 85)	(0, 8, 92, 85)	current	selection-mode@2x.png
+Greylooks current	selection-mode@2x.png	2	valid	184x170	92x85	(0, 16, 184, 170)	(0, 16, 184, 170)	current	selection-mode@2x.png
+Greylooks current	selection-mode-over.png	1	valid	92x85	92x85	(0, 8, 92, 85)	(0, 8, 92, 85)	current	selection-mode-over@2x.png
+Greylooks current	selection-mode-over@2x.png	2	valid	184x170	92x85	(0, 16, 184, 170)	(0, 16, 184, 170)	current	selection-mode-over@2x.png
+Greylooks current	selection-mods.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	current	selection-mods@2x.png
+Greylooks current	selection-mods@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	current	selection-mods@2x.png
+Greylooks current	selection-mods-over.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	current	selection-mods-over@2x.png
+Greylooks current	selection-mods-over@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	current	selection-mods-over@2x.png
+Greylooks current	selection-random.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	current	selection-random@2x.png
+Greylooks current	selection-random@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	current	selection-random@2x.png
+Greylooks current	selection-random-over.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	current	selection-random-over@2x.png
+Greylooks current	selection-random-over@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	current	selection-random-over@2x.png
+Greylooks current	selection-options.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	current	selection-options@2x.png
+Greylooks current	selection-options@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	current	selection-options@2x.png
+Greylooks current	selection-options-over.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	current	selection-options-over@2x.png
+Greylooks current	selection-options-over@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	current	selection-options-over@2x.png
+Seoul current	selection-mode.png	1	valid	1150x540	1150x540	(0, 253, 1150, 540)	(0, 356, 1150, 540)	current	selection-mode@2x.png
+Seoul current	selection-mode@2x.png	2	valid	2300x1080	1150x540	(0, 712, 2300, 1080)	(0, 712, 2300, 1080)	current	selection-mode@2x.png
+Seoul current	selection-mode-over.png	1	valid	93x90	93x90	(0, 3, 93, 90)	(0, 18, 93, 90)	current	selection-mode-over@2x.png
+Seoul current	selection-mode-over@2x.png	2	valid	186x180	93x90	(0, 7, 186, 180)	(0, 22, 186, 180)	current	selection-mode-over@2x.png
+Seoul current	selection-mods.png	1	valid	78x90	78x90	(0, 3, 78, 90)	(0, 23, 78, 71)	current	selection-mods@2x.png
+Seoul current	selection-mods@2x.png	2	valid	156x180	78x90	(0, 7, 156, 180)	(0, 30, 156, 161)	current	selection-mods@2x.png
+Seoul current	selection-mods-over.png	1	valid	78x90	78x90	(0, 0, 78, 90)	(24, 24, 53, 67)	current	selection-mods-over@2x.png
+Seoul current	selection-mods-over@2x.png	2	valid	156x180	78x90	(0, 0, 156, 180)	(49, 47, 107, 134)	current	selection-mods-over@2x.png
+Seoul current	selection-random.png	1	valid	78x90	78x90	(0, 3, 78, 90)	(0, 24, 78, 71)	current	selection-random@2x.png
+Seoul current	selection-random@2x.png	2	valid	156x180	78x90	(0, 7, 156, 180)	(0, 30, 156, 161)	current	selection-random@2x.png
+Seoul current	selection-random-over.png	1	valid	78x90	78x90	(0, 0, 78, 90)	(18, 26, 60, 67)	current	selection-random-over@2x.png
+Seoul current	selection-random-over@2x.png	2	valid	156x180	78x90	(0, 0, 156, 180)	(35, 52, 120, 134)	current	selection-random-over@2x.png
+Seoul current	selection-options.png	1	valid	78x90	78x90	(0, 3, 78, 90)	(0, 24, 78, 71)	current	selection-options@2x.png
+Seoul current	selection-options@2x.png	2	valid	156x180	78x90	(0, 7, 156, 180)	(0, 30, 156, 161)	current	selection-options@2x.png
+Seoul current	selection-options-over.png	1	valid	78x90	78x90	(0, 0, 78, 90)	(17, 28, 61, 67)	current	selection-options-over@2x.png
+Seoul current	selection-options-over@2x.png	2	valid	156x180	78x90	(0, 0, 156, 180)	(34, 56, 122, 134)	current	selection-options-over@2x.png
+WhiteCat current	selection-mode.png	1	valid	1143x930	1143x930	(0, 85, 1143, 930)	(0, 85, 1143, 930)	current	selection-mode@2x.png
+WhiteCat current	selection-mode@2x.png	2	valid	2286x1860	1143x930	(0, 170, 2286, 1860)	(0, 171, 2286, 1860)	current	selection-mode@2x.png
+WhiteCat current	selection-mode-over.png	1	valid	82x110	82x110	(47, 15, 82, 65)	(47, 15, 82, 65)	current	selection-mode-over@2x.png
+WhiteCat current	selection-mode-over@2x.png	2	valid	164x220	82x110	(94, 30, 164, 130)	(94, 30, 164, 130)	current	selection-mode-over@2x.png
+WhiteCat current	selection-mods.png	1	transparent	1x1	1x1	None	None	current	selection-mods.png
+WhiteCat current	selection-mods@2x.png	2	missing	-	-	-	-	current	selection-mods.png
+WhiteCat current	selection-mods-over.png	1	valid	61x90	61x90	(9, 0, 61, 40)	(9, 0, 61, 40)	current	selection-mods-over@2x.png
+WhiteCat current	selection-mods-over@2x.png	2	valid	122x180	61x90	(18, 0, 122, 80)	(18, 0, 122, 80)	current	selection-mods-over@2x.png
+WhiteCat current	selection-random.png	1	transparent	1x1	1x1	None	None	current	selection-random.png
+WhiteCat current	selection-random@2x.png	2	missing	-	-	-	-	current	selection-random.png
+WhiteCat current	selection-random-over.png	1	valid	66x90	66x90	(13, 0, 66, 40)	(14, 0, 65, 40)	current	selection-random-over@2x.png
+WhiteCat current	selection-random-over@2x.png	2	valid	132x180	66x90	(27, 0, 131, 80)	(27, 0, 131, 80)	current	selection-random-over@2x.png
+WhiteCat current	selection-options.png	1	transparent	1x1	1x1	None	None	current	selection-options.png
+WhiteCat current	selection-options@2x.png	2	missing	-	-	-	-	current	selection-options.png
+WhiteCat current	selection-options-over.png	1	valid	67x90	67x90	(15, 0, 67, 40)	(15, 0, 67, 40)	current	selection-options-over@2x.png
+WhiteCat current	selection-options-over@2x.png	2	valid	134x180	67x90	(30, 0, 134, 80)	(30, 0, 134, 80)	current	selection-options-over@2x.png
+Default template current	selection-mode.png	1	valid	88x90	88x90	(0, 0, 88, 90)	(0, 0, 88, 90)	current	selection-mode@2x.png
+Default template current	selection-mode@2x.png	2	valid	176x180	88x90	(0, 0, 176, 180)	(0, 0, 176, 180)	current	selection-mode@2x.png
+Default template current	selection-mode-over.png	1	valid	88x90	88x90	(0, 0, 88, 90)	(0, 0, 88, 90)	current	selection-mode-over@2x.png
+Default template current	selection-mode-over@2x.png	2	valid	176x180	88x90	(0, 0, 176, 180)	(0, 0, 176, 180)	current	selection-mode-over@2x.png
+Default template current	selection-mods.png	1	valid	74x90	74x90	(0, 0, 74, 90)	(0, 0, 73, 90)	current	selection-mods@2x.png
+Default template current	selection-mods@2x.png	2	valid	148x180	74x90	(0, 0, 147, 180)	(0, 0, 147, 180)	current	selection-mods@2x.png
+Default template current	selection-mods-over.png	1	valid	74x90	74x90	(0, 0, 74, 90)	(0, 0, 73, 90)	current	selection-mods-over@2x.png
+Default template current	selection-mods-over@2x.png	2	valid	148x180	74x90	(0, 0, 147, 180)	(0, 0, 147, 180)	current	selection-mods-over@2x.png
+Default template current	selection-random.png	1	valid	74x90	74x90	(0, 0, 74, 90)	(0, 0, 73, 90)	current	selection-random@2x.png
+Default template current	selection-random@2x.png	2	valid	148x180	74x90	(0, 0, 147, 180)	(0, 0, 147, 180)	current	selection-random@2x.png
+Default template current	selection-random-over.png	1	valid	74x90	74x90	(0, 0, 74, 90)	(0, 0, 73, 90)	current	selection-random-over@2x.png
+Default template current	selection-random-over@2x.png	2	valid	148x180	74x90	(0, 0, 147, 180)	(0, 0, 147, 180)	current	selection-random-over@2x.png
+Default template current	selection-options.png	1	valid	77x90	77x90	(0, 0, 76, 90)	(1, 0, 74, 90)	current	selection-options@2x.png
+Default template current	selection-options@2x.png	2	valid	154x180	77x90	(0, 0, 153, 180)	(1, 0, 148, 180)	current	selection-options@2x.png
+Default template current	selection-options-over.png	1	valid	77x90	77x90	(0, 0, 76, 90)	(1, 0, 74, 90)	current	selection-options-over@2x.png
+Default template current	selection-options-over@2x.png	2	valid	154x180	77x90	(0, 0, 153, 180)	(1, 0, 148, 180)	current	selection-options-over@2x.png
+xishu current	selection-mode.png	1	transparent	1x1	1x1	None	None	current	selection-mode.png
+xishu current	selection-mode@2x.png	2	missing	-	-	-	-	current	selection-mode.png
+xishu current	selection-mode-over.png	1	missing	-	-	-	-	bundled	selection-mode-over@2x.png
+xishu current	selection-mode-over@2x.png	2	missing	-	-	-	-	bundled	selection-mode-over@2x.png
+xishu current	selection-mods.png	1	valid	73x86	73x86	(1, 1, 72, 86)	(1, 1, 72, 86)	current	selection-mods.png
+xishu current	selection-mods@2x.png	2	missing	-	-	-	-	current	selection-mods.png
+xishu current	selection-mods-over.png	1	valid	73x86	73x86	(0, 0, 73, 86)	(1, 1, 72, 86)	current	selection-mods-over.png
+xishu current	selection-mods-over@2x.png	2	missing	-	-	-	-	current	selection-mods-over.png
+xishu current	selection-random.png	1	valid	73x86	73x86	(1, 1, 72, 86)	(1, 1, 72, 86)	current	selection-random.png
+xishu current	selection-random@2x.png	2	missing	-	-	-	-	current	selection-random.png
+xishu current	selection-random-over.png	1	valid	73x86	73x86	(0, 0, 73, 86)	(1, 1, 72, 86)	current	selection-random-over.png
+xishu current	selection-random-over@2x.png	2	missing	-	-	-	-	current	selection-random-over.png
+xishu current	selection-options.png	1	valid	73x86	73x86	(1, 1, 72, 86)	(1, 1, 72, 86)	current	selection-options.png
+xishu current	selection-options@2x.png	2	missing	-	-	-	-	current	selection-options.png
+xishu current	selection-options-over.png	1	valid	73x86	73x86	(0, 0, 73, 86)	(1, 1, 73, 86)	current	selection-options-over.png
+xishu current	selection-options-over@2x.png	2	missing	-	-	-	-	current	selection-options-over.png
+Greylooks bundled	selection-mode.png	1	valid	92x85	92x85	(0, 8, 92, 85)	(0, 8, 92, 85)	bundled	selection-mode@2x.png
+Greylooks bundled	selection-mode@2x.png	2	valid	184x170	92x85	(0, 16, 184, 170)	(0, 16, 184, 170)	bundled	selection-mode@2x.png
+Greylooks bundled	selection-mode-over.png	1	valid	92x85	92x85	(0, 8, 92, 85)	(0, 8, 92, 85)	bundled	selection-mode-over@2x.png
+Greylooks bundled	selection-mode-over@2x.png	2	valid	184x170	92x85	(0, 16, 184, 170)	(0, 16, 184, 170)	bundled	selection-mode-over@2x.png
+Greylooks bundled	selection-mods.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	bundled	selection-mods@2x.png
+Greylooks bundled	selection-mods@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	bundled	selection-mods@2x.png
+Greylooks bundled	selection-mods-over.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	bundled	selection-mods-over@2x.png
+Greylooks bundled	selection-mods-over@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	bundled	selection-mods-over@2x.png
+Greylooks bundled	selection-random.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	bundled	selection-random@2x.png
+Greylooks bundled	selection-random@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	bundled	selection-random@2x.png
+Greylooks bundled	selection-random-over.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	bundled	selection-random-over@2x.png
+Greylooks bundled	selection-random-over@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	bundled	selection-random-over@2x.png
+Greylooks bundled	selection-options.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	bundled	selection-options@2x.png
+Greylooks bundled	selection-options@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	bundled	selection-options@2x.png
+Greylooks bundled	selection-options-over.png	1	valid	77x86	77x86	(0, 8, 77, 85)	(0, 8, 77, 85)	bundled	selection-options-over@2x.png
+Greylooks bundled	selection-options-over@2x.png	2	valid	154x172	77x86	(0, 16, 154, 170)	(0, 16, 154, 170)	bundled	selection-options-over@2x.png
+fallback missing	selection-mode.png	1	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-mode@2x.png	2	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-mode-over.png	1	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-mode-over@2x.png	2	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-mods.png	1	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-mods@2x.png	2	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-mods-over.png	1	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-mods-over@2x.png	2	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-random.png	1	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-random@2x.png	2	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-random-over.png	1	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-random-over@2x.png	2	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-options.png	1	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-options@2x.png	2	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-options-over.png	1	missing	-	-	-	-	procedural (no providers)	-
+fallback missing	selection-options-over@2x.png	2	missing	-	-	-	-	procedural (no providers)	-
