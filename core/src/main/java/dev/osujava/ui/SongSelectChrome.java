@@ -12,7 +12,7 @@ final class SongSelectChrome {
     record Bounds(float x, float y, float width, float height) { }
     record Content(float rankingHeaderTop, float carouselTop, float bottom) { }
     static Content content(float width, float height, SongSelectSkinAssets skin) {
-        float scale = height / 768f;
+        float scale = height / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
         float left = skin == null ? 0 : skin.topDepth(0, width * .52f / scale) * scale;
         float right = skin == null ? 0 : skin.topDepth(width * .55f / scale, width / scale) * scale;
         var bottom = skin == null ? null : skin.get(Image.BOTTOM);
@@ -30,7 +30,7 @@ final class SongSelectChrome {
         return skin == null || skin.get(image) == null;
     }
     static Bounds top(float width, float height, SongSelectSkinAssets.SkinTexture asset) {
-        float scale = height / 768f;
+        float scale = height / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
         return new Bounds(0, height - asset.logicalHeight() * scale,
                 asset.logicalWidth() * scale, asset.logicalHeight() * scale);
     }

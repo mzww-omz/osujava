@@ -106,6 +106,26 @@ final class SongBrowserModel {
         if (!search.isBlank()) beforeSearch = next;
         if (expansionChanged) expand();
     }
+    /** Relative navigation follows the current filtered/sorted projection, skipping group headers. */
+    void moveDifficulty(int direction) {
+        BeatmapSet current = selectedSet();
+        if (current == null || direction == 0) return;
+        int step = Integer.signum(direction);
+        int next = current.difficulties().indexOf(selectedDifficulty()) + step;
+        if (next >= 0 && next < current.difficulties().size()) { select(current.id(), next); return; }
+        int setIndex = visible.indexOf(current) + step;
+        if (setIndex < 0 || setIndex >= visible.size()) return;
+        BeatmapSet target = visible.get(setIndex);
+        select(target.id(), step < 0 ? target.difficulties().size() - 1 : 0);
+    }
+
+    void moveSet(int direction) {
+        BeatmapSet current = selectedSet();
+        if (current == null || direction == 0) return;
+        int next = visible.indexOf(current) + Integer.signum(direction);
+        if (next >= 0 && next < visible.size()) select(visible.get(next).id(), 0);
+    }
+
     void random() {
         if (visible.isEmpty()) return;
         List<BeatmapSet> candidates = visible.stream().filter(s -> selection == null || !s.id().equals(selection.setId())).toList();

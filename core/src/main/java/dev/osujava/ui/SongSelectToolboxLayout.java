@@ -37,7 +37,7 @@ final class SongSelectToolboxLayout {
     /** GL-free fixture entry point; production uses load-time metrics from the shared resolver. */
     SongSelectToolboxLayout(float width, float height, boolean legacy, EnumMap<Image, SkinTexture> images,
             EnumMap<Image, SelectionAssetBounds> metrics) {
-        float scale = height / 768f;
+        float scale = height / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
         baseline = 0; spacing = 0; controlHeight = (legacy ? 87 : 90) * scale;
         var bottom = images.get(Image.BOTTOM);
         // Artwork presence, raw draw height and reservation are independent. Tiny transparent

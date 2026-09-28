@@ -289,9 +289,10 @@ class SongSelectNavigationTest {
         open("Beta",1); screen.resize(1280,720);
         screen.browserMode(SongBrowserModel.Sort.BPM,SongBrowserModel.Group.CREATOR);
         selected(1,1,"Beta-hard.png"); settle(); screen.resize(1280,720);
-        var hit = SongSelectScreen.class.getDeclaredMethod("rowHit",Class.forName("dev.osujava.ui.SongSelectScreen$Row"),float.class,float.class); hit.setAccessible(true);
-        for(Object row : (List<?>)field("visibleRows")) if ((int)rowValue(row,"setIndex") < 0)
-            assertFalse((boolean)hit.invoke(screen,row,(float)rowValue(row,"x")+20,(float)rowValue(row,"y")+40));
+        for (Object snapshot : (List<?>) field("visibleRows")) {
+            var row = (SongSelectRow) snapshot;
+            if (row.setIndex() < 0) assertFalse(row.contains(row.x() + 20, row.y() + 40));
+        }
         key(Input.Keys.ENTER); assertTrue(((UiNavigation)field("outgoing")).pending());
         selected(1,1,"Beta-hard.png");
     }

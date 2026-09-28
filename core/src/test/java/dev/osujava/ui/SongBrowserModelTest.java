@@ -142,4 +142,42 @@ class SongBrowserModelTest {
         model.select("a",0); var chosen = model.selection(); model.search(""); assertEquals(chosen,model.selection());
     }
 
+    @Test void relativeNavigationUsesFilteredOrderAndSkipsGroupHeaders() {
+        var model = new SongBrowserModel(fixture());
+        model.group(SongBrowserModel.Group.ARTIST);
+        model.select("a", 0);
+        model.moveDifficulty(1);
+        assertEquals("c", model.selectedSet().id());
+        model.moveDifficulty(-1);
+        assertEquals("a", model.selectedSet().id());
+        model.search("Zulu Alpha");
+        model.moveSet(1);
+        assertEquals("b", model.selectedSet().id());
+        model.moveSet(1);
+        assertEquals("b", model.selectedSet().id());
+        model.search("no matches");
+        model.moveDifficulty(1); model.moveSet(-1);
+        assertNull(model.selectedDifficulty());
+        model.search("");
+        assertNotNull(model.selectedDifficulty());
+    }
+
+    @Test void relativeNavigationCrossesSetBoundaryAtLastOrFirstDifficulty() {
+        var first = fixture().getFirst();
+        var extra = fixture().get(1).difficulties().getFirst();
+        var multiple = new BeatmapSet(first.id(), first.title(), first.artist(), first.creator(),
+                null, null, List.of(first.difficulties().getFirst(), extra), List.of());
+        var model = new SongBrowserModel(List.of(multiple, fixture().get(2)));
+        model.select("a", 1);
+        model.moveDifficulty(1);
+        assertSame(extra, model.selectedDifficulty()); // Last set, no wrapping.
+        model.moveDifficulty(-1);
+        assertSame(first.difficulties().getFirst(), model.selectedDifficulty());
+        model.moveDifficulty(-1);
+        assertEquals("c", model.selectedSet().id());
+        model.moveDifficulty(1);
+        assertEquals("a", model.selectedSet().id());
+        assertSame(first.difficulties().getFirst(), model.selectedDifficulty());
+    }
+
 }

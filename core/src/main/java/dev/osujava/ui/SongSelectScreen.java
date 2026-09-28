@@ -89,7 +89,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private Map<String, String> groupLabels = Map.of();
     // Transient display indices only; browser identities are authoritative.
     private List<BeatmapSet> sets;
-    private List<Row> visibleRows = List.of();
+    private List<SongSelectRow> visibleRows = List.of();
     private int selectedSetIndex, selectedDifficultyIndex;
     private boolean importing, closed, searchActive;
     private String search = "";
@@ -119,9 +119,6 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
     private float viewportHeight;
     private float top, bottom, searchX, searchW, cookieX, cookieY, cookieRadius;
-
-    private record Row(int setIndex, int difficultyIndex, String header, boolean selected, boolean sibling,
-                       float x, float y, float width, float height, float hoverAmount, float revealAmount) { }
 
     public SongSelectScreen(OsuJavaGame game) { this(game, null, 0); }
     public SongSelectScreen(OsuJavaGame game, String preferredSetId, int preferredDifficulty) {
@@ -410,30 +407,27 @@ public final class SongSelectScreen extends ScreenAdapter {
         scores.capacity(scoreBounds(layout).capacity());
     }
 
-    private List<Row> layoutRows(UiLayout layout, float delta) {
+    private List<SongSelectRow> layoutRows(UiLayout layout, float delta) {
         updateContent(layout);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
-        Row hit = toolbox.open() ? null : hitRow(px, py);
+        SongSelectRow hit = toolbox.open() ? null : hitRow(px, py);
         carousel.advance(delta, hit == null || hit.setIndex() < 0 ? null : rowKey(hit.setIndex(), hit.difficultyIndex()));
-        List<Row> result = new ArrayList<>();
+        List<SongSelectRow> result = new ArrayList<>();
         for (SongSelectCarousel.Row entry : carousel.rows()) {
             float y = carousel.renderY(entry, top);
             if (y + carousel.rowHeight() < bottom || y > top) continue;
             int setIndex = entry.entry.setIndex(), diffIndex = entry.entry.difficultyIndex();
             boolean selected = setIndex == selectedSetIndex && diffIndex == selectedDifficultyIndex;
-            result.add(new Row(setIndex, diffIndex, groupLabels.get(entry.entry.key()), selected, setIndex == selectedSetIndex && !selected,
+            result.add(new SongSelectRow(setIndex, diffIndex, groupLabels.get(entry.entry.key()), selected, setIndex == selectedSetIndex && !selected,
                     carousel.renderX(entry, layout.width()), y, rowWidth(layout), carousel.rowHeight(), entry.hoverAmount, selected ? 1 : entry.revealAmount * entry.revealAmount));
         }
         return result;
     }
 
-    private float rowWidth(UiLayout layout) { return layout.width() * .50f + 18; }
+    private float rowWidth(UiLayout layout) { return SongSelectMetrics.rowWidth(layout.width()); }
 
     private void updateContent(UiLayout layout) {
-        float height = has(Image.MENU_BUTTON_BACKGROUND)
-                ? SongSelectCarousel.skinRowHeight(skin.get(Image.MENU_BUTTON_BACKGROUND).logicalWidth(),
-                    skin.get(Image.MENU_BUTTON_BACKGROUND).logicalHeight(), rowWidth(layout)) * skin.rowBody().height() / skin.rowBody().width() : 80;
-        height = Math.max(76, Math.min(88, height));
+        float height = SongSelectMetrics.rowHeight(layout.width(), skin);
         float viewportHeight = top - bottom;
         if (contentDirty || contentWidth != layout.width() || contentViewportHeight != viewportHeight || contentRowHeight != height) {
             List<SongSelectCarousel.Entry> entries = new ArrayList<>();
@@ -451,7 +445,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 }
             }
             groupLabels = Map.copyOf(labels);
-            carousel.content(entries, viewportHeight, height, height * .96f, height * 1.02f, selectedRowKey());
+            carousel.content(entries, viewportHeight, height, height * SongSelectMetrics.SET_PITCH, height * SongSelectMetrics.DIFFICULTY_PITCH, selectedRowKey());
             contentDirty = false;
             contentWidth = layout.width(); contentViewportHeight = viewportHeight; contentRowHeight = height;
         }
@@ -550,8 +544,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
         Gdx.gl.glScissor(0, Math.round(bottom * scaleY), Math.round(layout.width() * scaleX), Math.round((top - bottom) * scaleY));
         try {
-            for (Row row : visibleRows) if (!row.selected()) drawRow(row);
-            for (Row row : visibleRows) if (row.selected()) drawRow(row);
+            for (SongSelectRow row : visibleRows) if (!row.selected()) drawRow(row);
+            for (SongSelectRow row : visibleRows) if (row.selected()) drawRow(row);
         } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
         if (visibleRows.isEmpty()) {
             view.beginShapes();
@@ -564,7 +558,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
-    private void drawRow(Row row) {
+    private void drawRow(SongSelectRow row) {
         if (row.revealAmount() < .01f) return;
         if (row.setIndex() < 0) {
             // Compact divider at the row center; no beatmap body, thumbnail, hover or play target.
@@ -618,7 +612,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.endText();
     }
 
-    private void drawRowLabel(Row row, SongSelectRowPresentation.Content content, SongSelectRowPresentation.Geometry geometry) {
+    private void drawRowLabel(SongSelectRow row, SongSelectRowPresentation.Content content, SongSelectRowPresentation.Geometry geometry) {
         Color base = row.selected() ? activeText : inactiveText != null ? inactiveText : UiTheme.TEXT;
         Color primary = primaryTint.set(base);
         primary.a *= row.revealAmount() * (row.sibling() ? .24f : 1);
@@ -753,22 +747,12 @@ public final class SongSelectScreen extends ScreenAdapter {
             view.textSmooth("This mode cannot be played yet", 22, bottom + 25, layout.width() * .31f - 20, UiTheme.META, UiTheme.ERROR);
     }
 
-    private boolean rowHit(Row row, float x, float y) {
-        return row.setIndex() >= 0 && row.revealAmount() >= .05f && x >= row.x() && x <= row.x() + row.width() && y >= row.y() && y <= row.y() + row.height();
-    }
-    private Row hitRow(float x, float y) {
-        if (y <= bottom || y >= top) return null;
-        // Match compositing order: the selected difficulty is drawn above overlapping rows.
-        for (Row row : visibleRows) if (row.selected() && rowHit(row, x, y)) return row;
-        for (int i = visibleRows.size() - 1; i >= 0; i--) {
-            Row row = visibleRows.get(i);
-            if (rowHit(row, x, y)) return row;
-        }
-        return null;
+    private SongSelectRow hitRow(float x, float y) {
+        return SongSelectRow.hit(visibleRows, x, y, bottom, top);
     }
 
     private void handleRowClick(float x, float y) {
-        Row row = hitRow(x, y);
+        SongSelectRow row = hitRow(x, y);
         if (row == null) return;
         if (row.difficultyIndex() >= 0) {
             if (row.setIndex() == selectedSetIndex && row.difficultyIndex() == selectedDifficultyIndex) {
@@ -790,20 +774,12 @@ public final class SongSelectScreen extends ScreenAdapter {
         browser.previousRandom(); syncBrowser(true);
     }
     private void advance(int direction) {
-        BeatmapSet current = selectedSet();
-        if (current == null || direction == 0) return;
-        int next = selectedDifficultyIndex + direction;
-        if (next >= 0 && next < current.difficulties().size()) { selectDifficulty(next); return; }
-        int nextSet = browser.visibleSets().indexOf(current) + direction;
-        if (nextSet >= 0 && nextSet < browser.visibleSets().size()) {
-            var set = browser.visibleSets().get(nextSet);
-            selectSet(sets.indexOf(set));
-            if (direction < 0) selectDifficulty(set.difficulties().size() - 1);
-        }
+        var previous = browser.selectedSet();
+        browser.moveDifficulty(direction); syncBrowser(previous != browser.selectedSet());
     }
     private void advanceSet(int direction) {
-        int next = browser.visibleSets().indexOf(selectedSet()) + direction;
-        if (next >= 0 && next < browser.visibleSets().size()) selectSet(sets.indexOf(browser.visibleSets().get(next)));
+        var previous = browser.selectedSet();
+        browser.moveSet(direction); syncBrowser(previous != browser.selectedSet());
     }
     private void ensureVisibleSelection() { browser.search(search); syncBrowser(true); }
     private void selectSet(int index) {

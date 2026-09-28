@@ -186,8 +186,8 @@ final class SongSelectCarousel {
         float hoverStrength = 1 - .9f * velocityInfluence;
         float selectionEase = ease(dt, 10), expansionEase = ease(dt, 9);
         for (Row row : rows) {
-            float selectionSpace = selected == null ? 0 : Math.signum(selected.logicalY - row.logicalY) * rowHeight * .025f;
-            float separation = hovered == null ? 0 : Math.signum(hovered.logicalY - row.logicalY) * rowHeight * .04f * hoverStrength;
+            float selectionSpace = selected == null ? 0 : Math.signum(selected.logicalY - row.logicalY) * rowHeight * SongSelectMetrics.SELECTION_SPACING;
+            float separation = hovered == null ? 0 : Math.signum(hovered.logicalY - row.logicalY) * rowHeight * SongSelectMetrics.HOVER_SPACING * hoverStrength;
             float down = visualDown(row);
             if ((down < -rowHeight * 2 || down > viewportHeight + rowHeight * 2)
                     && Math.abs(row.expansionY) < .01f && Math.abs(row.expansionVelocityY) < .01f && row.hoverAmount < .01f && row.selectedAmount < .01f
@@ -223,9 +223,9 @@ final class SongSelectCarousel {
         float distance = Math.min(1, Math.abs(normalized));
         // A gentle push at the center and pinch toward it near the ends, bounded to 5 UI units.
         float velocityOffset = (3 - 8 * distance) * velocityInfluence;
-        return Math.max(width * .50f, Math.min(width * .70f,
-                curveX(normalized, width) - width * .052f * row.groupAmount
-                        - 3 * row.selectedAmount - 7 * row.hoverAmount
+        return Math.max(width * SongSelectMetrics.MIN_ROW_X, Math.min(width * SongSelectMetrics.MAX_ROW_X,
+                curveX(normalized, width) - width * SongSelectMetrics.GROUP_INDENT * row.groupAmount
+                        - SongSelectMetrics.SELECTED_INDENT * row.selectedAmount - SongSelectMetrics.HOVER_INDENT * row.hoverAmount
                         + velocityOffset + row.expansionX));
     }
 
@@ -233,7 +233,7 @@ final class SongSelectCarousel {
     static float curveX(float distance, float width) {
         float bounded = Float.isFinite(distance) ? Math.min(100, Math.abs(distance)) : 100;
         float squared = bounded * bounded;
-        return width * (.61f + .065f * squared / (1 + squared));
+        return width * (SongSelectMetrics.CURVE_ORIGIN + SongSelectMetrics.CURVE_DEPTH * squared / (1 + squared));
     }
 
     static float skinRowHeight(float logicalWidth, float logicalHeight, float carouselWidth) {
