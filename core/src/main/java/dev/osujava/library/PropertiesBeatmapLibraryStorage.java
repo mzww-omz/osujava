@@ -280,7 +280,7 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
                 required(properties, prefix + "version"),
                 requiredInteger(properties, prefix + "mode"),
                 required(properties, prefix + "audioFilename"),
-                required(properties, prefix + "backgroundFilename"),
+                properties.getProperty(prefix + "backgroundFilename", chart.backgroundFilename()),
                 chart.settings(), chart.timingPoints(), chart.hitObjects(),
                 resolveStoredPath(properties.getProperty(prefix + "audioPath")),
                 resolveStoredPath(properties.getProperty(prefix + "backgroundPath")),

@@ -47,6 +47,26 @@ class PropertiesBeatmapLibraryStorageTest {
     }
 
     @Test
+    void backgroundlessImportedMapRemainsInLibraryAfterRestart() throws Exception {
+        Path root = tempDir.resolve("library");
+        var library = new BeatmapLibrary(new PropertiesBeatmapLibraryStorage(root));
+        var imported = new BeatmapArchiveImporter(root).importFile(writeFixtureArchive(false)).beatmapSet();
+        library.add(imported);
+        assertNull(imported.backgroundPath());
+
+        var reopened = new BeatmapLibrary(new PropertiesBeatmapLibraryStorage(root));
+        assertEquals(1, reopened.size());
+        var restored = reopened.all().getFirst();
+        assertEquals(2, restored.difficulties().size());
+        assertNull(restored.backgroundPath());
+        for (var difficulty : restored.difficulties()) {
+            assertEquals("", difficulty.backgroundFilename());
+            assertNull(difficulty.backgroundPath());
+            assertTrue(Files.isRegularFile(difficulty.beatmapPath()));
+        }
+    }
+
+    @Test
     void reimportingSetUpdatesItsIndexInsteadOfAddingAnotherEntry() throws Exception {
         Path libraryRoot = tempDir.resolve("library");
         Path archive = writeFixtureArchive();
@@ -121,7 +141,9 @@ class PropertiesBeatmapLibraryStorageTest {
         return new BeatmapArchiveImporter(libraryRoot).importFile(writeFixtureArchive()).beatmapSet();
     }
 
-    private Path writeFixtureArchive() throws IOException {
+    private Path writeFixtureArchive() throws IOException { return writeFixtureArchive(true); }
+
+    private Path writeFixtureArchive(boolean background) throws IOException {
         Path archive = tempDir.resolve("stored-set.osz");
         String common = """
                 osu file format v14
@@ -145,11 +167,12 @@ class PropertiesBeatmapLibraryStorageTest {
                 [HitObjects]
                 256,192,1000,1,0
                 """;
+        if (!background) common = common.replace("0,0,\"background.png\",0,0\n", "");
         try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(archive), StandardCharsets.UTF_8)) {
             put(zip, "Easy.osu", common.formatted(0, "Easy"));
             put(zip, "Hard.osu", common.formatted(3, "Hard"));
             put(zip, "song.ogg", "audio data");
-            put(zip, "background.png", "background data");
+            if (background) put(zip, "background.png", "background data");
         }
         return archive;
     }
