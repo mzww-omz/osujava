@@ -138,11 +138,16 @@ tasks.register('volumeHudVisualHarness', JavaExec) {
 tasks.register('songSelectVisualHarness', JavaExec) {
     workingDir = rootProject.projectDir
     dependsOn hudHarnessClasses
-    classpath = sourceSets.hudHarness.runtimeClasspath
+    // Resource reads must not depend on a JAR that another Gradle task can replace mid-capture.
+    classpath = (sourceSets.hudHarness.runtimeClasspath - files(project(':core').tasks.named('jar').get().archiveFile)) + project(':core').sourceSets.main.output
     mainClass = 'dev.osujava.ui.SongSelectVisualHarness'
     systemProperty 'java.awt.headless', 'true'
     args project.findProperty('songSelectOutput') ?: '/tmp/osujava-songselect'
     systemProperty 'osujava.songSelectPhase', project.findProperty('songSelectPhase') ?: 'all'
+    for (def option : ['Case', 'Width', 'Height', 'Density', 'SelectedSet', 'SelectedDifficulty', 'Scroll', 'Search', 'Hover', 'Time', 'Action']) {
+        def name = "songSelect${option}"
+        if (project.hasProperty(name)) systemProperty "osujava.${name}", project.property(name)
+    }
     if (project.hasProperty('songSelectCorpusManifest')) {
         systemProperty 'osujava.songSelectCorpusManifest', project.property('songSelectCorpusManifest')
     }

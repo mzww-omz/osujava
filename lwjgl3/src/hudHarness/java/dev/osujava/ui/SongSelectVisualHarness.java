@@ -177,7 +177,28 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (String name : List.of("repair-empty", "repair-single", "repair-low-fps"))
                     scenes.add(new Scene(size[0], size[1], size[2], name));
             String phase = System.getProperty("osujava.songSelectPhase", "all");
-            if (phase.equals("repair")) {
+            if (phase.equals("case")) {
+                String name = System.getProperty("osujava.songSelectCase", "greylooks-initial");
+                if (scenes.stream().noneMatch(scene -> scene.name.equals(name))) throw new IllegalArgumentException("Unknown scene: " + name);
+                scenes.clear();
+                scenes.add(new Scene(Integer.getInteger("osujava.songSelectWidth", 1280),
+                        Integer.getInteger("osujava.songSelectHeight", 720),
+                        Integer.getInteger("osujava.songSelectDensity", 1), name));
+            } else if (phase.equals("configured")) {
+                scenes.clear();
+                scenes.add(new Scene(Integer.getInteger("osujava.songSelectWidth", 1280),
+                        Integer.getInteger("osujava.songSelectHeight", 720),
+                        Integer.getInteger("osujava.songSelectDensity", 1), "configured"));
+            } else if (phase.equals("foundation")) {
+                var cases = Set.of("greylooks-initial", "greylooks-hover", "greylooks-fast-scroll",
+                        "greylooks-first-item", "greylooks-last-item", "greylooks-difficulty-selected",
+                        "greylooks-random", "phase3-search-unicode", "phase5a-current-back-hover",
+                        "phase5a-current-mode-view", "phase5a-current-mods-view", "phase5a-current-options-hover",
+                        "old", "missing", "tiny", "broken", "unusual", "high-only", "phasechrome-giant");
+                scenes.removeIf(scene -> !cases.contains(scene.name));
+                for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
+                    scenes.add(new Scene(1024, 768, 1, scene.name));
+            } else if (phase.equals("repair")) {
                 // The desktop launcher starts at 1100x720; include that aspect ratio too.
                 for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
                     scenes.add(new Scene(1100, 720, 1, scene.name));
@@ -477,6 +498,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         };
         Path greylooks = Path.of("core/src/main/resources/skins/default").toAbsolutePath();
         var resolver = switch (scene.name) {
+            case "configured" -> customSkin == null ? SkinAssetResolver.withBundledDefault(null, null)
+                    : SkinAssetResolver.withBundledDefault(customSkin, null);
             case "phasechrome-current", "phasechrome-current-hover" -> SkinAssetResolver.withBundledDefault(greylooks, output.resolve("fixtures/latest"));
             case "phasechrome-missing" -> new SkinAssetResolver(output.resolve("fixtures/row-only"));
             case "phasechrome-fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), greylooks);
@@ -521,6 +544,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             screen.legacyThumbnailPreview(scene.name.equals("phase25-legacy-b"));
             screen.resize(scene.width,scene.height);
             fb.begin();
+            if (scene.name.equals("configured")) {
+                captureConfigured(screen, scene, fb, pointer, processor[0], assets);
+                fb.end(); advanceScene(); return;
+            }
             if (scene.name.startsWith("phase3")) configureBrowserScene(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             for (int frame = 0; frame < 40; frame++) screen.render(1f / 60);
             if ((scene.name.equals("phase2-hover") || scene.name.equals("phase25-hover"))) {
@@ -1124,6 +1151,52 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if (scene.equals("phase2-high-star") && assets.get(SongSelectSkinAssets.Image.STAR).density() != 2)
                 throw new AssertionError("@2x star lost");
         } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+
+    /** Repeatable state capture through production model/input APIs; no reflection. */
+    private void captureConfigured(SongSelectScreen screen, Scene scene, FrameBuffer fb, int[] pointer,
+                                   InputProcessor input, SongSelectSkinAssets assets) {
+        var layout = UiLayout.fromPixels(scene.width, scene.height);
+        screen.previewSelection(Integer.getInteger("osujava.songSelectSelectedSet", 3),
+                Integer.getInteger("osujava.songSelectSelectedDifficulty", 1));
+        screen.browserSearch(System.getProperty("osujava.songSelectSearch", ""), false);
+        // Establish resources and initial state before the requested transition.
+        screen.render(0);
+        screen.previewScroll(Float.parseFloat(System.getProperty("osujava.songSelectScroll", "0")));
+        int key = switch (System.getProperty("osujava.songSelectAction", "none")) {
+            case "selection" -> Input.Keys.DOWN;
+            case "random" -> Input.Keys.F2;
+            case "back" -> Input.Keys.ESCAPE;
+            case "mode" -> -2;
+            case "mods" -> Input.Keys.F1;
+            case "options" -> Input.Keys.F3;
+            case "none" -> -1;
+            default -> throw new IllegalArgumentException("Unknown capture action");
+        };
+        if (key == -2) toolboxState(screen).open(SongSelectToolboxState.Overlay.MODE);
+        else if (key >= 0) input.keyDown(key);
+        String[] hover = System.getProperty("osujava.songSelectHover", "40,360").split(",");
+        pointer[0] = Math.round(Float.parseFloat(hover[0]) * layout.scale());
+        pointer[1] = scene.height - Math.round(Float.parseFloat(hover[1]) * layout.scale());
+        float time = Float.parseFloat(System.getProperty("osujava.songSelectTime", "0.667"));
+        if (!Float.isFinite(time) || time < 0 || time > 60) throw new IllegalArgumentException("Capture time must be 0..60s");
+        int steps = (int) Math.ceil(time * 120);
+        for (int step = 0; step < steps; step++) screen.render(Math.min(1f / 120, time - step / 120f));
+        screen.render(0);
+        String name = scene.width + "x" + scene.height + "-" + scene.density + "x-configured";
+        capture(fb, name);
+        var report = new StringBuilder("window=" + scene.width + "x" + scene.height + " density=" + scene.density
+                + " time=" + time + "\n");
+        for (var image : SongSelectSkinAssets.Image.values()) {
+            var asset = assets.get(image);
+            report.append(image.basename).append(" provider=").append(assets.provider(image));
+            if (asset != null) report.append(" density=").append(asset.density()).append(" source=").append(asset.file().path());
+            report.append("\n");
+        }
+        report.append("skinVersion=").append(assets.configuration().legacyVersion()).append("\n");
+        for (var row : screen.rowGeometrySnapshot()) report.append(row).append("\n");
+        try { Files.writeString(output.resolve(name + ".txt"), report); }
+        catch (java.io.IOException e) { throw new RuntimeException(e); }
     }
 
     private void capture(FrameBuffer fb, String name) {
