@@ -174,3 +174,9 @@ fixtures and analysis outputs are not committed.
 These checks validate osujava behavior, not a live side-by-side Stable session.
 Stable runtime comparison, exact keyboard focus/dwell parity and its exponential
 wheel inertia remain unverified or deliberately different as described above.
+
+## Subsequent repair phase
+
+The [repair verification record](song-select-repair.md) documents defects found by
+normal application operation after these initial passes. It supersedes the earlier
+skin-derived row body dimensions and unrestricted chrome drawing described above.

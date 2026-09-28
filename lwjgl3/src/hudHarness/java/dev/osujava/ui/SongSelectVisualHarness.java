@@ -173,8 +173,22 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         "large-idle", "large-hover", "large-mods", "large-scroll"))
                     scenes.add(new Scene(size[0],size[1],size[2],"phase5a-state-" + state));
             }
+            for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
+                for (String name : List.of("repair-empty", "repair-single", "repair-low-fps"))
+                    scenes.add(new Scene(size[0], size[1], size[2], name));
             String phase = System.getProperty("osujava.songSelectPhase", "all");
-            if (phase.equals("redevelopment")) {
+            if (phase.equals("repair")) {
+                // The desktop launcher starts at 1100x720; include that aspect ratio too.
+                for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
+                    scenes.add(new Scene(1100, 720, 1, scene.name));
+                var cases = Set.of("repair-empty", "repair-single", "repair-low-fps", "greylooks-initial",
+                        "greylooks-hover", "greylooks-expanded-many-last", "greylooks-scroll-reverse",
+                        "greylooks-large-library", "phasechrome-current", "phasechrome-bundled",
+                        "phasechrome-giant", "phasechrome-giant-high", "phasechrome-transparent",
+                        "missing", "high-only", "tiny", "phase2-five-stars", "phase2-thumbnail-fade",
+                        "phase2-long-english", "phase3-transitions");
+                scenes.removeIf(scene -> !cases.contains(scene.name));
+            } else if (phase.equals("redevelopment")) {
                 // Fast cross-feature suite; all original phase suites remain available unchanged.
                 var regression = Set.of("greylooks-initial", "greylooks-hover", "greylooks-fast-scroll", "greylooks-scroll-reverse",
                         "greylooks-expanded-many-first", "greylooks-expanded-many-last", "greylooks-collapse-many",
@@ -382,6 +396,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         });
         var library = new BeatmapLibrary();
         int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern") || scene.name.equals("phase3-large-library") || scene.name.startsWith("phase4-large") || scene.name.startsWith("phase5a-state-large")) ? 1000 : 7;
+        if (scene.name.equals("repair-empty")) setCount = 0;
+        if (scene.name.equals("repair-single")) setCount = 1;
         boolean phase2 = scene.name.startsWith("phase2");
         var ratings = new IdentityHashMap<BeatmapDifficulty, OptionalDouble>();
         for (int i = 0; i < setCount; i++) {
@@ -419,7 +435,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 };
             }
             List<BeatmapDifficulty> diffs = new ArrayList<>();
-            int difficultyCount = (scene.name.equals("greylooks-expanded-single") || scene.name.equals("phase2-single")) ? 1
+            int difficultyCount = (scene.name.equals("repair-single") || scene.name.equals("greylooks-expanded-single") || scene.name.equals("phase2-single")) ? 1
                     : (scene.name.contains("many") && i == 3) ? 16 : 4;
             for (int difficulty = 0; difficulty < difficultyCount; difficulty++) {
                 var diff = new BeatmapDifficulty(title,artist,mapper,version + (difficulty + 1),0,"","",DifficultySettings.defaults(),
@@ -464,7 +480,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "phasechrome-current", "phasechrome-current-hover" -> SkinAssetResolver.withBundledDefault(greylooks, output.resolve("fixtures/latest"));
             case "phasechrome-missing" -> new SkinAssetResolver(output.resolve("fixtures/row-only"));
             case "phasechrome-fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), greylooks);
-            case "phasechrome-bundled" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), null);
+            case "repair-empty", "repair-single", "repair-low-fps", "phasechrome-bundled" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), null);
             case "phasechrome-normal" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/normal-only"), greylooks);
             case "phasechrome-giant", "phasechrome-giant-high" -> SkinAssetResolver.withBundledDefault(
                     output.resolve("fixtures/" + scene.name.substring("phasechrome-".length())), greylooks);
@@ -513,6 +529,30 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if (scene.name.equals("repair-empty") || scene.name.equals("repair-single")) {
+                // Genuine empty/one-difficulty libraries, not a filtered seven-Set fixture.
+                if (carousel(screen).rows().size() != setCount) throw new AssertionError("Wrong small-library fixture");
+                for (int key : new int[]{Input.Keys.UP, Input.Keys.DOWN, Input.Keys.PAGE_UP, Input.Keys.PAGE_DOWN, Input.Keys.F2})
+                    processor[0].keyDown(key);
+                pointer[0] = Math.round((layout.width() - 100) * layout.scale());
+                pointer[1] = scene.height / 2;
+                processor[0].scrolled(0, 4);
+                for (int frame = 0; frame < 20; frame++) screen.render(.1f);
+                assertRenderedBounds(screen, layout);
+                assertScrollSettled(screen, name);
+                capture(fb, name);
+                processor[0].keyDown(Input.Keys.ESCAPE);
+                screen.render(.3f);
+                if (destination[0] == null) throw new AssertionError("Back did not leave small Library");
+                fb.end(); advanceScene(); return;
+            }
+            if (scene.name.equals("repair-low-fps")) {
+                processor[0].keyDown(Input.Keys.DOWN);
+                for (int frame = 0; frame < 20; frame++) {
+                    screen.render(.1f); assertRenderedBounds(screen, layout); transitionFrames++;
+                    if (frame == 0 || frame == 2 || frame == 19) capture(fb, name + "-frame-" + frame);
+                }
+            }
             if (scene.name.startsWith("phase5a")) {
                 configureToolbox(screen,scene,processor[0],pointer,clicked,pressed,layout,localScores,library);
                 if (scene.name.equals("phase5a-state-transitions")) toolboxTransitions(screen,processor[0],fb,name,layout);
@@ -1235,8 +1275,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 if (Math.abs(x - model.renderX(row,layout.width())) > .001f
                         || Math.abs(y - model.renderY(row,screen.chromeBounds(layout).carouselTop())) > .001f)
                     throw new AssertionError("Draw snapshot diverged from motion bounds");
-                if (!Float.isFinite(x) || !Float.isFinite(y) || x < layout.width() * .50f || x > layout.width() * .70f)
-                    throw new AssertionError("Invalid row bounds");
+                if (!Float.isFinite(x) || !Float.isFinite(y) || x < layout.width() * SongSelectMetrics.MIN_ROW_X || x > layout.width() * SongSelectMetrics.MAX_ROW_X)
+                    throw new AssertionError("Invalid row bounds: " + x + ", " + y);
+                float bodyWidth = (float) value(type, snapshot, "width");
+                if (x + bodyWidth < layout.width()) throw new AssertionError("Row ends inside the viewport");
+                if (Math.abs(model.rowHeight() - SongSelectMetrics.rowPitch(layout.height())) > .001f)
+                    throw new AssertionError("Skin changed row density");
             }
         } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
     }
