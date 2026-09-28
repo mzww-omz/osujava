@@ -9,7 +9,7 @@ class SongSelectDetailsTest {
         var set = SongBrowserModelTest.set("a", "夜の星", "Artist", "Mapper", 180, 65000);
         var absent = SongSelectRowPresentation.Stars.of(OptionalDouble.empty());
         var details = SongSelectDetails.of(set, set.difficulties().getFirst(), absent);
-        assertEquals("夜の星 [Extra 星]", details.title());
+        assertEquals("Artist - 夜の星 [Extra 星]", details.title());
         assertTrue(details.mapper().contains("Mapped by Mapper"));
         assertEquals("Length 1:05    BPM 180    Objects 2", details.summary());
         assertTrue(details.stats().contains("Circles 2"));

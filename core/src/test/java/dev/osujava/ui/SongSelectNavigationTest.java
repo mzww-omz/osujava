@@ -183,7 +183,7 @@ class SongSelectNavigationTest {
     private void click(int set, int difficulty) throws Exception {
         var row = carousel().rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == difficulty).findFirst().orElseThrow();
         var method = SongSelectScreen.class.getDeclaredMethod("handleRowClick",float.class,float.class); method.setAccessible(true);
-        method.invoke(screen,carousel().renderX(row,1280) + 150,carousel().renderY(row,658) + carousel().rowHeight()/2);
+        method.invoke(screen,carousel().renderX(row,1280) + 150,carousel().renderY(row,636) + carousel().rowHeight()/2);
     }
 
     @Test void selectionMovesViewportTargetWhileLogicalContentRemainsStable() throws Exception {
@@ -193,7 +193,7 @@ class SongSelectNavigationTest {
         assertSame(rows,carousel().rows()); assertEquals(offset,carousel().scrollOffset());
         assertTrue(carousel().scrollTarget() > offset); settle();
         var selected = carousel().rows().stream().filter(r -> r.entry.setIndex() == 1 && r.entry.difficultyIndex() == 1).findFirst().orElseThrow();
-        assertEquals(390,carousel().renderY(selected,658) + carousel().rowHeight()/2,.01);
+        assertEquals(390,carousel().renderY(selected,636) + carousel().rowHeight()/2,.01);
     }
 
     @Test void expansionIncludesEveryDifficultyInLibraryOrderAndCollapsesPreviousSet() throws Exception {
@@ -221,7 +221,7 @@ class SongSelectNavigationTest {
             library.add(new BeatmapSet(title,title,"Artist","Creator",null,null,List.of(diff),List.of()));
         open("Beta",0); screen.resize(1280,720);
         var row = carousel().rows().stream().filter(r -> r.entry.setIndex() == 4).findFirst().orElseThrow();
-        float x = 1245, y = carousel().renderY(row,658) + carousel().rowHeight()/2;
+        float x = 1245, y = carousel().renderY(row,636) + carousel().rowHeight()/2;
         assertTrue(y > 84 && y < 140, "Row overlaps the logo artwork");
         assertFalse(((OsuCookie)field("playCookie")).hit(x,y));
         var method = SongSelectScreen.class.getDeclaredMethod("handleRowClick",float.class,float.class);
@@ -247,7 +247,7 @@ class SongSelectNavigationTest {
             assertEquals(2,carousel().rows().stream().filter(r -> r.entry.setIndex() == (int)uncheckedField("selectedSetIndex")).count());
             settle();
             var row = carousel().rows().stream().filter(r -> r.entry.setIndex() == (int)uncheckedField("selectedSetIndex") && r.entry.difficultyIndex() == 0).findFirst().orElseThrow();
-            assertEquals(390,carousel().renderY(row,658) + carousel().rowHeight()/2,.01);
+            assertEquals(390,carousel().renderY(row,636) + carousel().rowHeight()/2,.01);
         }
     }
     private Object uncheckedField(String name) {
@@ -284,11 +284,11 @@ class SongSelectNavigationTest {
                 int set = (int)rowValue(snapshot,"setIndex"), diff = (int)rowValue(snapshot,"difficultyIndex");
                 var modelRow = carousel().rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff).findFirst().orElseThrow();
                 assertEquals(carousel().renderX(modelRow,1280),(float)rowValue(snapshot,"x"),.001);
-                assertEquals(carousel().renderY(modelRow,658),(float)rowValue(snapshot,"y"),.001);
+                assertEquals(carousel().renderY(modelRow,636),(float)rowValue(snapshot,"y"),.001);
                 if ((boolean)rowValue(snapshot,"selected")) {
                     float x = (float)rowValue(snapshot,"x") + 150;
                     float y = (float)rowValue(snapshot,"y") + (float)rowValue(snapshot,"height") / 2;
-                    if (y > 84 && y < 658) assertSame(snapshot,hit.invoke(screen,x,y),"Selected row must win over overlapping animated siblings");
+                    if (y > 84 && y < 636) assertSame(snapshot,hit.invoke(screen,x,y),"Selected row must win over overlapping animated siblings");
                 }
             }
         }
@@ -343,7 +343,7 @@ class SongSelectNavigationTest {
             int set = (int)rowValue(snapshot,"setIndex"), diff = (int)rowValue(snapshot,"difficultyIndex");
             float x = (float)rowValue(snapshot,"x"), y = (float)rowValue(snapshot,"y");
             assertTrue(motion.rows().stream().anyMatch(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff
-                    && Math.abs(motion.renderX(r,1280)-x) < .001f && Math.abs(motion.renderY(r,658)-y) < .001f));
+                    && Math.abs(motion.renderX(r,1280)-x) < .001f && Math.abs(motion.renderY(r,636)-y) < .001f));
         }
     }
 
@@ -408,7 +408,7 @@ class SongSelectNavigationTest {
         assertFalse(((UiNavigation) field("outgoing")).pending());
         for (var geometry : screen.rowGeometrySnapshot()) {
             var motion = carousel().rows().get(geometry.logicalIndex());
-            assertEquals(carousel().renderY(motion, 658), geometry.body().y(), .001);
+            assertEquals(carousel().renderY(motion, 636), geometry.body().y(), .001);
         }
     }
 

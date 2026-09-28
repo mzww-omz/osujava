@@ -39,7 +39,7 @@ class SongSelectChromeTest {
         assertEquals(150,tall.bottom());
         var transparent = SongSelectChrome.content(720,0,0,0);
         assertEquals(590,transparent.rankingHeaderTop());
-        assertEquals(658,transparent.carouselTop());
+        assertEquals(636,transparent.carouselTop());
         assertEquals(84,transparent.bottom());
     }
     @Test void chromeDrawClipsLeaveTheReservedBrowserRegionUncovered() {

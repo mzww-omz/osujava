@@ -1,6 +1,8 @@
 package dev.osujava.ui;
 
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import dev.osujava.skin.SongSelectSkinAssets;
 import dev.osujava.ui.theme.UiLayout;
 import dev.osujava.ui.theme.UiTheme;
 import dev.osujava.ui.theme.UiView;
@@ -17,7 +19,7 @@ final class SongSelectToolboxOverlay {
         if (close(layout).contains(x,y)) state.close();
         else if (state.overlay() == SongSelectToolboxState.Overlay.MODS && reset(layout).contains(x,y)) state.reset();
     }
-    static void draw(UiView view, UiLayout layout, SongSelectToolboxState state) {
+    static void draw(UiView view, SpriteBatch batch, UiLayout layout, SongSelectToolboxState state, SongSelectSkinAssets skin) {
         if (!state.open()) return;
         view.beginShapes();
         view.box(0,0,layout.width(),layout.height(),0,DIM);
@@ -37,8 +39,10 @@ final class SongSelectToolboxOverlay {
                     36,454 - group * 76,180,.72f,UiTheme.MUTED);
             for (Mod mod : Mod.values()) {
                 var b = tile(layout,mod);
-                view.textSmoothBold(mod.acronym,b.x()+7,b.y()+37,b.width()-14,.9f,UiTheme.MUTED);
-                view.textSmooth(mod.label,b.x()+7,b.y()+21,b.width()-14,.6f,UiTheme.MUTED);
+                if (SongSelectSkinDrawing.present(skin,mod.image()))
+                    SongSelectSkinDrawing.fit(batch,skin,mod.image(),b.x()+4,b.y()+18,40,40,UiTheme.TEXT);
+                else view.textSmoothBold(mod.acronym,b.x()+7,b.y()+37,40,.9f,UiTheme.MUTED);
+                view.textSmooth(mod.label,b.x()+48,b.y()+33,b.width()-52,.56f,UiTheme.MUTED);
                 view.textSmooth(mod.capability() == SongSelectToolboxState.Capability.DEBUG_ONLY ? "F6 debug only" : "Unavailable",
                         b.x()+7,b.y()+6,b.width()-14,.51f,UiTheme.MUTED);
             }
@@ -48,7 +52,10 @@ final class SongSelectToolboxOverlay {
             view.textSmooth("Only osu!standard is playable",36,486,layout.width()-72,.8f,UiTheme.MUTED);
             for (int i = 0; i < 4; i++) {
                 float x = 46 + i * (layout.width()-72)/4;
-                view.textSmoothBold(new String[]{"osu!standard","osu!taiko","osu!catch","osu!mania"}[i],x,365,(layout.width()-110)/4,.95f,UiTheme.TEXT);
+                var icon = SongSelectSkinAssets.modeImage(i,2);
+                if (!SongSelectSkinDrawing.present(skin,icon)) icon = SongSelectSkinAssets.modeImage(i,0);
+                SongSelectSkinDrawing.fit(batch,skin,icon,x+8,350,52,52,UiTheme.TEXT);
+                view.textSmoothBold(new String[]{"osu!standard","osu!taiko","osu!catch","osu!mania"}[i],x+65,365,(layout.width()-110)/4-65,.85f,UiTheme.TEXT);
                 view.textSmooth(i == 0 ? "Current mode" : "Unavailable",x,330,(layout.width()-110)/4,.72f,UiTheme.MUTED);
             }
         }

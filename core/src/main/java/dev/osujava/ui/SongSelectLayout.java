@@ -29,7 +29,7 @@ final class SongSelectLayout {
         return new Snapshot(chrome, toolbox,
                 new Rect(left, chrome.bottom(), ui.width() - left, chrome.carouselTop() - chrome.bottom()),
                 new Rect(18, ui.height() - 112, ui.width() * .52f - 28, 112),
-                new Rect(ui.width() * .64f - 16, ui.height() - 58, ui.width() * .36f, 25),
+                new Rect(ui.width() * .64f - 16, ui.height() - 80, ui.width() * .36f, 25),
                 new ScoreBrowserBounds(18, chrome.bottom() + 48, ui.width() * .35f, chrome.rankingHeaderTop() - 64));
     }
 

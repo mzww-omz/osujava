@@ -92,6 +92,14 @@ final class SongSelectRowRenderer {
             view.endShapes();
             view.beginText();
         }
+        // The bundled default is dark artwork. Keep an authored text colour, but provide
+        // a light selected surface when that text is dark. Never wash custom skin artwork.
+        var background = has(Image.MENU_BUTTON_BACKGROUND) ? style.skin().get(Image.MENU_BUTTON_BACKGROUND) : null;
+        if (fallbackWash(row.selected(), background != null && background.file().classpathResource() != null, style.activeText())) {
+            batch.setColor(1,1,1,.86f * row.revealAmount());
+            batch.draw(style.fill(),x,y,row.width(),row.height());
+            batch.setColor(Color.WHITE);
+        }
         var content = item.content();
         var geometry = item.geometry().text();
         float tx = x + geometry.thumbnailX(), ty = y + geometry.thumbnailY();
@@ -107,6 +115,10 @@ final class SongSelectRowRenderer {
         }
         drawRowLabel(item, geometry);
         view.endText();
+    }
+
+    static boolean fallbackWash(boolean selected, boolean bundled, Color text) {
+        return selected && bundled && .2126f * text.r + .7152f * text.g + .0722f * text.b < .35f;
     }
 
     private void drawRowLabel(Presentation item, SongSelectRowPresentation.Geometry geometry) {

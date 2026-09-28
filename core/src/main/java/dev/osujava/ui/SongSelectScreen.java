@@ -255,6 +255,8 @@ public final class SongSelectScreen extends ScreenAdapter {
                 searchX,
                 searchW,
                 contentWidth,
+                carousel.scrollOffset(),
+                carousel.maxScroll(),
                 viewState.pointerX,
                 viewState.pointerY,
                 viewState.pointerPressed,
@@ -291,10 +293,10 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             input.cancelPointer();
             var oldSort = browser.sort(); var oldGroup = browser.group();
-            boolean menuWasOpen = controls.open();
+            var previousMenu = controls.menu();
             if (toolbox.open()) SongSelectToolboxOverlay.click(toolbox,layout,px,py);
             else if (controls.click(px, py, layout.width(), layout.height(), browser)) {
-                sound(!menuWasOpen && controls.open() ? SongSelectAudio.Cue.EXPAND : SongSelectAudio.Cue.CONFIRM);
+                sound(controls.menu() != null && controls.menu() != previousMenu ? SongSelectAudio.Cue.EXPAND : SongSelectAudio.Cue.CONFIRM);
                 if (oldSort != browser.sort() || oldGroup != browser.group()) { refreshBrowserOrder(); }
             }
             else if (layoutSnapshot.search().contains(px, py)) searchActive = true;
@@ -336,6 +338,8 @@ public final class SongSelectScreen extends ScreenAdapter {
                 if (action != null) {
                     target = "control:" + action;
                     if (action == SongSelectAction.BACK) cue = SongSelectAudio.Cue.HOVER_BACK;
+                } else if (controls.hover(px,py,layout.width(),layout.height()) != null) {
+                    target = "browser:" + controls.hover(px,py,layout.width(),layout.height());
                 } else if (!controls.open()) {
                     var row = hitRow(px, py);
                     if (row != null) {

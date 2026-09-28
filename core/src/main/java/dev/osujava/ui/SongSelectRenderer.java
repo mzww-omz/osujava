@@ -71,6 +71,8 @@ final class SongSelectRenderer {
         float searchX,
         float searchW,
         float contentWidth,
+        float scrollOffset,
+        float scrollRange,
         float pointerX,
         float pointerY,
         boolean pointerPressed,
@@ -93,6 +95,7 @@ final class SongSelectRenderer {
         float px = frame.pointerX, py = frame.pointerY;
         view.clear();
         view.background(frame.background, .72f * frame.backgroundFade);
+        SongSelectDecorations.draw(view,batch,frame.skin,layout,frame.seconds,frame.selectedDifficulty);
         view.beginShapes();
         view.box(0, 0, layout.width(), layout.height(), 0, DIM);
         renderedTopProcedural = SongSelectChrome.procedural(frame.skin, Image.TOP);
@@ -126,7 +129,8 @@ final class SongSelectRenderer {
             boolean hover = !frame.toolbox.open() && frame.bottomLayout.control(action).interaction().contains(px,py);
             chromeBox(slot,!selectionEnabled(action) ? LEFT : hover ? SIBLING_HOVER : OTHER);
         }
-        if (frame.searchActive || !frame.search.isEmpty()) view.box(frame.searchX, layout.height() - 58, frame.searchW, 25, 0, LEFT);
+        frame.controls.drawShapes(view,layout.width(),layout.height(),frame.skin);
+        if (frame.searchActive || !frame.search.isEmpty()) view.box(frame.searchX, layout.height() - 80, frame.searchW, 25, 0, LEFT);
         view.box(18, frame.chromeContent.rankingHeaderTop() - 28, layout.width() * .35f, 28, 0, TOP);
         drawScoreShapes(layout, px, py);
         if (frame.toastSeconds > 0) view.box(18, frame.bottom + 12, Math.min(450, layout.width() * .42f), 35, 0, BOTTOM);
@@ -141,6 +145,13 @@ final class SongSelectRenderer {
             view.endText();
         } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
         drawRows(layout);
+        var thumb = SongSelectScrollbar.thumb(layout.width(),frame.bottom,frame.top,frame.scrollOffset,frame.scrollRange);
+        if (thumb.height() > 0) {
+            view.beginShapes();
+            view.box(thumb.x(),frame.bottom,thumb.width(),frame.top-frame.bottom,0,LEFT);
+            view.box(thumb.x(),thumb.y(),thumb.width(),thumb.height(),0,UiTheme.TEXT);
+            view.endShapes();
+        }
         if (frame.selectedDifficulty != null) {
             playCookie.draw(view, frame.seconds, !frame.toolbox.open() && playCookie.hit(px, py),
                     !frame.toolbox.open() && frame.pointerPressed);
@@ -161,9 +172,13 @@ final class SongSelectRenderer {
         Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
         drawMetadata(layout);
         drawRanking(layout);
-        frame.controls.drawLabels(view, layout.width(), layout.height(), frame.browser);
-        view.textSmooth(frame.search.isEmpty() ? "Search: type to search" : frame.search + (frame.searchActive ? "|" : ""),
-                frame.searchX + 9, layout.height() - 51, frame.searchW - 18, .75f, frame.search.isEmpty() ? UiTheme.MUTED : UiTheme.TEXT);
+        frame.controls.drawLabels(view,batch,layout.width(),layout.height(),frame.browser,frame.skin,px,py);
+        var modeControl = frame.bottomLayout.control(Selection.MODE).slot();
+        SongSelectSkinDrawing.additiveFit(batch,frame.skin,SongSelectSkinAssets.modeImage(
+                frame.selectedDifficulty == null ? 0 : frame.selectedDifficulty.mode(),1),
+                modeControl.x()+(modeControl.width()-30)/2,modeControl.y()+modeControl.height()-32,30,30,Color.WHITE);
+        view.textSmooth(frame.search.isEmpty() ? "Search: type to search" : frame.search + (frame.searchActive && (int)(frame.seconds * 2) % 2 == 0 ? "|" : ""),
+                frame.searchX + 9, layout.height() - 73, frame.searchW - 18, .75f, frame.search.isEmpty() ? UiTheme.MUTED : UiTheme.TEXT);
         float labelY = frame.bottomLayout.baseline + frame.bottomLayout.controlHeight * .5f;
         if (!has(Image.BACK)) view.textSmooth("‹  back", frame.bottomLayout.back.x() + 22, labelY,
                 frame.bottomLayout.back.width() - 30, 1.2f, UiTheme.TEXT);
@@ -188,8 +203,8 @@ final class SongSelectRenderer {
             view.textSmooth("Beatmap Options unavailable",frame.bottomLayout.control(Selection.OPTIONS).slot().x(),frame.bottom+14,220,.62f,UiTheme.MUTED);
         if (frame.toastSeconds > 0) view.textSmooth(frame.toast, 27, frame.bottom + 34, Math.min(430, layout.width() * .4f), UiTheme.META, frame.toastColor);
         view.endText();
-        frame.controls.drawMenu(view, layout.width(), layout.height(), frame.browser);
-        SongSelectToolboxOverlay.draw(view,layout,frame.toolbox);
+        frame.controls.drawMenu(view, layout.width(), layout.height(), frame.browser,px,py);
+        SongSelectToolboxOverlay.draw(view,batch,layout,frame.toolbox,frame.skin);
         view.cover(frame.entranceOpacity);
         view.cover(frame.outgoingOpacity);
     }
@@ -286,11 +301,12 @@ final class SongSelectRenderer {
 
     private void drawScoreShapes(UiLayout layout, float px, float py) {
         var bounds = frame.scoreBounds;
+        if (frame.scores.rows().isEmpty()) view.box(bounds.x(),bounds.top()-64,bounds.width(),64,0,LEFT);
         for (int slot = 0; slot < bounds.capacity() && frame.scores.first() + slot < frame.scores.rows().size(); slot++) {
             var row = frame.scores.rows().get(frame.scores.first() + slot);
             boolean selected = row.score().playId().equals(frame.scores.selected());
             boolean hover = !frame.toolbox.open() && bounds.slot(px, py) == slot;
-            view.box(bounds.x(), bounds.rowY(slot), bounds.width(), ScoreBrowserBounds.HEIGHT, 0,
+            if (!has(Image.MENU_BUTTON_BACKGROUND)) view.box(bounds.x(), bounds.rowY(slot), bounds.width(), ScoreBrowserBounds.HEIGHT, 0,
                     selected ? SIBLING : hover ? TOP : LEFT);
             if (selected) view.box(bounds.x(), bounds.rowY(slot), 3, ScoreBrowserBounds.HEIGHT, 0, UiTheme.ACCENT);
         }
@@ -299,7 +315,8 @@ final class SongSelectRenderer {
     private void drawRanking(UiLayout layout) {
         var bounds = frame.scoreBounds;
         view.textSmooth("Local Rankings", 28, frame.chromeContent.rankingHeaderTop() - 17, bounds.width() - 20, .96f, UiTheme.TEXT);
-        view.textSmooth("Score descending · " + frame.scores.rows().size() + " local scores", 28,
+        view.textSmooth(frame.scores.rows().isEmpty() ? "Local records" : "Personal Best  ·  " + frame.scores.rows().getFirst().value()
+                + "  ·  " + frame.scores.rows().getFirst().accuracy(), 28,
                 frame.chromeContent.rankingHeaderTop() - 46, bounds.width() - 20, .64f, UiTheme.MUTED);
         if (frame.scores.rows().isEmpty()) {
             String message = frame.selectedDifficulty == null ? (frame.sets.isEmpty() ? "Import a beatmap to view rankings" : "Select a matching difficulty")
@@ -310,8 +327,13 @@ final class SongSelectRenderer {
         for (int slot = 0; slot < bounds.capacity() && frame.scores.first() + slot < frame.scores.rows().size(); slot++) {
             var row = frame.scores.rows().get(frame.scores.first() + slot);
             float y = bounds.rowY(slot), x = bounds.x();
-            rowRenderer.drawGrade(row.score().grade(), x + 8, y + 13, 60, 40, UiTheme.TEXT, UiTheme.TEXT);
-            float textX = x + 78, width = bounds.width() - 88;
+            boolean selected = row.score().playId().equals(frame.scores.selected());
+            boolean hovered = !frame.toolbox.open() && bounds.slot(frame.pointerX,frame.pointerY) == slot;
+            skinImage(Image.MENU_BUTTON_BACKGROUND,x,y,bounds.width(),ScoreBrowserBounds.HEIGHT,
+                    actionTint.set(selected ? SIBLING : hovered ? SIBLING_HOVER : OTHER));
+            view.textSmooth(Integer.toString(frame.scores.first()+slot+1),x+5,y+28,24,.65f,UiTheme.TEXT);
+            rowRenderer.drawGrade(row.score().grade(), x + 30, y + 13, 44, 38, UiTheme.TEXT, UiTheme.TEXT);
+            float textX = x + 82, width = bounds.width() - 92;
             view.textSmoothBold(row.value(), textX, y + 44, width * .62f, .94f, UiTheme.TEXT);
             view.textSmooth(row.accuracy(), textX + width * .64f, y + 44, width * .36f, .82f, UiTheme.TEXT);
             view.textSmooth(row.combo(), textX, y + 25, width, .73f, UiTheme.TEXT);
