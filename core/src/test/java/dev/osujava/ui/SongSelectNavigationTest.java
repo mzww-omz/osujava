@@ -115,6 +115,8 @@ class SongSelectNavigationTest {
         for (var mod : SongSelectToolboxState.Mod.values()) { assertFalse(mod.available()); assertFalse(toolbox.toggle(mod)); }
         key(Input.Keys.NUM_1); assertTrue(toolbox.active().isEmpty());
         key(Input.Keys.ESCAPE); assertFalse(toolbox.open());
+        key(Input.Keys.F1); key(Input.Keys.NUM_2); assertFalse(toolbox.open());
+        assertTrue(processor.keyTyped('2')); assertEquals("",field("search"));
         screen.browserMode(SongBrowserModel.Sort.BPM,SongBrowserModel.Group.ARTIST);
         key(Input.Keys.F1); key(Input.Keys.F1); assertFalse(toolbox.open());
         key(Input.Keys.RIGHT); selected(1,1,"Beta-hard.png");

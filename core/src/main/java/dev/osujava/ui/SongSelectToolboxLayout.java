@@ -72,12 +72,27 @@ final class SongSelectToolboxLayout {
         cookie = new Bounds(SongSelectChrome.cookieX(width,radius) - radius,
                 SongSelectChrome.cookieY(radius) - radius,radius * 2,radius * 2);
         float statusX = importAction.x() + importAction.width() + 20 * scale;
-        status = new Bounds(statusX,baseline + controlHeight * .50f,
-                Math.max(0,Math.min(180 * scale,cookie.x() - statusX - 12 * scale)),controlHeight * .28f);
-        debug = new Bounds(statusX,baseline + 9 * scale,status.width(),14 * scale);
+        // Large composite canvases commonly bake profile/status artwork into the remaining bottom bar.
+        // Keep our small auxiliary labels above that artwork, using geometry rather than skin names.
+        boolean composite = java.util.Arrays.stream(Selection.values()).anyMatch(action -> {
+            var normal = images.get(action.normal); var hover = images.get(action.hover);
+            return composite(normal,action.logicalWidth,controlHeight / scale)
+                    || composite(hover,action.logicalWidth,controlHeight / scale);
+        });
+        if (composite) {
+            status = new Bounds(18 * scale,Math.max(controlHeight,chrome.height()) + 26 * scale,180 * scale,14 * scale);
+            debug = new Bounds(status.x(),Math.max(controlHeight,chrome.height()) + 9 * scale,status.width(),14 * scale);
+        } else {
+            status = new Bounds(statusX,baseline + controlHeight * .50f,
+                    Math.max(0,Math.min(180 * scale,cookie.x() - statusX - 12 * scale)),controlHeight * .28f);
+            debug = new Bounds(statusX,baseline + 9 * scale,status.width(),14 * scale);
+        }
     }
 
     Control control(Selection action) { return controls.get(action); }
+    private static boolean composite(SkinTexture asset, float canvasWidth, float canvasHeight) {
+        return asset != null && asset.logicalWidth() > canvasWidth * 3 && asset.logicalHeight() > canvasHeight * 2;
+    }
     private static Artwork artwork(Bounds slot, SkinTexture asset, SelectionAssetBounds metrics, float scale, boolean legacy) {
         if (asset == null) return new Artwork(empty(),empty(),empty());
         var image = new Bounds(slot.x(),legacy ? slot.y() + slot.height() - asset.logicalHeight() * scale : slot.y(),

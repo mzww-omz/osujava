@@ -53,7 +53,6 @@ public final class SongSelectScreen extends ScreenAdapter {
     private static final Color SELECTED = new Color(.96f, .95f, .98f, .98f);
     private static final Color DARK_TEXT = new Color(.14f, .10f, .18f, 1f);
     private static final Color THUMB_FALLBACK = new Color(.23f, .20f, .31f, 1f);
-    private static final Color RANDOM_DISABLED = new Color(.5f, .5f, .5f, .5f);
     private static final Color BACK_PINK = new Color(.83f, .28f, .55f, 1f);
 
     private final OsuJavaGame game;
@@ -61,6 +60,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private SongSelectSkinAssets skin;
     private Color activeText = DARK_TEXT, inactiveText;
     private final SongSelectToolboxState toolbox = new SongSelectToolboxState();
+    private boolean suppressSelectorCloseTyped;
     private final Color actionTint = new Color(Color.WHITE);
     private final java.util.EnumSet<Selection> renderedSelectionProcedural = java.util.EnumSet.noneOf(Selection.class);
     boolean renderedSelectionProcedural(Selection action) { return renderedSelectionProcedural.contains(action); }
@@ -181,9 +181,13 @@ public final class SongSelectScreen extends ScreenAdapter {
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override public boolean keyDown(int key) {
                 if (AppShortcuts.handleQuit(key)) return true;
+                if (!toolbox.open()) suppressSelectorCloseTyped = false;
                 if (toolbox.open()) {
                     if (key == Input.Keys.ESCAPE || key == Input.Keys.NUM_2
-                            || key == Input.Keys.F1 && toolbox.overlay() == SongSelectToolboxState.Overlay.MODS) toolbox.close();
+                            || key == Input.Keys.F1 && toolbox.overlay() == SongSelectToolboxState.Overlay.MODS) {
+                        suppressSelectorCloseTyped = key == Input.Keys.NUM_2;
+                        toolbox.close();
+                    }
                     else if (key == Input.Keys.NUM_1 && toolbox.overlay() == SongSelectToolboxState.Overlay.MODS) toolbox.reset();
                     return true;
                 }
@@ -215,6 +219,10 @@ public final class SongSelectScreen extends ScreenAdapter {
                 return false;
             }
             @Override public boolean keyTyped(char character) {
+                if (suppressSelectorCloseTyped) {
+                    suppressSelectorCloseTyped = false;
+                    if (character == '2') return true;
+                }
                 if (toolbox.open()) return true;
                 if (Character.isISOControl(character)) return false;
                 controls.close();
@@ -318,7 +326,9 @@ public final class SongSelectScreen extends ScreenAdapter {
         skinImage(Image.BOTTOM, bottomLayout.chrome, Color.WHITE);
         view.endText();
         view.beginShapes();
-        if (!has(Image.BACK)) chromeBox(bottomLayout.back, BACK_PINK);
+        boolean backHover = !toolbox.open() && bottomLayout.backInteraction.contains(px,py);
+        boolean backPressed = backHover && Gdx.input.isButtonPressed(Input.Buttons.LEFT);
+        if (!has(Image.BACK)) chromeBox(bottomLayout.back,actionTint.set(BACK_PINK).lerp(SELECTED,backPressed ? .22f : backHover ? .10f : 0));
         renderedSelectionProcedural.clear();
         for (var action : Selection.values()) if (!has(action.normal)) {
             renderedSelectionProcedural.add(action);
@@ -341,7 +351,8 @@ public final class SongSelectScreen extends ScreenAdapter {
                     !toolbox.open() && Gdx.input.isButtonPressed(Input.Buttons.LEFT));
         }
         view.beginText();
-        skinImage(Image.BACK,bottomLayout.backImage,Color.WHITE);
+        float backBrightness = backPressed ? .78f : backHover ? 1 : .94f;
+        skinImage(Image.BACK,bottomLayout.backImage,actionTint.set(backBrightness,backBrightness,backBrightness,1));
         drawMetadata(layout);
         drawRanking(layout);
         controls.drawLabels(view, layout.width(), layout.height(), browser);
@@ -356,12 +367,17 @@ public final class SongSelectScreen extends ScreenAdapter {
                     slot.x()+7,labelY,slot.width()-14,.65f,selectionEnabled(action) ? UiTheme.TEXT : UiTheme.MUTED);
         }
         var importBounds = bottomLayout.importAction;
+        boolean importHover = !toolbox.open() && importBounds.contains(px,py) && !importing;
         view.textSmooth("I  Import",importBounds.x()+4,importBounds.y()+importBounds.height()*.55f,
-                importBounds.width()-8,.65f,UiTheme.MUTED);
+                importBounds.width()-8,.65f,importHover ? actionTint.set(UiTheme.TEXT).mul(Gdx.input.isButtonPressed(Input.Buttons.LEFT) ? .8f : 1) : UiTheme.MUTED);
         var status = bottomLayout.status;
-        view.textSmooth(browser.visibleSets().size() + " / " + sets.size() + " local sets",status.x(),status.y()+8,status.width(),.60f,UiTheme.MUTED);
         var debug = bottomLayout.debug;
-        view.textSmooth("F6  DEBUG AUTO",debug.x(),debug.y()+5,debug.width(),.50f,UiTheme.MUTED);
+        boolean auxiliaryAboveArtwork = status.y() >= bottom;
+        boolean unsupported = selectedDifficulty() != null && !game.osuRuleset().supportsMode(selectedDifficulty().mode());
+        if (!auxiliaryAboveArtwork || toastSeconds <= 0 && !unsupported) {
+            view.textSmooth(browser.visibleSets().size() + " / " + sets.size() + " local sets",status.x(),status.y()+8,status.width(),.60f,UiTheme.MUTED);
+            view.textSmooth("F6  DEBUG AUTO",debug.x(),debug.y()+5,debug.width(),.50f,UiTheme.MUTED);
+        }
         if (!toolbox.open() && bottomLayout.control(Selection.OPTIONS).interaction().contains(px,py))
             view.textSmooth("Beatmap Options unavailable",bottomLayout.control(Selection.OPTIONS).slot().x(),bottom+14,220,.62f,UiTheme.MUTED);
         if (toastSeconds > 0) view.textSmooth(toast, 27, bottom + 34, Math.min(430, layout.width() * .4f), UiTheme.META, toastColor);

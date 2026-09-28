@@ -56,6 +56,8 @@ class SongSelectToolboxLayoutTest {
             assertFalse(c.interaction().contains(900,400));
             assertEquals(SongSelectAction.MODE,SongSelectAction.bottom(c.interaction().x()+1,c.interaction().y()+1,l));
             assertTrue(l.transparentOvershoot > 700);
+            assertTrue(l.status.y() > l.chrome.height(),"Auxiliary text must clear authored composite status artwork");
+            assertTrue(l.debug.y() > l.chrome.height());
         }
     }
     @Test void shadowPaddingAndTransparentNormalsUseSameVisibleBodyForDrawingAndInput() {

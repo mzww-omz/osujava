@@ -53,7 +53,11 @@ Selection canvases are adjacent, with zero inter-control gap. V2+ artwork retain
 
 The load-time scan inventories all opaque pixels, but interaction content only comes from pixels inside the canonical action canvas. Substantial alpha (>=160) excludes soft shadow; if none exists, visible alpha (>=16) provides a bounded translucent-body fallback. Interaction is the bounded union of normal/hover content so transparent WhiteCat normals use the real hover body. A valid empty replacement stays an empty image and never invokes a procedural button. Only a missing/unloadable normal invokes procedural rendering. Back keeps its body fit and separate hitbox. Import is a small, muted text action after the four controls, below half their height, without file-extension advertising. F6 is small muted debug text. Cookie remains an independent cropped play control; its existing hit policy is retained.
 
+Composite artwork that spans more than three control widths and two control heights commonly contains an authored profile/status region. Its auxiliary set-count/F6 labels move to the quiet strip above the bottom artwork, with no extra card. Toasts/unavailable-mode feedback take precedence there. This is determined from logical dimensions, not skin names. Back and Import have restrained hover/pressed feedback too.
+
 F1 and Mods click open the same wide, flat selector band. Mode click opens a capability view, with only standard current and taiko/catch/mania disabled. Selector state belongs to Song Select, independent of browser Search/Sort/Group/difficulty. Active ordinary Mods are an explicitly empty set because none has a gameplay implementation. Escape/2 closes; 1 resets Mods; F1 closes the open Mods band. While either band is open it consumes all navigation, typed search, Import, F2/F3, Play/F6, wheel and mouse input. Closing on a mouse click does not forward that click. Escape then returns to existing search/menu/back priority. F2/Shift+F2 and Shift+Random preserve filtered selection and history.
+
+Closing with `2` also consumes its following typed event, so the close key cannot become a Search query.
 
 ## Played state and score projection
 
