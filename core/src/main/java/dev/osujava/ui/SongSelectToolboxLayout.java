@@ -1,7 +1,6 @@
 package dev.osujava.ui;
 
 import dev.osujava.skin.SelectionAssetBounds;
-import dev.osujava.skin.SongSelectBodyBounds;
 import dev.osujava.skin.SongSelectSkinAssets;
 import dev.osujava.skin.SongSelectSkinAssets.Image;
 import dev.osujava.skin.SongSelectSkinAssets.Selection;
@@ -32,28 +31,30 @@ final class SongSelectToolboxLayout {
             if (skin.selectionBounds(image) != null) metrics.put(image, skin.selectionBounds(image));
         }
         return new SongSelectToolboxLayout(width, height, skin != null && skin.configuration().legacyVersion() < 2,
-                images, metrics, skin == null ? SongSelectBodyBounds.FULL : skin.actionBody(Image.BACK));
+                images, metrics);
     }
 
     /** GL-free fixture entry point; production uses load-time metrics from the shared resolver. */
     SongSelectToolboxLayout(float width, float height, boolean legacy, EnumMap<Image, SkinTexture> images,
-            EnumMap<Image, SelectionAssetBounds> metrics, SongSelectBodyBounds backBody) {
+            EnumMap<Image, SelectionAssetBounds> metrics) {
         float scale = height / 768f;
         baseline = 0; spacing = 0; controlHeight = (legacy ? 87 : 90) * scale;
         var bottom = images.get(Image.BOTTOM);
         chrome = new Bounds(0,0,width,bottom == null ? SongSelectChrome.bottomHeight(height) : bottom.logicalHeight() * scale);
-        back = new Bounds(0,baseline,154 * height / 720f,controlHeight);
+        // Stable reserves a fixed navigation origin, independent of Back's PNG or alpha bounds.
+        // The widescreen origin is 224 SD pixels on the 768-high skin canvas (192 at 4:3).
+        float selectionX = (width > height * 4 / 3f ? 224 : 192) * scale;
+        back = new Bounds(0,baseline,selectionX,90 * scale);
         var backAsset = images.get(Image.BACK);
         if (backAsset == null) { backImage = back; backInteraction = back; }
         else {
-            float factor = Math.min(back.width() / (backAsset.logicalWidth() * backBody.width()),
-                    controlHeight / (backAsset.logicalHeight() * backBody.height()));
-            backImage = new Bounds(-backBody.left() * backAsset.logicalWidth() * factor,
-                    baseline - backBody.bottom() * backAsset.logicalHeight() * factor,
-                    backAsset.logicalWidth() * factor, backAsset.logicalHeight() * factor);
-            backInteraction = new Bounds(0,baseline,backImage.width() * backBody.width(),backImage.height() * backBody.height());
+            // Back uses the same native scale and bottom-left raw origin as v2 selection artwork.
+            // Transparent margins position artwork; alpha metrics only constrain interaction.
+            backImage = new Bounds(0,baseline,backAsset.logicalWidth() * scale,backAsset.logicalHeight() * scale);
+            var backMetrics = metrics.get(Image.BACK);
+            backInteraction = intersect(back,backMetrics == null ? backImage : map(backImage,backMetrics.content(),scale));
         }
-        float x = back.width();
+        float x = selectionX;
         float overshoot = 0;
         for (var action : Selection.values()) {
             var slot = new Bounds(x,baseline,action.logicalWidth * scale,controlHeight);
@@ -67,11 +68,11 @@ final class SongSelectToolboxLayout {
         }
         transparentOvershoot = Math.max(0,overshoot);
         float auxiliaryHeight = controlHeight * .32f;
-        importAction = new Bounds(x + 16 * scale,baseline + controlHeight * .20f,78 * scale,auxiliaryHeight);
+        var inlineImport = new Bounds(x + 16 * scale,baseline + controlHeight * .20f,78 * scale,auxiliaryHeight);
         float radius = SongSelectChrome.cookieRadius(height);
         cookie = new Bounds(SongSelectChrome.cookieX(width,radius) - radius,
                 SongSelectChrome.cookieY(radius) - radius,radius * 2,radius * 2);
-        float statusX = importAction.x() + importAction.width() + 20 * scale;
+        float statusX = inlineImport.x() + inlineImport.width() + 20 * scale;
         // Large composite canvases commonly bake profile/status artwork into the remaining bottom bar.
         // Keep our small auxiliary labels above that artwork, using geometry rather than skin names.
         boolean composite = java.util.Arrays.stream(Selection.values()).anyMatch(action -> {
@@ -80,9 +81,12 @@ final class SongSelectToolboxLayout {
                     || composite(hover,action.logicalWidth,controlHeight / scale);
         });
         if (composite) {
-            status = new Bounds(18 * scale,Math.max(controlHeight,chrome.height()) + 26 * scale,180 * scale,14 * scale);
+            importAction = new Bounds(inlineImport.x(),Math.max(controlHeight,chrome.height()) + 9 * scale,
+                    inlineImport.width(),inlineImport.height());
+            status = new Bounds(selectionX,Math.max(controlHeight,chrome.height()) + 26 * scale,180 * scale,14 * scale);
             debug = new Bounds(status.x(),Math.max(controlHeight,chrome.height()) + 9 * scale,status.width(),14 * scale);
         } else {
+            importAction = inlineImport;
             status = new Bounds(statusX,baseline + controlHeight * .50f,
                     Math.max(0,Math.min(180 * scale,cookie.x() - statusX - 12 * scale)),controlHeight * .28f);
             debug = new Bounds(statusX,baseline + 9 * scale,status.width(),14 * scale);

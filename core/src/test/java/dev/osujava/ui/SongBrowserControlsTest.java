@@ -26,11 +26,11 @@ class SongBrowserControlsTest {
         assertEquals(SongSelectAction.PREVIOUS_RANDOM,SongSelectAction.shortcut(Input.Keys.F2,true));
         var layout = SongSelectToolboxLayout.create(1280,720,null);
         assertEquals(SongSelectAction.BACK,SongSelectAction.bottom(30,40,layout));
-        assertEquals(SongSelectAction.MODE,SongSelectAction.bottom(200,40,layout));
-        assertEquals(SongSelectAction.RANDOM,SongSelectAction.bottom(340,40,layout));
-        assertEquals(SongSelectAction.OPTIONS,SongSelectAction.bottom(400,40,layout));
+        assertEquals(SongSelectAction.MODE,SongSelectAction.bottom(250,40,layout));
+        assertEquals(SongSelectAction.RANDOM,SongSelectAction.bottom(400,40,layout));
+        assertEquals(SongSelectAction.OPTIONS,SongSelectAction.bottom(470,40,layout));
         assertEquals(SongSelectAction.IMPORT,SongSelectAction.bottom(layout.importAction.x()+5,layout.importAction.y()+5,layout));
-        assertNull(SongSelectAction.bottom(600,40,layout));
+        assertNull(SongSelectAction.bottom(650,40,layout));
         assertNull(SongSelectAction.bottom(340,layout.controlHeight,layout));
     }
     @Test void compactHeadersShareMotionWithoutChangingBeatmapPitch() {
