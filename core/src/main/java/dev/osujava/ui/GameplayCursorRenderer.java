@@ -9,15 +9,21 @@ import dev.osujava.ruleset.osu.render.LegacyCursorVisual;
 import dev.osujava.skin.OsuSkinAssets;
 import dev.osujava.skin.OsuSkinAssets.Image;
 import dev.osujava.skin.OsuSkinAssets.SkinTexture;
+import dev.osujava.skin.SkinConfiguration;
+import java.util.function.Function;
 
 /** Foreground cursor layer, independent of the HitObject render plan and HUD. No input/gameplay writes. */
 public final class GameplayCursorRenderer {
-    private final OsuSkinAssets assets;
-    public GameplayCursorRenderer(OsuSkinAssets assets) { this.assets = assets; }
+    private final Function<Image, SkinTexture> textures;
+    private final SkinConfiguration.Cursor configuration;
+    public GameplayCursorRenderer(OsuSkinAssets assets) { this(assets::get, assets.cursorConfiguration()); }
+    GameplayCursorRenderer(Function<Image, SkinTexture> textures, SkinConfiguration.Cursor configuration) {
+        this.textures = textures; this.configuration = configuration;
+    }
     public LegacyCursorVisual createVisual() {
-        var trail = assets.get(Image.CURSOR_TRAIL);
-        return new LegacyCursorVisual(assets.cursorConfiguration(), assets.get(Image.CURSOR) != null,
-                assets.get(Image.CURSOR_MIDDLE) != null, trail == null ? 0 : trail.logicalWidth());
+        var trail = textures.apply(Image.CURSOR_TRAIL);
+        return new LegacyCursorVisual(configuration, textures.apply(Image.CURSOR) != null,
+                textures.apply(Image.CURSOR_MIDDLE) != null, trail == null ? 0 : trail.logicalWidth());
     }
     public void draw(SpriteBatch batch, ShapeRenderer shapes, LegacyCursorVisual visual,
                      double now, PlayfieldViewport viewport) {
@@ -28,7 +34,7 @@ public final class GameplayCursorRenderer {
         try {
             batch.setBlendFunction(GL20.GL_SRC_ALPHA, visual.disjoint() ? GL20.GL_ONE_MINUS_SRC_ALPHA : GL20.GL_ONE);
             batch.begin();
-            var trail = assets.get(Image.CURSOR_TRAIL);
+            var trail = textures.apply(Image.CURSOR_TRAIL);
             if (trail != null) for (var part : visual.parts()) {
                 batch.setColor(1, 1, 1, part.alpha(now, visual.fadeDuration()));
                 drawPiece(batch, trail, new LegacyCursorVisual.Piece(part.x(), part.y(), visual.trailCentered(),
@@ -36,10 +42,10 @@ public final class GameplayCursorRenderer {
             }
             batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
             batch.setColor(Color.WHITE);
-            var cursor = assets.get(Image.CURSOR);
+            var cursor = textures.apply(Image.CURSOR);
             if (cursor != null) {
                 drawPiece(batch, cursor, visual.cursor(now), viewport);
-                var middle = assets.get(Image.CURSOR_MIDDLE);
+                var middle = textures.apply(Image.CURSOR_MIDDLE);
                 if (middle != null) drawPiece(batch, middle, visual.middle(), viewport);
             }
             batch.end();

@@ -103,7 +103,12 @@ public final class SkinAssetResolver {
 
     public Optional<AssetFile> resolveSound(String name, Predicate<AssetFile> loadable) {
         validateName(name);
-        String basename = name.replaceFirst("[0-9]+$", "");
+        return resolveNamedSound(name.replaceFirst("[0-9]+$", ""), loadable);
+    }
+
+    /** Interface sample numbers (key-press-1 etc.) are names, not beatmap sample indices. */
+    public Optional<AssetFile> resolveNamedSound(String basename, Predicate<AssetFile> loadable) {
+        validateName(basename);
         for (Provider provider : Provider.values()) {
             for (String extension : List.of(".wav", ".ogg", ".mp3")) {
                 var file = resolveFile(provider, basename + extension, 1);

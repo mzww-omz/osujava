@@ -44,6 +44,8 @@ public final class SongSelectScreen extends ScreenAdapter {
     private List<SongSelectRowRenderer.Presentation> rowPresentations = List.of();
     private String geometryViewport;
     private SongSelectSkinAssets skin;
+    private SongSelectCursor cursor;
+    private SongSelectAudio audio;
     private Color activeText = DARK_TEXT, inactiveText;
     private final SongSelectToolboxState toolbox = new SongSelectToolboxState();
     boolean renderedSelectionProcedural(Selection action) { return renderer.renderedSelectionProcedural(action); }
@@ -147,6 +149,10 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
         if (skin != null) {
             if (Gdx.gl != null) skin.prepareStarFallback();
+            if (Gdx.gl != null && skin.get(Image.CURSOR) != null) {
+                if (cursor == null) cursor = new SongSelectCursor(skin);
+                cursor.show();
+            }
             activeText = textColor(skin.configuration().songSelect().activeText(), Color.BLACK);
             inactiveText = textColor(skin.configuration().songSelect().inactiveText(), null);
         }
@@ -160,17 +166,26 @@ public final class SongSelectScreen extends ScreenAdapter {
             @Override public String search() { return search; }
             @Override public boolean searchActive() { return searchActive; }
             @Override public void searchActive(boolean active) { searchActive = active; }
-            @Override public void search(String query) { search = query; ensureVisibleSelection(); }
+            @Override public void search(String query) {
+                if (audio != null && query.length() > search.length()) audio.typed();
+                search = query; ensureVisibleSelection();
+            }
             @Override public void perform(SongSelectAction action) { SongSelectScreen.this.perform(action); }
             @Override public void difficulty(int direction) { advance(direction); }
             @Override public void set(int direction) { advanceSet(direction); }
             @Override public void page(int direction) {
+                var identity = browser.selection();
                 var previous = browser.selectedSet();
                 browser.movePage(direction); syncBrowser(previous != browser.selectedSet());
+                selectionSound(identity);
             }
             @Override public boolean scroll(float amount) { return scrollAtPointer(amount); }
         });
         Gdx.input.setInputProcessor(input);
+        if (audio == null && skin != null && Gdx.audio != null && Gdx.gl != null) {
+            audio = new SongSelectAudio(skin.resolver(), file -> Gdx.audio.newSound(file.handle()), game.audioVolumes());
+            sound(SongSelectAudio.Cue.EXPAND);
+        }
     }
 
     private boolean scrollAtPointer(float amount) {
@@ -253,6 +268,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 showThumbnails(),
                 scoreBounds(layout)), layout);
         if (Boolean.getBoolean("osujava.songSelectGeometry")) drawGeometry(layout, viewState.pointerX, viewState.pointerY);
+        if (cursor != null) cursor.draw(game.batch(), game.shapes());
     }
 
     /** Input, model synchronization, animation and resource preparation precede drawing. */
@@ -260,6 +276,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         viewState.sample(layout, Gdx.input.getX(), Gdx.input.getY(), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
         viewState.advance(delta);
         seconds = viewState.elapsed;
+        if (cursor != null) cursor.update(layout.height(), viewState.pointerX, viewState.pointerY,
+                viewState.pointerPressed || Gdx.input.isButtonPressed(Input.Buttons.RIGHT), seconds);
         toastSeconds = Math.max(0, toastSeconds - delta);
         setClickGuard = Math.max(0, setClickGuard - Math.max(0, delta));
         calculateLayout(layout);
@@ -273,8 +291,10 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             input.cancelPointer();
             var oldSort = browser.sort(); var oldGroup = browser.group();
+            boolean menuWasOpen = controls.open();
             if (toolbox.open()) SongSelectToolboxOverlay.click(toolbox,layout,px,py);
             else if (controls.click(px, py, layout.width(), layout.height(), browser)) {
+                sound(!menuWasOpen && controls.open() ? SongSelectAudio.Cue.EXPAND : SongSelectAudio.Cue.CONFIRM);
                 if (oldSort != browser.sort() || oldGroup != browser.group()) { refreshBrowserOrder(); }
             }
             else if (layoutSnapshot.search().contains(px, py)) searchActive = true;
@@ -308,6 +328,24 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (carousel.scrollOffset() != scrollBeforePointer)
             visibleRows = layoutRows(layout, 0);
         prepareRowPresentations();
+        if (audio != null) {
+            String target = null;
+            var cue = SongSelectAudio.Cue.HOVER_CONTROL;
+            if (!toolbox.open() && !importing && !outgoing.pending()) {
+                var action = SongSelectAction.bottom(px, py, bottomLayout);
+                if (action != null) {
+                    target = "control:" + action;
+                    if (action == SongSelectAction.BACK) cue = SongSelectAudio.Cue.HOVER_BACK;
+                } else if (!controls.open()) {
+                    var row = hitRow(px, py);
+                    if (row != null) {
+                        target = "row:" + rowKey(row.setIndex(), row.difficultyIndex());
+                        cue = SongSelectAudio.Cue.HOVER_ROW;
+                    }
+                }
+            }
+            audio.hover(target, cue);
+        }
         backgroundFade = Math.min(1, backgroundFade + Math.max(0, delta) / .22f);
         return true;
     }
@@ -393,7 +431,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
-    @Override public void dispose() { closed = true; thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
+    @Override public void hide() { if (cursor != null) cursor.hide(); }
+    @Override public void dispose() { closed = true; if (audio != null) audio.close(); if (cursor != null) cursor.close(); thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
 
     private void calculateLayout(UiLayout layout) {
         viewportHeight = layout.height();
@@ -529,6 +568,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private void handleRowClick(float x, float y) {
+        var identity = browser.selection();
         SongSelectRow row = hitRow(x, y);
         if (row == null) return;
         if (row.difficultyIndex() >= 0) {
@@ -541,22 +581,27 @@ public final class SongSelectScreen extends ScreenAdapter {
             // Expansion replaces the clicked Set at this position; its double-click must not play.
             setClickGuard = .24f;
         }
+        selectionSound(identity);
     }
     private void randomize() {
         if (importing || outgoing.pending()) return;
-        browser.random(); syncBrowser(true);
+        var identity = browser.selection();
+        browser.random(); syncBrowser(true); selectionSound(identity);
     }
     private void previousRandom() {
         if (importing || outgoing.pending()) return;
-        browser.previousRandom(); syncBrowser(true);
+        var identity = browser.selection();
+        browser.previousRandom(); syncBrowser(true); selectionSound(identity);
     }
     private void advance(int direction) {
+        var identity = browser.selection();
         var previous = browser.selectedSet();
-        browser.moveDifficulty(direction); syncBrowser(previous != browser.selectedSet());
+        browser.moveDifficulty(direction); syncBrowser(previous != browser.selectedSet()); selectionSound(identity);
     }
     private void advanceSet(int direction) {
+        var identity = browser.selection();
         var previous = browser.selectedSet();
-        browser.moveSet(direction); syncBrowser(previous != browser.selectedSet());
+        browser.moveSet(direction); syncBrowser(previous != browser.selectedSet()); selectionSound(identity);
     }
     private void ensureVisibleSelection() { browser.search(search); syncBrowser(true); }
     private void selectSet(int index) {
@@ -620,6 +665,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (toolbox.open() || importing || outgoing.pending()) return;
         switch (action) {
             case MODE, MODS -> {
+                sound(SongSelectAudio.Cue.CONFIRM);
                 controls.close(); searchActive = false;
                 toolbox.open(action == SongSelectAction.MODE ? SongSelectToolboxState.Overlay.MODE : SongSelectToolboxState.Overlay.MODS);
             }
@@ -632,7 +678,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             case DEBUG_AUTO -> startSelectedPlay(GameplayRunMode.DEBUG_AUTO);
         }
     }
-    private void goBack() { outgoing.request(() -> game.navigate(new MainMenuScreen(game))); }
+    private void goBack() { sound(SongSelectAudio.Cue.BACK); outgoing.request(() -> game.navigate(new MainMenuScreen(game))); }
     private void playSelected() { startSelectedPlay(GameplayRunMode.MANUAL); }
 
     private void startSelectedPlay(GameplayRunMode runMode) {
@@ -642,6 +688,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             showToast("Only osu!standard is playable right now.", UiTheme.ERROR); return;
         }
         if (runMode == GameplayRunMode.DEBUG_AUTO) showToast("Debug Auto Play", UiTheme.ACCENT);
+        sound(SongSelectAudio.Cue.PLAY);
         outgoing.request(() -> game.navigate(new GameplayScreen(game, set, difficulty, runMode)));
     }
 
@@ -685,6 +732,10 @@ public final class SongSelectScreen extends ScreenAdapter {
         }, "osujava-import");
         worker.setDaemon(true);
         worker.start();
+    }
+    private void sound(SongSelectAudio.Cue cue) { if (audio != null) audio.play(cue); }
+    private void selectionSound(SongBrowserModel.Selection previous) {
+        if (audio != null) audio.selection(previous, browser.selection());
     }
     private void showToast(String message, Color color) { toast = message; toastColor = color; toastSeconds = 4; }
 }

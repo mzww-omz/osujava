@@ -26,7 +26,8 @@ public final class SongSelectSkinAssets implements Disposable {
         MODE("selection-mode"), MODE_OVER("selection-mode-over"),
         MODS("selection-mods"), MODS_OVER("selection-mods-over"),
         RANDOM("selection-random"), RANDOM_OVER("selection-random-over"),
-        OPTIONS("selection-options"), OPTIONS_OVER("selection-options-over");
+        OPTIONS("selection-options"), OPTIONS_OVER("selection-options-over"),
+        CURSOR("cursor"), CURSOR_TRAIL("cursortrail"), CURSOR_MIDDLE("cursormiddle");
 
         public final String basename;
         Image(String basename) { this.basename = basename; }
@@ -62,6 +63,8 @@ public final class SongSelectSkinAssets implements Disposable {
     private SkinTexture topLayoutFallback;
     private SongSelectBodyBounds rowBody = SongSelectBodyBounds.FULL;
     private SkinConfiguration configuration = SkinConfiguration.defaults();
+    private final SkinAssetResolver resolver;
+    public SkinAssetResolver resolver() { return resolver; }
 
     public SongSelectSkinAssets(Path directory, Path fallbackDirectory) {
         this(SkinAssetResolver.withBundledDefault(directory, fallbackDirectory));
@@ -84,6 +87,7 @@ public final class SongSelectSkinAssets implements Disposable {
 
     /** Injectable loader for ownership/failure tests without OpenGL. All loads finish here. */
     SongSelectSkinAssets(SkinAssetResolver resolver, Function<SkinAssetResolver.AssetFile, Texture> loader) {
+        this.resolver = resolver;
         try { configuration = resolver.readSelectedConfiguration(); }
         catch (IOException e) { log("Could not read skin.ini", e); }
         var chromeLoaders = new EnumMap<Image, Predicate<SkinAssetResolver.AssetFile>>(Image.class);

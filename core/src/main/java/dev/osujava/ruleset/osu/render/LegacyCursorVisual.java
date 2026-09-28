@@ -37,14 +37,19 @@ public final class LegacyCursorVisual {
     /** Observe after forwarding an input API call. pressed is read from Session, never inferred here. */
     public void input(double now, PointerState pointer, boolean pressEvent) {
         if (pointer == null) return;
-        move(now, pointer.x(), pointer.y());
-        if (pressEvent && pointer.pressed() && config.expand()) {
+        input(now, pointer.x(), pointer.y(), pointer.pressed(), pressEvent);
+    }
+
+    /** Visual-only input for menu cursors; no gameplay session or clock is needed. */
+    public void input(double now, double x, double y, boolean held, boolean pressEvent) {
+        move(now, x, y);
+        if (pressEvent && held && config.expand()) {
             // LegacyCursor.Expand explicitly restarts from 1 on each press.
             transitionTime = now; fromScale = 1; toScale = 1.3f;
-        } else if (pressed && !pointer.pressed()) {
+        } else if (pressed && !held) {
             fromScale = expandedScale(now); toScale = 1; transitionTime = now;
         }
-        pressed = pointer.pressed();
+        pressed = held;
     }
 
     public void move(double now, double newX, double newY) {
