@@ -6,7 +6,7 @@ Audit date: 2026-09-28. This is a provenance record, not a claim of exact stable
 
 The supplied `~/workspace/b20230727.9` directory contains `osu!.exe`, `osu!ui.dll`, `osu!gameplay.dll`, `osu!auth.dll`, `osu!seasonal.dll`, and supporting runtime/media DLLs. Its `_staging` is an empty regular file. No source files, screenshots, recordings, beatmaps, skin configuration or design notes were found there. The nearby workspace search also found no `.cs`, `.md`, `.txt`, `.png` or `.jpg` reference material.
 
-Thus the Song Select entry point, component types, update/draw loops, internal selection representation and precise numerical formulas **cannot be traced as source from the supplied material**. Filenames do not establish which assembly owns a particular feature. No internal type/method names or constants are inferred from them. No decompiler, disassembler, extraction or protection bypass was used. No supplied files were changed or bundled into osujava.
+Thus the Song Select entry point, component types, update/draw loops, internal selection representation and precise numerical formulas **cannot be traced as source from the supplied material**. Filenames do not establish which assembly owns a particular feature. No internal type/method names or constants are inferred from them. The initial audit used directory inspection only. A subsequent explicitly authorised assembly investigation is recorded below. No supplied files were changed or bundled into osujava.
 
 `wine` and `wine64` are unavailable on PATH; `xvfb-run` exists but cannot run the Windows client alone. The client was not launched, so this audit has no new executable observations of this specific build. In particular, no network-enabled launch was attempted. A future runtime comparison should use a disposable copy in an offline environment, legally supplied maps/skins and screen/input recording, leaving the reference directory untouched.
 
@@ -19,7 +19,7 @@ Public documentation was checked again on the audit date. It establishes outward
 
 ## Behaviour → current implementation → difference → decision
 
-The following describes the implementation at audit start. A statement marked **unknown** needs external measurement before it can justify a compatibility change.
+The following records the initial audit before executable inspection. **The direct CLR/IL findings later in this document supersede the unknowns for component identity, coordinates, row pitch, hover offsets and Page keys.** Remaining unknowns still need investigation; static IL findings are not runtime measurements.
 
 | Topic | Stable evidence | osujava at audit start | Difference and redevelopment decision |
 | --- | --- | --- | --- |
@@ -87,3 +87,80 @@ This is osujava's documented composition policy, not a recovered stable draw loo
 ## Remaining reference work
 
 Exact stable scroll/selection/hover timing, one-notch wheel travel, selected-row expansion, curve coordinates, click-down/up timing, native Back bounds, font baselines and background fade remain unmeasured for b20230727.9. A future offline experiment should record identical maps at 720p/1080p and SD/@2x, timestamp input plus frame captures, then compare normalized positions over time. Record FPS, viewport, skin version/dimensions, input units and selection identity. Tests should target those outward measurements; recovered proprietary code is unnecessary.
+
+
+## Authorised assembly investigation follow-up
+
+After the initial audit, the user explicitly authorised inspection of the DLLs and executable as reference material. Existing `monodis` was used read-only for CLR type, method, field, manifest and selected user-string metadata. No protected string decoder, obfuscation remover, runtime patch, authentication component analysis or protection bypass was used. No original code was transferred to Java.
+
+Confirmed binary facts (metadata tokens are scoped to each named assembly):
+
+| Assembly / reference | Confirmed fact | What this does not establish |
+| --- | --- | --- |
+| `osu!ui.dll`, TypeDef `0x02000002`, `osu_ui.ResourcesStore` | Only a resource-wrapper type beyond the module; MethodDefs `0x06000001`–`0x06000004` are constructor, ResourceManager getter and Culture getter/setter. Manifest has `osu_ui.ResourcesStore.resources`. | This DLL does not expose a Song Select update/layout class. Resource names are not evidence of drawing behaviour. |
+| `osu!gameplay.dll`, TypeDef `0x02000002`, `osu_gameplay.ResourcesStore` | Same four-method resource-wrapper structure. | Its filename does not imply it contains gameplay or Song Select logic. |
+| `osu!.exe`, TypeDef `0x02000ae4`, `osu.Graphics.Skinning.Skin` | Named skin configuration type; method metadata includes generic key/value access and dictionaries. Most methods retain obfuscated names. | These signatures alone do not prove asset resolution order, density policy or Song Select geometry. |
+| `osu!.exe`, TypeDef `0x02000aec`, `osu.Graphics.Sprites.Origins` | Named sprite-origin enumeration exists. | No call site associates an enum value with a Song Select asset in this investigation. |
+| `osu!.exe`, `osu_common.Helpers.OsuString`, FieldDefs `0x040039ef`/`0x040039f0` | `SongSelection_Group` and `SongSelection_Sort` identifiers exist. | Localisation identifiers confirm concepts, not algorithm, grouping boundaries or ordering. |
+| Same enum, FieldDefs `0x040039f2`/`0x040039f3` | `Options_SongSelect_Thumbnails` and its tooltip identifier exist. | No thumbnail coordinate or enabled-default value is implied. |
+| Same enum, FieldDefs `0x04003bae`/`0x04003bb5` | `SongSelection_DifficultyFilteredWarning` and `SongSelection_NoMapsVisible` identifiers exist. | No filtering predicate or selection-repair policy is established. |
+
+Most executable application types/methods have names of the form `#=...`. Searches for named Song Select entry points and plaintext `songselect`, `menu-button-background`, `selection-random`, `selection-mode`, `selection-mods`, `selection-options`, and `SongSelectActiveText` in CLR user strings yielded no matches. This is insufficient to identify a Song Select class or to label arbitrary numerical constants as layout/easing values. No attempt was made to recover protected strings or rename/deobfuscate the program.
+
+A normal-mode IL disassembly attempt failed with exit 139 when Mono could not resolve `System.Runtime.Serialization, Version=4.0.0.0`. The incomplete output did not identify Song Select. This tool unexpectedly also emitted embedded-resource sidecar files into the working directory; all five generated files were immediately removed without inspecting or using their contents. None entered Git or the application. Future inspections must use metadata-only commands or a disposable directory and a reader that does not automatically emit embedded resources.
+
+This first metadata pass narrowed the location evidence. A second, dependency-free raw CLR/IL inspection then identified the Song Select components and several behavioural calculations, as recorded below. The failed Mono output was not used for behavioural conclusions.
+
+
+## Direct CLR/IL findings (supersedes initial unknowns where stated)
+
+After the user additionally allowed ordinary obfuscation analysis, `dnfile 0.18.0` and `dncil 1.0.2` were installed into a disposable `/tmp` virtual environment. They parsed metadata and method instructions directly without loading/executing the client, resolving encrypted strings, or emitting embedded resources. Local method listings and investigation scripts remain outside Git. The inspected executable SHA-256 is `bfa4ad675cdcd773b7b1c899e0a5e193d05d055d93e001271f06756c8185a28a` (21,005 MethodDefs). Tokens below refer to that executable only.
+
+### Identification and update ownership
+
+Matching an arbitrary integer to a localisation enum is unreliable. Instead, candidates were confirmed by enum arguments immediately passed to the string-returning localisation function MethodDef `0x0600392d` (decimal 14637). That cross-reference identifies:
+
+| Role | Metadata evidence |
+| --- | --- |
+| Song Select screen | TypeDef `0x02000297`, retained name `#=zBwZS7ysXCeyfdByozgxkLRyYAlfe1dkW4Q==`; constructor `0x0600136e` builds Group/Sort/Search/ranking labels; `0x06001376` prepares grouping/sorting choices |
+| Search result display | `0x060013ad` uses singular/plural matching-count and reset identifiers |
+| Selected details | `0x060013ae` uses beatmap info, secondary info and creator identifiers |
+| Score presentation | `0x060013b4` uses score-list/no-record/score-tooltip identifiers |
+| Options | `0x0600138d` references clear local scores, collections, delete, edit and this-beatmap labels; these are evidence of a distinct menu, not permission to add those actions to osujava |
+| Carousel owner | Screen field `0x04000b00`, type `#=zckk4mG0z5wdHRXedao4MY01g25Tplv8oUYg32S3E7XSghrpVeA==`; constructor `0x0600321a`; screen update `0x0600139f` dispatches its update |
+| Carousel update | `0x06003255` invokes input/movement work and `0x06003267` row placement/visible-range processing. Row positions, hover index, selected index, keyboard focus and scrolling velocity are distinct state |
+
+These names are cross-reference handles only; Java components should keep meaningful independent names and their own structure.
+
+### Coordinate basis and row layout
+
+The display scale getter `0x06001dcb` divides the display-height field `0x04001396` by **480**; `0x06001dd0` returns its reciprocal. Pointer conversion in the carousel divides screen coordinates by that scale. Thus the following numbers are **480-high logical UI units**, not SD texture dimensions or physical framebuffer pixels. For a 720-high logical viewport the corresponding factor is 1.5; @2x image density must not multiply it again.
+
+- The carousel's horizontal reference `0x0600322c` is viewport width expressed in those logical units, with a 340-unit right-side reservation. This establishes a right-relative reference rather than a fixed screen X.
+- Layout rebuild `0x0600325a` advances eligible visible rows by **48 units**, beginning at logical content Y **200**. Some group/subtype boundaries add **10 units**. This calculation does not read the row PNG dimensions. Exact subtype-boundary semantics remain to be mapped; do not apply the extra gap indiscriminately.
+- Selection/focus reveal `0x06003250` requests the target row at **Y 220** via `0x06003251`/`0x0600321e`. The index can be the selected or keyboard-focused row according to state. This is not always viewport midpoint, and end-range clamping can prevent exact placement.
+- Horizontal curve helper `0x0600325c` is linear in distance from the **240-unit** vertical center: at Y 0 or 480 its contribution is **37.5 units**, bounded at **200** for distant rows. `0x0600325e` feeds animated row Y plus scroll and predicted remaining movement into this helper; merely using a static row center would miss its motion coupling.
+- Hover index `0x04001f67` is assigned by pointer hit checks in `0x06003256`/`0x06003267`. Matching it in `0x0600325d` adds **45 units leftward**. `0x0600325f` separates rows before/after a valid hover by **10 units** each. Other 50-unit X adjustments have subtype/expanded-state predicates whose meaning was not completely established; they are not adopted as an unconditional selected offset.
+- `0x06003266` eases X and Y toward row targets separately, with elapsed-time exponentiation. This differs from osujava's exact critically damped viewport spring. No animation algorithm is transplanted; retaining the tested independent spring is a conscious compatibility tradeoff.
+
+### Navigation, click and focus
+
+Keyboard handler `0x06003247` maps Page Up/Down to **−10/+10 eligible entries**, Up/Down to **−1/+1**, and ordinary Left/Right to a separate group/Set candidate policy. The Page keys therefore do not derive their travel from viewport height. The broad public-wiki description “page scroll” does not specify this build's actual step count.
+
+Shared traversal `0x06003276` walks the row list cyclically, counts eligible candidates, skips excluded/collapsed candidates and stops traversal if it returns to the starting index. On that full-loop exit it still passes the starting index to the destination handler: it neither stops at the preceding entry nor returns early without dispatch. Thus fewer than ten eligible entries can make Page return to the starting entry after one circuit, with focus/selection handler effects still possible. Page and arrow navigation share the same row-eligibility flags. Predicate `0x06000fc5` rejects rows with nonpositive layout extent; this is evidence that invisible collapsed child entries do not count as ordinary step destinations. Further subtype and exclusion flags also participate.
+
+Destination handler `0x06003277` immediately uses the selection path for a candidate within the selected Set; for a different Set it stores a **keyboard focus index** `0x04001f6b` and emphasizes that row. Enter in `0x06003247` checks that focus and activates it before the ordinary play callback. Selection and focus must therefore not be described as interchangeable. The exact subsequent dwell/auto-activation conditions are not established by this trace; osujava may retain immediate selection deliberately, but must document that difference.
+
+Pointer-down handler `0x06003243` saves the hovered candidate. Pointer-release handler `0x06003244` verifies the candidate, rejects a drag, checks release containment and only then invokes selection/activation. This provides direct evidence for **release-to-select**, distinct from osujava's previous press-to-select flow. The exact legacy hit rectangle still depends on the row hit-test method and skin geometry, which were not fully mapped.
+
+### Scrolling and motion model
+
+Opposite directional input callbacks `0x06003245`/`0x06003246`, registered together by the carousel constructor, change velocity rather than a row-count target and clear selection-follow state. From rest their impulse magnitude is **0.4** in the internal velocity units; repeated input increases it with existing speed and uses damping base **0.994**. The impulse is 0.4 at rest, 0.8 at speed magnitude 2, and reaches its 2.4 cap at magnitude 10; intermediate values vary linearly with speed magnitude. Opposite-direction input subtracts that impulse from existing velocity rather than first resetting velocity to zero. Time units were subsequently traced below. Callback invocation count per physical notch remains an input-dispatch detail; these numbers specify one callback, not arbitrary device hardware.
+
+Motion update `0x06003254` exponentially decays velocity using shared elapsed time, integrates the distance analytically, normalizes by total content travel and clamps scroll fraction to 0–1. Default damping base is approximately **0.996**; target-follow calls use other values such as **0.992**. `0x0600324f` derives starting velocity from target distance and a logarithm of the chosen damping base. This is an inertial exponential model, not the same model as osujava's second-order spring. The values are evidence of different behaviour, not suitable standalone constants to paste into Java without their units and integration contract. Shared clock getter `0x06003d05` converts `Stopwatch.ElapsedTicks / Frequency` to milliseconds. Main timing `0x06002316` stores elapsed milliseconds in field `0x040016fa`, and elapsed time divided by 16⅔ ms in field `0x040016ac`. The scrolling exponent uses the former: velocity is logical units/ms and its damping base applies per ms. The row X/Y easing in `0x06003266` uses the latter: its 0.95/0.875 factors apply per 60-Hz-equivalent time step. From rest, one 0.4-unit/ms callback with 0.994 damping has approximately 66.47 logical units of asymptotic travel (about 1.38 ordinary 48-unit row pitches), before bounds or further input. This is an analytical consequence of the observed model, not a measured device result.
+
+### Adopted and intentionally retained behaviour
+
+Direct binary evidence supersedes the initial Page-key assumption and permits independent layout metrics to use the confirmed 480-high coordinate basis. Row pitch must be independent from unusual texture padding/dimensions, while image placement can preserve the authored asset. Hover and selection remain distinct.
+
+Keep tested osujava spring convergence, identity/empty-library repair, Unicode fit, local-only services and provider fallback unless a scoped implementation step changes them with regression tests. Do not claim exact stable motion, Set-focus timing, raw hitboxes, font baselines, Random distribution or asset resolver internals: those remain partially or wholly unverified. The client itself has still not been executed, so direct screen comparisons remain outstanding.
