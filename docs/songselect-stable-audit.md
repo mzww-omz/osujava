@@ -32,3 +32,12 @@ Several independent approximations were labelled stable without reproducible
 observations. Texture resolution is centralized, but texture allocation and
 unbounded decoration do not share its defensive policy. Gesture cancellation
 was mistaken for implementing drag scrolling.
+
+## Implementation outcome
+
+The implemented changes and remaining gaps are separated in
+[songselect-verification.md](songselect-verification.md). In particular, this
+work does not convert provisional geometry/timing into confirmed stable facts.
+Layout snapshots, draw-only composition, drag scrolling, modified-text exclusion,
+pre-decode image limits and parameterized visual capture are implemented.
+Existing model/Library persistence and gameplay responsibilities were retained.
