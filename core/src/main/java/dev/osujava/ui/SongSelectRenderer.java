@@ -131,10 +131,11 @@ final class SongSelectRenderer {
         drawScoreShapes(layout, px, py);
         if (frame.toastSeconds > 0) view.box(18, frame.bottom + 12, Math.min(450, layout.width() * .42f), 35, 0, BOTTOM);
         view.endShapes();
-        // Composite selection artwork belongs under frame.browser content and the independent Cookie.
+        // Composite artwork may extend above the control reservation. Only the viewport
+        // clips decoration; the bounded input geometry remains independent.
         Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
         try {
-            chromeClip(layout, SongSelectChrome.bottomClip(layout.width(), layout.height()));
+            chromeClip(layout, new SongSelectChrome.Bounds(0, 0, layout.width(), layout.height()));
             view.beginText();
             for (var action : Selection.values()) drawSelection(action,px,py);
             view.endText();
@@ -147,7 +148,7 @@ final class SongSelectRenderer {
         view.beginText();
         float backBrightness = backPressed ? .78f : backHover ? 1 : .94f;
         Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
-        chromeClip(layout, SongSelectChrome.bottomClip(layout.width(), layout.height()));
+        chromeClip(layout, new SongSelectChrome.Bounds(0, 0, layout.width(), layout.height()));
         var backFrame = frame.skin == null ? null : frame.skin.backFrame(frame.seconds);
         if (backFrame != null) {
             float scale = layout.height() / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;

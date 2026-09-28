@@ -276,6 +276,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     p.fillRectangle(3*density,height-80*density,(int)action.logicalWidth*density-6*density,73*density);
                     if (width > 500) { p.setColor(.5f,.3f,.5f,.8f); p.fillRectangle(0,height-140,width,30); }
                 }
+                if (name.equals("composite") && image == SongSelectSkinAssets.Image.MODE) {
+                    p.setColor(Color.GREEN); p.fillRectangle(30, 130, 40, 40);
+                }
                 PixmapIO.writePNG(Gdx.files.absolute(file.toString()),p); p.dispose();
                 if (name.equals("mismatched-high")) {
                     var high = new Pixmap(150,180,Pixmap.Format.RGBA8888);
@@ -943,6 +946,20 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 || assets.get(SongSelectSkinAssets.Image.TOP) == null || assets.get(SongSelectSkinAssets.Image.BOTTOM) == null))
             throw new AssertionError("Tiny chrome changed presence or layout reservation");
         float scale = layout.height()/768;
+        if (name.equals("phase5a-assets-composite")) {
+            var art = geometry.control(SongSelectSkinAssets.Selection.MODE).normal().image();
+            int x = Math.round(art.x() + 50 * scale), y = Math.round(art.y() + (540 - 150) * scale);
+            var pixel = Pixmap.createFromFrameBuffer(
+                    Math.round(x * Gdx.graphics.getBackBufferWidth() / layout.width()),
+                    Math.round(y * Gdx.graphics.getBackBufferHeight() / layout.height()), 1, 1);
+            try {
+                int rgba = pixel.getPixel(0, 0);
+                if ((rgba >>> 16 & 255) < 180 || (rgba >>> 24 & 255) > 50 || (rgba >>> 8 & 255) > 50)
+                    throw new AssertionError("Composite decoration above bottom reservation was clipped: " + Integer.toHexString(rgba));
+            } finally { pixel.dispose(); }
+            if (geometry.control(SongSelectSkinAssets.Selection.MODE).interaction().contains(x, y))
+                throw new AssertionError("Composite decoration expanded the control hitbox");
+        }
         boolean legacy = assets.configuration().legacyVersion() < 2;
         if (Math.abs(geometry.control(SongSelectSkinAssets.Selection.MODE).anchorX()
                 - (layout.width() > layout.height()*4/3 ? 224 : 192)*scale) > .01f)
