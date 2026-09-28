@@ -20,7 +20,7 @@ final class SongSelectToolboxLayout {
     record Control(Bounds slot, Artwork normal, Artwork hover, Bounds interaction,
                    float anchorX, float anchorY) { }
     private final EnumMap<Selection, Control> controls = new EnumMap<>(Selection.class);
-    final Bounds chrome, back, backImage, backInteraction, importAction, cookie, status, debug;
+    final Bounds chrome, bottomImage, back, backImage, backInteraction, importAction, cookie, status, debug;
     final float baseline, controlHeight, spacing, transparentOvershoot;
 
     static SongSelectToolboxLayout create(float width, float height, SongSelectSkinAssets skin) {
@@ -40,7 +40,10 @@ final class SongSelectToolboxLayout {
         float scale = height / 768f;
         baseline = 0; spacing = 0; controlHeight = (legacy ? 87 : 90) * scale;
         var bottom = images.get(Image.BOTTOM);
-        chrome = new Bounds(0,0,width,bottom == null ? SongSelectChrome.bottomHeight(height) : bottom.logicalHeight() * scale);
+        // Artwork presence, raw draw height and reservation are independent. Tiny transparent
+        // replacements suppress foreign visuals without reducing the browser's navigation area.
+        bottomImage = new Bounds(0,0,width,bottom == null ? 0 : bottom.logicalHeight() * scale);
+        chrome = new Bounds(0,0,width,Math.max(SongSelectChrome.bottomHeight(height),bottomImage.height()));
         // Stable reserves a fixed navigation origin, independent of Back's PNG or alpha bounds.
         // The widescreen origin is 224 SD pixels on the 768-high skin canvas (192 at 4:3).
         float selectionX = (width > height * 4 / 3f ? 224 : 192) * scale;

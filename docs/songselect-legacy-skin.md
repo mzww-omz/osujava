@@ -2,6 +2,8 @@
 
 Historical Phase 1/2 report. Current selection controls, composite skin geometry, Mods capability audit and played colours are documented in [Phase 5A](songselect-toolbox.md); row alignment is documented in [Phase 2.5](songselect-stable-alignment.md).
 
+The [compatibility audit](songselect-skin-compatibility.md) supersedes the uniform fallback policy below for decorative top/bottom chrome in a current authored browser surface. Functional asset priority remains unchanged.
+
 SongSelect retains its existing selection/navigation semantics and now uses the independent [content/viewport carousel model](songselect-carousel.md). `SongSelectSkinAssets` owns UI textures; `OsuSkinAssets` remains gameplay-only. Skin images are visuals, while osujava owns layout and hitboxes.
 
 ## Assets

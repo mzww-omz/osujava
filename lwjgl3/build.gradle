@@ -143,6 +143,9 @@ tasks.register('songSelectVisualHarness', JavaExec) {
     systemProperty 'java.awt.headless', 'true'
     args project.findProperty('songSelectOutput') ?: '/tmp/osujava-songselect'
     systemProperty 'osujava.songSelectPhase', project.findProperty('songSelectPhase') ?: 'all'
+    if (project.hasProperty('songSelectCorpusManifest')) {
+        systemProperty 'osujava.songSelectCorpusManifest', project.property('songSelectCorpusManifest')
+    }
     if (project.hasProperty('songSelectCustomSkin')) {
         systemProperty 'osujava.songSelectCustomSkin', project.property('songSelectCustomSkin')
     }

@@ -16,6 +16,31 @@ class SongSelectToolboxLayoutTest {
             @Override public int getHeight() { return height; }
         },new SkinAssetResolver.AssetFile(Path.of("fixture.png"),density));
     }
+    @Test void tinyBottomRetainsNativeArtworkWhileReservationAndInputStayUsable() {
+        for (float height : new float[]{720,1080}) for (int density : new int[]{1,2}) {
+            var images = new EnumMap<Image,SkinTexture>(Image.class);
+            images.put(Image.BOTTOM,texture(1,1,density));
+            images.put(Image.MODE,texture(1150*density,540*density,density));
+            var layout = new SongSelectToolboxLayout(1280,height,false,images,new EnumMap<>(Image.class));
+            assertEquals(height/768/density,layout.bottomImage.height(),.001);
+            assertEquals(SongSelectChrome.bottomHeight(height),layout.chrome.height(),.001);
+            assertTrue(layout.importAction.y() > layout.chrome.height());
+            assertTrue(layout.back.height() >= 90*height/768);
+            assertFalse(layout.control(Selection.MODE).interaction().empty());
+        }
+    }
+
+    @Test void oversizedHoverAndMismatchedDensityDoNotRescaleNormalOrExpandInput() {
+        var images = new EnumMap<Image,SkinTexture>(Image.class);
+        images.put(Image.MODE,texture(184,180,2));
+        images.put(Image.MODE_OVER,texture(1200,700,2));
+        var layout = new SongSelectToolboxLayout(1280,720,false,images,new EnumMap<>(Image.class));
+        var control = layout.control(Selection.MODE);
+        assertEquals(92*720f/768,control.normal().image().width());
+        assertEquals(600*720f/768,control.hover().image().width());
+        assertEquals(control.slot(),control.interaction());
+        assertFalse(control.interaction().contains(800,300));
+    }
     @Test void commonCanvasesPreserveBaselineAspectAndAuxiliaryPriorityAtEveryResolution() {
         for (int[] size : new int[][]{{1280,720},{1920,1080},{2560,1440},{960,720}}) for (int density : new int[]{1,2}) {
             var ui = UiLayout.fromPixels(size[0],size[1]);

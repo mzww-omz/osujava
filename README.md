@@ -56,6 +56,8 @@ Song Select右上のGroup / SortでLibraryを分類・並べ替えできます�
 
 通常プレイが終了すると、確定したScore・Accuracy・Combo・判定数・日時を `~/.osujava/scores` へ保存します。左のLocal Rankingsに選択difficultyの結果をScore降順で表示し、clickで選択、wheelでscrollできます。difficulty rowのGradeは先頭のbest local scoreに対応し、score無しでは表示しません。Debug Autoと中断プレイは保存しません。再起動後も保持され、破損recordは個別にskipします。Grade規則、identity、保存schemaと検証結果は[Song Select Phase 4](docs/songselect-local-scores.md)を参照してください。
 
+Song Selectのlegacy skin互換性は[互換性監査](docs/songselect-skin-compatibility.md)に整理しています。現在のskinがbrowser artworkを提供している場合、未提供のtop/bottom装飾にはアプリ側のunderlayを使います。透明1×1もcurrent assetとして尊重し、描画寸法とlayout予約領域を分離します。Greylooks・WhiteCat・Seoul・Defaultの固定metadata corpusと実画像harnessを回帰確認に使用します。
+
 ### 内蔵デフォルトSkin / カスタムSkin
 
 未指定時は同梱の **Greylooks 1.4（iZaIxSP / CC BY 4.0）** を使います。ローカルのosu!インストールは不要で、IDE classpath・通常build・配布JARから同じリソースを読みます。アセット・制限・検証結果は[Greylooks統合記録](docs/greylooks-integration.md)、クレジットは[第三者アセット一覧](THIRD_PARTY_ASSETS.md)を参照してください。

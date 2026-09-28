@@ -323,7 +323,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.endShapes();
         view.beginText();
         drawTopSkin(layout);
-        skinImage(Image.BOTTOM, bottomLayout.chrome, Color.WHITE);
+        skinImage(Image.BOTTOM, bottomLayout.bottomImage, Color.WHITE);
         view.endText();
         view.beginShapes();
         boolean backHover = !toolbox.open() && bottomLayout.backInteraction.contains(px,py);

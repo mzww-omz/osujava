@@ -1,5 +1,7 @@
 # Song Select native placement audit
 
+This is the historical placement report. Decorative chrome fallback is subsequently corrected in [the compatibility audit](songselect-skin-compatibility.md); missing WhiteCat/Seoul/Default top/bottom no longer import Greylooks chrome into their authored browser surface.
+
 Audited before implementation on 2026-09-28, starting at `d89dbb4`. The working tree was clean. This follow-up fixes placement only; browser models, scores, gameplay, Mods, ratings, Sort, Group and Search are unchanged. McOsu was read only at `db2add20ea291f6f3b6d022fcd4eba100a5bd161`.
 
 ## Evidence and source limits

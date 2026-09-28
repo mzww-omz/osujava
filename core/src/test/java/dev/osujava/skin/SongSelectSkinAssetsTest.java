@@ -14,6 +14,85 @@ import static org.junit.jupiter.api.Assertions.*;
 class SongSelectSkinAssetsTest {
     @TempDir Path directory;
 
+    @ParameterizedTest @ValueSource(strings = {"selection-mode", "menu-button-background", "menu-back", "songselect-top", "songselect-bottom"})
+    void authoredSurfaceDoesNotImportForeignDecorativeChrome(String basename) throws Exception {
+        Files.createFile(directory.resolve(basename + ".png"));
+        var assets = new SongSelectSkinAssets(SkinAssetResolver.withBundledDefault(directory, null),
+                file -> new TestTexture(file.fallback() ? 200 : 1, file.fallback() ? 90 : 1));
+        for (var chrome : new Image[]{Image.TOP,Image.BOTTOM}) {
+            if (chrome.basename.equals(basename)) {
+                assertEquals("current",assets.provider(chrome));
+                assertEquals(1,assets.get(chrome).logicalHeight());
+            } else assertNull(assets.get(chrome),"An authored omission must not import bundled decoration");
+        }
+        if (!basename.equals("songselect-top")) assertTrue(assets.topDepth(0,100) > 1,
+                "Missing decorative presence must not collapse established content reservation");
+        assertNotNull(assets.get(Image.MENU_BUTTON_BACKGROUND),"Functional row fallback is independent");
+        assets.dispose();
+    }
+
+    @Test void brokenChromeInAuthoredSurfaceUsesOwnedUnderlayButEmptySurfaceUsesFallback() throws Exception {
+        Path fallback = Files.createDirectory(directory.resolve("fallback"));
+        Files.createFile(fallback.resolve("songselect-top.png"));
+        Files.createFile(fallback.resolve("songselect-bottom.png"));
+        Files.createFile(directory.resolve("selection-mode.png"));
+        Files.createFile(directory.resolve("songselect-top@2x.png"));
+        var resolver = SkinAssetResolver.withBundledDefault(directory,fallback);
+        var authored = new SongSelectSkinAssets(resolver,file -> {
+            if (!file.fallback() && file.path().getFileName().toString().startsWith("songselect"))
+                throw new GdxRuntimeException("Broken chrome");
+            return new TestTexture(92,90);
+        });
+        assertNull(authored.get(Image.TOP)); assertNull(authored.get(Image.BOTTOM)); authored.dispose();
+        var unavailable = new SongSelectSkinAssets(resolver,file -> {
+            if (!file.fallback()) throw new GdxRuntimeException("Broken current surface");
+            return new TestTexture(200,90);
+        });
+        assertEquals("fallback",unavailable.provider(Image.TOP));
+        assertEquals("fallback",unavailable.provider(Image.BOTTOM)); unavailable.dispose();
+    }
+
+    @Test void smallOrTransparentNonSurfaceGlyphDoesNotSuppressChromeFallback() throws Exception {
+        Files.createFile(directory.resolve("star.png"));
+        var assets = new SongSelectSkinAssets(SkinAssetResolver.withBundledDefault(directory,null),file -> new TestTexture(1,1));
+        assertEquals("bundled",assets.provider(Image.TOP)); assertEquals("bundled",assets.provider(Image.BOTTOM));
+        assets.dispose();
+    }
+
+    @Test void invisibleLayoutFallbackRetainsMetricsAndIsDisposedExactlyOnce() throws Exception {
+        Files.createFile(directory.resolve("selection-mode.png"));
+        var layoutTexture = new TestTexture(1366,149);
+        var assets = new SongSelectSkinAssets(SkinAssetResolver.withBundledDefault(directory,null),file ->
+                file.path().getFileName().toString().startsWith("songselect-top") ? layoutTexture : new TestTexture(92,90));
+        assertNull(assets.get(Image.TOP)); assertEquals("procedural",assets.provider(Image.TOP));
+        assertEquals(74.5f,assets.topDepth(0,100)); // Bundled @2x loader fixture, raw 149 high.
+        assertEquals(0,layoutTexture.disposals);
+        assets.dispose(); assets.dispose();
+        assertEquals(1,layoutTexture.disposals); assertEquals(0,assets.topDepth(0,100));
+    }
+
+    @ParameterizedTest @ValueSource(ints = {1,92})
+    void currentNormalOwnsHoverFamilyEvenWhenBlankOrHoverIsCorrupt(int width) throws Exception {
+        Files.createFile(directory.resolve("selection-mode.png"));
+        var resolver = SkinAssetResolver.withBundledDefault(directory,null);
+        var missing = new SongSelectSkinAssets(resolver,file -> new TestTexture(width,90));
+        assertEquals("current",missing.provider(Image.MODE)); assertNull(missing.get(Image.MODE_OVER)); missing.dispose();
+        Files.createFile(directory.resolve("selection-mode-over@2x.png"));
+        Files.createFile(directory.resolve("selection-mode-over.png"));
+        var corrupt = new SongSelectSkinAssets(resolver,file -> {
+            if (file.path().getFileName().toString().startsWith("selection-mode-over"))
+                throw new GdxRuntimeException("Corrupt hover");
+            return new TestTexture(width,90);
+        });
+        assertNull(corrupt.get(Image.MODE_OVER)); corrupt.dispose();
+        var sd = new SongSelectSkinAssets(resolver,file -> {
+            if (file.path().getFileName().toString().equals("selection-mode-over@2x.png"))
+                throw new GdxRuntimeException("Corrupt HD hover");
+            return new TestTexture(width,90);
+        });
+        assertEquals("current",sd.provider(Image.MODE_OVER)); assertEquals(1,sd.get(Image.MODE_OVER).density()); sd.dispose();
+    }
+
     @ParameterizedTest @ValueSource(strings = {"selection-mode", "selection-mode-over", "selection-mods",
             "selection-mods-over", "selection-random", "selection-random-over", "selection-options", "selection-options-over"})
     void selectionFamilyPreservesEveryProviderAndDensityPriority(String basename) throws Exception {
@@ -281,15 +360,15 @@ class SongSelectSkinAssetsTest {
         brokenHigh.dispose();
     }
 
-    @Test void missingChromeUsesBundledImagesWithoutReplacingCurrentActions() throws Exception {
+    @Test void missingChromeUsesOwnedUnderlayWithoutReplacingCurrentActions() throws Exception {
         Files.writeString(directory.resolve("skin.ini"), "[General]\nName: osu! Default Skin Template\nVersion: 2.7\n");
         for (var image : List.of(Image.BACK, Image.RANDOM, Image.RANDOM_OVER))
             Files.createFile(directory.resolve(image.basename + "@2x.png"));
         var assets = new SongSelectSkinAssets(SkinAssetResolver.withBundledDefault(directory,null),
                 file -> new TestTexture(148,180));
         for (var image : List.of(Image.TOP, Image.BOTTOM)) {
-            assertEquals("skins/default/" + image.basename + "@2x.png",assets.get(image).file().classpathResource());
-            assertTrue(assets.get(image).file().fallback());
+            assertNull(assets.get(image));
+            assertEquals("procedural",assets.provider(image));
         }
         for (var image : List.of(Image.BACK, Image.RANDOM, Image.RANDOM_OVER)) {
             assertEquals(directory.resolve(image.basename + "@2x.png"),assets.get(image).file().path());

@@ -56,6 +56,7 @@ public final class SongSelectSkinAssets implements Disposable {
     private final Set<Texture> owned = Collections.newSetFromMap(new IdentityHashMap<>());
     private Texture fallbackStar;
     private SongSelectTopCoverage topCoverage;
+    private SkinTexture topLayoutFallback;
     private SongSelectBodyBounds rowBody = SongSelectBodyBounds.FULL;
     private SkinConfiguration configuration = SkinConfiguration.defaults();
 
@@ -71,7 +72,9 @@ public final class SongSelectSkinAssets implements Disposable {
     SongSelectSkinAssets(SkinAssetResolver resolver, Function<SkinAssetResolver.AssetFile, Texture> loader) {
         try { configuration = resolver.readConfiguration(); }
         catch (IOException e) { log("Could not read skin.ini", e); }
+        var chromeLoaders = new EnumMap<Image, Predicate<SkinAssetResolver.AssetFile>>(Image.class);
         for (Image image : Image.values()) {
+            var pair = Selection.of(image);
             Predicate<SkinAssetResolver.AssetFile> load = file -> {
                 Texture texture = null;
                 try {
@@ -120,9 +123,37 @@ public final class SongSelectSkinAssets implements Disposable {
                     return false;
                 }
             };
-            if (image == Image.BACK) resolver.resolveAnimationFirstFrame(image.basename, load);
+            if (image == Image.TOP || image == Image.BOTTOM) {
+                // Probe BOTH current chrome assets before deciding whether the surface needs a default.
+                // A valid transparent replacement is authored presence, just like other current art.
+                chromeLoaders.put(image, load);
+                resolver.resolveCustom(image.basename, load);
+            } else if (pair != null && image == pair.hover
+                    && get(pair.normal) != null && !get(pair.normal).file().fallback()) {
+                // An authored normal (including a transparent replacement) owns its hover family.
+                // Missing current hover retains normal artwork, rather than inventing foreign art/input.
+                resolver.resolveCustom(image.basename, load);
+            } else if (image == Image.BACK) resolver.resolveAnimationFirstFrame(image.basename, load);
             else resolver.resolve(image.basename, load);
         }
+        boolean authoredSurface = textures.entrySet().stream().anyMatch(entry ->
+                surfaceImage(entry.getKey()) && !entry.getValue().file().fallback());
+        // Decorative omissions in an authored browser surface use owned neutral UI underneath it.
+        // An empty/unloadable surface still uses the configured fallback and bundled default.
+        if (!authoredSurface) for (var image : new Image[]{Image.TOP, Image.BOTTOM})
+            if (!textures.containsKey(image)) resolver.resolve(image.basename, chromeLoaders.get(image));
+        if (authoredSurface && !textures.containsKey(Image.TOP)) {
+            // Preserve the established content reservation independently of decorative presence.
+            // Dropping fallback layout metrics would move rows/rankings into native composite art.
+            // This texture remains owned/disposed, but is never returned as rendering artwork.
+            resolver.resolve(Image.TOP.basename, chromeLoaders.get(Image.TOP));
+            topLayoutFallback = textures.remove(Image.TOP);
+        }
+    }
+
+    private static boolean surfaceImage(Image image) {
+        return image == Image.TOP || image == Image.BOTTOM || image == Image.MENU_BUTTON_BACKGROUND
+                || image == Image.BACK || Selection.of(image) != null;
     }
 
     private static void log(String message, Exception error) {
@@ -136,8 +167,15 @@ public final class SongSelectSkinAssets implements Disposable {
         return asset == null ? "procedural" : asset.file().classpathResource() != null ? "bundled"
                 : asset.file().fallback() ? "fallback" : "current";
     }
+    /** Diagnostic provenance of content reservation; this does not imply visible chrome. */
+    public String topLayoutProvider() {
+        var asset = get(Image.TOP) == null ? topLayoutFallback : get(Image.TOP);
+        return asset == null ? "owned-minimum" : asset.file().classpathResource() != null ? "bundled"
+                : asset.file().fallback() ? "fallback" : "current";
+    }
     public float topDepth(float start, float end) {
         var top = get(Image.TOP);
+        if (top == null) top = topLayoutFallback;
         return top == null ? 0 : topCoverage == null ? top.logicalHeight() : topCoverage.depth(start,end);
     }
     public SongSelectBodyBounds rowBody() { return rowBody; }
@@ -176,5 +214,6 @@ public final class SongSelectSkinAssets implements Disposable {
         selectionBounds.clear();
         fallbackStar = null;
         topCoverage = null;
+        topLayoutFallback = null;
     }
 }
