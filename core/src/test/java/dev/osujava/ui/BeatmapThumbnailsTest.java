@@ -37,4 +37,18 @@ class BeatmapThumbnailsTest {
         assertEquals(1, loads[0]); assertEquals(0, cache.opacity(path));
         cache.close();
     }
+    @Test void slowFramesDoNotStretchTheThumbnailFade() {
+        var path = Path.of("image");
+        var slow = new BeatmapThumbnails(ignored -> new Image());
+        var fast = new BeatmapThumbnails(ignored -> new Image());
+        slow.prepare(Set.of(path)); fast.prepare(Set.of(path));
+        slow.advance(.2f);
+        for (int i = 0; i < 24; i++) fast.advance(1f / 120);
+        assertEquals(1, slow.opacity(path));
+        assertEquals(fast.opacity(path), slow.opacity(path));
+        slow.advance(Float.NaN); slow.advance(Float.POSITIVE_INFINITY);
+        assertEquals(1, slow.opacity(path));
+        slow.close(); fast.close();
+    }
+
 }

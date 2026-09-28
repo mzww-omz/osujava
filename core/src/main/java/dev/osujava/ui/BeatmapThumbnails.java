@@ -63,7 +63,7 @@ final class BeatmapThumbnails implements AutoCloseable {
         }
     }
 
-    void advance(float delta) { if (Float.isFinite(delta)) elapsed += Math.max(0, Math.min(delta, .1f)); }
+    void advance(float delta) { if (Float.isFinite(delta)) elapsed += Math.max(0, Math.min(delta, 2f)); }
     float opacity(Path path) {
         Float start = loadedAt.get(path);
         return start == null ? 0 : fade(elapsed - start);
