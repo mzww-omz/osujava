@@ -5,7 +5,6 @@ import dev.osujava.score.DifficultyIdentity;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Pixmap;
@@ -54,7 +53,6 @@ public final class SongSelectScreen extends ScreenAdapter {
     private SongSelectSkinAssets skin;
     private Color activeText = DARK_TEXT, inactiveText;
     private final SongSelectToolboxState toolbox = new SongSelectToolboxState();
-    private boolean suppressSelectorCloseTyped;
     private final Color actionTint = new Color(Color.WHITE);
     private final java.util.EnumSet<Selection> renderedSelectionProcedural = java.util.EnumSet.noneOf(Selection.class);
     boolean renderedSelectionProcedural(Selection action) { return renderedSelectionProcedural.contains(action); }
@@ -168,75 +166,30 @@ public final class SongSelectScreen extends ScreenAdapter {
         bottomLayout = null;
         syncBrowser(true);
         scoreSnapshot.refresh(sets);
-        Gdx.input.setInputProcessor(new InputAdapter() {
-            @Override public boolean keyDown(int key) {
-                if (AppShortcuts.handleQuit(key)) return true;
-                if (!toolbox.open()) suppressSelectorCloseTyped = false;
-                if (toolbox.open()) {
-                    if (key == Input.Keys.ESCAPE || key == Input.Keys.NUM_2
-                            || key == Input.Keys.F1 && toolbox.overlay() == SongSelectToolboxState.Overlay.MODS) {
-                        suppressSelectorCloseTyped = key == Input.Keys.NUM_2;
-                        toolbox.close();
-                    }
-                    else if (key == Input.Keys.NUM_1 && toolbox.overlay() == SongSelectToolboxState.Overlay.MODS) toolbox.reset();
-                    return true;
-                }
-                if (key == Input.Keys.F1 || key == Input.Keys.F3) { perform(SongSelectAction.shortcut(key,false)); return true; }
-                if (key == Input.Keys.F2) {
-                    perform(SongSelectAction.shortcut(key, Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)));
-                    return true;
-                }
-                if (key == Input.Keys.ESCAPE && controls.open()) { controls.close(); return true; }
-                if (key == Input.Keys.BACKSPACE && !search.isEmpty()) {
-                    search = search.substring(0, search.offsetByCodePoints(search.length(), -1));
-                    ensureVisibleSelection();
-                    return true;
-                }
-                if (searchActive) {
-                    if (key == Input.Keys.ESCAPE || key == Input.Keys.ENTER) { searchActive = false; return true; }
-                    return false;
-                }
-                var action = SongSelectAction.shortcut(key, false);
-                if (action != null) { perform(action); return true; }
-                if (key == Input.Keys.UP) { advance(-1); return true; }
-                if (key == Input.Keys.DOWN) { advance(1); return true; }
-                if (key == Input.Keys.PAGE_UP) { advanceSet(-1); return true; }
-                if (key == Input.Keys.PAGE_DOWN) { advanceSet(1); return true; }
-                if (key == Input.Keys.LEFT || key == Input.Keys.RIGHT) {
-                    selectDifficulty(selectedDifficultyIndex + (key == Input.Keys.RIGHT ? 1 : -1));
-                    return true;
-                }
-                return false;
+        Gdx.input.setInputProcessor(new SongSelectInput(toolbox, controls, new SongSelectInput.Target() {
+            @Override public String search() { return search; }
+            @Override public boolean searchActive() { return searchActive; }
+            @Override public void searchActive(boolean active) { searchActive = active; }
+            @Override public void search(String query) { search = query; ensureVisibleSelection(); }
+            @Override public void perform(SongSelectAction action) { SongSelectScreen.this.perform(action); }
+            @Override public void difficulty(int direction) { advance(direction); }
+            @Override public void set(int direction) { advanceSet(direction); }
+            @Override public void page(int direction) {
+                carousel.scrollBy(direction * SongSelectMetrics.pageDistance(top - bottom, carousel.rowHeight()));
             }
-            @Override public boolean keyTyped(char character) {
-                if (suppressSelectorCloseTyped) {
-                    suppressSelectorCloseTyped = false;
-                    if (character == '2') return true;
-                }
-                if (toolbox.open()) return true;
-                if (Character.isISOControl(character)) return false;
-                controls.close();
-                searchActive = true;
-                if (search.codePointCount(0, search.length()) < 80
-                        || Character.isLowSurrogate(character) && !search.isEmpty() && Character.isHighSurrogate(search.charAt(search.length() - 1))) {
-                    search += character;
-                    ensureVisibleSelection();
-                }
-                return true;
-            }
-            @Override public boolean scrolled(float amountX, float amountY) {
-                if (toolbox.open()) return true;
-                if (!Float.isFinite(amountY) || amountY == 0
-                        || !usesMouseWheelAt(Gdx.input.getX(), Gdx.input.getY())) return false;
-                if (!importing) {
-                    UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-                    var bounds = scoreBounds(layout);
-                    if (bounds.contains(layout.pointerX(Gdx.input.getX()), layout.pointerY(Gdx.input.getY()))) scores.scroll(amountY);
-                    else carousel.scrollBy(Math.max(-10000, Math.min(10000, amountY)) * carousel.rowHeight());
-                }
-                return true;
-            }
-        });
+            @Override public boolean scroll(float amount) { return scrollAtPointer(amount); }
+        }));
+    }
+
+    private boolean scrollAtPointer(float amount) {
+        if (!usesMouseWheelAt(Gdx.input.getX(), Gdx.input.getY())) return false;
+        if (!importing) {
+            UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+            var bounds = scoreBounds(layout);
+            if (bounds.contains(layout.pointerX(Gdx.input.getX()), layout.pointerY(Gdx.input.getY()))) scores.scroll(amount);
+            else carousel.scrollBy(Math.max(-10000, Math.min(10000, amount)) * carousel.rowHeight());
+        }
+        return true;
     }
 
     @Override public void resize(int width, int height) {

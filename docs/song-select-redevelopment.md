@@ -71,3 +71,14 @@ describe obsolete geometry (for example seven-star versus current nine-star band
 Each implementation step receives its own reviewed commit after relevant tests.
 No reference executable, extracted assets, generated captures or imported maps are
 added to this repository.
+
+## Implemented navigation correction
+
+The official shortcut reference distinguishes difficulty movement (Up/Down), set
+movement (Left/Right), and viewport paging (Page Up/Down). `SongSelectInput` now owns
+that dispatch, search/modal precedence and wheel routing. Paging retains one row
+of context and never changes selection; its distance is an osujava policy, not a
+measured Stable constant. Tests/harness steps that previously used horizontal
+arrows to select a difficulty now use vertical arrows; their scenario assertions
+remain intact. Enter-to-close-search and the subsequent Enter-to-play behavior is
+preserved.

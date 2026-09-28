@@ -72,10 +72,10 @@ class SongSelectNavigationTest {
         key(Input.Keys.UP); selected(1,0,"Beta-easy.png");
         key(Input.Keys.UP); selected(0,1,"Alpha-hard.png");
         key(Input.Keys.DOWN); selected(1,0,"Beta-easy.png");
-        key(Input.Keys.RIGHT); selected(1,1,"Beta-hard.png");
+        key(Input.Keys.DOWN); selected(1,1,"Beta-hard.png");
+        key(Input.Keys.UP); selected(1,0,"Beta-easy.png");
+        key(Input.Keys.RIGHT); selected(2,0,"Gamma-easy.png");
         key(Input.Keys.LEFT); selected(1,0,"Beta-easy.png");
-        key(Input.Keys.PAGE_DOWN); selected(2,0,"Gamma-easy.png");
-        key(Input.Keys.PAGE_UP); selected(1,0,"Beta-easy.png");
     }
 
     @Test void randomActuallyChangesSetAndHonoursSearchIncludingNoMatches() throws Exception {
@@ -119,7 +119,7 @@ class SongSelectNavigationTest {
         assertTrue(processor.keyTyped('2')); assertEquals("",field("search"));
         screen.browserMode(SongBrowserModel.Sort.BPM,SongBrowserModel.Group.ARTIST);
         key(Input.Keys.F1); key(Input.Keys.F1); assertFalse(toolbox.open());
-        key(Input.Keys.RIGHT); selected(1,1,"Beta-hard.png");
+        key(Input.Keys.UP); selected(1,0,"Beta-easy.png");
     }
 
     @Test void optionsShortcutReportsUnavailableWithoutOpeningFakeMenuOrGameplay() throws Exception {
@@ -173,7 +173,7 @@ class SongSelectNavigationTest {
         open("Many",8); screen.resize(1280,720);
         assertEquals(16,carousel().rows().stream().filter(r -> r.entry.setIndex() == 3).count());
         assertEquals(java.util.stream.IntStream.range(0,16).boxed().toList(),carousel().rows().stream().filter(r -> r.entry.setIndex() == 3).map(r -> r.entry.difficultyIndex()).toList());
-        key(Input.Keys.PAGE_UP);
+        key(Input.Keys.LEFT);
         assertEquals(List.of(-1),carousel().rows().stream().filter(r -> r.entry.setIndex() == 3).map(r -> r.entry.difficultyIndex()).toList());
         assertEquals(2,carousel().rows().stream().filter(r -> r.entry.setIndex() == 2).count());
     }
@@ -245,7 +245,7 @@ class SongSelectNavigationTest {
     @Test void animatedDrawBoundsAreClickableAndSelectedRowWinsDuringExpansionOverlap() throws Exception {
         open("Beta",0); screen.resize(1280,720); settle();
         var hit = SongSelectScreen.class.getDeclaredMethod("hitRow",float.class,float.class); hit.setAccessible(true);
-        key(Input.Keys.PAGE_DOWN); // Expansion inherits the collapsed Set bounds, overlapping children.
+        key(Input.Keys.RIGHT); // Expansion inherits the collapsed Set bounds, overlapping children.
         for (int frame = 0; frame < 40; frame++) {
             if (frame < 8) carousel().scrollBy(frame < 4 ? 80 : -80);
             carousel().advance(1f/60,"Gamma#0");
@@ -316,6 +316,21 @@ class SongSelectNavigationTest {
             assertTrue(motion.rows().stream().anyMatch(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff
                     && Math.abs(motion.renderX(r,1280)-x) < .001f && Math.abs(motion.renderY(r,658)-y) < .001f));
         }
+    }
+
+    @Test void pageKeysScrollWithoutChangingSelectionAndArrowKeysChooseSets() throws Exception {
+        open("Beta", 1); screen.resize(1280, 720);
+        var browser = (SongBrowserModel) field("browser");
+        var selection = browser.selection();
+        float initial = carousel().scrollTarget();
+        key(Input.Keys.PAGE_DOWN);
+        assertTrue(carousel().scrollTarget() > initial);
+        assertEquals(selection, browser.selection());
+        key(Input.Keys.PAGE_UP);
+        assertTrue(carousel().scrollTarget() < initial);
+        assertEquals(selection, browser.selection());
+        key(Input.Keys.RIGHT); selected(2, 0, "Gamma-easy.png");
+        key(Input.Keys.LEFT); selected(1, 0, "Beta-easy.png");
     }
 
 }

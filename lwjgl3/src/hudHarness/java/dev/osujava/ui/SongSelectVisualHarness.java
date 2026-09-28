@@ -539,12 +539,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 case "greylooks-expanded-many-first", "greylooks-expanded-many-last", "greylooks-expanded-single" -> {
                     pointerRow(screen,3,-1,pointer,layout,scene.height);
                     clicked[0] = true; screen.render(0); clicked[0] = false;
-                    if (scene.name.endsWith("last")) for (int i = 0; i < 15; i++) processor[0].keyDown(Input.Keys.RIGHT);
+                    if (scene.name.endsWith("last")) for (int i = 0; i < 15; i++) processor[0].keyDown(Input.Keys.DOWN);
                     long children = carousel(screen).rows().stream().filter(r -> r.entry.setIndex() == 3 && r.entry.difficultyIndex() >= 0).count();
                     if (children != (scene.name.endsWith("single") ? 1 : 16)) throw new AssertionError("Expansion input missed: " + name);
                     pointer[0] = 40;
                 }
-                case "greylooks-collapse-many" -> { processor[0].keyDown(Input.Keys.PAGE_DOWN); pointer[0] = 40; }
+                case "greylooks-collapse-many" -> { processor[0].keyDown(Input.Keys.RIGHT); pointer[0] = 40; }
                 case "greylooks-slow-scroll", "greylooks-fast-scroll", "greylooks-scroll-reverse", "greylooks-large-library" ->
                     pointerRow(screen,3,1,pointer,layout,scene.height);
             }
@@ -578,7 +578,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             if (scene.name.equals("phase4-transitions")) {
                 for (int stage=0;stage<4;stage++) {
-                    processor[0].keyDown(stage % 2 == 0 ? Input.Keys.RIGHT : Input.Keys.LEFT);
+                    processor[0].keyDown(stage % 2 == 0 ? Input.Keys.DOWN : Input.Keys.UP);
                     assertScoreTarget(screen);
                     for (int frame=0;frame<=24;frame++) {
                         screen.render(1f/60); assertRenderedBounds(screen,layout);
@@ -617,7 +617,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             // Wheel scenes intentionally leave selection behind. A real difficulty change restores it.
             if (scene.name.contains("scroll") || setCount > 7) {
-                processor[0].keyDown(Input.Keys.RIGHT); pointer[0] = 40;
+                processor[0].keyDown(Input.Keys.DOWN); pointer[0] = 40;
                 for (int frame = 0; frame < 90; frame++) screen.render(1f/60);
             }
             // Position the pointer on the current selected row for the existing input smoke checks.
@@ -658,7 +658,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             selectedRow = model.rows().stream().max(Comparator.comparingDouble(r -> r.selectedAmount)).orElseThrow();
             if ((scene.name.equals("phase3-chrome-cookie") || scene.name.equals("phase4-sibling"))) {
                 screen.browserMode(SongBrowserModel.Sort.LENGTH,SongBrowserModel.Group.BPM);
-                processor[0].keyDown(Input.Keys.RIGHT);
+                processor[0].keyDown(Input.Keys.DOWN);
                 pointer[0] = Math.round((layout.width()-20)*layout.scale()); pointer[1] = scene.height-Math.round(30*layout.scale());
             } else pointerRow(screen,selectedRow.entry.setIndex(),selectedRow.entry.difficultyIndex(),pointer,layout,scene.height);
             clicked[0] = true; screen.render(0); clicked[0] = false;
@@ -932,7 +932,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 Arrays.stream(samples).average().orElseThrow()/1e6,samples[170]/1e6,samples[179]/1e6);
         if (toolboxState(screen).open()) input.keyDown(Input.Keys.ESCAPE);
         long[] switches = new long[100];
-        for (int i=0;i<140;i++) { long start=System.nanoTime(); input.keyDown(i%2==0 ? Input.Keys.RIGHT : Input.Keys.LEFT);
+        for (int i=0;i<140;i++) { long start=System.nanoTime(); input.keyDown(i%2==0 ? Input.Keys.DOWN : Input.Keys.UP);
             if(i>=40)switches[i-40]=System.nanoTime()-start; }
         Arrays.sort(switches);
         System.out.printf(Locale.ROOT,"Toolbox difficulty switch %s: mean %.3f ms, p95 %.3f ms, max %.3f ms%n",name,
@@ -996,7 +996,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         if(name.equals("phase4-scroll-middle")) scores.scroll(6);
         if(name.equals("phase4-scroll-bottom") || name.equals("phase4-numbers-bottom")) scores.scroll(10000);
         if(name.equals("phase4-selected")) { clicked[0]=true; screen.render(0); clicked[0]=false; if(scores.selected()==null)throw new AssertionError("Score click lost"); }
-        if(name.equals("phase4-no-score")) input.keyDown(Input.Keys.LEFT);
+        if(name.equals("phase4-no-score")) input.keyDown(Input.Keys.UP);
         if(name.equals("phase4-group")) screen.browserMode(SongBrowserModel.Sort.ARTIST,SongBrowserModel.Group.ARTIST);
         if(name.equals("phase4-search")) screen.browserSearch("Local song",true);
         assertScoreTarget(screen);
@@ -1013,7 +1013,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     case "sort" -> { var copy=new ArrayList<>(store.query(target)); copy.sort(dev.osujava.score.LocalScore.ORDER); }
                     case "scroll" -> scores.scroll(i%2==0 ? 1 : -1);
                     case "difficulty" -> { scores.target(null); scores.target(target); }
-                    case "input-switch" -> Gdx.input.getInputProcessor().keyDown(i%2==0 ? Input.Keys.RIGHT : Input.Keys.LEFT);
+                    case "input-switch" -> Gdx.input.getInputProcessor().keyDown(i%2==0 ? Input.Keys.DOWN : Input.Keys.UP);
                     case "cold-format" -> new ScoreBrowserModel(store).target(target);
                 }
                 if(i>=40)samples[i-40]=System.nanoTime()-start;
@@ -1095,8 +1095,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "phase3-search-long" -> screen.browserSearch("Local song Camellia Harness Difficulty Local song Camellia Harness Difficulty",true);
             case "phase3-search-unicode" -> screen.browserSearch("夜空",true);
             case "phase3-search-none" -> screen.browserSearch("no matching beatmap",true);
-            case "phase3-group-first" -> { for(int i=0;i<12;i++)processor.keyDown(Input.Keys.PAGE_UP); }
-            case "phase3-group-last" -> { for(int i=0;i<12;i++)processor.keyDown(Input.Keys.PAGE_DOWN); }
+            case "phase3-group-first" -> { for(int i=0;i<12;i++)processor.keyDown(Input.Keys.LEFT); }
+            case "phase3-group-last" -> { for(int i=0;i<12;i++)processor.keyDown(Input.Keys.RIGHT); }
             case "phase3-menu-group", "phase3-menu-sort" -> {
                 var bounds = name.endsWith("group") ? SongBrowserControls.groupBounds(layout.width(),layout.height()) : SongBrowserControls.sortBounds(layout.width(),layout.height());
                 pointer[0] = Math.round((bounds.x()+20)*layout.scale()); pointer[1] = height - Math.round((bounds.y()+10)*layout.scale());

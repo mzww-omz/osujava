@@ -95,9 +95,9 @@ class SongSelectWheelTest {
             var carousel=carousel(screen); float before=carousel.scrollTarget();
             pointer(.05f,.5f); assertTrue(processor.scrolled(0,3)); assertEquals(3,scores.first()); assertEquals(before,carousel.scrollTarget());
             pointer(.8f,.5f); assertTrue(processor.scrolled(0,1)); assertEquals(3,scores.first());
-            processor.keyDown(Input.Keys.RIGHT); assertEquals(dev.osujava.score.DifficultyIdentity.of("fixture",b),scores.target());
+            processor.keyDown(Input.Keys.DOWN); assertEquals(dev.osujava.score.DifficultyIdentity.of("fixture",b),scores.target());
             assertTrue(scores.rows().isEmpty()); assertEquals(0,scores.first());
-            processor.keyDown(Input.Keys.LEFT); assertEquals(100,scores.rows().size()); assertEquals(identity,scores.target());
+            processor.keyDown(Input.Keys.UP); assertEquals(100,scores.rows().size()); assertEquals(identity,scores.target());
             for(var sort:SongBrowserModel.Sort.values())for(var group:SongBrowserModel.Group.values()) {
                 screen.browserMode(sort,group); assertEquals(identity,scores.target()); assertEquals(100,scores.rows().size());
             }
