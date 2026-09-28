@@ -51,6 +51,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final UiView view;
     private final SongSelectRowRenderer rowRenderer;
     private List<SongSelectRowRenderer.Presentation> rowPresentations = List.of();
+    private String geometryViewport;
     private SongSelectSkinAssets skin;
     private Color activeText = DARK_TEXT, inactiveText;
     private final SongSelectToolboxState toolbox = new SongSelectToolboxState();
@@ -362,9 +363,89 @@ public final class SongSelectScreen extends ScreenAdapter {
         view.endText();
         controls.drawMenu(view, layout.width(), layout.height(), browser);
         SongSelectToolboxOverlay.draw(view,layout,toolbox);
+        if (Boolean.getBoolean("osujava.songSelectGeometry")) drawGeometry(layout, px, py);
         toastSeconds = Math.max(0, toastSeconds - Math.max(0, delta));
         view.fade(entrance, delta);
         view.cover(outgoing.opacity());
+    }
+
+    /** Opt-in diagnostics use the exact animated rectangles consumed by rendering and input. */
+    private void drawGeometry(UiLayout layout, float px, float py) {
+        logGeometryAssets(layout);
+        var hovered = hitRow(px, py);
+        view.beginShapes();
+        for (var row : visibleRows) {
+            var color = row.selected() ? Color.GREEN : row == hovered ? Color.CYAN : Color.YELLOW;
+            float y = Math.max(bottom, row.y()), end = Math.min(top, row.y() + row.height());
+            if (end <= y) continue;
+            float width = Math.min(row.width(), layout.width() - row.x());
+            view.box(row.x(), y, width, 1, 0, color);
+            view.box(row.x(), end - 1, width, 1, 0, color);
+            view.box(row.x(), y, 1, end - y, 0, color);
+        }
+        view.box(0, bottom, layout.width(), 1, 0, Color.MAGENTA);
+        view.box(0, top, layout.width(), 1, 0, Color.MAGENTA);
+        view.box(0, layout.height() - SongSelectMetrics.SELECTION_Y * SongSelectMetrics.carouselScale(layout.height()),
+                layout.width(), 1, 0, Color.GREEN);
+        view.endShapes();
+        view.beginText();
+        float y = layout.height() - 210;
+        view.textSmooth("selected=" + selectedSetIndex + ":" + selectedDifficultyIndex
+                + " hovered=" + (hovered == null ? "none" : hovered.setIndex() + ":" + hovered.difficultyIndex()),
+                20, y, 650, .7f, Color.GREEN);
+        y -= 18;
+        var set = selectedSet();
+        var diff = selectedDifficulty();
+        view.textSmooth("active=" + (set == null ? "none" : set.id()) + " / "
+                + (diff == null ? "none" : diff.version()), 20, y, 650, .65f, Color.GREEN);
+        y -= 18;
+        view.textSmooth(String.format(Locale.ROOT, "UI %.0fx%.0f window %dx%d framebuffer %dx%d scale %.2f",
+                layout.width(), layout.height(), Gdx.graphics.getWidth(), Gdx.graphics.getHeight(),
+                Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight(), layout.scale()),
+                20, y, 650, .6f, Color.WHITE);
+        y -= 18;
+        view.textSmooth(String.format(Locale.ROOT, "scroll %.1f -> %.1f velocity %.1f",
+                carousel.scrollOffset(), carousel.scrollTarget(), carousel.scrollVelocity()),
+                20, y, 650, .6f, Color.WHITE);
+        for (var row : visibleRows) view.textSmooth(String.format(Locale.ROOT, "%d:%d (%.1f,%.1f) %.1fx%.1f",
+                row.setIndex(), row.difficultyIndex(), row.x(), row.y(), row.width(), row.height()),
+                row.x() + 5, Math.min(top, row.y() + row.height()) - 2, row.width() - 10, .5f, Color.YELLOW);
+        view.endText();
+    }
+
+    private void logGeometryAssets(UiLayout layout) {
+        String viewport = Gdx.graphics.getWidth() + "x" + Gdx.graphics.getHeight() + "/"
+                + Gdx.graphics.getBackBufferWidth() + "x" + Gdx.graphics.getBackBufferHeight();
+        if (viewport.equals(geometryViewport)) return;
+        geometryViewport = viewport;
+        if (skin == null) return;
+        for (var image : Image.values()) {
+            var asset = skin.get(image);
+            if (asset == null) continue;
+            float width, height;
+            var selection = Selection.of(image);
+            if (selection != null) {
+                var control = bottomLayout.control(selection);
+                var bounds = (image == selection.normal ? control.normal() : control.hover()).image();
+                width = bounds.width(); height = bounds.height();
+            } else if (image == Image.TOP) {
+                var bounds = SongSelectChrome.top(layout.width(), layout.height(), asset);
+                width = bounds.width(); height = bounds.height();
+            } else if (image == Image.BOTTOM) {
+                width = bottomLayout.bottomImage.width(); height = bottomLayout.bottomImage.height();
+            } else if (image == Image.BACK) {
+                width = bottomLayout.backImage.width(); height = bottomLayout.backImage.height();
+            } else if (image == Image.MENU_BUTTON_BACKGROUND) {
+                width = rowWidth(layout) / skin.rowBody().width();
+                height = carousel.rowHeight() / skin.rowBody().height();
+            } else continue; // Stars and grades vary per row; this inventory covers chrome and row canvases.
+            Gdx.app.log("SongSelect geometry", String.format(Locale.ROOT,
+                    "%s: source %dx%d @%dx -> SD %.1fx%.1f -> UI %.1fx%.1f -> window %.1fx%.1f -> framebuffer %.1fx%.1f",
+                    image.basename, asset.texture().getWidth(), asset.texture().getHeight(), asset.density(),
+                    asset.logicalWidth(), asset.logicalHeight(), width, height, width * layout.scale(), height * layout.scale(),
+                    width * Gdx.graphics.getBackBufferWidth() / layout.width(),
+                    height * Gdx.graphics.getBackBufferHeight() / layout.height()));
+        }
     }
 
     @Override public void dispose() { closed = true; thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
