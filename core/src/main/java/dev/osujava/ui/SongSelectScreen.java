@@ -46,6 +46,8 @@ public final class SongSelectScreen extends ScreenAdapter {
     private static final Color DIM = new Color(.025f, .022f, .045f, .18f);
     private static final Color OTHER = new Color(.58f, .30f, .49f, .90f);
     private static final Color OTHER_HOVER = new Color(.73f, .38f, .59f, .96f);
+    private static final Color PLAYED = new Color(.79f, .46f, .23f, .92f);
+    private static final Color PLAYED_HOVER = new Color(.90f, .57f, .30f, .98f);
     private static final Color SIBLING = new Color(.25f, .54f, .73f, .92f);
     private static final Color SIBLING_HOVER = new Color(.34f, .66f, .84f, .98f);
     private static final Color SELECTED = new Color(.96f, .95f, .98f, .98f);
@@ -82,6 +84,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private boolean showThumbnails() { return legacyThumbnailPreview || skin == null || skin.thumbnailsEnabled(); }
     private final SongBrowserModel browser;
     private final ScoreBrowserModel scores;
+    private final SongSelectScoreSnapshot scoreSnapshot;
     private final SongBrowserControls controls = new SongBrowserControls();
     private Map<String, String> groupLabels = Map.of();
     // Transient display indices only; browser identities are authoritative.
@@ -139,8 +142,10 @@ public final class SongSelectScreen extends ScreenAdapter {
         view = new UiView(game);
         browser = new SongBrowserModel(game.library().all());
         scores = new ScoreBrowserModel(game.localScores());
+        scoreSnapshot = new SongSelectScoreSnapshot(game.localScores());
         sets = browser.librarySets();
         cacheRowContent();
+        scoreSnapshot.refresh(sets);
         if (preferredSetId != null) {
             for (int i = 0; i < sets.size(); i++) if (sets.get(i).id().equals(preferredSetId)) {
                 selectedSetIndex = i;
@@ -172,6 +177,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         chromeContent = null;
         bottomLayout = null;
         syncBrowser(true);
+        scoreSnapshot.refresh(sets);
         Gdx.input.setInputProcessor(new InputAdapter() {
             @Override public boolean keyDown(int key) {
                 if (AppShortcuts.handleQuit(key)) return true;
@@ -239,6 +245,10 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (width <= 0 || height <= 0) return;
         UiLayout layout = UiLayout.fromPixels(width, height);
         calculateLayout(layout);
+        if (scoreSnapshot.refresh(sets)) {
+            var set = selectedSet();
+            scores.target(set == null ? null : DifficultyIdentity.of(set.id(),selectedDifficulty()));
+        }
         visibleRows = layoutRows(layout, 0);
     }
 
@@ -260,6 +270,10 @@ public final class SongSelectScreen extends ScreenAdapter {
         seconds += Math.min(delta, .05f);
         setClickGuard = Math.max(0, setClickGuard - Math.max(0, delta));
         calculateLayout(layout);
+        if (scoreSnapshot.refresh(sets)) {
+            var set = selectedSet();
+            scores.target(set == null ? null : DifficultyIdentity.of(set.id(),selectedDifficulty()));
+        }
         thumbnails.advance(delta);
         visibleRows = layoutRows(layout, delta);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
@@ -547,8 +561,14 @@ public final class SongSelectScreen extends ScreenAdapter {
             view.endText();
             return;
         }
-        Color color = rowTint.set(row.selected() ? SELECTED : row.sibling() ? SIBLING : OTHER);
-        if (!row.selected()) color.lerp(row.sibling() ? SIBLING_HOVER : OTHER_HOVER, row.hoverAmount());
+        BeatmapSet set = sets.get(row.setIndex());
+        boolean played = row.difficultyIndex() < 0 ? scoreSnapshot.played(set)
+                : scoreSnapshot.played(set,set.difficulties().get(row.difficultyIndex()));
+        var tone = SongSelectRowPresentation.tone(row.selected(),row.sibling(),played);
+        Color color = rowTint.set(switch (tone) {
+            case SELECTED -> SELECTED; case SIBLING -> SIBLING; case PLAYED -> PLAYED; case UNPLAYED -> OTHER;
+        });
+        if (!row.selected()) color.lerp(row.sibling() ? SIBLING_HOVER : played ? PLAYED_HOVER : OTHER_HOVER,row.hoverAmount());
         color.a *= row.revealAmount();
         float x = row.x(), y = row.y();
         if (has(Image.MENU_BUTTON_BACKGROUND)) {
@@ -563,7 +583,6 @@ public final class SongSelectScreen extends ScreenAdapter {
             view.endShapes();
             view.beginText();
         }
-        BeatmapSet set = sets.get(row.setIndex());
         SongSelectRowPresentation.Content content = rowContent.get(row.difficultyIndex() < 0
                 ? set : set.difficulties().get(row.difficultyIndex()));
         var geometry = SongSelectRowPresentation.geometry(row.width(), row.height(), contentWidth - x,
@@ -593,8 +612,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         detail.a *= row.revealAmount() * (row.difficultyIndex() >= 0 ? 1 : .72f);
         float x = row.x() + geometry.textX(), width = geometry.textWidth();
         boolean child = row.difficultyIndex() >= 0;
-        var best = child ? game.localScores().best(DifficultyIdentity.of(
-                sets.get(row.setIndex()).id(), sets.get(row.setIndex()).difficulties().get(row.difficultyIndex()))) : null;
+        var set = sets.get(row.setIndex());
+        var best = child ? scoreSnapshot.best(set,set.difficulties().get(row.difficultyIndex())) : null;
         if (best != null) {
             drawGrade(best.grade(), x, row.y() + row.height() / 2 - 17, 44, 34, thumbnailTint.set(1, 1, 1, detail.a), detail);
             x += 52; width = Math.max(0, width - 52);
@@ -783,6 +802,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void syncBrowser(boolean rebuild) {
         List<BeatmapSet> next = browser.librarySets();
         if (sets != next) { sets = next; cacheRowContent(); }
+        scoreSnapshot.refresh(sets);
         var selected = browser.selectedSet();
         if (selected != null) {
             selectedSetIndex = sets.indexOf(selected);

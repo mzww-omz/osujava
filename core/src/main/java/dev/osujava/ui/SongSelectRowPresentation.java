@@ -8,6 +8,10 @@ import java.util.OptionalDouble;
 
 /** Cached content and pure row geometry. Does not own selection, motion or rating calculation. */
 final class SongSelectRowPresentation {
+    enum Tone { SELECTED, SIBLING, PLAYED, UNPLAYED }
+    static Tone tone(boolean selected, boolean sibling, boolean played) {
+        return selected ? Tone.SELECTED : sibling ? Tone.SIBLING : played ? Tone.PLAYED : Tone.UNPLAYED;
+    }
     record Content(String title, String byline, String detail, Path thumbnail, Stars stars) { }
     record Geometry(float thumbnailX, float thumbnailY, float thumbnailWidth, float thumbnailHeight,
                     float textX, float textWidth, float titleY, float bylineY, float detailY, float starsY) { }
