@@ -16,7 +16,11 @@ final class SongSelectMetrics {
     static final float MIN_ROW_X = .40f, MAX_ROW_X = .85f;
 
     private SongSelectMetrics() { }
-    static float rowWidth(float width) { return width * .50f + 18; }
+    static float rowWidth(float width, float height) {
+        // Cover the right edge even at maximum hover/group indentation. A half-screen
+        // body ended inside the default 1100x720 window when the row moved left.
+        return Math.max(width * .50f + 18, width - wheelLeft(width, height) + 18);
+    }
     static float rowHeight(float height) {
         // Artwork is fitted into this body, not used to derive it. Previously a 72-unit
         // pitch with an 88-unit skin body covered the next row's title and hit bounds.

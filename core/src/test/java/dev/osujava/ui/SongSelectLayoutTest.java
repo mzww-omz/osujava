@@ -12,7 +12,7 @@ class SongSelectLayoutTest {
         var retina = UiLayout.fromPixels(2560, 1440);
         for (var layout : List.of(hd, full, retina)) {
             assertEquals(72, SongSelectMetrics.rowHeight(layout.height()));
-            assertEquals(SongSelectMetrics.rowWidth(hd.width()), SongSelectMetrics.rowWidth(layout.width()));
+            assertEquals(SongSelectMetrics.rowWidth(hd.width(), hd.height()), SongSelectMetrics.rowWidth(layout.width(), layout.height()));
             assertEquals(300, layout.pointerY(Math.round(420 * layout.scale())));
         }
     }
@@ -33,6 +33,22 @@ class SongSelectLayoutTest {
             }
             assertEquals(390, model.renderY(model.rows().get(3), 658) + body / 2, .001);
             assertTrue(SongSelectRowPresentation.geometry(650, body, 500, true).starsY() >= 0);
+        }
+    }
+    @Test void hoveredBodyStillCoversTheRightEdgeInStartupAndNarrowWindows() {
+        for (var layout : List.of(UiLayout.fromPixels(960, 720), UiLayout.fromPixels(1100, 720),
+                UiLayout.fromPixels(1280, 720), UiLayout.fromPixels(1920, 1080))) {
+            var model = new SongSelectCarousel();
+            float body = SongSelectMetrics.rowHeight(layout.height());
+            model.content(List.of(new SongSelectCarousel.Entry("set#0", 0, 0)), 574, body,
+                    SongSelectMetrics.rowPitch(layout.height()), SongSelectMetrics.rowPitch(layout.height()),
+                    "set#0", layout.height(), 658);
+            for (int frame = 0; frame < 180; frame++) model.advance(1f / 60, "set#0");
+            float x = model.renderX(model.rows().getFirst(), layout.width());
+            float width = SongSelectMetrics.rowWidth(layout.width(), layout.height());
+            assertTrue(x + width >= layout.width(), "Hover must not expose the row's right edge");
+            var row = new SongSelectRow(0, 0, "", true, false, x, 300, width, body, 1, 1);
+            assertTrue(row.contains(layout.width() - 1, 330));
         }
     }
     @Test void hitPriorityMatchesSelectedLastCompositingAndClipping() {

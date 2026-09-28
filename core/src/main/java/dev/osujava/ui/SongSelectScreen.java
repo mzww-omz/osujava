@@ -405,7 +405,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         return result;
     }
 
-    private float rowWidth(UiLayout layout) { return SongSelectMetrics.rowWidth(layout.width()); }
+    private float rowWidth(UiLayout layout) { return SongSelectMetrics.rowWidth(layout.width(), layout.height()); }
 
     private void updateContent(UiLayout layout) {
         float height = SongSelectMetrics.rowHeight(layout.height());
