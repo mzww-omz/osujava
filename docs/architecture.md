@@ -58,6 +58,35 @@ Import and gameplay have no archive dependency in common. The importer owns extr
 
 Starts the libGDX desktop backend and provides a native file chooser. The core flow is kept separate from desktop window startup.
 
+## Song Select UI boundary
+
+`SongSelectScreen` coordinates screen lifecycle, local import and screen transitions.
+`SongBrowserModel` owns identity-based selection, relative navigation, search,
+sorting, grouping and filtered Random history. `SongSelectInput` maps keyboard,
+search/modal precedence and wheel events to screen actions. `SongSelectCarousel`
+owns UI-time scroll/spring/hover/expansion state; gameplay clocks remain separate.
+
+`SongSelectMetrics` names the logical row/curve units. `SongSelectRow` is the shared
+immutable visible geometry used for compositing and hit testing. The update phase
+prepares selected `SongSelectDetails`, score/row presentations and texture residency
+before the draw phase. `SongSelectRowRenderer` receives these presentations and
+resident textures without a Library or selection-model reference. It cannot select,
+filter, import, score or play a beatmap. `SongSelectChrome` and
+`SongSelectToolboxLayout` retain separate artwork, reserved-content and interaction
+bounds; oversized artwork does not reserve the entire viewport.
+
+`BeatmapThumbnails` retains an 18-entry LRU working cache and pins the current visible
+frame plus background so an immutable draw snapshot cannot reference an evicted
+texture. If a frame needs more than 18 distinct images, those visible images remain
+resident until the next frame; old unpinned images are evicted first. Decode remains
+synchronous in preparation, so first access to a large image can still stall.
+Skin provider precedence, authored transparent placeholders and density handling
+remain owned by `SongSelectSkinAssets` / `SkinAssetResolver`.
+
+See [redevelopment audit](song-select-redevelopment.md) and
+[Stable reference evidence](song-select-stable-reference.md) for numerical provenance,
+compatibility differences and validation.
+
 ## Import behavior and safety
 
 An .osz is treated as a Beatmap Set source. Java's ZipInputStream extracts every bundled file into a unique directory under ~/.osujava/library. Entry paths are checked before writing: absolute paths, parent traversal, drive prefixes, backslashes, and duplicate normalized paths are rejected. Total expanded content is capped at 1 GiB.

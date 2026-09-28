@@ -164,7 +164,21 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     scenes.add(new Scene(size[0],size[1],size[2],"phase5a-state-" + state));
             }
             String phase = System.getProperty("osujava.songSelectPhase", "all");
-            if (!phase.equals("all")) scenes.removeIf(scene -> !scene.name.startsWith("phase" + phase + "-"));
+            if (phase.equals("redevelopment")) {
+                // Fast cross-feature suite; all original phase suites remain available unchanged.
+                var regression = Set.of("greylooks-initial", "greylooks-hover", "greylooks-fast-scroll", "greylooks-scroll-reverse",
+                        "greylooks-expanded-many-first", "greylooks-expanded-many-last", "greylooks-collapse-many",
+                        "greylooks-first-item", "greylooks-last-item", "greylooks-large-library",
+                        "missing", "high-only", "broken", "tiny", "unusual",
+                        "phase2-long-english", "phase2-japanese", "phase2-symbols", "phase2-thumbnail-fade",
+                        "phase3-search-none", "phase3-search-unicode", "phase3-group-artist", "phase3-transitions",
+                        "phase4-selected", "phase4-wheel-hover", "phase4-transitions",
+                        "phase5a-assets-composite", "phase5a-assets-transparent", "phase5a-assets-oversized-hover",
+                        "phase5a-assets-asymmetric-high", "phase5a-current-mode-pressed", "phase5a-current-mods-pressed",
+                        "phase5a-current-random-pressed", "phase5a-current-back-hover", "phase5a-state-save-reload",
+                        "phasechrome-transparent", "phasechrome-tall");
+                scenes.removeIf(scene -> !regression.contains(scene.name));
+            } else if (!phase.equals("all")) scenes.removeIf(scene -> !scene.name.startsWith("phase" + phase + "-"));
         } catch (Exception e) { throw new RuntimeException(e); }
     }
 

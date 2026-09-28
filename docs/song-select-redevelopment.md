@@ -52,8 +52,9 @@ Unicode fitting and score tests cover these. The existing production visual harn
 covers 720p, 1080p and doubled framebuffer density; use it after structural changes.
 Baseline `./gradlew test` passed before edits.
 
-The current curve, row density and spring coefficients are osujava choices, not
-verified constants from the supplied Stable build. Consult
+At audit start the curve, row density and spring coefficients were osujava choices.
+The later executable investigation established the coordinate and layout metrics
+listed below; the independent spring remains an intentional difference. Consult
 [specific reference evidence and gaps](song-select-stable-reference.md) before
 making a compatibility claim. Earlier Phase reports are historical and sometimes
 describe obsolete geometry (for example seven-star versus current nine-star bands).
@@ -74,14 +75,24 @@ added to this repository.
 
 ## Implemented navigation correction
 
-The official shortcut reference distinguishes difficulty movement (Up/Down), set
-movement (Left/Right), and viewport paging (Page Up/Down). `SongSelectInput` now owns
-that dispatch, search/modal precedence and wheel routing. Paging retains one row
-of context and never changes selection; its distance is an osujava policy, not a
-measured Stable constant. Tests/harness steps that previously used horizontal
-arrows to select a difficulty now use vertical arrows; their scenario assertions
-remain intact. Enter-to-close-search and the subsequent Enter-to-play behavior is
-preserved.
+`SongSelectInput` owns keyboard dispatch, search/modal precedence and wheel routing.
+Up/Down move difficulty and Left/Right move Set. Direct executable analysis superseded
+the initial wiki-only Page interpretation: Page Up/Down traverse ten eligible visible
+rows, skip headers and stop after one circuit. Fewer than ten candidates therefore
+return to the original row. Traversal uses one immutable entry projection, so passing
+intermediate Sets does not expand them and change the counting basis.
+
+Tests/harness steps that previously used horizontal arrows for difficulty selection
+now use vertical arrows; their scenario assertions remain intact. Existing
+Enter-to-close-search then Enter-to-play behavior remains. Unlike Stable's separate
+keyboard focus on another Set, osujava still selects its destination immediately;
+exact dwell/auto-activation rules were not established, and adding a partial focus
+state would make metadata/preview/play disagree. This is a recorded compatibility
+gap, not a claim of complete navigation parity.
+
+Rows now capture a press identity and commit on release over that same identity.
+A drag, release outside, modal, import or outgoing transition cancels it. The six-UI-unit
+drag threshold is local policy. Existing Set double-click/play protection remains.
 
 ## Extreme skin canvas safety
 
@@ -93,3 +104,73 @@ skin reservations are unchanged. These are local safety limits, not claimed Stab
 asset rules. The toolbox uses the same bottom reservation so auxiliary actions stay
 on screen. Regression coverage includes SD/@2x from the existing suite and new
 oversized/non-finite depth cases at multiple resolutions.
+
+## Rendering and timing migration
+
+Rows now receive immutable `SongSelectRowRenderer.Presentation` values (final bounds,
+content, played/grade state and resident thumbnail). The renderer has no browser,
+Library, importer or score-store dependency. Selection details are prepared in the
+selection synchronization path. `render()` explicitly calls update/preparation before
+drawing; composite skin artwork still sits beneath rows as required by existing skins.
+
+Visible thumbnail paths plus the background are pinned for one frame before draw
+snapshots are built. Unpinned images retain the bounded LRU policy. Hidden expansion
+rows do not trigger decoding. Tests exercise more than 18 simultaneously visible
+images to ensure eviction never disposes a texture still referenced by that frame.
+
+The screen pulse previously capped every frame at 50 ms and thumbnail fading at
+100 ms, stretching animation on slow frames. Both now consume elapsed UI delta
+(with the carousel's existing two-second pause guard); non-finite/negative frame
+input is sanitized. A 200 ms frame and 24 × 1/120 s frames both complete thumbnail
+fade. This change does not alter the critically damped carousel spring.
+
+## Executable-backed geometry
+
+The follow-up [binary reference record](song-select-stable-reference.md#direct-clril-findings-supersedes-initial-unknowns-where-stated)
+identifies the inspected hash and method tokens. Independent metrics now convert the
+480-high carousel coordinates into the existing logical viewport: 48-unit pitch,
+220-unit screen-down selection anchor, right-relative 340-unit origin, linear
+center-distance indentation (37.5 units at the top/bottom), 45-unit hover indent and
+10-unit hover neighbour separation. At 720p these become 72, 330, 510, 56.25, 67.5
+and 15 logical units respectively. PNG dimensions cannot alter row pitch.
+
+The first/last rows retain osujava's selection padding instead of the binary's initial
+content Y=200 and end clamping. Expanded-group offset, selected emphasis, compact
+group-header gaps, velocity deformation and critically damped spring remain local
+policies: the corresponding Stable subtype/prediction/focus semantics are not fully
+mapped. Wheel still targets one bounded skin-body height per input unit using the
+existing spring/impulse model, rather than copying Stable's exponential integrator.
+The exact build's inertial units, damping and callback travel are documented for a
+future isolated motion change. Existing test expectations asserting viewport center
+or the old rational curve were updated against the confirmed coordinate basis;
+convergence, interrupted expansion and input/skin safety assertions are retained.
+
+## Final validation
+
+`./gradlew test build` passed: 642 tests, zero failures, errors or skips. The final
+cross-feature harness command also ran `test build` successfully before capturing.
+The following suites ran under `xvfb-run -a ./gradlew :lwjgl3:songSelectVisualHarness`
+with `-PsongSelectPhase=<profile>` and an output directory outside the repository:
+
+| Profile | Scenes | PNG captures | Scripted transition frames |
+| --- | ---: | ---: | ---: |
+| `25` (reference geometry/motion) | 81 | 135 | 540 |
+| `redevelopment` (cross-feature regression) | 111 | 339 | 2313 |
+| `2` (text/thumbnail) | 81 | 93 | 24 |
+
+All three passed navigation and disposal checks, covering 1280×720, 1920×1080 and
+1280×720 with 2× framebuffer density. The new `redevelopment` profile selects
+existing scenarios for search, grouping, scores, Random, modal controls, skin
+fallback/transparent/oversized/@2x assets and scrolling; original profiles remain
+available. Earlier interrupted full-suite attempts are not counted as passes.
+
+Manual capture inspection included hover separation, large skin controls, Japanese
+and Korean text. The validation host initially lacked CJK glyphs; installing the
+host packages `fonts-noto-cjk` and `fontconfig`, then restarting the harness JVM,
+resolved the missing glyphs. Japanese, Chinese and Korean coverage still depends on
+installed system fonts; no font or artwork from Stable is bundled. Generated images,
+fixtures and analysis outputs are not committed.
+
+These checks validate osujava behavior, not a live side-by-side Stable session.
+Stable runtime comparison, exact keyboard focus/dwell parity and its exponential
+wheel inertia remain unverified or deliberately different as described above.
