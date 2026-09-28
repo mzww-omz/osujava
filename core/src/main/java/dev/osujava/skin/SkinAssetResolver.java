@@ -169,7 +169,15 @@ public final class SkinAssetResolver {
         return resolveAnimation(name, "-", loadable);
     }
 
+    List<AssetFile> resolveAnimation(String name, int maximumFrames, Predicate<AssetFile> loadable) {
+        return resolveAnimation(name, "-", maximumFrames, loadable);
+    }
+
     private List<AssetFile> resolveAnimation(String name, String separator, Predicate<AssetFile> loadable) {
+        return resolveAnimation(name, separator, Integer.MAX_VALUE, loadable);
+    }
+
+    private List<AssetFile> resolveAnimation(String name, String separator, int maximumFrames, Predicate<AssetFile> loadable) {
         // Validate even when neither provider exists, just as resolve() does.
         validateName(name);
         for (Provider provider : Provider.values()) {
@@ -181,7 +189,7 @@ public final class SkinAssetResolver {
             }
             List<AssetFile> frames = new ArrayList<>();
             frames.add(first.get());
-            for (int index = 1; ; index++) {
+            for (int index = 1; index < maximumFrames; index++) {
                 var frame = resolveIn(provider, name + separator + index, loadable);
                 if (frame.isEmpty()) break;
                 frames.add(frame.get());

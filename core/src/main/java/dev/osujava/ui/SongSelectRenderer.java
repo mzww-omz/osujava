@@ -148,7 +148,14 @@ final class SongSelectRenderer {
         float backBrightness = backPressed ? .78f : backHover ? 1 : .94f;
         Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
         chromeClip(layout, SongSelectChrome.bottomClip(layout.width(), layout.height()));
-        skinImage(Image.BACK,frame.bottomLayout.backImage,actionTint.set(backBrightness,backBrightness,backBrightness,1));
+        var backFrame = frame.skin == null ? null : frame.skin.backFrame(frame.seconds);
+        if (backFrame != null) {
+            float scale = layout.height() / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
+            batch.setColor(backBrightness, backBrightness, backBrightness, 1);
+            batch.draw(backFrame.texture(), 0, frame.bottomLayout.baseline,
+                    backFrame.logicalWidth() * scale, backFrame.logicalHeight() * scale);
+            batch.setColor(Color.WHITE);
+        }
         batch.flush();
         Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
         drawMetadata(layout);

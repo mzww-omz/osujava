@@ -11,7 +11,7 @@ final class SongSelectImageLimits {
     static final long MAX_PIXELS = 16L * 1024 * 1024;
     static final long MAX_FILE_BYTES = 64L * 1024 * 1024;
 
-    static void check(FileHandle file) {
+    static long check(FileHandle file) {
         if (file.length() > MAX_FILE_BYTES) throw new GdxRuntimeException("Skin PNG exceeds file budget");
         try (var input = new DataInputStream(file.read())) {
             if (input.readLong() != 0x89504e470d0a1a0aL || input.readInt() != 13 || input.readInt() != 0x49484452)
@@ -19,6 +19,7 @@ final class SongSelectImageLimits {
             int width = input.readInt(), height = input.readInt();
             if (width <= 0 || height <= 0 || width > MAX_DIMENSION || height > MAX_DIMENSION
                     || (long) width * height > MAX_PIXELS) throw new IOException("Skin PNG exceeds pixel budget");
+            return (long) width * height;
         } catch (IOException e) { throw new GdxRuntimeException("Unsafe or malformed skin PNG: " + file.name(), e); }
     }
 }

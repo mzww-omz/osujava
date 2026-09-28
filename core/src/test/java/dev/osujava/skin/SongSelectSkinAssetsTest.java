@@ -14,6 +14,27 @@ import static org.junit.jupiter.api.Assertions.*;
 class SongSelectSkinAssetsTest {
     @TempDir Path directory;
 
+    @Test void backAnimationKeepsProviderFramesDensityTimingAndOwnership() throws Exception {
+        Files.writeString(directory.resolve("skin.ini"), "[General]\nAnimationFramerate: 2\n");
+        for (String name : new String[]{"menu-back-0.png", "menu-back-1@2x.png", "menu-back-3.png", "menu-back.png"})
+            Files.createFile(directory.resolve(name));
+        Path fallback = Files.createDirectory(directory.resolve("fallback"));
+        Files.createFile(fallback.resolve("menu-back-2.png"));
+        List<TestTexture> loaded = new ArrayList<>();
+        var assets = new SongSelectSkinAssets(new SkinAssetResolver(directory, fallback), file -> {
+            var texture = new TestTexture(100 * file.density(), 90 * file.density());
+            loaded.add(texture); return texture;
+        });
+        assertEquals(2, assets.backFrameCount()); // Does not join a different provider or skip the hole.
+        assertEquals(1, assets.backFrame(0).density());
+        assertEquals(2, assets.backFrame(.5).density());
+        assertEquals(100, assets.backFrame(.5).logicalWidth());
+        assertSame(assets.get(Image.BACK), assets.backFrame(1));
+        assertSame(assets.backFrame(.5), assets.backFrame(.5));
+        assets.dispose(); assets.dispose();
+        for (var texture : loaded) assertEquals(1, texture.disposals);
+    }
+
     @ParameterizedTest @ValueSource(strings = {"selection-mode", "menu-button-background", "menu-back", "songselect-top", "songselect-bottom"})
     void authoredSurfaceDoesNotImportForeignDecorativeChrome(String basename) throws Exception {
         Files.createFile(directory.resolve(basename + ".png"));

@@ -11,6 +11,8 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.IdentityHashMap;
 import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -55,6 +57,7 @@ public final class SongSelectSkinAssets implements Disposable {
     private final EnumMap<Image, SkinTexture> textures = new EnumMap<>(Image.class);
     private final Set<Texture> owned = Collections.newSetFromMap(new IdentityHashMap<>());
     private Texture fallbackStar;
+    private List<SkinTexture> backFrames = List.of();
     private SongSelectTopCoverage topCoverage;
     private SkinTexture topLayoutFallback;
     private SongSelectBodyBounds rowBody = SongSelectBodyBounds.FULL;
@@ -65,9 +68,17 @@ public final class SongSelectSkinAssets implements Disposable {
     }
 
     public SongSelectSkinAssets(SkinAssetResolver resolver) {
-        this(resolver, file -> {
-            SongSelectImageLimits.check(file.handle());
-            return new Texture(file.handle());
+        this(resolver, new Function<>() {
+            private long pixels;
+            @Override public Texture apply(SkinAssetResolver.AssetFile file) {
+                long next = SongSelectImageLimits.check(file.handle());
+                // Aggregate budget before native allocation, including all animation frames.
+                if (pixels + next > 64L * 1024 * 1024)
+                    throw new GdxRuntimeException("Song Select textures exceed 64 MiPixel budget");
+                Texture result = new Texture(file.handle());
+                pixels += next;
+                return result;
+            }
         });
     }
 
@@ -136,7 +147,19 @@ public final class SongSelectSkinAssets implements Disposable {
                 // An authored normal (including a transparent replacement) owns its hover family.
                 // Missing current hover retains normal artwork, rather than inventing foreign art/input.
                 resolver.resolveCustom(image.basename, load);
-            } else if (image == Image.BACK) resolver.resolveAnimationFirstFrame(image.basename, load);
+            } else if (image == Image.BACK) {
+                List<SkinTexture> frames = new ArrayList<>();
+                resolver.resolveAnimation(image.basename, 512, file -> {
+                    // Keep frame-zero geometry; changing frames must not move the hit target.
+                    var firstBounds = selectionBounds.get(Image.BACK);
+                    if (!load.test(file)) return false;
+                    frames.add(textures.get(Image.BACK));
+                    if (frames.size() > 1 && firstBounds != null) selectionBounds.put(Image.BACK, firstBounds);
+                    return true;
+                });
+                backFrames = List.copyOf(frames);
+                if (!backFrames.isEmpty()) textures.put(Image.BACK, backFrames.getFirst());
+            }
             else resolver.resolve(image.basename, load);
         }
         boolean authoredSurface = textures.entrySet().stream().anyMatch(entry ->
@@ -164,6 +187,11 @@ public final class SongSelectSkinAssets implements Disposable {
     }
 
     public SkinTexture get(Image image) { return textures.get(image); }
+    public int backFrameCount() { return backFrames.size(); }
+    public SkinTexture backFrame(double elapsedSeconds) {
+        return backFrames.isEmpty() ? null : backFrames.get(SkinAnimation.frameIndex(
+                backFrames.size(), configuration.animationFramerate(), elapsedSeconds));
+    }
     public SelectionAssetBounds selectionBounds(Image image) { return selectionBounds.get(image); }
     public String provider(Image image) {
         var asset = get(image);
@@ -216,6 +244,7 @@ public final class SongSelectSkinAssets implements Disposable {
         textures.clear();
         selectionBounds.clear();
         fallbackStar = null;
+        backFrames = List.of();
         topCoverage = null;
         topLayoutFallback = null;
     }
