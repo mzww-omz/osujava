@@ -108,6 +108,30 @@ class SongSelectNavigationTest {
         selected(1,1,"Beta-hard.png");
     }
 
+    @Test void importKeyTypedDoesNotFilterOrChangeSelection() throws Exception {
+        open("Beta", 1);
+        key(Input.Keys.I);
+        assertTrue(processor.keyTyped('i'));
+        processor.keyUp(Input.Keys.I);
+        assertEquals(1, importRequests);
+        assertEquals("", field("search"));
+        assertEquals(false, field("searchActive"));
+        selected(1, 1, "Beta-hard.png");
+        // The same character remains available when explicitly editing a query.
+        processor.keyTyped('B');
+        assertFalse(processor.keyDown(Input.Keys.I));
+        processor.keyTyped('i');
+        assertEquals("Bi", field("search"));
+    }
+
+    @Test void printablePlayShortcutDoesNotStartSearch() throws Exception {
+        open("Beta", 1);
+        key(Input.Keys.SPACE);
+        processor.keyTyped(' ');
+        assertEquals("", field("search"));
+        assertEquals(false, field("searchActive"));
+    }
+
     @Test void modsOverlayConsumesNavigationSearchImportPlayAndDebugUntilClosed() throws Exception {
         open("Beta",1); key(Input.Keys.F1);
         var toolbox = (SongSelectToolboxState) field("toolbox");

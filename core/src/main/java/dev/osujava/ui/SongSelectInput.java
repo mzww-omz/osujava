@@ -20,7 +20,7 @@ final class SongSelectInput extends InputAdapter {
     private final SongSelectToolboxState toolbox;
     private final SongBrowserControls controls;
     private final Target target;
-    private boolean suppressCloseTyped;
+    private char suppressedTyped;
 
     SongSelectInput(SongSelectToolboxState toolbox, SongBrowserControls controls, Target target) {
         this.toolbox = toolbox; this.controls = controls; this.target = target;
@@ -30,11 +30,11 @@ final class SongSelectInput extends InputAdapter {
     }
     @Override public boolean keyDown(int key) {
         if (AppShortcuts.handleQuit(key)) return true;
-        if (!toolbox.open()) suppressCloseTyped = false;
+        suppressedTyped = 0;
         if (toolbox.open()) {
             if (key == Input.Keys.ESCAPE || key == Input.Keys.NUM_2
                     || key == Input.Keys.F1 && toolbox.overlay() == SongSelectToolboxState.Overlay.MODS) {
-                suppressCloseTyped = key == Input.Keys.NUM_2;
+                suppressedTyped = key == Input.Keys.NUM_2 ? '2' : 0;
                 toolbox.close();
             } else if (key == Input.Keys.NUM_1 && toolbox.overlay() == SongSelectToolboxState.Overlay.MODS) toolbox.reset();
             return true;
@@ -54,7 +54,13 @@ final class SongSelectInput extends InputAdapter {
             return false;
         }
         var action = SongSelectAction.shortcut(key, false);
-        if (action != null) { target.perform(action); return true; }
+        if (action != null) {
+            // GLFW sends keyTyped after keyDown even when the shortcut was consumed.
+            // Do not let Import or Space-to-play also filter the Library.
+            suppressedTyped = key == Input.Keys.I ? 'i' : key == Input.Keys.SPACE ? ' ' : 0;
+            target.perform(action);
+            return true;
+        }
         // Arrow roles follow the public shortcuts; executable tracing establishes ten-entry paging.
         switch (key) {
             case Input.Keys.UP -> target.difficulty(-1);
@@ -68,10 +74,9 @@ final class SongSelectInput extends InputAdapter {
         return true;
     }
     @Override public boolean keyTyped(char character) {
-        if (suppressCloseTyped) {
-            suppressCloseTyped = false;
-            if (character == '2') return true;
-        }
+        char suppressed = suppressedTyped;
+        suppressedTyped = 0;
+        if (suppressed != 0 && Character.toLowerCase(character) == suppressed) return true;
         if (toolbox.open()) return true;
         if (Character.isISOControl(character)) return false;
         controls.close();
@@ -81,6 +86,10 @@ final class SongSelectInput extends InputAdapter {
                 || Character.isLowSurrogate(character) && !search.isEmpty() && Character.isHighSurrogate(search.charAt(search.length() - 1)))
             target.search(search + character);
         return true;
+    }
+    @Override public boolean keyUp(int key) {
+        if (key == Input.Keys.I || key == Input.Keys.SPACE || key == Input.Keys.NUM_2) suppressedTyped = 0;
+        return false;
     }
     @Override public boolean scrolled(float amountX, float amountY) {
         if (toolbox.open()) return true;
