@@ -137,3 +137,108 @@ S19/S22/S23はstableの詳細を待たずとも、失われる入力イベント
 middle-only、独自効果音、欠損・破損ファイル。各ケースで初期／hover／押下／release／
 左右同時押し／低fps／画面遷移／1280x720・1920x1080・4:3・高DPIを記録する。
 安易に大量のスクリーンショット件数だけを互換性の進捗指標にしない。
+
+## 追記: 見た目と不足コンポーネントを中心とした画面別棚卸し
+
+追記日: 2026-09-28。対象製品コードは引き続き `3003bad`。
+V番号はS番号の視覚面を細分化したもので、全てを新規の独立不具合として加算しない。
+「不足」は表示経路の不在、「表示差」は独自の表示・構造、「要計測」はstableでの正確な値が
+未確定という意味で使う。静止画だけでなくhover、展開、画面遷移時も外観に含める。
+
+### 比較に使った資料と誤判定の防止
+
+- [公式の画面説明](https://osu.ppy.sh/wiki/en/Client/Interface#song-select)と
+  [公式掲載の全体画像](https://osu.ppy.sh/wiki/images/Client/Interface/img/song-selection.jpg)
+  を参照し、既存ローカルコピー `/tmp/osujava-stable-research/song-selection.jpg` を目視確認した。
+- Java側は既存キャプチャの `1280x720-1x-greylooks-initial.png`、
+  `1024x768-1x-phase5a-current-mods-view.png` を
+  `/tmp/osujava-skin-implementation-foundation/` から目視確認した。
+  これらは前回の装飾クリップ解除前のキャプチャなので、現在の大型装飾の証明には使わない。
+  各指摘は現行Renderer／asset enum／presentationコードでも確認した。
+- **同一譜面・同一スキン・同一設定の比較ではない。** 背景絵、Greylooks固有の斜線、
+  `Shufl`／`Optns`など画像内の文字、サムネイル無効化を、そのまま互換不具合に数えない。
+  公式画像のオンライン順位とJavaの空のローカルランキングを比べて「スコアが消える」とも判定しない。
+- 公式掲載画像は配布されたstableビルドの実行結果ではない。構成要素の存在確認に用い、
+  色・角度・座標の完全な正解画像とは扱わない。
+
+### 上部: メタデータ、分類、検索
+
+| ID / 状態 | 見た目の不足・不一致 | 現コードと確認観点 |
+|---|---|---|
+| V01 不足 | Group/Sortの下に並ぶ分類タブ列がない | `SongBrowserControls`は二つの文字ラベルと矩形dropdownだけ。`selection-tab`未接続（S10）。タブ列の有無は画面上部の密度・検索位置にも影響する |
+| V02 表示差 | Group/Sortの枠、選択値、矢印、見出しの階層を、単一の小さい文字列へまとめている | `drawLabels`の`Group: … ▾`／`Sort: … ▾`。単にフォントサイズを変えるだけでは選択値と見出しの分離を再現できない |
+| V03 不足・表示差 | メタデータ左の譜面カテゴリ表示がなく、末尾を一律`Local beatmap`にしている | `SongSelectDetails`、`drawMetadata`。ローカルに分かる状態と未知の状態の見せ方を設計する。公式ランキング状態を推測して表示しない |
+| V04 表示差 | タイトル／artist／mapperの改行構成が独自。BPMはmin–maxだけで、原語優先切替もない | `SongSelectDetails.of/bpmText`。タイトルにartistを含めず次行へ置き、可変BPMの代表値もない。全角・長い難易度名での省略位置、行高、右側との衝突を比較する |
+| V05 表示差・要計測 | メタデータと行文字にsystem SansSerifを使い、文字の太さ・幅・baselineが環境依存 | `SmoothUiFont`、`SongSelectRowRenderer.drawRowLabel`。日本語を表示できることとstableの文字組み一致は別。旧スキンで焼き込まれた見出しとの重なりも比較する |
+| V06 表示差 | 検索は固定文字列＋末尾`\|`で、caretの点滅・選択範囲・編集位置を描く構成がない | `SongSelectRenderer.draw`、`SongSelectInput`。未入力／入力中／長文／0件の状態で、枠・案内文字・結果フィードバックを別々に評価する |
+
+上記のstable側の構成は[画面説明のmetadata・group・search](https://osu.ppy.sh/wiki/en/Client/Interface#beatmap-information)を根拠とする。
+文字寸法やフォント名の完全一致は今回未確定。
+
+### 中央と右側: 背景、譜面カード、スクロール
+
+| ID / 状態 | 見た目の不足・不一致 | 現コードと確認観点 |
+|---|---|---|
+| V07 不足 | 中央に薄く表示される現在Modeの図形とBPM連動表示がない | `mode-osu`等のロード／描画経路なし。現在は背景画像と固定dimが中心で、中央の視覚的な識別要素が欠ける |
+| V08 不足 | 選曲の横方向に流れる`star2`装飾がない | `Image` enumにも粒子描画passにもない。星評価用の`star`対応とは別機能。エフェクト無効設定時の比較と混同しない |
+| V09 表示差・要計測 | 背景切替は新画像一枚を0.22秒でfade-inする。旧画像を保持した二枚のcrossfadeではない | `selectBackground`、`backgroundFade`、`UiView.background`。center-cover、alpha .72と追加dimも独自値。stableの切替方式は未確定。同じ画像・同じ設定で比較する |
+| V10 表示差・要計測 | 譜面カードの画像倍率、色調、文字階層、展開形状がまだ独自 | S05/S17。非選択兄弟行のtitle alpha .24、byline .20、選択以外のサムネイル明度 .78〜.90等を固定。選択カードだけでなく兄弟行の可読性、影・余白・gradeの重なりを比較する |
+| V11 限定実装 | 星の帯・gradeは存在するが、星がない通常データでは行下部の情報が欠ける | trusted ratingのない場合は星非表示。gradeもSS/S/A/B/C/Dのみで銀S/SS画像の経路はない。銀gradeはMod未実装にも依存するため、単なるasset追加で完了としない |
+| V12 不足 | 右端にリスト内の位置を示すスクロール表示がない | carouselにはscrollOffsetがあるが、Rendererにthumb/trackの描画がない。公式掲載画像では右端に位置表示が見える。正確な形状・出現条件は実機要計測 |
+
+Modeとstar2の用途は[スキン仕様](https://osu.ppy.sh/wiki/en/Skinning/Interface#mode-select)で確認した。
+サムネイル自体は実装済みである。旧Versionや表示設定で隠れる状態を「サムネイル未実装」としない。
+
+### 左側: ランキングと譜面状態
+
+| ID / 状態 | 見た目の不足・不一致 | 現コードと確認観点 |
+|---|---|---|
+| V13 表示差 | ランキングが固定ヘッダー＋矩形行＋grade/score/accuracy/combo/dateで、stableの行構成と異なる | `drawScoreShapes/drawRanking`。行背景のskin未適用はS09。順位、player名／avatar、Mod表示などを持つ構造ではない。ローカルで保持できる情報とオンライン専用情報を分ける |
+| V14 不足・表示差 | ranking selector、空状態用パネル、Personal Best専用ブロック、吹き出しがない | 現行は`Local Rankings`と状況別の一行文字。`rank-forum`も未ロード。オンライン機能を接続せず、ローカル順位と空状態の見せ方から検討する。Web呼出ボタンの動作は本件対象外 |
+| V15 表示差・要計測 | 左領域の幅・行高・grade枠・余白が独自で、狭い画面ほど密度が変わる | header幅=.35×画面、grade枠60×40、選択行に幅3のアクセント（いずれもUI座標単位）。上部のskin予約高さにも従う。公式画像のオンライン一覧との単純な行数比較ではなく、同じローカルスコア件数で確認する |
+
+### 下部とoverlay: Mode、Mods、Back、プロフィール、Cookie
+
+| ID / 状態 | 見た目の不足・不一致 | 現コードと確認観点 |
+|---|---|---|
+| V16 不足 | Modeボタン上の現在Modeアイコンと、Mode選択内の中サイズアイコンがない | `mode-*-small`／`mode-*-med`未接続。`selection-mode`の画像自体は表示できるが、動的なMode表示は別コンポーネント |
+| V17 表示差・不足 | Modsは略称入り矩形タイル。スキンModアイコン、選択状態の絵、倍率等の表示がない | `SongSelectToolboxOverlay`。実機能未実装に加え、visualも代替表示。Modeも大きな文字の帯であり、元の画像を使ったselectorではない |
+| V18 不足 | Beatmap Optionsは無効表示で、開いた状態のコンポーネントがない | hover時の`Beatmap Options unavailable`だけ。ボタン画像対応と、開閉パネル・選択行・確認画面の外観対応を分けて管理する |
+| V19 不足・表示差 | 下部のプロフィール領域がなく、Import／local sets／DEBUG AUTOを表示する | `SongSelectToolboxLayout`、Renderer。公式掲載画像にあるavatar・名前・レベル等のまとまりと構成が違う。作者がprofile周辺を一枚絵にしているスキンでは独自ラベルが重なる（S15）。オンラインpp／順位を偽装しない |
+| V20 意図的差・要計測 | Cookieは独自のjavaロゴで固定60 BPM相当のpulse | `OsuCookie`、`MainMenuLogo`。ブランド図柄の違いはasset抽出で埋めない。外径、画面外への欠け、白い縁、hover倍率、曲との同期は別に比較可能。MainMenuのvisualiser実装が選曲でも呼ばれるわけではない |
+| V21 表示差・要計測 | Backの二層表現、selection hoverの移行、無効状態の減光が未整合 | S06。selectionはnormalを描いた上へhoverを即時追加し、通常 .94、押下 .78、無効 .54。作者がhover画像を透明overlay／全面差し替えのどちらとして作ったかで結果が変わる |
+| V22 表示差・要計測 | 複合装飾の重なり順が固定で、同じ絵でも配置先で隠れ方が変わる | 現行順はtop/bottom→score矩形→selection→譜面行→Cookie→Back→metadata/ranking文字→dropdown→overlay→画面fade、カーソルはその後。大きいBackは行を覆える一方、selectionは行の下になる。stableの同条件の順序は未確定 |
+
+プロフィールとランキングのネットワーク由来項目は**視覚的な差として記録するが、接続実装のTODOにはしない**。
+オフラインの本人名・ローカル統計等で独立設計する場合も、公式データと見誤らせない表示にする。
+
+### スキン部品の接続状態を確認する最小一覧
+
+| 部品群 | 現在の状態 | 参照項目 |
+|---|---|---|
+| `songselect-top/bottom` | 接続済み。クリップ・予約領域・topの20 SD幅右端反復は要比較 | S07/S08、V22 |
+| `menu-button-background` | 譜面カードのみ接続。スコア行には未接続 | S05/S09、V10/V13 |
+| `selection-mode/mods/random/options` と `-over` | 接続済み。機能の有効性、hover合成、fallbackは別途残差 | S11、V18/V21 |
+| `menu-back` と連番 | 接続済み。二層表現・遷移は未再現 | S06、V21 |
+| `selection-tab` | 未接続。タブ列自体もなし | V01 |
+| `mode-{osu,taiko,fruits,mania}`、`-small`、`-med` | 未接続。中央／ボタン／selectorの三用途を分けて対応する必要 | V07/V16 |
+| `selection-mod-*` | 未接続。現在はテキストタイル | V17 |
+| `rank-forum`、`star2` | 未接続 | V14/V08 |
+| `star`、`ranking-*-small` | 部分接続。評価データ・銀grade・表示枠の不足あり | V11 |
+| `cursor/cursortrail/cursormiddle` | 接続済み。provider混在・入力密度・画面間設定に残差 | S02/S18/S19 |
+
+### 視覚面を優先する場合の順序と完了条件
+
+1. **既存スキンの絵を壊す問題**: S01の文字コントラスト、S05の余白起因変形、
+   S07の装飾切断、S08のfallback所有者を先に扱う。
+2. **画面の構造的な空白**: 分類タブ、Mode三用途、ランキングの背景／空状態、Mod画像。
+   禁止されるオンライン接続を前提にしないものから進める。
+3. **細部と動き**: 行の文字階層、SD/HDのbaseline、右端反復、grade枠、hover合成、
+   Back二層、背景切替、Cookieと装飾の同期。先に同一条件のstable観測を揃える。
+
+部品ごとに「assetがロードされた」だけで完了とせず、**表示条件・寸法・原点・色／alpha・
+重なり順・hover／押下／無効／欠損時**を確認する。比較には白一色の診断skin、透明／複合skin、
+旧Version、実際の配布skinを使い、1280×720、1920×1080、4:3、高DPIで記録する。
+
+本追記はコード閲覧・公式仕様確認・既存画像の目視検査のみ。製品コードとテストは変更せず、
+新規のstable起動・画面撮影・テスト／buildは実行していない。上段の378テストは前回調査時の結果である。
