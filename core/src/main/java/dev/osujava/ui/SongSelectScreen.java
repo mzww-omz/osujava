@@ -7,6 +7,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import dev.osujava.OsuJavaGame;
@@ -289,10 +290,19 @@ public final class SongSelectScreen extends ScreenAdapter {
 
         if (renderedBottomProcedural) view.box(0, 0, layout.width(), bottom, 0, BOTTOM);
         view.endShapes();
-        view.beginText();
-        drawTopSkin(layout);
-        skinImage(Image.BOTTOM, bottomLayout.bottomImage, Color.WHITE);
-        view.endText();
+        // Native-sized artwork can exceed the content reservation. Clip only the chrome
+        // pass, flushing before changing scissor state so deferred sprites cannot escape it.
+        Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
+        try {
+            chromeClip(layout, SongSelectChrome.topClip(layout.width(), layout.height()));
+            view.beginText();
+            drawTopSkin(layout);
+            view.endText();
+            chromeClip(layout, SongSelectChrome.bottomClip(layout.width(), layout.height()));
+            view.beginText();
+            skinImage(Image.BOTTOM, bottomLayout.bottomImage, Color.WHITE);
+            view.endText();
+        } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
         view.beginShapes();
         boolean backHover = !toolbox.open() && bottomLayout.backInteraction.contains(px,py);
         boolean backPressed = backHover && Gdx.input.isButtonPressed(Input.Buttons.LEFT);
@@ -454,6 +464,13 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     private void chromeBox(SongSelectToolboxLayout.Bounds bounds, Color tint) {
         view.box(bounds.x(), bounds.y(), bounds.width(), bounds.height(), 0, tint);
+    }
+
+    private void chromeClip(UiLayout layout, SongSelectChrome.Bounds clip) {
+        float scaleX = Gdx.graphics.getBackBufferWidth() / layout.width();
+        float scaleY = Gdx.graphics.getBackBufferHeight() / layout.height();
+        Gdx.gl.glScissor(Math.round(clip.x() * scaleX), Math.round(clip.y() * scaleY),
+                Math.round(clip.width() * scaleX), Math.round(clip.height() * scaleY));
     }
 
     private void drawTopSkin(UiLayout layout) {

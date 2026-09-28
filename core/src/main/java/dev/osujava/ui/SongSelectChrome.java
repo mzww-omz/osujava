@@ -8,6 +8,7 @@ import dev.osujava.skin.SongSelectSkinAssets.Image;
  * Wiki: https://osu.ppy.sh/wiki/en/Skinning/Interface#song-selection
  */
 final class SongSelectChrome {
+    static final float MAX_TOP_FRACTION = .40f, MAX_BOTTOM_FRACTION = .30f;
     private SongSelectChrome() { }
     record Bounds(float x, float y, float width, float height) { }
     record Content(float rankingHeaderTop, float carouselTop, float bottom) { }
@@ -21,14 +22,20 @@ final class SongSelectChrome {
     static Content content(float height, float leftDepth, float rightDepth, float bottomDepth) {
         // Authored artwork keeps native drawing bounds. It must not reserve the whole viewport.
         // Extreme canvases are treated as decoration; this safety limit is an osujava policy.
-        return new Content(height - reservation(leftDepth + 8, 130, height * .40f),
-                height - reservation(rightDepth + 4, 62, height * .40f), bottomReservation(height, bottomDepth));
+        return new Content(height - reservation(leftDepth + 8, 130, height * MAX_TOP_FRACTION),
+                height - reservation(rightDepth + 4, 62, height * MAX_TOP_FRACTION), bottomReservation(height, bottomDepth));
     }
     static float bottomReservation(float height, float depth) {
-        return reservation(depth, bottomHeight(height), height * .30f);
+        return reservation(depth, bottomHeight(height), height * MAX_BOTTOM_FRACTION);
     }
     private static float reservation(float depth, float minimum, float maximum) {
         return Math.min(maximum, Math.max(minimum, Float.isFinite(depth) ? depth : minimum));
+    }
+    static Bounds topClip(float width, float height) {
+        return new Bounds(0, height * (1 - MAX_TOP_FRACTION), width, height * MAX_TOP_FRACTION);
+    }
+    static Bounds bottomClip(float width, float height) {
+        return new Bounds(0, 0, width, height * MAX_BOTTOM_FRACTION);
     }
     static float bottomHeight(float height) { return height * (84f / 720); }
     static float cookieRadius(float height) { return height * .135f; }

@@ -115,7 +115,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         "large-0", "large-10", "large-100", "large-1000"))
                     scenes.add(new Scene(size[0],size[1],size[2],"phase4-" + name));
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
-                for (String name : List.of("current", "current-hover", "missing", "fallback", "bundled", "normal", "transparent", "present", "tall"))
+                for (String name : List.of("current", "current-hover", "missing", "fallback", "bundled", "normal", "transparent", "present", "tall", "giant", "giant-high"))
                     scenes.add(new Scene(size[0], size[1], size[2], "phasechrome-" + name));
             Path present = Files.createDirectories(output.resolve("fixtures/present"));
             for (String name : List.of("songselect-top", "songselect-bottom")) {
@@ -127,6 +127,16 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             Path tall = Files.createDirectories(output.resolve("fixtures/tall"));
             png(tall.resolve("songselect-top.png"),1366,240);
             png(tall.resolve("songselect-bottom.png"),1366,160);
+            for (int density : new int[]{1, 2}) {
+                Path giant = Files.createDirectories(output.resolve("fixtures/" + (density == 1 ? "giant" : "giant-high")));
+                for (String part : List.of("top", "bottom")) {
+                    var pixels = new Pixmap(1366 * density, 1400 * density, Pixmap.Format.RGBA8888);
+                    pixels.setColor(part.equals("top") ? Color.MAGENTA : Color.CYAN); pixels.fill();
+                    PixmapIO.writePNG(Gdx.files.absolute(giant.resolve("songselect-" + part
+                            + (density == 2 ? "@2x" : "") + ".png").toString()), pixels);
+                    pixels.dispose();
+                }
+            }
             Path transparent = Files.createDirectories(output.resolve("fixtures/transparent"));
             for (String name : List.of("songselect-top", "songselect-bottom")) {
                 var pixels = new Pixmap(1, 1, Pixmap.Format.RGBA8888);
@@ -283,7 +293,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             float scale = layout.height()/768;
             float leftDepth = assets.topDepth(0,layout.width()*.52f/scale)*scale;
             float rightDepth = assets.topDepth(layout.width()*.55f/scale,layout.width()/scale)*scale;
-            if (content.rankingHeaderTop() > layout.height()-leftDepth || content.carouselTop() > layout.height()-rightDepth)
+            if (content.rankingHeaderTop() > layout.height()-Math.min(leftDepth, layout.height() * SongSelectChrome.MAX_TOP_FRACTION)
+                    || content.carouselTop() > layout.height()-Math.min(rightDepth, layout.height() * SongSelectChrome.MAX_TOP_FRACTION))
                 throw new AssertionError("Chrome overlaps content");
         }
         for (var image : List.of(SongSelectSkinAssets.Image.TOP, SongSelectSkinAssets.Image.BOTTOM)) {
@@ -455,6 +466,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "phasechrome-fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), greylooks);
             case "phasechrome-bundled" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), null);
             case "phasechrome-normal" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/normal-only"), greylooks);
+            case "phasechrome-giant", "phasechrome-giant-high" -> SkinAssetResolver.withBundledDefault(
+                    output.resolve("fixtures/" + scene.name.substring("phasechrome-".length())), greylooks);
             case "phasechrome-tall" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/tall"), greylooks);
             case "phasechrome-present" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/present"), greylooks);
             case "phasechrome-transparent" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/transparent"), greylooks);
@@ -602,6 +615,19 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 }
             }
             if (scene.name.startsWith("phasechrome-")) assertChrome(screen, assets, scene.name, greylooks);
+            if (scene.name.startsWith("phasechrome-giant")) {
+                var rendered = Pixmap.createFromFrameBuffer(0, 0, fb.getWidth(), fb.getHeight());
+                try {
+                    int x = Math.round(500 * layout.scale() * scene.density);
+                    int middle = rendered.getPixel(x, fb.getHeight() / 2);
+                    if (middle == Color.rgba8888(Color.MAGENTA) || middle == Color.rgba8888(Color.CYAN))
+                        throw new AssertionError("Giant chrome still covers the browser background");
+                    int edgeX = Math.round(700 * layout.scale() * scene.density);
+                    if (rendered.getPixel(edgeX, fb.getHeight() - 3) != Color.rgba8888(Color.MAGENTA)
+                            || rendered.getPixel(edgeX, 3) != Color.rgba8888(Color.CYAN))
+                        throw new AssertionError("Chrome clipping changed edge artwork");
+                } finally { rendered.dispose(); }
+            }
             if (scene.name.equals("phasechrome-present")) {
                 Pixmap rendered = Pixmap.createFromFrameBuffer(0, 0, fb.getWidth(), fb.getHeight());
                 try {
