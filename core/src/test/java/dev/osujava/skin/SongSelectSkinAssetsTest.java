@@ -241,18 +241,18 @@ class SongSelectSkinAssetsTest {
         Files.writeString(fallback.resolve("skin.ini"), "[General]\nVersion: 2.2\n[Colours]\nSongSelectActiveText: 20,30,40\n");
         var resolver = new SkinAssetResolver(directory, fallback, SkinAssetResolver.DEFAULT_RESOURCE_ROOT);
         var fallbackConfig = new SongSelectSkinAssets(resolver, file -> new TestTexture(32, 48));
-        assertEquals(2.2, fallbackConfig.configuration().legacyVersion());
-        assertEquals(20 / 255f, fallbackConfig.configuration().songSelect().activeText().r());
+        assertEquals(2.7, fallbackConfig.configuration().legacyVersion());
+        assertEquals(SkinConfiguration.SongSelect.defaults(), fallbackConfig.configuration().songSelect());
         fallbackConfig.dispose();
         Files.writeString(directory.resolve("skin.ini"), "[General]\nVersion: latest\n");
         var custom = new SongSelectSkinAssets(resolver, file -> new TestTexture(32, 48));
         assertEquals(2.7, custom.configuration().legacyVersion());
-        assertNull(custom.configuration().songSelect().activeText()); // No per-key merging from fallback.
+        assertEquals(SkinConfiguration.SongSelect.defaults(), custom.configuration().songSelect()); // No per-key merging.
         custom.dispose();
         Files.delete(directory.resolve("skin.ini")); Files.delete(fallback.resolve("skin.ini"));
         var bundled = new SongSelectSkinAssets(resolver, file -> new TestTexture(32, 48));
-        assertEquals(1, bundled.configuration().legacyVersion());
-        assertEquals(new SkinConfiguration.Rgb(1, 1, 1), bundled.configuration().songSelect().activeText());
+        assertEquals(2.7, bundled.configuration().legacyVersion());
+        assertEquals(new SkinConfiguration.Rgb(0, 0, 0), bundled.configuration().songSelect().activeText());
         bundled.dispose();
     }
 

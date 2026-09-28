@@ -42,13 +42,26 @@ public final class SkinAssetResolver {
         return new SkinAssetResolver(directory, fallbackDirectory, DEFAULT_RESOURCE_ROOT);
     }
 
-    /** A selected skin's ini is self-contained; absent/unreadable ini uses the next provider. */
+    /** Configuration belongs to the selected skin, even when its images fall back.
+     * No ini means latest; an existing ini without Version means 1.0 (official skin.ini specification). */
+    public SkinConfiguration readSelectedConfiguration() throws IOException {
+        for (Path source : new Path[]{directory, fallbackDirectory}) {
+            if (source == null) continue;
+            try {
+                SkinConfiguration config = SkinConfiguration.read(source);
+                return config.hasIni() ? config : SkinConfiguration.withoutIni();
+            } catch (IOException ignored) { return SkinConfiguration.withoutIni(); }
+        }
+        return bundledConfiguration();
+    }
+
+    /** Existing gameplay policy retained until its font/judgement fallback migration is verified. */
     public SkinConfiguration readConfiguration() throws IOException {
         for (Path source : new Path[]{directory, fallbackDirectory}) {
             try {
                 SkinConfiguration config = SkinConfiguration.read(source);
                 if (config.hasIni()) return config;
-            } catch (IOException ignored) { /* Try the next provider. */ }
+            } catch (IOException ignored) { }
         }
         return bundledConfiguration();
     }

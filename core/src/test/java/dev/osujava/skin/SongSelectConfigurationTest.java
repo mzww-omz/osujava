@@ -19,7 +19,7 @@ class SongSelectConfigurationTest {
     @ParameterizedTest @ValueSource(strings = {"", "1,2", "1,2,3,4", "256,0,0", "-1,0,0", "NaN,0,0", "red", "1.5,0,0"})
     void malformedColoursKeepDefaultOrPreviousValue(String value) throws Exception {
         var absent = SkinConfiguration.parse(new StringReader("[Colours]\nSongSelectActiveText: " + value + "\nSongSelectInactiveText: " + value));
-        assertNull(absent.songSelect().activeText()); assertNull(absent.songSelect().inactiveText());
+        assertEquals(SkinConfiguration.SongSelect.defaults(), absent.songSelect());
         var previous = SkinConfiguration.parse(new StringReader("[Colours]\nSongSelectActiveText: 1,2,3\nSongSelectInactiveText: 4,5,6\nSongSelectActiveText: " + value + "\nSongSelectInactiveText: " + value));
         assertEquals(1 / 255f, previous.songSelect().activeText().r());
         assertEquals(4 / 255f, previous.songSelect().inactiveText().r());

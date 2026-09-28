@@ -147,8 +147,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
         if (skin != null) {
             if (Gdx.gl != null) skin.prepareStarFallback();
-            activeText = textColor(skin.configuration().songSelect().activeText(),
-                    skin.get(Image.MENU_BUTTON_BACKGROUND) != null ? UiTheme.TEXT : DARK_TEXT);
+            activeText = textColor(skin.configuration().songSelect().activeText(), Color.BLACK);
             inactiveText = textColor(skin.configuration().songSelect().inactiveText(), null);
         }
         contentDirty = true;

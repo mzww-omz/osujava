@@ -73,7 +73,7 @@ public final class SongSelectSkinAssets implements Disposable {
 
     /** Injectable loader for ownership/failure tests without OpenGL. All loads finish here. */
     SongSelectSkinAssets(SkinAssetResolver resolver, Function<SkinAssetResolver.AssetFile, Texture> loader) {
-        try { configuration = resolver.readConfiguration(); }
+        try { configuration = resolver.readSelectedConfiguration(); }
         catch (IOException e) { log("Could not read skin.ini", e); }
         var chromeLoaders = new EnumMap<Image, Predicate<SkinAssetResolver.AssetFile>>(Image.class);
         for (Image image : Image.values()) {

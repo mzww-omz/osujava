@@ -9,10 +9,14 @@ import java.util.List;
 import java.util.TreeMap;
 
 /** Small, section-oriented skin.ini reader. Supports legacy Fonts, General, cursor, slider and Spinner settings. */
-public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber, double legacyVersion, Colours colours, Cursor cursor, Spinner spinner, SongSelect songSelect) {
-    /** Null optional colours retain the existing SongSelect palette. */
+public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOverlayAboveNumber, double legacyVersion, Colours colours, Cursor cursor, Spinner spinner, SongSelect songSelect, int animationFramerate) {
+    public static final double LATEST_VERSION = 2.7;
+    public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay, double version, Colours colours, Cursor cursor, Spinner spinner, SongSelect songSelect) {
+        this(fonts, hasIni, overlay, version, colours, cursor, spinner, songSelect, -1);
+    }
+    /** Official skin.ini defaults, independent of the artwork provider. */
     public record SongSelect(Rgb activeText, Rgb inactiveText) {
-        public static SongSelect defaults() { return new SongSelect(null, null); }
+        public static SongSelect defaults() { return new SongSelect(new Rgb(0, 0, 0), new Rgb(1, 1, 1)); }
     }
     public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay, double version, Colours colours, Cursor cursor, Spinner spinner) {
         this(fonts, hasIni, overlay, version, colours, cursor, spinner, SongSelect.defaults());
@@ -70,6 +74,11 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
         return new SkinConfiguration(Fonts.defaults(), false);
     }
 
+    /** Selected Song Select skin without an ini: official latest-version semantics. */
+    public static SkinConfiguration withoutIni() {
+        return new SkinConfiguration(Fonts.defaults(), false, true, LATEST_VERSION);
+    }
+
     public static SkinConfiguration read(Path directory) throws IOException {
         if (directory == null || !Files.isRegularFile(directory.resolve("skin.ini"))) return defaults();
         try (var reader = Files.newBufferedReader(directory.resolve("skin.ini"))) {
@@ -86,9 +95,10 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
         float scoreOverlap = 0, comboOverlap = 0;
         // LegacySkinDecoder.CreateTemplateObject defaults to 1.0; SkinConfiguration.LATEST_VERSION = 2.7.
         double version = 1;
+        int animationFramerate = -1;
         Rgb border = Colours.defaults().sliderBorder();
         Rgb track = null;
-        Rgb activeText = null, inactiveText = null;
+        Rgb activeText = SongSelect.defaults().activeText(), inactiveText = SongSelect.defaults().inactiveText();
         var comboColours = new TreeMap<Integer, Rgb>();
         boolean allowSliderBallTint = false;
         boolean centre = true, rotate = true, expand = true, trailRotate = true, noBlink = false;
@@ -114,11 +124,17 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             String value = line.substring(separator + 1).trim();
             if (section.equalsIgnoreCase("General")) {
                 if (key.equalsIgnoreCase("Version")) {
-                    if (value.equals("latest")) version = 2.7;
+                    if (value.equals("latest")) version = LATEST_VERSION;
                     else if (value.matches("[0-9]+(?:\\.[0-9]*)?")) {
                         double parsedVersion = Double.parseDouble(value);
                         if (Double.isFinite(parsedVersion)) version = parsedVersion;
                     }
+                }
+                if (key.equals("AnimationFramerate")) {
+                    try {
+                        int rate = Integer.parseInt(value);
+                        if (rate == -1 || rate > 0) animationFramerate = rate;
+                    } catch (NumberFormatException ignored) { }
                 }
                 Boolean parsed = value.equals("1") ? Boolean.TRUE : value.equals("0") ? Boolean.FALSE : null;
                 if (parsed != null) {
@@ -174,6 +190,6 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             }
         }
         return new SkinConfiguration(new Fonts(prefix, overlap, scorePrefix, scoreOverlap, comboPrefix, comboOverlap), true,
-                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track, List.copyOf(comboColours.values()), allowSliderBallTint), new Cursor(centre, rotate, expand, trailRotate), new Spinner(noBlink, spinnerBackground), new SongSelect(activeText, inactiveText));
+                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track, List.copyOf(comboColours.values()), allowSliderBallTint), new Cursor(centre, rotate, expand, trailRotate), new Spinner(noBlink, spinnerBackground), new SongSelect(activeText, inactiveText), animationFramerate);
     }
 }
