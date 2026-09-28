@@ -42,4 +42,15 @@ class SongSelectChromeTest {
         assertEquals(658,transparent.carouselTop());
         assertEquals(84,transparent.bottom());
     }
+    @Test void oversizedAndInvalidChromeCannotConsumeTheBrowserViewport() {
+        for (float height : new float[]{720, 1080, 1440}) {
+            for (float depth : new float[]{0, 1, 4096, Float.MAX_VALUE, Float.NaN, Float.POSITIVE_INFINITY}) {
+                var bounds = SongSelectChrome.content(height, depth, depth, depth);
+                assertTrue(bounds.carouselTop() - bounds.bottom() >= height * .29f);
+                assertTrue(bounds.rankingHeaderTop() > bounds.bottom());
+                assertTrue(bounds.bottom() >= SongSelectChrome.bottomHeight(height));
+            }
+        }
+    }
+
 }

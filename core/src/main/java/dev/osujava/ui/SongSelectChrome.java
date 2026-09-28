@@ -19,8 +19,16 @@ final class SongSelectChrome {
         return content(height, left, right, bottom == null ? 0 : bottom.logicalHeight() * scale);
     }
     static Content content(float height, float leftDepth, float rightDepth, float bottomDepth) {
-        return new Content(height - Math.max(130, leftDepth + 8),
-                height - Math.max(62, rightDepth + 4), Math.max(bottomHeight(height), bottomDepth));
+        // Authored artwork keeps native drawing bounds. It must not reserve the whole viewport.
+        // Extreme canvases are treated as decoration; this safety limit is an osujava policy.
+        return new Content(height - reservation(leftDepth + 8, 130, height * .40f),
+                height - reservation(rightDepth + 4, 62, height * .40f), bottomReservation(height, bottomDepth));
+    }
+    static float bottomReservation(float height, float depth) {
+        return reservation(depth, bottomHeight(height), height * .30f);
+    }
+    private static float reservation(float depth, float minimum, float maximum) {
+        return Math.min(maximum, Math.max(minimum, Float.isFinite(depth) ? depth : minimum));
     }
     static float bottomHeight(float height) { return height * (84f / 720); }
     static float cookieRadius(float height) { return height * .135f; }

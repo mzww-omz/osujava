@@ -82,3 +82,14 @@ measured Stable constant. Tests/harness steps that previously used horizontal
 arrows to select a difficulty now use vertical arrows; their scenario assertions
 remain intact. Enter-to-close-search and the subsequent Enter-to-play behavior is
 preserved.
+
+## Extreme skin canvas safety
+
+Native image placement is preserved, including transparent placeholders and large
+composite controls. Content reservation is now bounded independently: at most 40%
+of the logical height for top chrome and 30% for bottom chrome. This guarantees a
+usable positive carousel viewport even for a 4096-pixel decorative canvas; normal
+skin reservations are unchanged. These are local safety limits, not claimed Stable
+asset rules. The toolbox uses the same bottom reservation so auxiliary actions stay
+on screen. Regression coverage includes SD/@2x from the existing suite and new
+oversized/non-finite depth cases at multiple resolutions.

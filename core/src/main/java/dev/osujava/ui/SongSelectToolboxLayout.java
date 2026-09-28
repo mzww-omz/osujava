@@ -43,7 +43,7 @@ final class SongSelectToolboxLayout {
         // Artwork presence, raw draw height and reservation are independent. Tiny transparent
         // replacements suppress foreign visuals without reducing the browser's navigation area.
         bottomImage = new Bounds(0,0,width,bottom == null ? 0 : bottom.logicalHeight() * scale);
-        chrome = new Bounds(0,0,width,Math.max(SongSelectChrome.bottomHeight(height),bottomImage.height()));
+        chrome = new Bounds(0,0,width,SongSelectChrome.bottomReservation(height,bottomImage.height()));
         // Stable reserves a fixed navigation origin, independent of Back's PNG or alpha bounds.
         // The widescreen origin is 224 SD pixels on the 768-high skin canvas (192 at 4:3).
         float selectionX = (width > height * 4 / 3f ? 224 : 192) * scale;
