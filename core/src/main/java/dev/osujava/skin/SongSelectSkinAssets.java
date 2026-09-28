@@ -65,7 +65,10 @@ public final class SongSelectSkinAssets implements Disposable {
     }
 
     public SongSelectSkinAssets(SkinAssetResolver resolver) {
-        this(resolver, file -> new Texture(file.handle()));
+        this(resolver, file -> {
+            SongSelectImageLimits.check(file.handle());
+            return new Texture(file.handle());
+        });
     }
 
     /** Injectable loader for ownership/failure tests without OpenGL. All loads finish here. */
