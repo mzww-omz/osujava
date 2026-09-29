@@ -67,6 +67,19 @@ class SongSelectNavigationTest {
                 .filter(p -> p.row().key().equals(key)).findFirst().orElseThrow();
     }
 
+    @Test void clickingSearchResultSelectsTheOriginalDifficultyIndexWhenFirstDifficultyIsExcluded() throws Exception {
+        open("Beta",0); screen.resize(1280,720);
+        screen.browserSearch("difficulty=hard",false); settle(); updatePointer(1280,720,.016f);
+        selected(1,1,"Beta-hard.png");
+        var presented = ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast).toList();
+        assertEquals(3,presented.size());
+        assertTrue(presented.stream().allMatch(p -> p.row().difficultyIndex() == 1 && p.content().detail().equals("Hard")));
+        click(2,1);
+        selected(2,1,"Gamma-hard.png");
+        screen.browserSearch("",false); settle();
+        selected(2,1,"Gamma-hard.png");
+    }
+
     @Test void residentBufferRowsRemainInDrawListEvenOutsideTheInputReservation() throws Exception {
         for (int i = 0; i < 25; i++) {
             String title = "Z%02d".formatted(i);

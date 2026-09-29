@@ -243,6 +243,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
                     for (String mode : List.of("scale", "crop", "old-default-background"))
                         scenes.add(new Scene(size[0],size[1],size[2],"star-animation-" + mode));
+            } else if (phase.equals("search-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String mode : List.of("plain", "group"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"search-" + mode));
             } else if (phase.equals("composition-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
@@ -583,7 +588,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 title = "Local song 2 — A Very Long English Title with Unicode 星の旅人 that extends beyond the row";
             String mapper = "Harness", version = "Difficulty ";
             String artist = "Local artist";
-            boolean browserScene = scene.name.startsWith("phase3") || scene.name.startsWith("phase4") || scene.name.startsWith("lifecycle-");
+            boolean browserScene = scene.name.startsWith("phase3") || scene.name.startsWith("phase4") || scene.name.startsWith("lifecycle-") || scene.name.startsWith("search-");
             if (scene.name.equals("phase4-long") && i == 3) title = "A Very Long Song Title Beyond the Carousel — 夜空の星と夢の続き";
             if (scene.name.equals("phase4-unicode") && i == 3) title = "夜空の星と夢の続き 별빛 创作者";
             if (browserScene) {
@@ -682,6 +687,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             default -> scene.name.startsWith("greylooks") || phase2 || scene.name.startsWith("phase3") || scene.name.startsWith("phase4") ? SkinAssetResolver.withBundledDefault(null,null)
                     : new SkinAssetResolver(output.resolve("fixtures").resolve(scene.name));
         };
+        if (scene.name.startsWith("search-")) resolver = SkinAssetResolver.withBundledDefault(null,null);
         if (scene.name.startsWith("phase5a")) resolver = toolboxResolver(scene.name,greylooks);
         if (scene.name.equals("star-animation-old-default-background"))
             resolver = SkinAssetResolver.withBundledDefault(output.resolve("fixtures/"+scene.name),null);
@@ -719,6 +725,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseGroupCards(screen, scene.name, pointer, clicked, pressed, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if (scene.name.startsWith("search-")) {
+                exerciseSearch(screen, scene, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
             if (scene.name.startsWith("composition-")) {
                 exerciseComposition(screen, scene, assets, layout, fb, name);
                 fb.end(); advanceScene(); return;
@@ -1249,6 +1259,32 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for (int channel=0;channel<3;channel++) if (Math.abs((actual >>> (24-8*channel) & 255)-rgb[channel])>3)
                 throw new AssertionError(context+" channel="+channel+" expected="+rgb[channel]+" actual="+(actual >>> (24-8*channel) & 255));
         }
+    }
+
+    private void exerciseSearch(SongSelectScreen screen, Scene scene, UiLayout layout, FrameBuffer fb, String name) {
+        screen.browserMode(SongBrowserModel.Sort.TITLE,scene.name.endsWith("group") ? SongBrowserModel.Group.ARTIST : SongBrowserModel.Group.NONE);
+        String[] queries={"difficulty=\"difficulty 2\"", "difficulty!=\"difficulty 1\" artist=aether", "ar>=5 cs=5", "difficulty=absent", ""};
+        int[] expected={7,6,28,0,28};
+        var browser=(SongBrowserModel)screenField(screen,"browser");
+        for (int stage=0;stage<queries.length;stage++) {
+            screen.browserSearch(queries[stage],true);
+            for (int frame=0;frame<45;frame++) {
+                screen.render(1f/60); transitionFrames++; assertRenderedBounds(screen,layout);
+                var matched=browser.rows().stream().filter(r -> !r.group() && !r.excluded).toList();
+                if (matched.size()!=expected[stage]) throw new AssertionError(name+" search count at "+stage+": "+matched.size());
+                for (var item : ((List<?>)screenField(screen,"rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast).toList()) {
+                    var row=browser.row(item.row().key());
+                    if (row.excluded) throw new AssertionError("Excluded search row was drawn");
+                    if (stage==0 && !row.group() && (item.row().difficultyIndex()!=1 || !item.content().detail().equals("Difficulty 2")))
+                        throw new AssertionError("Search singleton lost its original difficulty index or label");
+                }
+                if (scene.name.endsWith("group") && browser.rows().stream().filter(r -> r.group()).mapToInt(r -> r.matchingChildren).sum()!=expected[stage])
+                    throw new AssertionError("Group includes excluded difficulties");
+                if (expected[stage]==0 && browser.selectedDifficulty()!=null) throw new AssertionError("Empty search exposed gameplay selection");
+                if (frame==0 || frame==8 || frame==44) capture(fb,name+"-query-"+stage+"-frame-"+frame);
+            }
+        }
+        System.out.println("SEARCH PASS "+name);
     }
 
     private static void compositionImage(Path dir, String name, int w, int h, int density, Color colour) {

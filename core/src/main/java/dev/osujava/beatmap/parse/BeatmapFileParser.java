@@ -1,6 +1,7 @@
 package dev.osujava.beatmap.parse;
 
 import dev.osujava.beatmap.BeatmapDifficulty;
+import dev.osujava.beatmap.BeatmapMetadata;
 import dev.osujava.beatmap.BeatmapFile;
 import dev.osujava.beatmap.BeatmapPoint;
 import dev.osujava.beatmap.DifficultySettings;
@@ -82,7 +83,9 @@ public final class BeatmapFileParser {
         List<TimingPoint> timingPoints = parseTimingPoints(timingLines);
         List<HitObject> hitObjects = parseHitObjects(objectLines);
         BeatmapDifficulty difficulty = new BeatmapDifficulty(title, artist, creator, version, mode,
-                audioFilename, backgroundFilename, settings, timingPoints, hitObjects, null, null, null, integer(general.get("previewtime"), -1));
+                audioFilename, backgroundFilename, settings, timingPoints, hitObjects, null, null, null, integer(general.get("previewtime"), -1),
+                new BeatmapMetadata(titleUnicode, artistUnicode, value(metadata, "source", ""), value(metadata, "tags", ""),
+                        integer(metadata.get("beatmapid"), -1), beatmapSetId));
         return new BeatmapFile(formatVersion, title, titleUnicode, artist, artistUnicode, creator,
                 beatmapSetId, difficulty);
     }

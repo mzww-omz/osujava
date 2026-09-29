@@ -14,6 +14,25 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class BeatmapFileParserTest {
     private final BeatmapFileParser parser = new BeatmapFileParser();
 
+    @Test void additionalMetadataSurvivesBothAssetResolutionPathsAndDefaultsSafely() throws Exception {
+        var chart = parser.parse("""
+                osu file format v14
+                [Metadata]
+                TitleUnicode: 夜空
+                ArtistUnicode: 星野
+                Source: Moon Game
+                Tags: piano instrumental
+                BeatmapID: 123
+                BeatmapSetID: 456
+                """, "metadata.osu").difficulty();
+        var expected = new dev.osujava.beatmap.BeatmapMetadata("夜空","星野","Moon Game","piano instrumental",123,456);
+        assertEquals(expected, chart.metadata());
+        assertEquals(expected, chart.withAssets(null,null).metadata());
+        assertEquals(expected, chart.withAssets(null,null,null).metadata());
+        assertEquals(dev.osujava.beatmap.BeatmapMetadata.EMPTY,
+                parser.parse("osu file format v14\n[Metadata]\nBeatmapID: invalid\nBeatmapSetID: invalid", "empty.osu").difficulty().metadata());
+    }
+
     @Test
     void previewTimeSurvivesAssetResolutionAndDefaultsSafely() throws Exception {
         for (String value : new String[]{"12345", "-1", "invalid", "-900"}) {

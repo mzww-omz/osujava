@@ -798,7 +798,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void ensureVisibleSelection() { browser.search(search); syncBrowser(true); }
     private void selectSet(int index) {
         if (index < 0 || index >= sets.size() || index == selectedSetIndex) return;
-        browser.select(sets.get(index).id(), 0); syncBrowser(true);
+        browser.selectSet(sets.get(index).id()); syncBrowser(true);
     }
     private void selectDifficulty(int index) {
         BeatmapSet set = selectedSet();
