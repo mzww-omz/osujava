@@ -181,6 +181,9 @@ public final class SongSelectScreen extends ScreenAdapter {
                 selectionSound(identity);
             }
             @Override public boolean scroll(float amount) { return scrollAtPointer(amount); }
+            @Override public void cursor(int x, int y, int button, boolean down) {
+                if (cursor != null) cursor.event(Gdx.input.getCurrentEventTime(), x, y, button, down);
+            }
         });
         Gdx.input.setInputProcessor(input);
         if (preview == null && Gdx.audio != null && Gdx.gl != null) {
@@ -293,8 +296,8 @@ public final class SongSelectScreen extends ScreenAdapter {
             preview.select(path, difficulty == null ? -1 : difficulty.previewTimeMs());
             preview.advance(outgoing.opacity());
         }
-        if (cursor != null) cursor.update(layout.height(), viewState.pointerX, viewState.pointerY,
-                viewState.pointerPressed || Gdx.input.isButtonPressed(Input.Buttons.RIGHT), seconds);
+        if (cursor != null) cursor.update(layout, Gdx.input.getX(), Gdx.input.getY(), viewState.pointerPressed,
+                Gdx.input.isButtonPressed(Input.Buttons.RIGHT), seconds);
         toastSeconds = Math.max(0, toastSeconds - delta);
         setClickGuard = Math.max(0, setClickGuard - Math.max(0, delta));
         calculateLayout(layout);

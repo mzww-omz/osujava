@@ -16,11 +16,13 @@ class SongSelectInput extends InputAdapter {
         void set(int direction);
         void page(int direction);
         boolean scroll(float amount);
+        default void cursor(int x, int y, int button, boolean down) { }
     }
     private final SongSelectToolboxState toolbox;
     private final SongBrowserControls controls;
     private final Target target;
     private char suppressedTyped;
+    private char pendingHighSurrogate;
 
     SongSelectInput(SongSelectToolboxState toolbox, SongBrowserControls controls, Target target) {
         this.toolbox = toolbox; this.controls = controls; this.target = target;
@@ -29,6 +31,7 @@ class SongSelectInput extends InputAdapter {
         return Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT);
     }
     @Override public boolean keyDown(int key) {
+        pendingHighSurrogate = 0;
         if (AppShortcuts.handleQuit(key)) return true;
         if (toolbox.open()) {
             if (key == Input.Keys.ESCAPE || key == Input.Keys.NUM_2
@@ -76,21 +79,39 @@ class SongSelectInput extends InputAdapter {
         char suppressed = suppressedTyped;
         suppressedTyped = 0;
         if (suppressed != 0 && Character.toLowerCase(character) == suppressed) return true;
-        if (toolbox.open()) return true;
+        if (toolbox.open()) { pendingHighSurrogate = 0; return true; }
         if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT)
                 || Gdx.input.isKeyPressed(Input.Keys.ALT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.ALT_RIGHT)
-                || Gdx.input.isKeyPressed(Input.Keys.SYM)) return true;
-        if (Character.isISOControl(character)) return false;
+                || Gdx.input.isKeyPressed(Input.Keys.SYM)) { pendingHighSurrogate = 0; return true; }
+        if (Character.isISOControl(character)) { pendingHighSurrogate = 0; return false; }
+        if (Character.isHighSurrogate(character)) { pendingHighSurrogate = character; return true; }
+        String appended;
+        if (Character.isLowSurrogate(character)) {
+            if (pendingHighSurrogate == 0) return true;
+            appended = new String(new char[]{pendingHighSurrogate, character});
+        } else appended = String.valueOf(character);
+        pendingHighSurrogate = 0;
         controls.close();
         target.searchActive(true);
         String search = target.search();
-        if (search.codePointCount(0, search.length()) < 80
-                || Character.isLowSurrogate(character) && !search.isEmpty() && Character.isHighSurrogate(search.charAt(search.length() - 1)))
-            target.search(search + character);
+        if (search.codePointCount(0, search.length()) < 80) target.search(search + appended);
         return true;
     }
     @Override public boolean keyUp(int key) {
         if (key == Input.Keys.I || key == Input.Keys.SPACE || key == Input.Keys.NUM_2) suppressedTyped = 0;
+        return false;
+    }
+    @Override public boolean touchDown(int x, int y, int pointer, int button) {
+        if (pointer == 0) target.cursor(x, y, button, true);
+        return false;
+    }
+    @Override public boolean touchUp(int x, int y, int pointer, int button) {
+        if (pointer == 0) target.cursor(x, y, button, false);
+        return false;
+    }
+    @Override public boolean mouseMoved(int x, int y) { target.cursor(x, y, -1, false); return false; }
+    @Override public boolean touchDragged(int x, int y, int pointer) {
+        if (pointer == 0) target.cursor(x, y, -1, false);
         return false;
     }
     @Override public boolean scrolled(float amountX, float amountY) {

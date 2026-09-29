@@ -59,6 +59,19 @@ class SongSelectNavigationTest {
     }
     private void key(int key) { assertTrue(processor.keyDown(key)); }
 
+    @Test void supplementarySearchCommitsOnlyCompleteCodePointsAndHonoursLimit() throws Exception {
+        open("Alpha", 0);
+        char[] pair = "𠮷".toCharArray();
+        processor.keyTyped(pair[0]); assertEquals("", field("search"));
+        processor.keyTyped(pair[1]); assertEquals("𠮷", field("search"));
+        key(Input.Keys.BACKSPACE); assertEquals("", field("search"));
+        processor.keyTyped(pair[1]); assertEquals("", field("search"));
+        setField("search", "a".repeat(79));
+        processor.keyTyped(pair[0]); processor.keyTyped(pair[1]);
+        assertEquals("a".repeat(79) + "𠮷", field("search"));
+        processor.keyTyped('b'); assertEquals("a".repeat(79) + "𠮷", field("search"));
+    }
+
     @Test void typingStartsSearchWithoutTextboxFocusAndEnterReturnsToNavigation() throws Exception {
         open("Alpha",1);
         assertFalse((boolean)field("searchActive"));

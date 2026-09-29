@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import dev.osujava.ruleset.osu.render.LegacyCursorVisual;
 import dev.osujava.skin.OsuSkinAssets;
+import dev.osujava.ui.theme.UiLayout;
 import dev.osujava.skin.SongSelectSkinAssets;
 import dev.osujava.skin.SongSelectSkinAssets.Image;
 
@@ -13,7 +14,7 @@ final class SongSelectCursor implements AutoCloseable {
     private final GameplayCursorRenderer renderer;
     private final LegacyCursorVisual visual;
     private final GameplayCursorVisibility visibility;
-    private boolean pressed;
+    private final SongSelectCursorInput input = new SongSelectCursorInput();
     private PlayfieldViewport viewport;
     private double now;
 
@@ -34,11 +35,12 @@ final class SongSelectCursor implements AutoCloseable {
     /** The menu's SD asset canvas is 768 high; legacy cursor visuals divide sizes by 1.6. */
     static PlayfieldViewport viewport(float height) { return new PlayfieldViewport(0, 0, height / 480); }
     void show() { visibility.show(); }
-    void hide() { visibility.hide(); }
-    void update(float height, float x, float y, boolean held, double seconds) {
-        viewport = viewport(height); now = seconds * 1000;
-        visual.input(now, viewport.toOsuX(x), viewport.toOsuY(y), held, held && !pressed);
-        pressed = held;
+    void hide() { input.clear(); visibility.hide(); }
+    void event(long nanos, int x, int y, int button, boolean down) { input.event(nanos, x, y, button, down); }
+    void update(UiLayout layout, int x, int y, boolean left, boolean right, double seconds) {
+        viewport = viewport(layout.height()); now = seconds * 1000;
+        input.advance(now, System.nanoTime(), x, y, left, right, (time, px, py, held, press) ->
+                visual.input(time, viewport.toOsuX(layout.pointerX(px)), viewport.toOsuY(layout.pointerY(py)), held, press));
     }
     void draw(SpriteBatch batch, ShapeRenderer shapes) {
         if (viewport != null) renderer.draw(batch, shapes, visual, now, viewport);
