@@ -71,7 +71,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final ScoreBrowserModel scores;
     private final SongSelectScoreSnapshot scoreSnapshot;
     private final SongBrowserControls controls = new SongBrowserControls();
-    private List<SongBrowserModel.Entry> browserEntries = List.of();
+    private List<SongBrowserModel.Row> browserRows = List.of();
     private Map<String, String> groupLabels = Map.of();
     // Transient display indices only; browser identities are authoritative.
     private List<BeatmapSet> sets;
@@ -517,26 +517,26 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void updateContent(UiLayout layout) {
         float height = SongSelectMetrics.rowHeight(layout.height());
         float viewportHeight = top - bottom;
-        if (contentDirty || browserEntries != browser.entries() || contentWidth != layout.width() || contentViewportHeight != viewportHeight || contentRowHeight != height) {
+        if (contentDirty || browserRows != browser.rows() || contentWidth != layout.width() || contentViewportHeight != viewportHeight || contentRowHeight != height) {
             List<SongSelectCarousel.Entry> entries = new ArrayList<>();
             Map<String, String> labels = new java.util.HashMap<>();
             Map<String, Integer> indices = new java.util.HashMap<>();
             for (int i = 0; i < sets.size(); i++) indices.put(sets.get(i).id(), i);
-            for (var entry : browser.entries()) {
-                if (entry.kind() == SongBrowserModel.Kind.GROUP_HEADER) {
-                    entries.add(new SongSelectCarousel.Entry(entry.key(), -1, -2));
-                    int count = browser.row(entry.key()).matchingChildren;
-                    labels.put(entry.key(), entry.label() + " (" + count + (count == 1 ? " beatmap)" : " beatmaps)"));
+            for (var row : browser.rows()) {
+                boolean expanded = row.state.ordinal() >= SongBrowserModel.RowState.EXPANDED.ordinal();
+                if (row.group()) {
+                    entries.add(new SongSelectCarousel.Entry(row.key, -1, -2, row.key, expanded, row.visible()));
+                    int count = row.matchingChildren;
+                    labels.put(row.key, row.label + " (" + count + (count == 1 ? " beatmap)" : " beatmaps)"));
                 } else {
-                    int i = indices.get(entry.set().id());
-                    int j = entry.difficulty() == null ? -1 : entry.set().difficulties().indexOf(entry.difficulty());
-                    entries.add(new SongSelectCarousel.Entry(entry.key(), i, j, entry.set().id(),
-                            browser.row(entry.key()).state.ordinal() >= SongBrowserModel.RowState.EXPANDED.ordinal()));
+                    int i = indices.get(row.set.id());
+                    int j = row.state == SongBrowserModel.RowState.COLLAPSED ? -1 : row.set.difficulties().indexOf(row.difficulty);
+                    entries.add(new SongSelectCarousel.Entry(row.key, i, j, row.set.id(), expanded, row.visible()));
                 }
             }
             groupLabels = Map.copyOf(labels);
-            browserEntries = browser.entries();
-            carousel.content(entries, viewportHeight, height, SongSelectMetrics.rowPitch(layout.height()), SongSelectMetrics.rowPitch(layout.height()),
+            browserRows = browser.rows();
+            carousel.content(entries, viewportHeight, height, SongSelectMetrics.rowPitch(layout.height()),
                     selectedRowKey(), layout.height(), top);
             contentDirty = false;
             contentWidth = layout.width(); contentViewportHeight = viewportHeight; contentRowHeight = height;

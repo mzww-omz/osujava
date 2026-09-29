@@ -23,8 +23,7 @@ class SongSelectLayoutTest {
             var model = new SongSelectCarousel();
             var entries = java.util.stream.IntStream.range(0, 8)
                     .mapToObj(n -> new SongSelectCarousel.Entry("set#" + n, 0, n)).toList();
-            model.content(entries, 574, body, SongSelectMetrics.rowPitch(layout.height()),
-                    SongSelectMetrics.rowPitch(layout.height()), "set#3", layout.height(), 658);
+            model.content(entries, 574, body, SongSelectMetrics.rowPitch(layout.height()), "set#3", layout.height(), 658);
             for (int frame = 0; frame < 120; frame++) model.advance(1f / 60, null);
             for (int i = 1; i < model.rows().size(); i++) {
                 float upperBottom = model.renderY(model.rows().get(i - 1), 658);
@@ -41,7 +40,7 @@ class SongSelectLayoutTest {
             var model = new SongSelectCarousel();
             float body = SongSelectMetrics.rowHeight(layout.height());
             model.content(List.of(new SongSelectCarousel.Entry("set#0", 0, 0)), 574, body,
-                    SongSelectMetrics.rowPitch(layout.height()), SongSelectMetrics.rowPitch(layout.height()),
+                    SongSelectMetrics.rowPitch(layout.height()),
                     "set#0", layout.height(), 658);
             for (int frame = 0; frame < 180; frame++) model.advance(1f / 60, "set#0");
             float x = model.renderX(model.rows().getFirst(), layout.width());
@@ -82,14 +81,14 @@ class SongSelectLayoutTest {
             var model = new SongSelectCarousel();
             var entries = java.util.stream.IntStream.range(0, 12)
                     .mapToObj(n -> new SongSelectCarousel.Entry("set#" + n, 0, n)).toList();
-            model.content(entries, 574, bodyHeight, 72, 72, "set#5", 720, 658);
+            model.content(entries, 574, bodyHeight, 72, "set#5", 720, 658);
             for (int frame = 0; frame < 180; frame++) model.advance(1f / 60, null);
             var selected = model.rows().get(5);
             assertEquals(390, model.renderY(selected, 658) + bodyHeight / 2, .001);
-            assertEquals(72, model.rows().get(6).logicalY - selected.logicalY, .001);
+            assertEquals(87, model.rows().get(6).logicalY - selected.logicalY, .001);
             float before = model.renderX(selected, 1280);
             for (int frame = 0; frame < 180; frame++) model.advance(1f / 60, "set#5");
-            assertEquals(67.5, before - model.renderX(selected, 1280), .001);
+            assertEquals(67.5, before - model.renderX(selected, 1280), .01);
             assertEquals(15, model.rows().get(4).separationY, .001);
             assertEquals(-15, model.rows().get(6).separationY, .001);
         }

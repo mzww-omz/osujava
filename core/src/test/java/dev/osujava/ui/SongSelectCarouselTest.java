@@ -7,7 +7,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SongSelectCarouselTest {
     private List<SongSelectCarousel.Entry> entries(int count) {
-        return IntStream.range(0, count).mapToObj(i -> new SongSelectCarousel.Entry("set#" + i, 0, i)).toList();
+        return IntStream.range(0, count).mapToObj(i -> new SongSelectCarousel.Entry("set#" + i, i, 0, "family" + i, false)).toList();
     }
     private SongSelectCarousel model(int count) {
         var model = new SongSelectCarousel();
@@ -24,16 +24,16 @@ class SongSelectCarouselTest {
         assertSame(rows, model.rows());
         assertEquals(y, rows.get(12).logicalY);
         assertEquals(0, model.scrollOffset());
-        assertEquals(12 * 72, model.scrollTarget());
+        assertEquals(12 * 72 - 20 * 620f / 480, model.scrollTarget(), .001);
         model.advance(1f / 60, null);
         assertTrue(model.scrollOffset() > 0 && model.scrollOffset() < model.scrollTarget());
         settle(model);
         assertEquals(373.83333, model.renderY(rows.get(12), 658) + model.rowHeight() / 2, .01);
     }
-    @Test void selectedRowAtEitherEndCanCenterInsideValidScrollRange() {
+    @Test void selectionTracksY220ExceptFirstRowClampedAtY200() {
         var model = model(25);
         model.select("set#24"); settle(model);
-        assertEquals(model.maxScroll(), model.scrollOffset(), .01);
+        assertEquals(model.maxScroll() - 20 * 620f / 480, model.scrollOffset(), .01);
         assertEquals(284.16667, model.rows().get(24).logicalY - model.scrollOffset(), .01);
         model.select("set#0"); settle(model);
         assertEquals(0, model.scrollOffset(), .01);
@@ -42,11 +42,11 @@ class SongSelectCarouselTest {
         var model = model(3);
         model.content(List.of(new SongSelectCarousel.Entry("first#-1",0,-1),
                 new SongSelectCarousel.Entry("second#-1",1,-1), new SongSelectCarousel.Entry("third#-1",2,-1)),620,76,72,"first#-1");
-        float oldY = model.rows().get(1).logicalY - model.scrollOffset();
+        float oldY = model.renderY(model.rows().get(1), 620);
         model.content(List.of(new SongSelectCarousel.Entry("first#-1",0,-1),
                 new SongSelectCarousel.Entry("second#0",1,0),new SongSelectCarousel.Entry("second#1",1,1),
                 new SongSelectCarousel.Entry("third#-1",2,-1)),620,76,72,"second#0");
-        assertEquals(oldY, model.rows().get(1).logicalY - model.scrollOffset());
+        assertEquals(oldY, model.renderY(model.rows().get(1), 620));
         assertNotEquals(model.scrollOffset(), model.scrollTarget());
     }
     @Test void hoverMovesLeftAndSeparatesNeighboursWithoutChangingLogicalY() {
@@ -80,15 +80,15 @@ class SongSelectCarouselTest {
         model.content(List.of(),620,76,72,null);
         assertEquals(0,model.scrollOffset()); assertEquals(0,model.scrollTarget()); assertEquals(0,model.maxScroll());
         model.content(entries(1),620,76,72,"set#0"); settle(model);
-        assertEquals(284.16667,model.rows().get(0).logicalY - model.scrollOffset(), .001);
+        assertEquals(258.33333,model.rows().get(0).logicalY - model.scrollOffset(), .001);
     }
-    @Test void viewportResizeKeepsSelectionCenteredAndMotionStateSurvivesContentRefresh() {
+    @Test void viewportResizeScalesExistingTravelAndRetainsHover() {
         var model = model(8); model.select("set#4"); settle(model); model.advance(.1f,"set#4");
-        float hover = model.rows().get(4).hoverAmount;
+        float hover = model.rows().get(4).hoverAmount, offset = model.scrollOffset();
         model.content(entries(8),420,90,93,"set#4");
         assertEquals(hover,model.rows().get(4).hoverAmount);
         settle(model);
-        assertEquals(192.5,model.rows().get(4).logicalY - model.scrollOffset(),.01);
+        assertEquals(offset * 420 / 620, model.scrollOffset(), .01);
     }
     @Test void continuousCurveIsSymmetricAndGradualWithMoreThanThreeOffsets() {
         float previous = SongSelectCarousel.curveX(0,1280);
@@ -125,7 +125,7 @@ class SongSelectCarouselTest {
         model.scrollBy(-10000); assertEquals(0,model.scrollTarget());
         model.scrollBy(Float.NaN); model.scrollBy(Float.POSITIVE_INFINITY);
         assertEquals(0,model.scrollTarget());
-        model.select("set#4"); assertEquals(4*72,model.scrollTarget(), .001);
+        model.select("set#4"); assertEquals(4*72 - 20 * 620f / 480,model.scrollTarget(), .001);
     }
 
     @Test void expansionUsesExplicitFamilyEvenWhenPersistentPathsHaveDifferentHashes() {
@@ -147,8 +147,8 @@ class SongSelectCarouselTest {
                 new SongSelectCarousel.Entry("b", 0, 0),
                 new SongSelectCarousel.Entry("group:C", -1, -2)), 620, 72, 72, "group:A");
         assertEquals(72, m.rows().get(1).logicalY - m.rows().get(0).logicalY, .001);
-        assertEquals(72, m.rows().get(2).logicalY - m.rows().get(1).logicalY, .001);
-        assertEquals(87, m.rows().get(3).logicalY - m.rows().get(2).logicalY, .001);
+        assertEquals(72 + 10 * 620f / 480, m.rows().get(2).logicalY - m.rows().get(1).logicalY, .001);
+        assertEquals(72 + 10 * 620f / 480, m.rows().get(3).logicalY - m.rows().get(2).logicalY, .001);
     }
 
     @Test void focusColourTransitionTakesFiftyMillisecondsAndRestartsFromInterruptedValue() {
@@ -170,7 +170,7 @@ class SongSelectCarouselTest {
         assertEquals(1, m.rows().get(4).focusAmount, .0001f);
         assertEquals(0, m.rows().get(4).selectedAmount, .0001f);
         assertEquals(1, m.rows().get(0).selectedAmount, .0001f);
-        assertEquals(4 * 72, m.scrollTarget(), .001f);
+        assertEquals(4 * 72 - 20 * 620f / 480, m.scrollTarget(), .001f);
     }
 
 }

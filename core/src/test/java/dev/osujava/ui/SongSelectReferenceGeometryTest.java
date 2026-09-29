@@ -16,28 +16,28 @@ class SongSelectReferenceGeometryTest {
             assertTrue(SongSelectChrome.cookieX(1280,radius) + radius > 1280);
         }
     }
-    @Test void expandedGroupAdvancesTogetherWithSmallSelectedEmphasis() {
+    @Test void expandedSiblingsUseFixedIndentAndGapWithoutAdditionalSelectedDisplacement() {
         var model = new SongSelectCarousel();
         model.content(List.of(new SongSelectCarousel.Entry("a#-1",0,-1),
                 new SongSelectCarousel.Entry("b#0",1,0), new SongSelectCarousel.Entry("b#1",1,1),
-                new SongSelectCarousel.Entry("c#-1",2,-1)), 574, 80, 80 * .96f, 80 * 1.02f, "b#0");
+                new SongSelectCarousel.Entry("c#-1",2,-1)), 574, 80, 80 * .96f, "b#0");
         for (int i = 0; i < 120; i++) model.advance(1f/60, null);
         for (var row : model.rows()) {
             float screenDown = 658 - model.renderY(row,658) - 40;
             float shift = SongSelectMetrics.curveX(screenDown,1280,574) - model.renderX(row,1280);
-            if (row.entry.difficultyIndex() >= 0) assertTrue(shift / 1280 > .05 && shift / 1280 < .06);
+            if (row.entry.difficultyIndex() >= 0) assertEquals(50 * 574f / 480, shift, .01);
             else assertEquals(0, shift, .01);
         }
-        assertEquals(1.02f, (model.rows().get(2).logicalY - model.rows().get(1).logicalY) / 80, .001);
-        assertEquals(.96f, (model.rows().get(1).logicalY - model.rows().get(0).logicalY) / 80, .001);
+        assertEquals(76.8f + 10 * 574f / 480, model.rows().get(2).logicalY - model.rows().get(1).logicalY, .001);
+        assertEquals(76.8f + 10 * 574f / 480, model.rows().get(1).logicalY - model.rows().get(0).logicalY, .001);
     }
     @Test void groupDisplacementEasesFromCollapsedPositionAndSurvivesChildSelection() {
         var model = new SongSelectCarousel();
         model.content(List.of(new SongSelectCarousel.Entry("a#-1",0,-1),
-                new SongSelectCarousel.Entry("b#-1",1,-1)),574,80,76.8f,81.6f,"a#-1");
+                new SongSelectCarousel.Entry("b#-1",1,-1)),574,80,76.8f,"a#-1");
         model.content(List.of(new SongSelectCarousel.Entry("a#-1",0,-1),
                 new SongSelectCarousel.Entry("b#0",1,0),new SongSelectCarousel.Entry("b#1",1,1)),
-                574,80,76.8f,81.6f,"b#0");
+                574,80,76.8f,"b#0");
         assertEquals(0,model.rows().get(1).groupAmount);
         model.advance(1f/60,null);
         float amount = model.rows().get(1).groupAmount;
@@ -45,7 +45,7 @@ class SongSelectReferenceGeometryTest {
         assertEquals(amount,model.rows().get(2).groupAmount);
         model.select("b#1");
         assertEquals(amount,model.rows().get(1).groupAmount);
-        for (int i=0;i<120;i++) model.advance(1f/60,null);
+        for (int i=0;i<180;i++) model.advance(1f/60,null);
         assertEquals(1,model.rows().get(1).groupAmount,.001);
         assertEquals(1,model.rows().get(2).groupAmount,.001);
     }

@@ -196,6 +196,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 scenes.removeIf(scene -> !cases.contains(scene.name));
                 for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
                     scenes.add(new Scene(1024,768,1,scene.name));
+            } else if (phase.equals("row-motion-contracts")) {
+                var cases = Set.of("greylooks-hover", "greylooks-fast-scroll", "greylooks-scroll-reverse",
+                        "greylooks-expanded-many-first", "greylooks-expanded-many-last", "greylooks-collapse-many",
+                        "greylooks-first-item", "greylooks-last-item");
+                scenes.removeIf(scene -> !cases.contains(scene.name));
+                for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
+                    scenes.add(new Scene(1024,768,1,scene.name));
             } else if (phase.equals("navigation-contracts")) {
                 scenes.removeIf(scene -> !scene.name.startsWith("phase3-focus-")
                         && !scene.name.equals("phase3-group-toggle"));
@@ -1540,7 +1547,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 if (Math.abs(x - model.renderX(row,layout.width())) > .001f
                         || Math.abs(y - model.renderY(row,screen.chromeBounds(layout).carouselTop())) > .001f)
                     throw new AssertionError("Draw snapshot diverged from motion bounds");
-                if (!Float.isFinite(x) || !Float.isFinite(y) || x < layout.width() * SongSelectMetrics.MIN_ROW_X || x > layout.width() * SongSelectMetrics.MAX_ROW_X)
+                // Reference bounds: -340 base, up to -50 open/-45 hover, or +200 curve.
+                float scale = SongSelectMetrics.carouselScale(layout.height());
+                if (!Float.isFinite(x) || !Float.isFinite(y)
+                        || x < layout.width() - 435 * scale - .01f || x > layout.width() - 140 * scale + .01f)
                     throw new AssertionError("Invalid row bounds: " + x + ", " + y);
                 float bodyWidth = (float) value(type, snapshot, "width");
                 if (x + bodyWidth < layout.width()) throw new AssertionError("Row ends inside the viewport");

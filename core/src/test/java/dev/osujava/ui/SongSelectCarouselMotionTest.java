@@ -90,8 +90,8 @@ class SongSelectCarouselMotionTest {
         model.scrollBy(200); float target = model.scrollTarget();
         model.select("s4#-1"); assertEquals(target, model.scrollTarget());
         model.content(collapsed(30), 420, 90, 93, "s4#-1");
-        assertEquals(target * 93 / 72, model.scrollTarget(), .001);
-        model.select("s5#-1"); assertEquals(5 * 93, model.scrollTarget());
+        assertEquals(target * 420 / 620, model.scrollTarget(), .001);
+        model.select("s5#-1"); assertEquals(5 * 93 - 20 * 420f / 480, model.scrollTarget(), .001);
     }
 
     @Test void selectionAndHoverEaseIndependentlyWhileWheelOnlyChangesViewport() {
@@ -104,38 +104,35 @@ class SongSelectCarouselMotionTest {
         assertTrue(row(model, "s2#-1").hoverAmount > 0);
         model.scrollBy(100); settle(model);
         assertEquals(1, row(model, "s3#-1").selectedAmount, .001);
-        assertEquals(3 * 72 + 100, model.scrollTarget());
+        assertEquals(3 * 72 + 100 - 20 * 620f / 480, model.scrollTarget(), .001);
     }
 
-    @Test void fastScrollingWeakensHoverAndItRecoversWithoutChangingSelection() {
+    @Test void scrollSpeedDoesNotWeakenHoverOrChangeSelection() {
         var slow = model(); var fast = model();
         for (int i = 0; i < 12; i++) {
             slow.scrollBy(.01f); fast.scrollBy(140);
             slow.advance(1f / 60, "s2#-1"); fast.advance(1f / 60, "s2#-1");
         }
-        assertTrue(row(fast, "s2#-1").hoverAmount < row(slow, "s2#-1").hoverAmount * .65f);
+        assertEquals(row(slow, "s2#-1").hoverAmount, row(fast, "s2#-1").hoverAmount);
         for (int i = 0; i < 180; i++) fast.advance(1f / 60, "s2#-1");
         assertEquals(1, row(fast, "s2#-1").hoverAmount, .001);
         assertEquals(1, row(fast, "s0#-1").selectedAmount, .001);
     }
 
-    @Test void velocityDeformationIsSmallBoundedAndReturnsToTheOriginalCurve() {
+    @Test void horizontalMotionTracksTheCurveAtTheConfirmedDecayRate() {
         var model = model(); model.scrollBy(2000);
         for (int i = 0; i < 12; i++) {
+            var row = row(model, "s20#-1");
+            float before = model.renderX(row, 1280);
             model.advance(1f / 60, null);
-            for (var row : model.rows()) {
-                float center = model.renderY(row, 658) + model.rowHeight() / 2;
-                float baseline = SongSelectMetrics.curveX(658 - center, 1280, 620) - 3 * row.selectedAmount;
-                baseline = Math.max(1280 * .40f, Math.min(1280 * .85f, baseline));
-                assertTrue(Math.abs(model.renderX(row, 1280) - baseline) <= 5.01);
-                assertTrue(model.renderX(row, 1280) >= 1280 * .40f);
-                assertTrue(model.renderX(row, 1280) <= 1280 * .85f);
-            }
+            float down = row.logicalY - model.scrollOffset();
+            float target = SongSelectMetrics.curveX(down, 1280, 620);
+            assertEquals(target - (target - before) * .95, model.renderX(row, 1280), .001);
         }
         settle(model);
         var row = row(model, "s20#-1");
-        float center = model.renderY(row, 658) + model.rowHeight() / 2;
-        assertEquals(SongSelectMetrics.curveX(658 - center, 1280, 620), model.renderX(row, 1280), .01);
+        assertEquals(SongSelectMetrics.curveX(row.logicalY - model.scrollOffset(), 1280, 620),
+                model.renderX(row, 1280), .02);
     }
 
     @Test void expansionAndCollapsePreserveEverySurvivingRowIncludingInterruptedMotion() {
@@ -153,7 +150,7 @@ class SongSelectCarouselMotionTest {
             assertEquals(parentX, model.renderX(row(model, "s4#" + selected), 1280), .001);
             model.advance(.05f, null);
             belowY = model.renderY(row(model, "s5#-1"), 658);
-            parentY = model.renderY(row(model, "s4#" + selected), 658);
+            parentY = model.renderY(row(model, "s4#0"), 658);
             model.content(collapsed(30), 620, 76, 72, "s4#-1");
             assertEquals(belowY, model.renderY(row(model, "s5#-1"), 658), .001);
             assertEquals(parentY, model.renderY(row(model, "s4#-1"), 658), .001);
@@ -162,14 +159,14 @@ class SongSelectCarouselMotionTest {
         }
     }
 
-    @Test void expandingFirstOrLastSetCentersFirstAndLastDifficultyEvenWhenAnchorClamps() {
+    @Test void expandingFirstOrLastSetRespectsFirstRowBoundaryAndTracksOtherDifficulties() {
         for (int set : new int[]{0, 29}) for (int difficulty : new int[]{0, 15}) {
             var model = model(); model.select("s" + set + "#-1"); settle(model);
             float y = model.renderY(row(model, "s" + set + "#-1"), 658);
             model.content(expanded(30, set, 16), 620, 76, 72, "s" + set + "#" + difficulty);
             var row = row(model, "s" + set + "#" + difficulty);
             assertEquals(y, model.renderY(row, 658), .001);
-            settle(model); assertEquals(373.83333, model.renderY(row, 658) + 38, .01);
+            settle(model); assertEquals(set == 0 && difficulty == 0 ? 399.66667 : 373.83333, model.renderY(row, 658) + 38, .01);
             assertTrue(model.scrollOffset() >= 0 && model.scrollOffset() <= model.maxScroll());
         }
     }
@@ -202,36 +199,34 @@ class SongSelectCarouselMotionTest {
         assertEquals(model.scrollTarget(), model.scrollOffset(), .01);
         assertEquals(0, model.velocityInfluence(), .001);
     }
-    @Test void expansionAndViewportSpringMoveChosenDifficultyMonotonicallyTowardCenter() {
+    @Test void expandedRowYConvergesAtTheConfirmedRateWhileViewportMoves() {
         for (int difficulty : new int[]{0, 15}) {
             var model = model(); model.select("s3#-1"); settle(model);
-            float start = model.renderY(row(model,"s4#-1"),658) + 38;
             model.content(expanded(30,4,16),620,76,72,"s4#" + difficulty);
             var selected = row(model,"s4#" + difficulty);
-            float previous = start;
-            for (int frame = 0; frame < 120; frame++) {
+            for (int frame = 0; frame < 180; frame++) {
+                float before = selected.motionY;
                 model.advance(1f/60,null);
-                float center = model.renderY(selected,658) + 38;
-                assertTrue(center >= previous - .001f, "Expansion must not initially move away from the snap destination");
-                assertTrue(center <= 373.84333f, "Opposing expansion/viewport rates must not overshoot the center");
-                previous = center;
+                assertEquals(selected.logicalY - (selected.logicalY - before) * .875,
+                        selected.motionY, .001);
             }
-            assertEquals(373.83333,previous,.01);
+            assertEquals(373.83333, model.renderY(selected,658) + 38, .01);
         }
     }
 
-    @Test void contentFilteringKeepsSelectedAnchorAndRelativeWheelBrowsingTarget() {
+    @Test void contentFilteringPreservesAbsoluteTravelAndClampsEmptyContent() {
         var model = model(); model.select("s4#-1"); settle(model);
+        float offset = model.scrollOffset(), target = model.scrollTarget();
         var filtered = collapsed(30).subList(3,30);
         model.content(filtered,620,76,72,"s4#-1");
-        assertEquals(72,model.scrollTarget());
+        assertEquals(offset, model.scrollOffset()); assertEquals(target, model.scrollTarget());
         model.scrollBy(200);
         model.content(collapsed(30),620,76,72,"s4#-1");
-        assertEquals(4 * 72 + 200,model.scrollTarget(), .001);
+        assertEquals(target + 200, model.scrollTarget(), .001);
         model.content(List.of(),620,76,72,"s4#-1");
+        assertEquals(0, model.scrollOffset()); assertEquals(0, model.scrollTarget());
         model.content(filtered,620,76,72,"s4#-1");
-        assertEquals(72,model.scrollTarget());
-        settle(model); assertEquals(373.83333,model.renderY(row(model,"s4#-1"),658) + 38,.01);
+        assertTrue(model.scrollOffset() >= 0 && model.scrollOffset() <= model.maxScroll());
     }
 
 }
