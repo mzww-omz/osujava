@@ -15,6 +15,17 @@ class BeatmapFileParserTest {
     private final BeatmapFileParser parser = new BeatmapFileParser();
 
     @Test
+    void previewTimeSurvivesAssetResolutionAndDefaultsSafely() throws Exception {
+        for (String value : new String[]{"12345", "-1", "invalid", "-900"}) {
+            var chart = parser.parse("osu file format v14\n[General]\nPreviewTime: " + value, "preview.osu").difficulty();
+            int expected = value.equals("12345") ? 12345 : -1;
+            assertEquals(expected, chart.previewTimeMs());
+            assertEquals(expected, chart.withAssets(null, null).previewTimeMs());
+            assertEquals(expected, chart.withAssets(null, null, null).previewTimeMs());
+        }
+    }
+
+    @Test
     void parsesMetadataSettingsEventsTimingAndObjects() throws Exception {
         BeatmapFile file = parser.parse("""
                 osu file format v14

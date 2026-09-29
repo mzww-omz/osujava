@@ -28,6 +28,7 @@ class PropertiesBeatmapLibraryStorageTest {
         storage.save(imported);
 
         BeatmapSet restored = storage.load().getFirst();
+        assertEquals(12345, restored.difficulties().getFirst().previewTimeMs());
 
         assertEquals(imported.id(), restored.id());
         assertEquals("Stored song", restored.title());
@@ -108,6 +109,7 @@ class PropertiesBeatmapLibraryStorageTest {
         Files.delete(imported.difficulties().getFirst().beatmapPath());
 
         BeatmapSet restored = storage.load().getFirst();
+        assertEquals(12345, restored.difficulties().getFirst().previewTimeMs());
 
         assertNull(restored.audioPath());
         assertNull(restored.backgroundPath());
@@ -149,6 +151,7 @@ class PropertiesBeatmapLibraryStorageTest {
                 osu file format v14
                 [General]
                 AudioFilename: song.ogg
+                PreviewTime: 12345
                 Mode: %d
                 [Metadata]
                 Title: Stored song

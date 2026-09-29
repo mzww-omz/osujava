@@ -82,7 +82,7 @@ public final class BeatmapFileParser {
         List<TimingPoint> timingPoints = parseTimingPoints(timingLines);
         List<HitObject> hitObjects = parseHitObjects(objectLines);
         BeatmapDifficulty difficulty = new BeatmapDifficulty(title, artist, creator, version, mode,
-                audioFilename, backgroundFilename, settings, timingPoints, hitObjects, null, null);
+                audioFilename, backgroundFilename, settings, timingPoints, hitObjects, null, null, null, integer(general.get("previewtime"), -1));
         return new BeatmapFile(formatVersion, title, titleUnicode, artist, artistUnicode, creator,
                 beatmapSetId, difficulty);
     }

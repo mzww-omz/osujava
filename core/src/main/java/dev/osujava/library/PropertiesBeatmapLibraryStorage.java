@@ -284,7 +284,7 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
                 chart.settings(), chart.timingPoints(), chart.hitObjects(),
                 resolveStoredPath(properties.getProperty(prefix + "audioPath")),
                 resolveStoredPath(properties.getProperty(prefix + "backgroundPath")),
-                beatmapPath);
+                beatmapPath, chart.previewTimeMs());
     }
 
     private Path firstPath(List<BeatmapDifficulty> difficulties, boolean audio) {

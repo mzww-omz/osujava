@@ -13,22 +13,26 @@ import dev.osujava.ui.theme.UiView;
 final class SongSelectDecorations {
     private static final Color tint = new Color();
     static double beat(double seconds, BeatmapDifficulty difficulty) {
-        double period = 1000;
-        if (difficulty != null) for (var point : difficulty.timingPoints())
-            if (point.uninherited() && point.beatLength() > 0 && Double.isFinite(point.beatLength())) {
-                period = point.beatLength(); break;
+        double period = 1000, offset = 0, latest = Double.NEGATIVE_INFINITY;
+        double position = Double.isFinite(seconds) ? seconds * 1000 : 0;
+        if (difficulty != null) for (var point : difficulty.timingPoints()) {
+            if (point.uninherited() && point.beatLength() > 0 && Double.isFinite(point.beatLength())
+                    && Double.isFinite(point.timeMs()) && point.timeMs() <= position && point.timeMs() >= latest) {
+                period = point.beatLength(); offset = point.timeMs(); latest = offset;
             }
-        return Math.pow(Math.max(0,Math.cos(seconds * 1000 / period * Math.PI * 2)),4);
+        }
+        return Math.pow(Math.max(0, Math.cos((position - offset) / period * Math.PI * 2)), 4);
     }
+
     static void draw(UiView view, SpriteBatch batch, SongSelectSkinAssets skin, UiLayout layout,
-                     double seconds, BeatmapDifficulty difficulty) {
+                     double seconds, double previewSeconds, BeatmapDifficulty difficulty) {
         int src = batch.getBlendSrcFunc(), dst = batch.getBlendDstFunc();
         int srcAlpha = batch.getBlendSrcFuncAlpha(), dstAlpha = batch.getBlendDstFuncAlpha();
         view.beginText();
         try {
             batch.setBlendFunction(GL20.GL_SRC_ALPHA,GL20.GL_ONE);
             float scale = layout.height()/768, size = 256 * scale;
-            tint.set(1,1,1,(float)(.045 + .065 * beat(seconds,difficulty)));
+            tint.set(1,1,1,(float)(.045 + .065 * beat(previewSeconds,difficulty)));
             SongSelectSkinDrawing.fit(batch,skin,SongSelectSkinAssets.modeImage(difficulty == null ? 0 : difficulty.mode(),0),
                     (layout.width()-size)/2,(layout.height()-size)/2,size,size,tint);
             for (int i = 0; i < 14; i++) {

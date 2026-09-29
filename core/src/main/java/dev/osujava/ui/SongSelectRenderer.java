@@ -65,6 +65,7 @@ final class SongSelectRenderer {
         Color toastColor,
         float toastSeconds,
         float seconds,
+        double previewSeconds,
         float backgroundFade,
         float bottom,
         float top,
@@ -96,7 +97,7 @@ final class SongSelectRenderer {
         float px = frame.pointerX, py = frame.pointerY;
         view.clear();
         view.background(frame.background, .72f * frame.backgroundFade);
-        SongSelectDecorations.draw(view,batch,frame.skin,layout,frame.seconds,frame.selectedDifficulty);
+        SongSelectDecorations.draw(view,batch,frame.skin,layout,frame.seconds,frame.previewSeconds,frame.selectedDifficulty);
         view.beginShapes();
         view.box(0, 0, layout.width(), layout.height(), 0, DIM);
         renderedTopProcedural = SongSelectChrome.procedural(frame.skin, Image.TOP);
@@ -154,7 +155,7 @@ final class SongSelectRenderer {
             view.endShapes();
         }
         if (frame.selectedDifficulty != null) {
-            playCookie.draw(view, frame.seconds, !frame.toolbox.open() && playCookie.hit(px, py),
+            playCookie.draw(view, (float) SongSelectDecorations.beat(frame.previewSeconds, frame.selectedDifficulty), !frame.toolbox.open() && playCookie.hit(px, py),
                     !frame.toolbox.open() && frame.pointerPressed);
         }
         view.beginText();

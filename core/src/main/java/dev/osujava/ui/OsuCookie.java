@@ -19,9 +19,7 @@ final class OsuCookie implements AutoCloseable {
         return py >= 0 && py <= interactionTop && dx * dx + dy * dy <= radius * radius;
     }
 
-    void draw(UiView view, float seconds, boolean hovered, boolean pressed) {
-        // Song Select uses a 60 BPM fallback for its UI pulse.
-        float beat = (float) Math.pow(Math.max(0, Math.sin(seconds * Math.PI * 2)), 5);
+    void draw(UiView view, float beat, boolean hovered, boolean pressed) {
         float r = radius + beat * radius * .018f + (hovered ? radius * .035f : 0) - (hovered && pressed ? radius * .035f : 0);
         logo.draw(view, x, y, r, 0);
     }

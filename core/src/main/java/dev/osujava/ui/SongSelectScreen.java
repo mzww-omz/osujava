@@ -46,6 +46,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private SongSelectSkinAssets skin;
     private SongSelectCursor cursor;
     private SongSelectAudio audio;
+    private SongSelectPreview preview;
     private Color activeText = DARK_TEXT, inactiveText;
     private final SongSelectToolboxState toolbox = new SongSelectToolboxState();
     boolean renderedSelectionProcedural(Selection action) { return renderer.renderedSelectionProcedural(action); }
@@ -182,6 +183,10 @@ public final class SongSelectScreen extends ScreenAdapter {
             @Override public boolean scroll(float amount) { return scrollAtPointer(amount); }
         });
         Gdx.input.setInputProcessor(input);
+        if (preview == null && Gdx.audio != null && Gdx.gl != null) {
+            preview = new SongSelectPreview(path -> java.nio.file.Files.isRegularFile(path)
+                    ? Gdx.audio.newMusic(Gdx.files.absolute(path.toString())) : null, game.audioVolumes());
+        }
         if (audio == null && skin != null && Gdx.audio != null && Gdx.gl != null) {
             audio = new SongSelectAudio(skin.resolver(), file -> Gdx.audio.newSound(file.handle()), game.audioVolumes());
             sound(SongSelectAudio.Cue.EXPAND);
@@ -249,6 +254,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 toastColor,
                 toastSeconds,
                 seconds,
+                preview != null && preview.available() ? preview.positionMs() / 1000.0 : seconds,
                 backgroundFade,
                 bottom,
                 top,
@@ -279,6 +285,14 @@ public final class SongSelectScreen extends ScreenAdapter {
         viewState.sample(layout, Gdx.input.getX(), Gdx.input.getY(), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
         viewState.advance(delta);
         seconds = viewState.elapsed;
+        if (preview != null) {
+            var difficulty = selectedDifficulty();
+            var set = selectedSet();
+            Path path = difficulty != null && difficulty.audioPath() != null ? difficulty.audioPath()
+                    : set == null ? null : set.audioPath();
+            preview.select(path, difficulty == null ? -1 : difficulty.previewTimeMs());
+            preview.advance(outgoing.opacity());
+        }
         if (cursor != null) cursor.update(layout.height(), viewState.pointerX, viewState.pointerY,
                 viewState.pointerPressed || Gdx.input.isButtonPressed(Input.Buttons.RIGHT), seconds);
         toastSeconds = Math.max(0, toastSeconds - delta);
@@ -438,8 +452,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
-    @Override public void hide() { if (cursor != null) cursor.hide(); }
-    @Override public void dispose() { closed = true; if (audio != null) audio.close(); if (cursor != null) cursor.close(); thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
+    @Override public void hide() { if (preview != null) preview.close(); if (cursor != null) cursor.hide(); }
+    @Override public void dispose() { closed = true; if (preview != null) preview.close(); if (audio != null) audio.close(); if (cursor != null) cursor.close(); thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
 
     private void calculateLayout(UiLayout layout) {
         viewportHeight = layout.height();
