@@ -49,7 +49,13 @@
 ### 残る差と次の実装
 
 1. P4 spinner物理・加点、P6 HP calibration / drain / failをlive Rulesetへ接続する。結果HP / pass / RPMのnullはこの不足を示す。
-2. 入力とscheduled判定の全体的な時系列処理、旧new-combo / spinner境界、gradeのSingle境界を仕上げる。異なるscoringVersion / digest間の順位分離も未完了。
+2. 入力とscheduled判定の全体的な時系列処理、旧new-combo / spinner境界を仕上げる。異なるscoringVersion / digest間の順位分離も未完了。
 3. P10 replay記録・再生・F2保存、P11 Mods、ローカル拡張結果、音、scroll containerを実装する。
 4. 結果の桁formatは現在HUDの8桁score / accuracy小数2桁、count末尾xを使用しており、復号していないstable format文字列との一致は未認定。header / tooltip装飾、背景暗転、ボタンhitboxはJava側の表示方針である。
 5. 新旧skin分岐のglobal / 既定skin例外は未確認。modern選択skinで旧Greylooksの複合panelへfallbackするとラベルと数値が重なることをcaptureで確認した。panel alphaを解析して座標を自動移動する挙動は解析根拠がないため導入していない。別世代の画像を混在させた場合も含め、同一skin条件のstable実機比較が必要。
+
+## P5追補: gradeのSingle境界
+
+`060012ec:000c–002b`の判定率はSingle除算、その後`:0072–008a / 00c8–011b`でDoubleへ昇格して0.9 / 0.8 / 0.7 / 0.6 / 0.01のDouble定数と比較する。例えば300率80%はSingleで0.8000000119…となり、MISSなしならAになる。60%もSingleで0.6000000238…となりCになる。整数比で閾値を比較する旧実装と同一ではない。
+
+新scoringVersionの記録と結果画面にはこの分岐を適用し、旧形式の記録は従来gradeを維持した。失敗が既知なら結果画面のFが優先。HD / FLの銀gradeはMod対応時に追加する。11境界caseと旧・新recordの表示整合を検証し、`./gradlew --offline build`成功（全889テスト）。この数式の静的照合と、実機での境界譜面検証は区別する。

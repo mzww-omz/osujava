@@ -25,7 +25,9 @@ public record LocalScore(UUID playId, DifficultyIdentity difficulty, long played
             throw new IllegalArgumentException("Invalid score snapshot");
     }
     public OsuGrade grade() {
-        return OsuGrade.calculate(result.count300(), result.count100(), result.count50(), result.misses());
+        return ScoreDetails.SCORE_V1.equals(details.scoringVersion())
+                ? OsuGrade.calculateStable(result.count300(), result.count100(), result.count50(), result.misses())
+                : OsuGrade.calculate(result.count300(), result.count100(), result.count50(), result.misses());
     }
 
     public LocalScore forStorage() {

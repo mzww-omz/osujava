@@ -3,6 +3,7 @@ package dev.osujava.ui;
 import dev.osujava.ruleset.osu.OsuGrade;
 import dev.osujava.score.ResultStatistics;
 import dev.osujava.score.ResultsSnapshot;
+import dev.osujava.score.ScoreDetails;
 import dev.osujava.skin.LegacyHudLayout;
 import dev.osujava.skin.ResultsSkinAssets.Image;
 import java.util.List;
@@ -12,7 +13,9 @@ public record ResultsPresentation(String score, String combo, String accuracy, L
                                   Image grade, boolean perfect, ResultStatistics timing) {
     public static ResultsPresentation of(ResultsSnapshot snapshot) {
         var s = snapshot.score(); var d = snapshot.details();
-        var grade = OsuGrade.calculate(s.count300(), s.count100(), s.count50(), s.misses());
+        var grade = ScoreDetails.SCORE_V1.equals(d.scoringVersion())
+                ? OsuGrade.calculateStable(s.count300(), s.count100(), s.count50(), s.misses())
+                : OsuGrade.calculate(s.count300(), s.count100(), s.count50(), s.misses());
         return new ResultsPresentation(LegacyHudLayout.scoreText(s.score()), s.maxCombo() + "x",
                 LegacyHudLayout.accuracyText(s.accuracy()),
                 List.of(count(s.count300()), count(s.count100()), count(s.count50()), count(d.geki()), count(d.katu()), count(s.misses())),
