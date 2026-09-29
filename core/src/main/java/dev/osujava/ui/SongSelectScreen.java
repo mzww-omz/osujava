@@ -42,6 +42,9 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final SongSelectRenderer renderer;
     private final SongSelectViewState viewState = new SongSelectViewState();
     private List<SongSelectRowRenderer.Presentation> rowPresentations = List.of();
+    private final Map<SongSelectCarousel.Row, SongSelectRowColourAnimation> rowColours = new IdentityHashMap<>();
+    private final Color rowBaseColour = new Color();
+    private double rowColourTimeMs;
     private String geometryViewport;
     private SongSelectSkinAssets skin;
     private SongSelectCursor cursor;
@@ -379,6 +382,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         else input.cancelPointer();
         // Sample input before integrating free flight, then publish drawing and hit geometry together.
         visibleRows = layoutRows(layout, delta);
+        advanceRowColours(delta);
         prepareRowPresentations();
         if (audio != null) {
             String target = null;
@@ -598,6 +602,39 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
+    private boolean groupContainsSelection(String key) {
+        var selected = browser.row(browser.selectedKey());
+        return selected != null && !selected.excluded && selected.parent == browser.row(key);
+    }
+
+    private boolean rowPlayed(SongSelectCarousel.Entry entry) {
+        if (entry.header()) return false;
+        var set = sets.get(entry.setIndex());
+        return entry.difficultyIndex() < 0 ? scoreSnapshot.played(set)
+                : scoreSnapshot.best(set, set.difficulties().get(entry.difficultyIndex())) != null;
+    }
+
+    /** Retain colour clocks for resident sprites, including those outside the drawing viewport. */
+    private void advanceRowColours(float delta) {
+        double frameMs = Float.isFinite(delta) ? Math.max(0, delta * 1000.0) : 0;
+        rowColourTimeMs += frameMs;
+        var residents = java.util.Collections.newSetFromMap(new IdentityHashMap<SongSelectCarousel.Row, Boolean>());
+        for (var row : carousel.allRows()) {
+            if (!row.resident || !row.entry.visible()) continue;
+            residents.add(row);
+            var entry = row.entry;
+            var model = browser.row(entry.key());
+            SongSelectRowColours.base(rowBaseColour, entry.header(), model.expanded,
+                    model.state == SongBrowserModel.RowState.SELECTED,
+                    model.state == SongBrowserModel.RowState.EXPANDED, rowPlayed(entry),
+                    entry.header() && groupContainsSelection(entry.key()));
+            rowColours.computeIfAbsent(row, ignored -> new SongSelectRowColourAnimation()).update(
+                    model.state.ordinal(), Color.rgba8888(rowBaseColour), entry.key().equals(browser.focusKey()),
+                    entry.key().equals(carousel.hoverKey()), (long) rowColourTimeMs, (int) frameMs);
+        }
+        rowColours.keySet().retainAll(residents);
+    }
+
     /** Resource lookup and score projection happen before any drawing. */
     private void prepareRowPresentations() {
         var paths = new java.util.HashSet<Path>();
@@ -609,12 +646,13 @@ public final class SongSelectScreen extends ScreenAdapter {
             if (content.thumbnail() != null) paths.add(content.thumbnail());
         }
         thumbnails.prepare(paths);
+        var colours = new java.util.HashMap<String, Integer>();
+        rowColours.forEach((row, animation) -> colours.put(row.entry.key(), animation.rgba()));
         var result = new ArrayList<SongSelectRowRenderer.Presentation>(visibleRows.size());
         for (var row : visibleRows) {
             if (row.setIndex() < 0) {
-                var selected = browser.row(browser.selectedKey());
-                boolean containsSelection = selected != null && !selected.excluded && selected.parent == browser.row(row.key());
-                result.add(new SongSelectRowRenderer.Presentation(row, null, false, null, null, 0, rowGeometry(row, false), containsSelection));
+                boolean containsSelection = groupContainsSelection(row.key());
+                result.add(new SongSelectRowRenderer.Presentation(row, null, false, null, null, 0, rowGeometry(row, false), containsSelection, colours.get(row.key())));
                 continue;
             }
             var set = sets.get(row.setIndex());
@@ -623,7 +661,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             var best = diff == null ? null : scoreSnapshot.best(set, diff);
             boolean played = diff == null ? scoreSnapshot.played(set) : best != null;
             result.add(new SongSelectRowRenderer.Presentation(row, content, played, best == null ? null : best.grade(),
-                    showThumbnails() ? thumbnails.resident(content.thumbnail()) : null, thumbnails.opacity(content.thumbnail()), rowGeometry(row, best != null), false));
+                    showThumbnails() ? thumbnails.resident(content.thumbnail()) : null, thumbnails.opacity(content.thumbnail()), rowGeometry(row, best != null), false, colours.get(row.key())));
         }
         rowPresentations = List.copyOf(result);
     }

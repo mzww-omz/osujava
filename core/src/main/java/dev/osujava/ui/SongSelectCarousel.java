@@ -45,6 +45,7 @@ final class SongSelectCarousel {
 
     List<Row> rows() { return rows; }
     List<Row> allRows() { return allRows; }
+    String hoverKey() { return hoverKey; }
     boolean presents(Row row) {
         return row.entry.visible() && row.resident && row.logicalIndex >= activeStart && row.logicalIndex < activeEnd;
     }

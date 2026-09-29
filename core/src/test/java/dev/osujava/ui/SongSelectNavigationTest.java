@@ -61,6 +61,44 @@ class SongSelectNavigationTest {
     }
     private void key(int key) { assertTrue(processor.keyDown(key)); processor.keyUp(key); }
 
+    private SongSelectRowRenderer.Presentation presentation(String key) throws Exception {
+        return ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> p.row().key().equals(key)).findFirst().orElseThrow();
+    }
+
+    @Test void screenPublishesColourAnimationOncePerFrameAcrossSelectionAndResize() throws Exception {
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,0);
+        String old = ((SongBrowserModel)field("browser")).selectedKey();
+        assertEquals(0xffffffdc,presentation(old).backgroundRgba());
+        key(Input.Keys.DOWN); updatePointer(1280,720,0);
+        assertFalse(presentation(old).row().selected());
+        assertEquals(0xffffffdc,presentation(old).backgroundRgba());
+        updatePointer(1280,720,.15f);
+        assertEquals(0x7fcaf5e6,presentation(old).backgroundRgba());
+        screen.resize(1920,1080); updatePointer(1920,1080,0);
+        assertEquals(0x7fcaf5e6,presentation(old).backgroundRgba(),"Resize must not restart or advance colour time");
+        updatePointer(1920,1080,.16f);
+        assertEquals(0x0096ecf0,presentation(old).backgroundRgba());
+    }
+
+    @Test void screenHoverFadesWhileHeldAndRetiresHiddenRowAnimations() throws Exception {
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,0);
+        var sibling = ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> p.row().sibling()).findFirst().orElseThrow().row();
+        pointerX=Math.round(sibling.x()+200); pointerY=720-Math.round(sibling.y()+sibling.height()/2);
+        updatePointer(1280,720,0);
+        assertEquals(0x26c7fff0,presentation(sibling.key()).backgroundRgba());
+        for (int i=0;i<80;i++) updatePointer(1280,720,1f/60);
+        assertEquals(sibling.key(),carousel().hoverKey());
+        assertEquals(0x0096ecf0,presentation(sibling.key()).backgroundRgba());
+        pointerX=0; pointerY=0;
+        processor.keyTyped('G'); updatePointer(1280,720,0);
+        var animations = (java.util.Map<?,?>)field("rowColours");
+        assertFalse(animations.isEmpty());
+        assertTrue(animations.keySet().stream().map(SongSelectCarousel.Row.class::cast)
+                .allMatch(row -> row.resident && row.entry.visible() && row.entry.setIndex() == 2));
+    }
+
     @Test void closedGroupPresentationKnowsWhetherItContainsTheSelection() throws Exception {
         var diff=new BeatmapDifficulty("Other","Other artist","Creator","Easy",0,"","",
                 DifficultySettings.defaults(),List.of(),List.of(),null,null);

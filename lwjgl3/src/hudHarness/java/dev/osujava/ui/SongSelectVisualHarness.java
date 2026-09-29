@@ -207,7 +207,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
                     for (String name : List.of("group", "reentry"))
                         scenes.add(new Scene(size[0],size[1],size[2],"lifecycle-" + name));
-            } else if (phase.equals("row-colour-contracts")) {
+            } else if (phase.equals("row-colour-contracts") || phase.equals("row-colour-animation")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
                     for (String mode : List.of("sprite", "procedural"))
@@ -667,7 +667,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
             if (scene.name.startsWith("row-colours-")) {
-                exerciseRowColours(screen, assets, layout, fb, name);
+                if (System.getProperty("osujava.songSelectPhase", "").equals("row-colour-animation"))
+                    exerciseRowColourAnimation(screen, assets, layout, fb, name);
+                else exerciseRowColours(screen, assets, layout, fb, name);
                 fb.end(); advanceScene(); return;
             }
             if (scene.name.startsWith("lifecycle-")) {
@@ -1082,6 +1084,58 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         held.remove(Input.Keys.ENTER); input.keyUp(Input.Keys.ENTER);
     }
 
+    private void exerciseRowColourAnimation(SongSelectScreen screen, SongSelectSkinAssets assets,
+            UiLayout layout, FrameBuffer fb, String name) {
+        String[] labels = {"State 300ms", "Hover 1000ms", "Focus 50ms", "Blocked hover", "Flash interrupted by focus"};
+        int[] times = {0,25,50,150,300,500,1000,1001};
+        int[][] expected = {
+                {0xffffffdc,0x26c7fff0,0x0096ecf0,0xffffffdc,0x26c7fff0},
+                {0xe9f6fddd,0x25c5fef0,0x00b4f5f0,0xe9f6fddd,0x25c5fef0},
+                {0xd4edfbdf,0x24c4fef0,0x00d2fff0,0xd4edfbdf,0x24c4fef0},
+                {0x7fcaf5e6,0x20bffcf0,0x00d2fff0,0x7fcaf5e6,0x24c4fef0},
+                {0x0096ecf0,0x1ab8f9f0,0x00d2fff0,0x0096ecf0,0x00d2fff0},
+                {0x0096ecf0,0x13aef5f0,0x00d2fff0,0x0096ecf0,0x00d2fff0},
+                {0x0096ecf0,0x0096ecf0,0x00d2fff0,0x0096ecf0,0x00d2fff0},
+                {0x0096ecf0,0x0096ecf0,0x00d2fff0,0x0096ecf0,0x00d2fff0}
+        };
+        var animations = new SongSelectRowColourAnimation[labels.length];
+        for (int i=0;i<animations.length;i++) {
+            animations[i]=new SongSelectRowColourAnimation();
+            animations[i].update(i==0 || i==3 ? 4 : 3,i==0 || i==3 ? 0xffffffdc : 0x0096ecf0,false,false,0,0);
+        }
+        for (int stage=0;stage<times.length;stage++) {
+            var presentations = new ArrayList<SongSelectRowRenderer.Presentation>();
+            for (int i=0;i<labels.length;i++) {
+                animations[i].update(3,0x0096ecf0,i==2 || i==4 && times[stage]>=150,i==1 || i==3 || i==4,1000+times[stage],0);
+                if (animations[i].rgba()!=expected[stage][i]) throw new AssertionError("Animation RGBA: " + name + " " + labels[i] + " at " + times[stage]);
+                var row = new SongSelectRow(i,0,null,false,true,80,80+110*i,layout.width()-160,72,0,1);
+                var content = new SongSelectRowPresentation.Content(labels[i],times[stage]+" ms","",null,
+                        SongSelectRowPresentation.Stars.of(OptionalDouble.empty()),-1);
+                presentations.add(new SongSelectRowRenderer.Presentation(row,content,false,null,null,0,
+                        SongSelectLayout.row(row,i,row.x(),row.y(),layout.width(),0,layout.height(),false,false),false,animations[i].rgba()));
+            }
+            Gdx.gl.glClearColor(0,0,0,1); Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+            ((SongSelectRowRenderer)screenField(screen,"rowRenderer")).draw(presentations,
+                    new SongSelectRowRenderer.Style(layout.width(),assets,(Texture)screenField(screen,"rowFill"),Color.BLACK,Color.WHITE,false),
+                    layout,0,layout.height());
+            var pixels = Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
+            try {
+                for (int i=0;i<labels.length;i++) {
+                    int pixel=pixels.getPixel(Math.round(700*fb.getWidth()/layout.width()),
+                            Math.round((80+110*i+36)*fb.getHeight()/layout.height()));
+                    for (int channel=0;channel<3;channel++) {
+                        int actual=pixel >>> (24-channel*8) & 255;
+                        double wanted=(expected[stage][i] >>> (24-channel*8) & 255)*(expected[stage][i] & 255)/255.0;
+                        if (Math.abs(actual-wanted)>2) throw new AssertionError("Animated colour pixel: " + name + " " + labels[i]
+                                + " at " + times[stage] + " channel=" + channel + " expected=" + wanted + " actual=" + actual);
+                    }
+                }
+            } finally { pixels.dispose(); }
+            transitionFrames++;
+            capture(fb,name+"-animation-"+times[stage]+"ms");
+        }
+    }
+
     private void exerciseRowColours(SongSelectScreen screen, SongSelectSkinAssets assets,
             UiLayout layout, FrameBuffer fb, String name) {
         String[] labels = {"Selected", "Sibling", "Played", "Unplayed", "Group closed", "Group contains selection", "Group open"};
@@ -1099,7 +1153,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 var content = new SongSelectRowPresentation.Content(labels[i],"Artist // Mapper","Difficulty",null,
                         SongSelectRowPresentation.Stars.of(OptionalDouble.empty()),-1);
                 presentations.add(new SongSelectRowRenderer.Presentation(row,content,i==2,null,null,0,
-                        SongSelectLayout.row(row,i,row.x(),row.y(),layout.width(),0,layout.height(),false,false),i==5));
+                        SongSelectLayout.row(row,i,row.x(),row.y(),layout.width(),0,layout.height(),false,false),i==5,
+                        Color.rgba8888(SongSelectRowColours.background(new Color(),row,i==2,i==5))));
             }
             Gdx.gl.glClearColor(0,0,0,1); Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
             ((SongSelectRowRenderer)screenField(screen,"rowRenderer")).draw(presentations,

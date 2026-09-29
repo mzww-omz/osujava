@@ -17,7 +17,7 @@ import java.util.List;
 final class SongSelectRowRenderer {
     record Presentation(SongSelectRow row, SongSelectRowPresentation.Content content, boolean played,
                         OsuGrade grade, Texture thumbnail, float thumbnailOpacity, SongSelectLayout.RowGeometry geometry,
-                        boolean groupContainsSelection) { }
+                        boolean groupContainsSelection, int backgroundRgba) { }
     record Style(float width, SongSelectSkinAssets skin, Texture fill, Color activeText,
                  Color inactiveText, boolean thumbnails) { }
     private final SpriteBatch batch;
@@ -60,7 +60,9 @@ final class SongSelectRowRenderer {
     private void drawRow(Presentation item, float scaleX, float scaleY) {
         var row = item.row();
         if (row.revealAmount() < .01f) return;
-        Color color = SongSelectRowColours.background(rowTint, row, item.played(), item.groupContainsSelection());
+        Color.rgba8888ToColor(rowTint, item.backgroundRgba());
+        Color color = rowTint;
+        color.a *= row.revealAmount();
         float x = row.x(), y = row.y();
         if (has(Image.MENU_BUTTON_BACKGROUND)) {
             view.beginText();

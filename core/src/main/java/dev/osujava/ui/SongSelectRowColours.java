@@ -7,20 +7,26 @@ final class SongSelectRowColours {
     private SongSelectRowColours() { }
 
     static Color background(Color out, SongSelectRow row, boolean played, boolean groupContainsSelection) {
-        if (row.group()) {
-            if (row.groupExpanded()) rgba(out, 163, 240, 44, 255);
+        base(out, row.group(), row.groupExpanded(), row.selected(), row.sibling(), played, groupContainsSelection);
+        // Fixed target preview for diagnostics. Live drawing receives the animated RGBA from Screen.
+        focusTint(out, row.focusAmount());
+        hoverTint(out, row.hoverAmount());
+        out.a *= row.revealAmount();
+        return out;
+    }
+
+    static Color base(Color out, boolean group, boolean expanded, boolean selected, boolean sibling,
+                      boolean played, boolean groupContainsSelection) {
+        if (group) {
+            if (expanded) rgba(out, 163, 240, 44, 255);
             else if (groupContainsSelection) rgba(out, 35, 90, 193, 255);
             else rgba(out, 35, 50, 143, 255);
-        } else switch (SongSelectRowPresentation.tone(row.selected(), row.sibling(), played)) {
+        } else switch (SongSelectRowPresentation.tone(selected, sibling, played)) {
             case SELECTED -> rgba(out, 255, 255, 255, 220);
             case SIBLING -> rgba(out, 0, 150, 236, 240);
             case PLAYED -> rgba(out, 233, 104, 0, 240);
             case UNPLAYED -> rgba(out, 235, 73, 153, 240);
         }
-        // Focus changes the stored target first; hover derives its flash colour from that target.
-        focusTint(out, row.focusAmount());
-        hoverTint(out, row.hoverAmount());
-        out.a *= row.revealAmount();
         return out;
     }
 
