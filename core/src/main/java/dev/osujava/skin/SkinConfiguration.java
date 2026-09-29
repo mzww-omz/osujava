@@ -80,9 +80,14 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
     }
 
     public static SkinConfiguration read(Path directory) throws IOException {
-        if (directory == null || !Files.isRegularFile(directory.resolve("skin.ini"))) return defaults();
-        try (var reader = Files.newBufferedReader(directory.resolve("skin.ini"))) {
-            return parse(reader);
+        Path ini = SkinFiles.find(directory, "skin.ini");
+        if (ini == null) return defaults();
+        try (var reader = Files.newBufferedReader(ini)) {
+            var parsed = parse(reader);
+            if (directory.getFileName() != null && directory.getFileName().toString().equalsIgnoreCase("User"))
+                return new SkinConfiguration(parsed.fonts, parsed.hasIni, parsed.hitCircleOverlayAboveNumber,
+                        LATEST_VERSION, parsed.colours, parsed.cursor, parsed.spinner, parsed.songSelect, parsed.animationFramerate);
+            return parsed;
         }
     }
 

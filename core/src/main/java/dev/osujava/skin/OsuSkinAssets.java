@@ -52,6 +52,7 @@ public final class OsuSkinAssets implements Disposable {
     }
     private final EnumMap<Result, JudgementAsset> judgements = new EnumMap<>(Result.class);
     private SkinConfiguration configuration = SkinConfiguration.defaults();
+    private final SkinConfiguration.Fonts bundledFonts;
 
     public OsuSkinAssets(Path directory) {
         this(directory, (Path) null);
@@ -71,6 +72,7 @@ public final class OsuSkinAssets implements Disposable {
     }
 
     OsuSkinAssets(Function<SkinAssetResolver.AssetFile, Texture> textureLoader, SkinAssetResolver resolver) {
+        bundledFonts = resolver.bundledFonts();
         for (Image image : Image.values()) {
             diagnostics.put(image, new AssetDiagnostic(LoadStatus.MISSING, null, false));
             Image sliderBase = sliderCircleBase(image);
@@ -234,7 +236,11 @@ public final class OsuSkinAssets implements Disposable {
                 get(Image.SPINNER_BACKGROUND) != null, get(Image.SPINNER_TOP) != null);
     }
     public double legacyVersion() { return configuration.legacyVersion(); }
-    public float hitCircleOverlap() { return configuration.fonts().hitCircleOverlap(); }
+    public float hitCircleOverlap() {
+        return !configuration.hasIni() && !hitCircleDigits.isEmpty()
+                && hitCircleDigits.stream().allMatch(t -> t.file().classpathResource() != null)
+                ? bundledFonts.hitCircleOverlap() : configuration.fonts().hitCircleOverlap();
+    }
 
     public SkinTexture hudGlyph(HudFont font, char character) {
         return hudFonts.getOrDefault(font, Map.of()).get(character);
@@ -245,7 +251,11 @@ public final class OsuSkinAssets implements Disposable {
         return true;
     }
     public float hudOverlap(HudFont font) {
-        return font == HudFont.SCORE ? configuration.fonts().scoreOverlap() : configuration.fonts().comboOverlap();
+        var glyphs = hudFonts.getOrDefault(font, Map.of());
+        var metrics = !configuration.hasIni() && !glyphs.isEmpty()
+                && glyphs.values().stream().allMatch(t -> t.file().classpathResource() != null)
+                ? bundledFonts : configuration.fonts();
+        return font == HudFont.SCORE ? metrics.scoreOverlap() : metrics.comboOverlap();
     }
 
     public JudgementAsset judgement(Result result) { return judgements.get(result); }

@@ -126,7 +126,7 @@ class BundledSkinTest {
         assertEquals(tail, resolver.resolve("sliderendcircle").orElseThrow().path());
         assertTrue(resolver.resolve("approachcircle").orElseThrow().fallback());
         assertNotNull(resolver.resolve("approachcircle").orElseThrow().classpathResource());
-        assertEquals(40, resolver.readConfiguration().fonts().hitCircleOverlap());
+        assertEquals(-2, resolver.readConfiguration().fonts().hitCircleOverlap());
     }
 
     @Test void optionalLocalFallbackRemainsBetweenCustomAndBundle() throws Exception {
@@ -166,6 +166,7 @@ class BundledSkinTest {
         assertNotNull(assets.get(OsuSkinAssets.Image.HIT_CIRCLE));
         assertTrue(assets.diagnostic(OsuSkinAssets.Image.HIT_CIRCLE).fallback());
         assertTrue(assets.hasHitCircleDigits());
+        assertEquals(40, assets.hitCircleOverlap()); // Glyph metrics stay with the complete bundled font.
         assertTrue(assets.hasHudText(OsuSkinAssets.HudFont.SCORE, "0123456789.,%"));
         assertTrue(assets.hasHudText(OsuSkinAssets.HudFont.COMBO, "12x"));
         assertNotNull(assets.judgement(dev.osujava.ruleset.osu.render.LegacyJudgementAnimation.Result.GREAT));
@@ -193,7 +194,7 @@ class BundledSkinTest {
 
     @Test void unreadableCustomIniAndAbsentBundledProviderFailSafely() throws Exception {
         Files.write(custom.resolve("skin.ini"), new byte[]{(byte) 0xff});
-        assertEquals(40, SkinAssetResolver.withBundledDefault(custom, null).readConfiguration().fonts().hitCircleOverlap());
+        assertEquals(-2, SkinAssetResolver.withBundledDefault(custom, null).readConfiguration().fonts().hitCircleOverlap());
         var absent = new SkinAssetResolver(null, null, "skins/nonexistent");
         assertFalse(absent.readConfiguration().hasIni());
         assertTrue(absent.resolve("hitcircle").isEmpty());

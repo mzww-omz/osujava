@@ -11,6 +11,21 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SkinAssetResolverTest {
     @TempDir Path directory;
+    @Test void windowsNamesResolveIncludingNestedFontsSoundsAndExactNameCollisions() throws Exception {
+        Path cursor = Files.createFile(directory.resolve("Cursor.PNG"));
+        var resolver = new SkinAssetResolver(directory);
+        assertEquals(cursor, resolver.resolve("cursor").orElseThrow().path());
+        Path exact = Files.createFile(directory.resolve("cursor.png"));
+        assertEquals(exact, resolver.resolve("cursor").orElseThrow().path());
+        Path upper = Files.createFile(directory.resolve("CURSOR.PNG"));
+        Files.delete(exact);
+        assertEquals(upper, resolver.resolve("cursor").orElseThrow().path());
+        Path font = Files.createDirectories(directory.resolve("Assets/Numbers"));
+        Path five = Files.createFile(font.resolve("Score-5@2X.PNG"));
+        assertEquals(five, resolver.resolveHudGlyph("assets/numbers/score", '5').orElseThrow().path());
+        Path sound = Files.createFile(directory.resolve("MenuHit.WAV"));
+        assertEquals(sound, resolver.resolveNamedSound("menuhit", f -> true).orElseThrow().path());
+    }
 
     @Test void nestedFontPrefixesKeepProviderPriorityAndDensity() throws IOException {
         Path fallback = Files.createDirectories(directory.resolve("fallback/Assets/score")).getParent().getParent();

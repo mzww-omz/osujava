@@ -89,6 +89,7 @@ class JudgementAssetsTest {
     }
     @Test void explicitSliderEndMissAndVersionGatedTailHit() throws Exception {
         file("sliderendmiss"); file("sliderpoint10");
+        Files.writeString(dir.resolve("skin.ini"), "[General]\nVersion: 1\n");
         var old = new OsuSkinAssets(dir, f -> new TestTexture());
         assertEquals(Style.OLD, old.judgementStyle(Result.SLIDER_END_MISS));
         assertEquals(Style.SLIDER_POINT, old.judgementStyle(Result.SLIDER_TAIL_HIT));

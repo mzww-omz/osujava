@@ -55,15 +55,9 @@ public final class SkinAssetResolver {
         return bundledConfiguration();
     }
 
-    /** Existing gameplay policy retained until its font/judgement fallback migration is verified. */
+    /** Gameplay and menus share the selected configuration; image providers remain independent. */
     public SkinConfiguration readConfiguration() throws IOException {
-        for (Path source : new Path[]{directory, fallbackDirectory}) {
-            try {
-                SkinConfiguration config = SkinConfiguration.read(source);
-                if (config.hasIni()) return config;
-            } catch (IOException ignored) { }
-        }
-        return bundledConfiguration();
+        return readSelectedConfiguration();
     }
 
     private SkinConfiguration bundledConfiguration() {
@@ -76,6 +70,8 @@ public final class SkinAssetResolver {
         }
         return bundledConfiguration;
     }
+
+    SkinConfiguration.Fonts bundledFonts() { return bundledConfiguration().fonts(); }
 
     public Optional<AssetFile> resolve(String name) {
         return resolve(name, file -> true);
@@ -126,8 +122,8 @@ public final class SkinAssetResolver {
                     : Optional.of(new AssetFile(Path.of(resource), density, true, resource));
         }
         Path source = provider == Provider.CUSTOM ? directory : fallbackDirectory;
-        if (source == null || !Files.isRegularFile(source.resolve(name))) return Optional.empty();
-        return Optional.of(new AssetFile(source.resolve(name), density, provider != Provider.CUSTOM));
+        Path file = SkinFiles.find(source, name);
+        return file == null ? Optional.empty() : Optional.of(new AssetFile(file, density, provider != Provider.CUSTOM));
     }
 
     private static void validateName(String name) {
@@ -218,7 +214,7 @@ public final class SkinAssetResolver {
     }
 
     Optional<List<AssetFile>> resolveHitCircleDigits(SkinConfiguration configuration, Predicate<AssetFile> loadable) {
-        if (!configuration.hasIni()) return Optional.empty();
+        if (!configuration.hasIni() && bundledRoot == null) return Optional.empty();
         List<AssetFile> digits = new ArrayList<>(10);
         try {
             for (int digit = 0; digit < 10; digit++) {

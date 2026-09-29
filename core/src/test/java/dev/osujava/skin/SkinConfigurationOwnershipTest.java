@@ -8,6 +8,26 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SkinConfigurationOwnershipTest {
     @TempDir Path root;
+    @Test void menuAndGameplayShareDefaultsDespiteForeignImageProvider() throws Exception {
+        Path own = Files.createDirectory(root.resolve("own"));
+        Path fallback = Files.createDirectory(root.resolve("fallback"));
+        Files.writeString(fallback.resolve("skin.ini"), "[General]\nVersion: 1\nCursorExpand: 0\n[Fonts]\nScorePrefix: foreign");
+        var resolver = SkinAssetResolver.withBundledDefault(own, fallback);
+        assertEquals(resolver.readSelectedConfiguration(), resolver.readConfiguration());
+        assertEquals(2.7, resolver.readConfiguration().legacyVersion());
+        assertTrue(resolver.readConfiguration().cursor().expand());
+        assertEquals("score", resolver.readConfiguration().fonts().scorePrefix());
+        Files.write(own.resolve("skin.ini"), new byte[]{(byte) 0xff});
+        assertEquals(resolver.readSelectedConfiguration(), resolver.readConfiguration());
+    }
+    @Test void userVersionOverridePreservesOtherAuthoredSettings() throws Exception {
+        Path user = Files.createDirectory(root.resolve("User"));
+        Files.writeString(user.resolve("SKIN.INI"), "[General]\nVersion: 1\nCursorExpand: 0\n[Fonts]\nScorePrefix: custom");
+        var configuration = new SkinAssetResolver(user).readConfiguration();
+        assertEquals(SkinConfiguration.LATEST_VERSION, configuration.legacyVersion());
+        assertFalse(configuration.cursor().expand());
+        assertEquals("custom", configuration.fonts().scorePrefix());
+    }
     @Test void imageFallbackDoesNotSupplySelectedSkinsVersionOrColours() throws Exception {
         Path own = Files.createDirectory(root.resolve("own"));
         Path fallback = Files.createDirectory(root.resolve("fallback"));
