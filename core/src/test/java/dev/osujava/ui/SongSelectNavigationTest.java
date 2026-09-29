@@ -61,6 +61,22 @@ class SongSelectNavigationTest {
     }
     private void key(int key) { assertTrue(processor.keyDown(key)); processor.keyUp(key); }
 
+    @Test void closedGroupPresentationKnowsWhetherItContainsTheSelection() throws Exception {
+        var diff=new BeatmapDifficulty("Other","Other artist","Creator","Easy",0,"","",
+                DifficultySettings.defaults(),List.of(),List.of(),null,null);
+        library.add(new BeatmapSet("Other","Other","Other artist","Creator",null,null,List.of(diff),List.of()));
+        open("Beta",0); screen.resize(1280,720);
+        screen.browserMode(SongBrowserModel.Sort.TITLE,SongBrowserModel.Group.ARTIST);
+        shift=true; key(Input.Keys.ENTER); shift=false;
+        settle();
+        updatePointer(1280,720,0);
+        var groups=((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> p.row().group()).toList();
+        assertEquals(2,groups.size());
+        assertEquals(1,groups.stream().filter(SongSelectRowRenderer.Presentation::groupContainsSelection).count());
+        assertTrue(groups.stream().noneMatch(p -> p.row().groupExpanded()));
+    }
+
     @Test void supplementarySearchCommitsOnlyCompleteCodePointsAndHonoursLimit() throws Exception {
         open("Alpha", 0);
         char[] pair = "𠮷".toCharArray();

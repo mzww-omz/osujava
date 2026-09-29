@@ -16,7 +16,8 @@ import java.util.List;
 /** Draw-only row pass. Receives immutable presentation and resident textures, never a browser or Library. */
 final class SongSelectRowRenderer {
     record Presentation(SongSelectRow row, SongSelectRowPresentation.Content content, boolean played,
-                        OsuGrade grade, Texture thumbnail, float thumbnailOpacity, SongSelectLayout.RowGeometry geometry) { }
+                        OsuGrade grade, Texture thumbnail, float thumbnailOpacity, SongSelectLayout.RowGeometry geometry,
+                        boolean groupContainsSelection) { }
     record Style(float width, SongSelectSkinAssets skin, Texture fill, Color activeText,
                  Color inactiveText, boolean thumbnails) { }
     private final SpriteBatch batch;
@@ -24,16 +25,6 @@ final class SongSelectRowRenderer {
     private Style style;
     private final Color rowTint = new Color(), thumbnailTint = new Color();
     private final Color primaryTint = new Color(), secondaryTint = new Color(), detailTint = new Color(), starTint = new Color();
-    // 06000fb1 -> 04000857/0856; Group state colour selection in 060025e6.
-    private static final Color GROUP_CLOSED = new Color(35 / 255f, 50 / 255f, 143 / 255f, 1);
-    private static final Color GROUP_OPEN = new Color(163 / 255f, 240 / 255f, 44 / 255f, 1);
-    private static final Color OTHER = new Color(.58f, .30f, .49f, .90f);
-    private static final Color OTHER_HOVER = new Color(.73f, .38f, .59f, .96f);
-    private static final Color PLAYED = new Color(.79f, .46f, .23f, .92f);
-    private static final Color PLAYED_HOVER = new Color(.90f, .57f, .30f, .98f);
-    private static final Color SIBLING = new Color(.25f, .54f, .73f, .92f);
-    private static final Color SIBLING_HOVER = new Color(.34f, .66f, .84f, .98f);
-    private static final Color SELECTED = new Color(.96f, .95f, .98f, .98f);
     private static final Color THUMB_FALLBACK = new Color(.23f, .20f, .31f, 1f);
 
     SongSelectRowRenderer(SpriteBatch batch, UiView view) { this.batch = batch; this.view = view; }
@@ -69,15 +60,7 @@ final class SongSelectRowRenderer {
     private void drawRow(Presentation item, float scaleX, float scaleY) {
         var row = item.row();
         if (row.revealAmount() < .01f) return;
-        boolean played = item.played();
-        var tone = SongSelectRowPresentation.tone(row.selected(), row.sibling(), played);
-        Color color = rowTint.set(switch (tone) {
-            case SELECTED -> SELECTED; case SIBLING -> SIBLING; case PLAYED -> PLAYED; case UNPLAYED -> OTHER;
-        });
-        if (row.group()) color.set(row.groupExpanded() ? GROUP_OPEN : GROUP_CLOSED);
-        else if (!row.selected()) color.lerp(row.sibling() ? SIBLING_HOVER : played ? PLAYED_HOVER : OTHER_HOVER,row.hoverAmount());
-        focusTint(color, row.focusAmount());
-        color.a *= row.revealAmount();
+        Color color = SongSelectRowColours.background(rowTint, row, item.played(), item.groupContainsSelection());
         float x = row.x(), y = row.y();
         if (has(Image.MENU_BUTTON_BACKGROUND)) {
             view.beginText();
@@ -132,13 +115,6 @@ final class SongSelectRowRenderer {
         view.endText();
     }
 
-    /** 06001965: brighten RGB by 40%, saturate each byte, and leave alpha unchanged. */
-    static void focusTint(Color color, float amount) {
-        color.r += (Math.min(255, (int) (color.r * 255 * 1.4f)) / 255f - color.r) * amount;
-        color.g += (Math.min(255, (int) (color.g * 255 * 1.4f)) / 255f - color.g) * amount;
-        color.b += (Math.min(255, (int) (color.b * 255 * 1.4f)) / 255f - color.b) * amount;
-    }
-
     static boolean fallbackWash(boolean selected, boolean bundled, Color text) {
         return selected && bundled && .2126f * text.r + .7152f * text.g + .0722f * text.b < .35f;
     }
@@ -147,12 +123,9 @@ final class SongSelectRowRenderer {
         var row = item.row();
         var content = item.content();
         Color base = row.selected() ? style.activeText() : style.inactiveText() != null ? style.inactiveText() : UiTheme.TEXT;
-        Color primary = primaryTint.set(base);
-        primary.a *= row.revealAmount() * (row.sibling() ? .24f : 1);
-        Color secondary = secondaryTint.set(base);
-        secondary.a *= row.revealAmount() * (row.sibling() ? .20f : .80f);
-        Color detail = detailTint.set(base);
-        detail.a *= row.revealAmount() * (row.difficultyIndex() >= 0 ? 1 : .72f);
+        Color primary = SongSelectRowColours.label(primaryTint, base, row, true);
+        Color secondary = SongSelectRowColours.label(secondaryTint, base, row, true);
+        Color detail = SongSelectRowColours.label(detailTint, base, row, false);
         float x = row.x() + geometry.textX(), width = geometry.textWidth();
         boolean child = row.difficultyIndex() >= 0;
         float badgeScale = row.height() / 72;

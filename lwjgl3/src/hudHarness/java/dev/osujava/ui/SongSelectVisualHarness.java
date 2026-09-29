@@ -69,6 +69,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 }
             }
             Files.createDirectories(output.resolve("fixtures/empty"));
+            Path rowColours = Files.createDirectories(output.resolve("fixtures/row-colours-sprite"));
+            Files.createDirectories(output.resolve("fixtures/row-colours-procedural"));
+            var whiteRow = new Pixmap(800,64,Pixmap.Format.RGBA8888);
+            whiteRow.setColor(Color.WHITE); whiteRow.fill();
+            PixmapIO.writePNG(Gdx.files.absolute(rowColours.resolve("menu-button-background.png").toString()),whiteRow);
+            whiteRow.dispose();
             Path starOnly = Files.createDirectories(output.resolve("fixtures/star-high"));
             Files.writeString(starOnly.resolve("skin.ini"), "[General]\nVersion: 2.2\n");
             starPng(starOnly.resolve("star@2x.png"));
@@ -201,6 +207,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
                     for (String name : List.of("group", "reentry"))
                         scenes.add(new Scene(size[0],size[1],size[2],"lifecycle-" + name));
+            } else if (phase.equals("row-colour-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String mode : List.of("sprite", "procedural"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"row-colours-" + mode));
             } else if (phase.equals("wheel-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
@@ -655,6 +666,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseGroupCards(screen, scene.name, pointer, clicked, pressed, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if (scene.name.startsWith("row-colours-")) {
+                exerciseRowColours(screen, assets, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
             if (scene.name.startsWith("lifecycle-")) {
                 exerciseLifecycle(screen, scene, processor[0], pointer, clicked, pressed, layout, fb, name);
                 fb.end(); advanceScene(); return;
@@ -1065,6 +1080,47 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         }
         capture(fb, name + "-enter-held");
         held.remove(Input.Keys.ENTER); input.keyUp(Input.Keys.ENTER);
+    }
+
+    private void exerciseRowColours(SongSelectScreen screen, SongSelectSkinAssets assets,
+            UiLayout layout, FrameBuffer fb, String name) {
+        String[] labels = {"Selected", "Sibling", "Played", "Unplayed", "Group closed", "Group contains selection", "Group open"};
+        int[][][] palette = {
+                {{255,255,255,220},{0,150,236,240},{233,104,0,240},{235,73,153,240},{35,50,143,255},{35,90,193,255},{163,240,44,255}},
+                {{255,255,255,220},{38,199,255,240},{255,150,38,240},{255,116,202,240},{75,92,191,255},{75,135,245,255},{213,255,85,255}},
+                {{255,255,255,220},{0,210,255,240},{255,145,0,240},{255,102,214,240},{49,70,200,255},{49,126,255,255},{228,255,61,255}}
+        };
+        for (int stage=0;stage<3;stage++) {
+            var presentations = new ArrayList<SongSelectRowRenderer.Presentation>();
+            for (int i=0;i<labels.length;i++) {
+                boolean group=i>=4;
+                var row = new SongSelectRow(group ? -1 : i,group ? -2 : 0,group ? labels[i] : null,i==0,i==1,
+                        80,35+90*i,layout.width()-160,72,stage==1 ? 1 : 0,1,i,80,35+90*i,"colour-"+i,i==6,stage==2 ? 1 : 0);
+                var content = new SongSelectRowPresentation.Content(labels[i],"Artist // Mapper","Difficulty",null,
+                        SongSelectRowPresentation.Stars.of(OptionalDouble.empty()),-1);
+                presentations.add(new SongSelectRowRenderer.Presentation(row,content,i==2,null,null,0,
+                        SongSelectLayout.row(row,i,row.x(),row.y(),layout.width(),0,layout.height(),false,false),i==5));
+            }
+            Gdx.gl.glClearColor(0,0,0,1); Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+            ((SongSelectRowRenderer)screenField(screen,"rowRenderer")).draw(presentations,
+                    new SongSelectRowRenderer.Style(layout.width(),assets,(Texture)screenField(screen,"rowFill"),Color.BLACK,Color.WHITE,false),
+                    layout,0,layout.height());
+            var pixels = Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
+            try {
+                for (int i=0;i<labels.length;i++) {
+                    int pixel=pixels.getPixel(Math.round(700*fb.getWidth()/layout.width()),
+                            Math.round((35+90*i+36)*fb.getHeight()/layout.height()));
+                    for (int channel=0;channel<3;channel++) {
+                        int actual=(pixel >>> (24-channel*8)) & 255;
+                        double expected=palette[stage][i][channel]*palette[stage][i][3]/255.0;
+                        if (Math.abs(actual-expected)>2)
+                            throw new AssertionError("Row colour pixel: " + name + " " + labels[i] + " stage=" + stage
+                                    + " channel=" + channel + " expected=" + expected + " actual=" + actual);
+                    }
+                }
+            } finally { pixels.dispose(); }
+            capture(fb,name+"-"+new String[]{"base","hover-target","focus-target"}[stage]);
+        }
     }
 
     private void exerciseWheel(SongSelectScreen screen, Scene scene, InputProcessor input,

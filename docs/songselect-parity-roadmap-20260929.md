@@ -1,9 +1,12 @@
 # Song Select 1:1対応 — 残phase台帳
 
 2026-09-29。[全体再調査](songselect-parity-reinvestigation-20260929.md)と
-[Skin独立調査](skin-stable-independent-audit-20260929.md)を、phase 8bのwheel集約・通知対応までの実装を反映して整理したもの。
+[Skin独立調査](skin-stable-independent-audit-20260929.md)を、phase 9の行の色・文字alpha対応までの実装を反映して整理したもの。
 phase 7以降の番号はphase 6時点で付与した実装単位で、当初から確定していた工数・完了予定ではない。
 追加調査で依存や大きさが判明した場合は、根拠とともに分割する。
+
+**現在はphase 9を進める。** ユーザーの進行方針に従い、8bの未完了項目は後段へ繰り越す。
+8bを完了扱いにはしないが、そこに留まって追加調査を続けることをphase 9以降の前提にはしない。
 
 ## 完了した実装範囲
 
@@ -19,6 +22,7 @@ phase 7以降の番号はphase 6時点で付与した実装単位で、当初か
 - [phase 8bのmouse押下/解放部分](songselect-parity-phase8b-mouse-20260929.md): button snapshotの共通down/up、左右併用・交換、前回右stateによるcontext/play分岐、右行選択、候補とdragの寿命分離。Options dialogは未実装で既存の案内へ接続。8b全体は継続中。
 - [phase 8bの再クリック部分](songselect-parity-phase8b-activation-20260929.md): Set展開後の独自240ms play guardを除去。Song Select内の250整数counter、左右/中buttonの通知差、物理down時の距離基準更新を実装。画面/focus境界等は継続中。
 - [phase 8bのwheel部分](songselect-parity-phase8b-wheel-20260929.md): 更新間のwheel合計を方向1回分に集約し、保持key repeat・mouseより先に通知。通知時のpointer位置でvolume/score/carouselへrouting。初回key callbackとの順序、global polling/focus境界は継続中。
+- [phase 9の色・文字alpha部分](songselect-parity-phase9-colours-20260929.md): state別の背景RGBA、hover/focus目標色、title/bylineのalpha 50、選択を含む閉Groupの別色を対応。時間曲線・中断を含むanimationは残る。
 
 これは各phaseで閉じた静的契約とJava側検証の範囲を示す。実機を含む全画面の1:1一致が完了したという意味ではない。
 
@@ -26,8 +30,8 @@ phase 7以降の番号はphase 6時点で付与した実装単位で、当初か
 
 | Phase | 対象 | 主な作業と完了条件 |
 | --- | --- | --- |
-| **8b（継続中）** | 入力判定・dispatcherの残り | native background spriteのhitbox/丸め/clip・depthとhover候補の優先・alpha条件、初回key callbackとwheelの順序・同時key snapshot、global polling/画面/focus境界での入力状態継承・mouse代替等。保持repeat、左右併用・右行context要求、画面内のdouble-click分類、wheel集約と保持repeat/mouseより先の通知は実装済み。独自play guardは除去済み。初回keyと修飾キー/overlayの同時更新順は未完了。Options等のdialog実機能はphase 13、検索編集repeat/IMEはphase 10と照合する。8aのpointer契約も実装済み。Song Selectのdrag-out先は空callbackと確認済み。同一入力列のfocus/selection/play requestと時刻を比較する。 |
-| **9** | 行の状態別描画・animation | 状態0〜4のtint/alpha、foregroundの生成・破棄・継承、星のscale/cropと500ms・index遅延、thumbnail/grade/mode/textのorigin/depth/blend/clip。各要素の台帳と中断を含む時間テストを揃える。10枠への変更済み部分は再実装しない。 |
+| **8b（後段へ繰越）** | 入力判定・dispatcherの残り | native background spriteのhitbox/丸め/clip・depthとhover候補の優先・alpha条件、初回key callbackとwheelの順序・同時key snapshot、global polling/画面/focus境界での入力状態継承・mouse代替等。保持repeat、左右併用・右行context要求、画面内のdouble-click分類、wheel集約と保持repeat/mouseより先の通知は実装済み。独自play guardは除去済み。初回keyと修飾キー/overlayの同時更新順は未完了。Options等のdialog実機能はphase 13、検索編集repeat/IMEはphase 10と照合する。8aのpointer契約も実装済み。Song Selectのdrag-out先は空callbackと確認済み。同一入力列のfocus/selection/play requestと時刻を比較する。 |
+| **9（進行中）** | 行の状態別描画・animation | 背景の基底色・hover/focus目標色と文字alphaは対応済み。300ms状態色遷移・1000ms hover flash・focusとの競合、foregroundの生成・破棄・継承、星のscale/cropと500ms・index遅延、thumbnail/grade/mode/textのorigin/depth/blend/clip。各要素の台帳と中断を含む時間テストを揃える。10枠への変更済み部分は再実装しない。 |
 | **10** | Browserデータ・検索・分類 | tags/source/Unicode/引用/比較検索、sort/groupの残条件、日付・mode・rank・collection/favourite、近い難易度を選ぶ規則、metadata/score。必要な情報をImport→Library永続化→index→行へ保持する。オンライン未取得値を捏造しない。評価互換はRuleset側の依存として追跡し、見た目の比較では同じ評価を固定する。 |
 | **11** | フォント・画面構成 | GDI系文字測定とJavaの字幅/baseline/省略/Unicode fallback、DPI・丸め・影。chrome予約/延長、search/tab/metadata/score/Mode/Mods/Options/Back/Cookie/scrollbarのdepth・clip・hitを揃える。診断UIと通常画面を区別し、フォント差を全面maskして合格にしない。backendの大変更は実測が必要性を示した場合だけ行う。 |
 | **12** | **Skin独立対応の残り** | HD eligibility、missingとdecode failure、許可mask/RawName等、部品ごとの探索、Back二層・frame/clock/hit、cursor/trailのproviderと設定owner、音のalias/provider/形式、Skin/HD切替時のcacheと破棄。自作画像・音のfixtureで選択ファイル/設定/draw/hit/frameを比較し、共有Skin変更はGameplay回帰も検証する。 |

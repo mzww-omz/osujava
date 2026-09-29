@@ -612,7 +612,9 @@ public final class SongSelectScreen extends ScreenAdapter {
         var result = new ArrayList<SongSelectRowRenderer.Presentation>(visibleRows.size());
         for (var row : visibleRows) {
             if (row.setIndex() < 0) {
-                result.add(new SongSelectRowRenderer.Presentation(row, null, false, null, null, 0, rowGeometry(row, false)));
+                var selected = browser.row(browser.selectedKey());
+                boolean containsSelection = selected != null && !selected.excluded && selected.parent == browser.row(row.key());
+                result.add(new SongSelectRowRenderer.Presentation(row, null, false, null, null, 0, rowGeometry(row, false), containsSelection));
                 continue;
             }
             var set = sets.get(row.setIndex());
@@ -621,7 +623,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             var best = diff == null ? null : scoreSnapshot.best(set, diff);
             boolean played = diff == null ? scoreSnapshot.played(set) : best != null;
             result.add(new SongSelectRowRenderer.Presentation(row, content, played, best == null ? null : best.grade(),
-                    showThumbnails() ? thumbnails.resident(content.thumbnail()) : null, thumbnails.opacity(content.thumbnail()), rowGeometry(row, best != null)));
+                    showThumbnails() ? thumbnails.resident(content.thumbnail()) : null, thumbnails.opacity(content.thumbnail()), rowGeometry(row, best != null), false));
         }
         rowPresentations = List.copyOf(result);
     }
