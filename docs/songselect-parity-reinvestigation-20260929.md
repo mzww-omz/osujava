@@ -1,5 +1,8 @@
 # Song Select 1:1再現のための再調査（2026-09-29）
 
+Skinは追加依頼により[独立調査](skin-stable-independent-audit-20260929.md)へ分離した。
+provider、ini、anchor、cursor family等の詳細とSkin改修順はそちらを参照。
+
 ## 結論と今回の範囲
 
 目標は b20230727.9 の見た目と挙動の1:1再現。ユーザーの追加指示により、必要な大規模改修を許容する。
