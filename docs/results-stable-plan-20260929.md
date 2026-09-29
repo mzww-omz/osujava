@@ -7,6 +7,9 @@
 現行ResultsScreenの座標変更だけでは足りない。6判定、Perfect、HP、誤差統計、Mod、replay capabilityを受け取れるデータと、演出・入力の状態が必要。
 一方、アプリ全体のUI frameworkやImportを作り直す根拠はない。結果画面に限定した部品を段階的に追加する。
 
+追加監査に基づく[不足データ・機能の実装計画](results-missing-data-plan-20260929.md)で、生成元・保存形式・依存順・テストをP0–P11に分解した。
+本書の段階1はsnapshot追加だけでは完了しない。break保持、時刻付き入力、ScoreV1、slider / spinner判定、combo set、HP / failまでが実プレイ一致の前提になる。
+
 ## 段階0: 観測条件と未確定分岐を閉じる
 
 実装前の最優先。静的解析は座標引数・統計式・分岐を明らかにしたが、最終画素・音・イベント順を観測できていない。
@@ -46,7 +49,11 @@ RulesetがGeki / Katu、slider全体判定、combo、Perfect、passを決める�
 Rendererはsnapshotを描くだけにし、判定数からHPやURを捏造しない。
 既存`ScoreTracker`のscore計算とslider countにはstableとの差があるため、**表示fixtureの一致と実プレイの結果値の一致を別に検証**する。
 
-`LocalScoreStore`はschema versionと旧レコードの読込互換を備えて拡張する。未知の値は利用不可として扱い、grade・日時等の既存情報は保持する。
+詳細計画のP1–P7で生成元を整え、P8で終了理由とsnapshotを一度だけ確定する。
+音源EOF・全object判定済み・pass・abortは区別する。現在の`clock.finished()`→`finish()`による強制MISS確定を通常の完了判定として流用しない。
+
+`LocalScoreStore`は詳細計画P9のschema 2と旧レコードの読込互換を備えて拡張する。未知の値は利用不可として扱い、既存の値とgrade算出の根拠・日時を保持する。
+旧方式のscoreをScoreV1として再計算せず、譜面内容hash・計算方式・採取できた情報を識別する。
 保存は今と同じくGameplay終了処理で一度だけ。保存結果を開く・Retry・画面を再生成することで重複保存しない。
 Debug Autoは通常Input API経由を維持し、ローカルランキングへの保存除外も維持する。
 
@@ -84,12 +91,13 @@ Enter / Spaceの画面handlerとglobal shortcutの関係を観測で確定し、
 
 HP graphは収集されたHP列から作り、thinning、境界色、累積長による4000msの描画を再現する。
 URは負側/非負側平均、母標準偏差、譜面時刻基準を守る。graphの画像・線・tooltip hitboxを分ける。
-統計なしの保存結果はURを隠し、replayによって採取できた場合だけ表示する。
+URの表示は統計の有無とentry contextの両方で判断する。単なる保存結果閲覧で表示せず、直後またはreplayによって採取できた場合の条件を再現する。
 
 Song Selectのlocal score行から、同じ結果画面へ「保存結果閲覧」のcontextで入る経路を追加する。
 元の選択譜面・browser状態へ戻せるようにし、保存済み結果の表示で新しいプレイを保存しない。
 Replayを表示するにはローカル記録・読込・通常Input APIによる再生の実装が必要。
-これは独立した実装単位にし、未実装のボタンを成功したように振る舞わせない。`.osr`対応を追加する場合は別の明示的なImport境界に置く。
+詳細計画P10で、入力記録→決定的再生→`.osr`読込・書出しを別単位にする。F2 / Save Replayを含む一致には書出しの検証も必要。
+未実装のボタンを成功したように振る舞わせず、圧縮replayの解析は明示的なImport境界に置く。
 
 ローカル拡張領域は観測されたguest名 / local ranking / replay保存等の条件で構成する。
 online情報・通信を要求する操作は実装しない。オフライン表示にない独自ボタンを追加して1:1と呼ばない。
@@ -114,12 +122,13 @@ online情報・通信を要求する操作は実装しない。オフライン�
 各単位を専用worktreeで実装・diff確認・テスト・commitする。mainへのmergeはこの調査に含めない。
 
 1. 観測manifest・比較fixture・確定仕様の追記。
-2. 結果snapshotと不足統計。必要なRuleset修正は機能ごとに分割し、回帰テストを付ける。
+2. 結果snapshotの契約と、詳細計画P1–P8の生成元。Ruleset・clock・統計は機能ごとに分割し、回帰テストを付ける。
 3. 結果skin解決と静止Renderer。
 4. 時刻駆動の演出・skip・button入力。
 5. HP graph・tooltip統計。
-6. 保存結果閲覧・ローカルreplay機能・拡張領域をそれぞれ独立commit。
+6. 詳細計画P9–P10の保存互換・結果閲覧・ローカルreplay・osr・拡張領域をそれぞれ独立commit。
 7. 同条件stable比較で見つかった差の小さい修正。
 
 各実装報告には、変更内容、根拠、テスト/build、未解決差、commit SHA / messageを残す。
 現時点の最大の前提不足は**指定buildの結果画面を実行観測できる環境**と、**現行Gameplayにまだない結果統計**である。
+最初の到達点はNoModの結果一致。Modを含む実プレイは詳細計画P11の機能群ごとに広げ、未対応条件を残したまま全条件の1:1達成とはしない。

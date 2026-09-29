@@ -2,7 +2,7 @@
 
 調査日: 2026-09-29。対象はローカルにある指定build。**今回は読み取り専用の静的リバースエンジニアリングと公開資料の照合を行った。stable実機の結果画面に到達した、または1:1一致を検証した、という報告ではない。**
 
-製品コードは変更していない。調査後の[再現計画](results-stable-plan-20260929.md)を別に記録した。
+製品コードは変更していない。調査後の[再現計画](results-stable-plan-20260929.md)と、生成元まで追った[不足機能の実装計画](results-missing-data-plan-20260929.md)を別に記録した。
 
 ## 1. 対象・方法・制約
 
@@ -88,6 +88,7 @@ Geki / Katuはcombo set終端の判定variantであり、独立した精度判�
 
 `06001a26:0b34–0b99`は`04000a50`でPerfect表示を決める。accuracyやgradeから逆算していない。
 `06002648:002b–0049`では、集計側のcombo値`0400189e`と最大コンボを比較して同fieldを設定する。
+追加確認では式は`!(0400189e − maxCombo > 0)`。単純なaccuracy比較でも、IL上の等値比較でもない。
 公開osr仕様上も、Perfectはmiss・slider break・取り逃したslider終端がないことを表す。**100% accuracyと同値にしてはいけない。**
 `0400189e`の全更新経路・特殊譜面の挙動までは本調査で閉じていない。
 
@@ -199,6 +200,20 @@ easing ID 1/2の曲線、全時計の更新順、乱数seed、実フレーム上
 この違いは上下動の大きいHP列で見える。スクロールoffsetにも追従する。
 空列・1点・同一時刻・急落・101点以上を観測fixtureにする。1点/同一時刻を独自に描き足して同値と称しない。
 
+### 追加調査: HP列の採取と保存は別処理
+
+`06002202:0013–001b`は判定集計`0600264d`を呼んだ後、引数のbitmask `520095494`とのANDが正、かつ分母field `04001126`が正の場合にHP列へ追加する。
+同`:0045–008a`では時刻field `040014b1`と、`min(1, 060027dcの戻り値 / 04001126)`をSingleの点へ変換して追加する。
+`060027dc`はfield `0400197b`のgetter。maskの各判定への対応、呼出元の全条件、HP生成元・分母の設定は未確定。固定周期で毎frame採取する根拠にはしない。
+
+`06001300`は保存用文字列のcacheがあれば返し、なければHP列を走査する。
+`:004a–006a`は**直前に保存した点から時刻差が2000を超える点、先頭、末尾**を選び、`:007e–00b4`はX / Yを小数第2位へ`Math.Round`してformatへ渡す。
+文字列format自体は復号していない。時刻・HPのpair形式との照合根拠は公開osr仕様。
+`:00cf–00e8`では元の列をClearしてnullにし、文字列をcacheする。この副作用までJavaへ移植する必要はなく、immutable snapshotと保存用変換を分ける設計根拠になる。
+
+**未観測:** 直後の画面を作る前後のどの経路で文字列化するか、保存結果閲覧時の再構築順序。
+結果描画の100点間引きと、この保存用の点選択を同じ処理として実装しない。
+
 ### 統計式
 
 `06001a27`はnull/空列ならnull、それ以外は次の7値を返す。
@@ -257,6 +272,9 @@ stableでは速度modを含む譜面時刻基準であり、近年のlazerの実
 | [SongSelectScreen](../core/src/main/java/dev/osujava/ui/SongSelectScreen.java) | local score行は選択・highlightであり、保存スコアの結果画面を開く動線は未実装 |
 | [UiLayout](../core/src/main/java/dev/osujava/ui/theme/UiLayout.java) | 720高と最小横幅基準。stableの480高・右端anchorへ変換が必要。Song Selectまで変更する理由はない |
 
+追加監査で、break / AudioLeadInを保持しないparser、音源EOFに依存する終了、時刻を持たないInput API、通常Modの未実装も確認した。
+HP / passだけでなくScoreV1・replayにも影響する。ファイル別の根拠と実装単位は[不足一覧](results-missing-data-plan-20260929.md#1-追加監査で確認した不足)を参照。
+
 **設計判断:** 結果画面の独立実装と、結果に渡すデータの拡充を分ける。見た目が一致するfixture表示と、実プレイのスコア値が一致することも別の合格条件にする。
 完全ローカル、通常Input APIを使うDebug Auto、Import / Gameplay / Ruleset / Renderer / GameClockの分離を維持する。
 
@@ -266,7 +284,7 @@ stableでは速度modを含む譜面時刻基準であり、近年のlazerの実
 - 最終画素: font・spacing・桁数・小数点のlocale、拡大縮小の丸め、clip、SD/HD、背景、video / storyboard、cursor、加算合成。
 - exact format文字列や音名は暗号化されているため未復元。公開資料と実機で埋める。復号実行や保護回避で補わない。
 - generic easing、乱数sequence、全画面click dispatch、hover、wheel、キーrepeat、ボタン重なりの優先順位。
-- Perfectの集計値の全更新元、Geki / Katu加算の全経路、HP採取、UR採取対象、spinner統計単位。
+- Perfectの集計値の全更新元、Geki / Katu加算の全経路、HP採取maskと生成アルゴリズム、UR採取対象、spinner統計単位。
 - 保存結果の閲覧flag、replay未所持 / ローカル所持 / Auto再生、offline guest入力、拡張パネルの全状態分岐。
 - 公式built-in assetを抽出しない条件では、Javaに現在同梱された別skinとの画素一致は保証できない。同じ利用許諾済みcustom skinで比較する。
 
