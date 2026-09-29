@@ -350,7 +350,14 @@ public final class SongSelectScreen extends ScreenAdapter {
             else {
                 searchActive = false;
                 int slot = scoreBounds(layout).slot(px, py);
-                if (slot >= 0) scores.select(scores.first() + slot);
+                if (slot >= 0) {
+                    var result = scores.open(scores.first() + slot);
+                    var set = selectedSet(); var difficulty = selectedDifficulty();
+                    if (result != null && set != null && difficulty != null) {
+                        outgoing.request(() -> game.navigate(new ResultsScreen(game, set, difficulty, result)));
+                        return false;
+                    }
+                }
                 else {
                     var row = hitRow(px, py);
                     input.pressRow(row == null ? null : row.key(), Gdx.input.getX(), Gdx.input.getY(), carousel);

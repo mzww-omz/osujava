@@ -158,3 +158,14 @@ tasks.register('songSelectVisualHarness', JavaExec) {
         systemProperty 'osujava.songSelectCompatibilitySkins', project.property('songSelectCompatibilitySkins')
     }
 }
+
+// Production ResultsScreen, synthetic local snapshots, isolated score/library directory.
+tasks.register('resultsVisualHarness', JavaExec) {
+    dependsOn hudHarnessClasses
+    classpath = (sourceSets.hudHarness.runtimeClasspath - files(project(':core').tasks.named('jar').get().archiveFile)) + project(':core').sourceSets.main.output
+    mainClass = 'dev.osujava.ui.ResultsVisualHarness'
+    def output = project.findProperty('resultsOutput') ?: '/tmp/osujava-results'
+    args output, project.findProperty('resultsWidth') ?: '1280', project.findProperty('resultsHeight') ?: '720'
+    systemProperty 'user.home', "${output}/home"
+    systemProperty 'java.awt.headless', 'true'
+}

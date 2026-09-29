@@ -44,5 +44,10 @@ public final class ScoreBrowserModel {
         int steps = (int) remainder; remainder -= steps; first += steps; clamp();
     }
     public void select(int index) { if (index >= 0 && index < rows.size()) selected = rows.get(index).score().playId(); }
+    public ResultsSnapshot open(int index) {
+        if (index < 0 || index >= rows.size()) return null;
+        select(index);
+        return ResultsSnapshot.saved(rows.get(index).score());
+    }
     private void clamp() { first = Math.max(0, Math.min(first, Math.max(0, rows.size() - capacity))); }
 }
