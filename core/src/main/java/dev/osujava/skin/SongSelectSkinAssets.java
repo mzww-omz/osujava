@@ -72,6 +72,7 @@ public final class SongSelectSkinAssets implements Disposable {
     private final EnumMap<Image, SkinTexture> textures = new EnumMap<>(Image.class);
     private final Set<Texture> owned = Collections.newSetFromMap(new IdentityHashMap<>());
     private Texture fallbackStar;
+    private final Set<Image> generatedModes = java.util.EnumSet.noneOf(Image.class);
     private List<SkinTexture> backFrames = List.of();
     private SongSelectTopCoverage topCoverage;
     private SkinTexture topLayoutFallback;
@@ -223,6 +224,7 @@ public final class SongSelectSkinAssets implements Disposable {
     }
     public SelectionAssetBounds selectionBounds(Image image) { return selectionBounds.get(image); }
     public String provider(Image image) {
+        if (generatedModes.contains(image)) return "generated";
         var asset = get(image);
         return asset == null ? "procedural" : asset.file().classpathResource() != null ? "bundled"
                 : asset.file().fallback() ? "fallback" : "current";
@@ -251,6 +253,25 @@ public final class SongSelectSkinAssets implements Disposable {
         return fallbackStar;
     }
 
+    public void prepareModeFallbacks() { prepareModeFallbacks(SongSelectModeGlyphs::texture); }
+
+    void prepareModeFallbacks(java.util.function.BiFunction<Integer, Integer, Texture> factory) {
+        for (int size = 0; size < 3; size++) for (int mode = 0; mode < 4; mode++) {
+            Image image = modeImage(mode, size);
+            var asset = get(image);
+            // A local author's transparent replacement is intentional. Only our bundled
+            // 1px placeholders and absent families receive a generated default.
+            if (asset != null && (asset.file().classpathResource() == null
+                    || asset.texture().getWidth() != 1 || asset.texture().getHeight() != 1)) continue;
+            Texture texture = factory.apply(mode, size == 0 ? 256 : size == 1 ? 32 : 128);
+            if (texture == null) continue;
+            textures.put(image, new SkinTexture(texture,
+                    new SkinAssetResolver.AssetFile(Path.of("generated", image.basename + ".png"), 1, true)));
+            owned.add(texture);
+            generatedModes.add(image);
+        }
+    }
+
     public void prepareStarFallback() {
         if (get(Image.STAR) != null || fallbackStar != null) return;
         Pixmap pixels = new Pixmap(40, 40, Pixmap.Format.RGBA8888);
@@ -273,6 +294,7 @@ public final class SongSelectSkinAssets implements Disposable {
         for (Texture texture : owned) texture.dispose();
         owned.clear();
         textures.clear();
+        generatedModes.clear();
         selectionBounds.clear();
         fallbackStar = null;
         backFrames = List.of();

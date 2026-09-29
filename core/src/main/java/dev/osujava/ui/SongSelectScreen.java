@@ -149,7 +149,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             }
         }
         if (skin != null) {
-            if (Gdx.gl != null) skin.prepareStarFallback();
+            if (Gdx.gl != null) { skin.prepareStarFallback(); skin.prepareModeFallbacks(); }
             if (Gdx.gl != null && skin.get(Image.CURSOR) != null) {
                 if (cursor == null) cursor = new SongSelectCursor(skin);
                 cursor.show();

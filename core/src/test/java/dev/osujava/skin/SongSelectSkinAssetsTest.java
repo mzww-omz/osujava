@@ -23,6 +23,43 @@ class SongSelectSkinAssetsTest {
         assets.dispose();
     }
 
+    @Test void missingModeFamiliesAndBundledPlaceholdersGetVisibleDefaultsButCustomTransparencyWins() throws Exception {
+        Files.createFile(directory.resolve("mode-osu-small.png"));
+        var assets = new SongSelectSkinAssets(SkinAssetResolver.withBundledDefault(directory, null),
+                file -> new TestTexture(1, 1));
+        var authored = assets.get(Image.MODE_OSU_SMALL);
+        var created = new ArrayList<TestTexture>();
+        java.util.function.BiFunction<Integer, Integer, Texture> factory = (mode, size) -> {
+            var texture = new TestTexture(size, size); created.add(texture); return texture;
+        };
+        assets.prepareModeFallbacks(factory); assets.prepareModeFallbacks(factory);
+        assertSame(authored, assets.get(Image.MODE_OSU_SMALL));
+        assertEquals("current", assets.provider(Image.MODE_OSU_SMALL));
+        assertEquals(11, created.size());
+        for (int mode = 0; mode < 4; mode++) for (int size = 0; size < 3; size++) {
+            var image = SongSelectSkinAssets.modeImage(mode, size);
+            assertNotNull(assets.get(image));
+            if (image != Image.MODE_OSU_SMALL) assertEquals("generated", assets.provider(image));
+        }
+        assets.dispose(); assets.dispose();
+        for (var texture : created) assertEquals(1, texture.disposals);
+    }
+
+    @Test void generatedModeSymbolsAreDistinctVisibleAndKeepTransparentMargins() {
+        var signatures = new HashSet<Integer>();
+        for (int mode = 0; mode < 4; mode++) {
+            int hash = 1, visible = 0;
+            for (int y = 0; y < 32; y++) for (int x = 0; x < 32; x++) {
+                int alpha = SongSelectModeGlyphs.pixel(mode, x, y, 32) & 255;
+                hash = 31 * hash + alpha;
+                if (alpha > 0) visible++;
+                if (x == 0 || y == 0 || x == 31 || y == 31) assertEquals(0, alpha);
+            }
+            assertTrue(visible > 80); assertTrue(visible < 800); signatures.add(hash);
+        }
+        assertEquals(4, signatures.size());
+    }
+
     @Test void animationCannotStarveLaterCursorAndInterfaceAssets() throws Exception {
         for (String name : new String[]{"menu-back-0", "menu-back-1", "cursor", "selection-mode"})
             Files.createFile(directory.resolve(name + ".png"));

@@ -37,7 +37,7 @@ final class SongSelectLayout {
                            float width, float bottom, float top, boolean thumbnails, boolean grade) {
         var body = new Rect(row.x(), row.y(), row.width(), row.height());
         var clip = body.intersect(new Rect(0, bottom, width, top - bottom));
-        var text = SongSelectRowPresentation.geometry(row.width(), row.height(), width - row.x(), thumbnails, grade ? 52 : 0);
+        var text = SongSelectRowPresentation.geometry(row.width(), row.height(), width - row.x(), thumbnails, (grade ? 52 : 32) * row.height() / 72);
         var thumbnail = new Rect(row.x() + text.thumbnailX(), row.y() + text.thumbnailY(), text.thumbnailWidth(), text.thumbnailHeight());
         return new RowGeometry(index, row.selected(), row.hoverAmount() > 0, targetX, targetY, body, thumbnail,
                 new Rect(row.x() + text.textX(), row.y() + text.titleY(), text.textWidth(), 16),

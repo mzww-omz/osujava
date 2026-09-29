@@ -18,6 +18,15 @@ class SongSelectRowPresentationTest {
         return new BeatmapSet("set", "夜空 中文 별빛 ✦", "Artist", "Set mapper", null, Path.of("fallback.png"),
                 java.util.stream.IntStream.range(0, count).mapToObj(i -> difficulty("Difficulty " + i)).toList(), List.of());
     }
+    @Test void modeFollowsEachDifficultyAndMixedSetsDoNotPretendToBeStandard() {
+        var diffs = java.util.stream.IntStream.range(0, 4).mapToObj(mode -> new BeatmapDifficulty(
+                "Title", "Artist", "Mapper", "Mode " + mode, mode, "", "", null, List.of(), List.of(), null, null)).toList();
+        var set = new BeatmapSet("mixed", "Title", "Artist", "Mapper", null, null, diffs, List.of());
+        assertEquals(-1, SongSelectRowPresentation.content(set, null, OptionalDouble.empty()).mode());
+        for (var diff : diffs)
+            assertEquals(diff.mode(), SongSelectRowPresentation.content(set, diff, OptionalDouble.empty()).mode());
+    }
+
     @Test void absentRatingNeverInventsDifficultyFromSettings() {
         var set = set(1);
         var content = SongSelectRowPresentation.content(set, set.difficulties().getFirst(), OptionalDouble.empty());
@@ -75,18 +84,18 @@ class SongSelectRowPresentationTest {
         assertEquals(set.backgroundPath(), child.thumbnail()); assertTrue(child.stars().present());
     }
     @ParameterizedTest @ValueSource(ints = {68, 76, 110})
-    void geometryKeepsThumbnailAndTextInsideVisibleRow(int height) {
+    void geometrySeparatesNativeThumbnailEnvelopeFromRowPitch(int height) {
         for (boolean modern : new boolean[]{false, true}) {
             var geometry = SongSelectRowPresentation.geometry(607, height, 410, modern);
-            assertTrue(geometry.thumbnailY() >= 0);
-            assertTrue(geometry.thumbnailY() + geometry.thumbnailHeight() <= height);
+            assertEquals(height / 2f - .25f * height / 48,
+                    geometry.thumbnailY() + geometry.thumbnailHeight() / 2, .0001);
             assertTrue(geometry.thumbnailX() + geometry.thumbnailWidth() < geometry.textX());
             assertTrue(geometry.textX() + geometry.textWidth() <= 410);
             if (modern) {
-                assertEquals(115f / 85, geometry.thumbnailWidth() / geometry.thumbnailHeight(), .0001f);
-                // Official skinning documentation specifies 115x85 with a 9 SD-unit left inset.
-                assertEquals(1f, geometry.thumbnailHeight() / height, .0001f);
-                assertEquals(9f / 85, geometry.thumbnailX() / height, .0001f);
+                assertEquals(4f / 3, geometry.thumbnailWidth() / geometry.thumbnailHeight(), .0001f);
+                assertEquals(85.5f / 76.8f, geometry.thumbnailHeight() / height, .0001f);
+                assertEquals(5.2f / 48, geometry.thumbnailX() / height, .0001f);
+                assertTrue(geometry.thumbnailY() < 0); // Full artwork extends beyond the row's input pitch.
             } else assertEquals(0, geometry.thumbnailWidth());
             assertTrue(geometry.detailY() > geometry.starsY());
             assertTrue(geometry.titleY() > geometry.bylineY()); assertTrue(geometry.bylineY() > geometry.detailY());

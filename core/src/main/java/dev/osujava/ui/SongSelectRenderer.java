@@ -97,7 +97,6 @@ final class SongSelectRenderer {
         float px = frame.pointerX, py = frame.pointerY;
         view.clear();
         view.background(frame.background, .72f * frame.backgroundFade);
-        SongSelectDecorations.draw(view,batch,frame.skin,layout,frame.seconds,frame.previewSeconds,frame.selectedDifficulty);
         view.beginShapes();
         view.box(0, 0, layout.width(), layout.height(), 0, DIM);
         renderedTopProcedural = SongSelectChrome.procedural(frame.skin, Image.TOP);
@@ -107,6 +106,7 @@ final class SongSelectRenderer {
 
         if (renderedBottomProcedural) view.box(0, 0, layout.width(), frame.bottom, 0, BOTTOM);
         view.endShapes();
+        SongSelectDecorations.draw(view,batch,frame.skin,layout,frame.seconds,frame.previewSeconds,frame.selectedDifficulty);
         // Artwork can exceed the content reservation; retain the authored canvas inside the viewport.
         Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
         try {

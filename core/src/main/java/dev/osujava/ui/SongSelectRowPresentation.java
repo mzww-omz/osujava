@@ -12,7 +12,7 @@ final class SongSelectRowPresentation {
     static Tone tone(boolean selected, boolean sibling, boolean played) {
         return selected ? Tone.SELECTED : sibling ? Tone.SIBLING : played ? Tone.PLAYED : Tone.UNPLAYED;
     }
-    record Content(String title, String byline, String detail, Path thumbnail, Stars stars) { }
+    record Content(String title, String byline, String detail, Path thumbnail, Stars stars, int mode) { }
     record Geometry(float thumbnailX, float thumbnailY, float thumbnailWidth, float thumbnailHeight,
                     float textX, float textWidth, float titleY, float bylineY, float detailY, float starsY) { }
 
@@ -22,21 +22,31 @@ final class SongSelectRowPresentation {
         return new Content(set.title(), set.artist() + " // "
                 + (child ? difficulty.creator() : set.creator()),
                 child ? difficulty.version() : "",
-                background, Stars.of(child ? rating : OptionalDouble.empty()));
+                background, Stars.of(child ? rating : OptionalDouble.empty()),
+                child ? difficulty.mode() : commonMode(set));
+    }
+
+    private static int commonMode(BeatmapSet set) {
+        if (set.difficulties().isEmpty()) return -1;
+        int mode = set.difficulties().getFirst().mode();
+        return set.difficulties().stream().allMatch(d -> d.mode() == mode) ? mode : -1;
     }
 
     static Geometry geometry(float width, float height, float visibleWidth, boolean thumbnails) {
         return geometry(width, height, visibleWidth, thumbnails, 0);
     }
 
-    /** A future grade slot sits between thumbnail and text, never at the trailing edge. */
+    /** The mode/grade column sits between thumbnail and text. */
     static Geometry geometry(float width, float height, float visibleWidth, boolean thumbnails, float gradeWidth) {
-        float inset = height * 9f / 85; // Official SD thumbnail inset, independent of texture pixels.
-        float thumbHeight = thumbnails ? height : 0;
-        float thumbWidth = thumbHeight * 115f / 85;
+        // Stable 0fbf sets thumbnail scale to 1.425 (half for the larger cache).
+        // 0fdc exposes the 114x85.5 envelope. Row pitch is independently 48/480.
+        float canvasScale = height / (48 * 1.6f);
+        float inset = 5.2f * height / 48;
+        float thumbHeight = thumbnails ? 85.5f * canvasScale : 0;
+        float thumbWidth = thumbnails ? 114 * canvasScale : 0;
         float textX = thumbnails ? inset + thumbWidth + height * .13f : height * .20f;
         textX += Math.max(0, gradeWidth);
-        return new Geometry(inset, 0, thumbWidth, thumbHeight,
+        return new Geometry(inset, (height - thumbHeight) / 2 - .25f * height / 48, thumbWidth, thumbHeight,
                 textX, Math.max(0, Math.min(width, visibleWidth) - textX - 16),
                 height - 16, height - 31, height - 48, height - 66);
     }

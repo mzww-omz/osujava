@@ -104,15 +104,9 @@ public final class UiView {
     public void beginText() { game.batch().begin(); }
     public void imageCover(Texture texture, float x, float y, float w, float h) {
         if (texture == null) return;
-        int sourceWidth = texture.getWidth(), sourceHeight = texture.getHeight();
-        float targetRatio = w / h;
-        int cropWidth = sourceWidth, cropHeight = sourceHeight;
-        if ((float) sourceWidth / sourceHeight > targetRatio)
-            cropWidth = Math.max(1, Math.round(sourceHeight * targetRatio));
-        else cropHeight = Math.max(1, Math.round(sourceWidth / targetRatio));
-        game.batch().draw(texture, x, y, w, h,
-                (sourceWidth - cropWidth) / 2, (sourceHeight - cropHeight) / 2,
-                cropWidth, cropHeight, false, false);
+        if (w <= 0 || h <= 0) return;
+        var crop = ImageCover.crop(texture.getWidth(), texture.getHeight(), w, h);
+        game.batch().draw(texture, x, y, w, h, crop.left(), crop.bottom(), crop.right(), crop.top());
     }
     public void endText() {
         game.batch().end();

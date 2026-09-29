@@ -20,6 +20,17 @@ class SongSelectFoundationTest {
         return new SongSelectInputController(new SongSelectToolboxState(), new SongBrowserControls(), null);
     }
 
+    @Test void modeAndGradeColumnScalesWithTheRowWithoutStealingThumbnailSpace() {
+        for (float height : new float[]{72, 96, 144}) for (boolean grade : new boolean[]{false, true}) {
+            var row = new SongSelectRow(0, 0, null, true, false, 600, 300, 800, height, 0, 1);
+            var geometry = SongSelectLayout.row(row, 0, 600, 300, 1600, 0, 1200, true, grade);
+            float thumbnailEnd = geometry.thumbnail().x() + geometry.thumbnail().width();
+            float textStart = row.x() + geometry.text().textX();
+            assertTrue(textStart - thumbnailEnd >= (grade ? 52 : 32) * height / 72);
+            assertEquals(height, geometry.hit().height());
+        }
+    }
+
     @Test void directDragCancelsSelectionSpringAndDoesNotClickOnReturn() {
         var input = input(); var motion = carousel();
         motion.scrollBy(300); motion.advance(.05f, null);
@@ -81,9 +92,9 @@ class SongSelectFoundationTest {
         assertEquals(geometry.clip(), geometry.hit());
         assertEquals(300, geometry.clip().width(), .001);
         assertEquals(60, geometry.clip().height(), .001);
-        assertEquals(80f * 9 / 85, geometry.thumbnail().x() - row.x(), .001);
-        assertEquals(80, geometry.thumbnail().height());
-        assertEquals(80f * 115 / 85, geometry.thumbnail().width(), .001);
+        assertEquals(80f * 5.2f / 48, geometry.thumbnail().x() - row.x(), .001);
+        assertEquals(80f * 85.5f / 76.8f, geometry.thumbnail().height(), .001);
+        assertEquals(80f * 114 / 76.8f, geometry.thumbnail().width(), .001);
         assertFalse(geometry.hit().contains(row.x(), row.y()));
         var sample = new SongSelectViewState(); sample.sample(ui, width / 2, height / 2, true);
         assertEquals(ui.width() / 2, sample.pointerX, .001);

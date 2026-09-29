@@ -189,6 +189,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 scenes.add(new Scene(Integer.getInteger("osujava.songSelectWidth", 1280),
                         Integer.getInteger("osujava.songSelectHeight", 720),
                         Integer.getInteger("osujava.songSelectDensity", 1), "configured"));
+            } else if (phase.equals("thumbnail-mode")) {
+                var cases = Set.of("phase25-thumbnail-wide", "phase25-thumbnail-tall", "phase25-thumbnail-missing",
+                        "phase4-selected", "phase5a-current-mode-view", "phase5a-assets-transparent", "phasechrome-bundled");
+                scenes.removeIf(scene -> !cases.contains(scene.name));
+                for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
+                    scenes.add(new Scene(1024, 768, 1, scene.name));
             } else if (phase.equals("foundation")) {
                 var cases = Set.of("greylooks-initial", "greylooks-hover", "greylooks-fast-scroll",
                         "greylooks-first-item", "greylooks-last-item", "greylooks-difficulty-selected",

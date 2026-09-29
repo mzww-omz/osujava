@@ -99,9 +99,6 @@ final class SongSelectRowRenderer {
             view.endShapes();
             view.beginText();
         }
-        // Preserve shadows/padding outside the substantial-alpha body, then clip text and thumbnails.
-        batch.flush();
-        clipContent(item, scaleX, scaleY);
         // The bundled default is dark artwork. Keep an authored text colour, but provide
         // a light selected surface when that text is dark. Never wash custom skin artwork.
         var background = has(Image.MENU_BUTTON_BACKGROUND) ? style.skin().get(Image.MENU_BUTTON_BACKGROUND) : null;
@@ -123,6 +120,10 @@ final class SongSelectRowRenderer {
             view.imageCover(texture, tx, ty, geometry.thumbnailWidth(), geometry.thumbnailHeight());
             batch.setColor(Color.WHITE);
         }
+        // Stable thumbnails are taller than the 48-unit row pitch. Preserve the full image
+        // within the carousel viewport; only labels use the body clip.
+        batch.flush();
+        clipContent(item, scaleX, scaleY);
         drawRowLabel(item, geometry);
         view.endText();
     }
@@ -143,10 +144,15 @@ final class SongSelectRowRenderer {
         detail.a *= row.revealAmount() * (row.difficultyIndex() >= 0 ? 1 : .72f);
         float x = row.x() + geometry.textX(), width = geometry.textWidth();
         boolean child = row.difficultyIndex() >= 0;
-        if (item.grade() != null) {
-            drawGrade(item.grade(), x - 52, row.y() + row.height() / 2 - 17, 44, 34, thumbnailTint.set(1, 1, 1, detail.a), detail);
-
-        }
+        float badgeScale = row.height() / 72;
+        float modeSize = 24 * badgeScale;
+        float column = (item.grade() == null ? 32 : 52) * badgeScale;
+        float modeY = item.grade() == null ? row.y() + (row.height() - modeSize) / 2
+                : row.y() + row.height() - modeSize - 2 * badgeScale;
+        if (content.mode() >= 0) SongSelectSkinDrawing.fit(batch, style.skin(), SongSelectSkinAssets.modeImage(content.mode(), 1),
+                x - column + (column - modeSize) / 2, modeY, modeSize, modeSize, detail);
+        if (item.grade() != null)
+            drawGrade(item.grade(), x - 48 * badgeScale, row.y() + 2 * badgeScale, 40 * badgeScale, 30 * badgeScale, thumbnailTint.set(1, 1, 1, detail.a), detail);
         view.textSmooth(content.title(), x, row.y() + (child ? geometry.titleY() : row.height() / 2 + 8), width,
                 .87f, primary);
         view.textSmooth(content.byline(), x, row.y() + (child ? geometry.bylineY() : row.height() / 2 - 12), width, .65f, secondary);
