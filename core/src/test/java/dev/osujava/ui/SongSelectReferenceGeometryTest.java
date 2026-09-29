@@ -57,12 +57,37 @@ class SongSelectReferenceGeometryTest {
     }
     @Test void gradeSlotPrecedesTextAndStarsAreSeparateFromDifficultyWidth() {
         var plain = SongSelectRowPresentation.geometry(658,80,500,true);
-        var grade = SongSelectRowPresentation.geometry(658,80,500,true,30);
-        assertEquals(plain.textX() + 30, grade.textX());
+        var grade = SongSelectRowPresentation.geometry(658,80,500,true,true,false,false,true);
+        assertEquals(plain.textX() + 17 * 80f / 48, grade.textX(), .0001);
         assertEquals(plain.thumbnailX(),grade.thumbnailX());
-        assertEquals(plain.textWidth() - 30,grade.textWidth());
+        assertEquals(plain.textWidth() - 17 * 80f / 48,grade.textWidth(), .0001);
         assertTrue(plain.starsY() < plain.detailY());
         var stars = SongSelectRowPresentation.Stars.of(OptionalDouble.of(3.35));
         assertEquals(10,stars.slots()); assertEquals(0,stars.fill(8)); assertEquals(.35f,stars.fill(3), .001);
+    }
+
+    @Test void nativeOriginsUseRowStateSkinStyleAndOptionalBadgesWithoutShiftingTheThumbnail() {
+        for (boolean thumbnails : new boolean[]{false, true}) for (boolean cropped : new boolean[]{false, true}) {
+            var collapsed = SongSelectRowPresentation.geometry(600, 48, 500, thumbnails, false, cropped, true, true);
+            var expanded = SongSelectRowPresentation.geometry(600, 48, 500, thumbnails, true, cropped, true, true);
+            float column = thumbnails ? 75 : 5, style = cropped ? 15 : 5, cy = cropped ? 27 : 24;
+            assertEquals(column + style + 3, collapsed.textX());
+            assertEquals(column + style + 20, expanded.textX());
+            assertEquals(expanded.textX() + 1, expanded.secondaryX());
+            assertEquals(column + style + 1, expanded.modeX());
+            assertEquals(column + style - 1, expanded.gradeX());
+            assertEquals(cy + 13, expanded.modeY());
+            assertEquals(cy - 14, expanded.gradeY());
+            assertEquals(cy + 16, expanded.titleY());
+            assertEquals(cy + 4, expanded.bylineY());
+            assertEquals(cy - 7, expanded.detailY());
+            assertEquals(cy - 18, expanded.starsY());
+            assertEquals(collapsed.modeX(), expanded.modeX());
+            assertEquals(collapsed.gradeX(), expanded.gradeX());
+            assertEquals(collapsed.thumbnailX(), expanded.thumbnailX());
+            var gradeOnly = SongSelectRowPresentation.geometry(600,48,500,thumbnails,true,cropped,false,true);
+            assertEquals(cy, gradeOnly.gradeY());
+            assertEquals(expanded.textX(), gradeOnly.textX());
+        }
     }
 }

@@ -39,7 +39,8 @@ class SongSelectFoundationTest {
             var geometry = SongSelectLayout.row(row, 0, 600, 300, 1600, 0, 1200, true, grade);
             float thumbnailEnd = geometry.thumbnail().x() + geometry.thumbnail().width();
             float textStart = row.x() + geometry.text().textX();
-            assertTrue(textStart - thumbnailEnd >= (grade ? 52 : 32) * height / 72);
+            assertEquals((grade ? 100 : 83) * height / 48, textStart - row.x(), .0001);
+            assertTrue(textStart > thumbnailEnd);
             assertEquals(height, geometry.hit().height());
         }
     }

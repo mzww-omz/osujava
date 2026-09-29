@@ -113,17 +113,17 @@ class SongSelectRowPresentationTest {
     }
     @Test void thumbnailFadeNeverChangesRowGeometry() {
         var before = SongSelectRowPresentation.geometry(600, 76, 410, false);
-        assertEquals(0, BeatmapThumbnails.fade(0)); assertEquals(.5f, BeatmapThumbnails.fade(.055f), .0001f);
-        assertEquals(1, BeatmapThumbnails.fade(.11f)); assertEquals(1, BeatmapThumbnails.fade(10));
-        assertEquals(0, BeatmapThumbnails.fade(-1));
+        var animation = new SongSelectForegroundAnimation();
+        animation.update(3, false, 1000, 0);
+        animation.thumbnailLoaded(1100, 0);
+        animation.update(3, false, 1300, 0);
+        assertEquals(.5f, animation.snapshot().thumbnailOpacity());
         assertEquals(before, SongSelectRowPresentation.geometry(600, 76, 410, false));
     }
     @Test void missingThumbnailIsCachedWithoutLoadingOrChangingLayout() {
         var thumbnails = new BeatmapThumbnails();
         assertNull(thumbnails.get(null)); assertNull(thumbnails.get(Path.of("missing-fixture-image.png")));
-        thumbnails.advance(.05f);
         assertNull(thumbnails.get(Path.of("missing-fixture-image.png")));
-        assertEquals(0, thumbnails.opacity(Path.of("missing-fixture-image.png")));
         thumbnails.close(); thumbnails.close();
     }
 }

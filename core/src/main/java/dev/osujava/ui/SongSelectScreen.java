@@ -49,6 +49,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private record RetiringStars(SongSelectStarAnimation animation, SongSelectRow row,
                                  SongSelectLayout.RowGeometry geometry, int tintRgba) { }
     private final Map<SongSelectCarousel.Row, RowStars> rowStars = new IdentityHashMap<>();
+    private final Map<SongSelectCarousel.Row, SongSelectForegroundAnimation> rowForeground = new IdentityHashMap<>();
     private final List<RetiringStars> retiringStars = new ArrayList<>();
     private List<SongSelectRowRenderer.RetiringStars> retiringStarPresentations = List.of();
     private String geometryViewport;
@@ -338,7 +339,6 @@ public final class SongSelectScreen extends ScreenAdapter {
             var set = selectedSet();
             scores.target(set == null ? null : DifficultyIdentity.of(set.id(),selectedDifficulty()));
         }
-        thumbnails.advance(delta);
         visibleRows = layoutRows(layout, 0, false);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         var buttons = input.buttons(Gdx.input.isButtonPressed(Input.Buttons.LEFT),
@@ -391,7 +391,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         visibleRows = layoutRows(layout, delta);
         advanceRowColours(delta);
         advanceRowStars(delta);
-        prepareRowPresentations();
+        advanceRowForeground(delta);
+        prepareRowPresentations(delta);
         if (audio != null) {
             String target = null;
             var cue = SongSelectAudio.Cue.HOVER_CONTROL;
@@ -648,9 +649,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         int frameMs = Float.isFinite(delta) ? (int) Math.max(0, delta * 1000.0) : 0;
         var residents = java.util.Collections.newSetFromMap(new IdentityHashMap<SongSelectCarousel.Row, Boolean>());
         var asset = skin == null ? null : skin.get(Image.STAR);
-        var background = skin == null ? null : skin.get(Image.MENU_BUTTON_BACKGROUND);
-        boolean cropped = SongSelectStarAnimation.cropped(skin == null ? 2.2 : skin.configuration().legacyVersion(),
-                background == null || background.file().provider() == dev.osujava.skin.SkinAssetResolver.Provider.BUNDLED);
+        boolean cropped = croppedStars();
         int width = asset == null ? 40 : (int) asset.logicalWidth();
         for (var row : carousel.allRows()) {
             if (!row.resident || !row.entry.visible() || row.entry.header()) continue;
@@ -682,15 +681,42 @@ public final class SongSelectScreen extends ScreenAdapter {
         retiringStarPresentations = List.copyOf(snapshots);
     }
 
+    private boolean croppedStars() {
+        var background = skin == null ? null : skin.get(Image.MENU_BUTTON_BACKGROUND);
+        return SongSelectStarAnimation.cropped(skin == null ? 2.2 : skin.configuration().legacyVersion(),
+                background == null || background.file().provider() == dev.osujava.skin.SkinAssetResolver.Provider.BUNDLED);
+    }
+
+    private void advanceRowForeground(float delta) {
+        var residents = java.util.Collections.newSetFromMap(new IdentityHashMap<SongSelectCarousel.Row, Boolean>());
+        int frameMs = Float.isFinite(delta) ? (int) Math.max(0, delta * 1000.0) : 0;
+        for (var row : carousel.allRows()) {
+            if (!row.resident || !row.entry.visible()) continue;
+            residents.add(row);
+            boolean created = !rowForeground.containsKey(row);
+            rowForeground.computeIfAbsent(row, ignored -> new SongSelectForegroundAnimation()).update(
+                    browser.row(row.entry.key()).state.ordinal(), created && row.instantSprites,
+                    (long) rowColourTimeMs, frameMs);
+        }
+        rowForeground.keySet().retainAll(residents);
+    }
+
     /** Resource lookup and score projection happen before any drawing. */
-    private void prepareRowPresentations() {
+    private void prepareRowPresentations(float delta) {
+        long now = (long) rowColourTimeMs;
+        int frameMs = Float.isFinite(delta) ? (int) Math.max(0, delta * 1000.0) : 0;
+        var foreground = new java.util.HashMap<String, SongSelectForegroundAnimation>();
+        rowForeground.forEach((row, animation) -> foreground.put(row.entry.key(), animation));
         var paths = new java.util.HashSet<Path>();
+        var thumbnailRows = new java.util.HashSet<String>();
         if (backgroundPath != null) paths.add(backgroundPath);
         if (showThumbnails()) for (var row : visibleRows) {
             if (row.setIndex() < 0 || row.revealAmount() < .01f) continue;
-            var set = sets.get(row.setIndex());
-            var content = rowContent.get(row.difficultyIndex() < 0 ? set : set.difficulties().get(row.difficultyIndex()));
-            if (content.thumbnail() != null) paths.add(content.thumbnail());
+            var content = rowContent.get(browser.row(row.key()).difficulty);
+            if (content.thumbnail() != null && foreground.get(row.key()).requestThumbnail(now)) {
+                paths.add(content.thumbnail());
+                thumbnailRows.add(row.key());
+            }
         }
         thumbnails.prepare(paths);
         var colours = new java.util.HashMap<String, Integer>();
@@ -702,23 +728,30 @@ public final class SongSelectScreen extends ScreenAdapter {
         for (var row : visibleRows) {
             if (row.setIndex() < 0) {
                 boolean containsSelection = groupContainsSelection(row.key());
-                result.add(new SongSelectRowRenderer.Presentation(row, null, false, null, null, 0, rowGeometry(row, false), containsSelection, colours.get(row.key())));
+                result.add(new SongSelectRowRenderer.Presentation(row, null, false, null, null, rowGeometry(row, false, false), containsSelection,
+                        colours.get(row.key()), SongSelectStarAnimation.Snapshot.EMPTY, foreground.get(row.key()).snapshot()));
                 continue;
             }
             var set = sets.get(row.setIndex());
-            var diff = row.difficultyIndex() < 0 ? null : set.difficulties().get(row.difficultyIndex());
-            var content = rowContent.get(diff == null ? set : diff);
-            var best = diff == null ? null : scoreSnapshot.best(set, diff);
-            boolean played = diff == null ? scoreSnapshot.played(set) : best != null;
+            // A collapsed card still owns its representative difficulty's sprites, including fading details.
+            var diff = browser.row(row.key()).difficulty;
+            var content = rowContent.get(diff);
+            var best = scoreSnapshot.best(set, diff);
+            boolean played = row.difficultyIndex() < 0 ? scoreSnapshot.played(set) : best != null;
+            var texture = thumbnailRows.contains(row.key()) ? thumbnails.resident(content.thumbnail()) : null;
+            var animation = foreground.get(row.key());
+            if (texture != null) animation.thumbnailLoaded(now, frameMs);
+            boolean gradeImage = best != null && skin != null && skin.get(SongSelectRowRenderer.gradeImage(best.grade())) != null;
             result.add(new SongSelectRowRenderer.Presentation(row, content, played, best == null ? null : best.grade(),
-                    showThumbnails() ? thumbnails.resident(content.thumbnail()) : null, thumbnails.opacity(content.thumbnail()), rowGeometry(row, best != null), false, colours.get(row.key()), stars.get(row.key())));
+                    texture, rowGeometry(row, gradeImage, content.mode() > 0),
+                    false, colours.get(row.key()), stars.get(row.key()), animation.snapshot()));
         }
         rowPresentations = List.copyOf(result);
     }
 
-    private SongSelectLayout.RowGeometry rowGeometry(SongSelectRow row, boolean grade) {
+    private SongSelectLayout.RowGeometry rowGeometry(SongSelectRow row, boolean grade, boolean mode) {
         return SongSelectLayout.row(row, row.logicalIndex(), row.targetX(), row.targetY(),
-                contentWidth, bottom, top, showThumbnails(), grade);
+                contentWidth, bottom, top, showThumbnails(), grade, mode, croppedStars());
     }
 
     private void updateDetails() {

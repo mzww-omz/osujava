@@ -69,12 +69,27 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 }
             }
             Files.createDirectories(output.resolve("fixtures/empty"));
+            for (String mode : List.of("scale", "crop")) {
+                Path dir = Files.createDirectories(output.resolve("fixtures/foreground-" + mode));
+                Files.writeString(dir.resolve("skin.ini"), "[General]\nVersion: " + (mode.equals("scale") ? "2.2" : "1") + "\n");
+                int density = mode.equals("scale") ? 2 : 1;
+                for (var image : List.of(SongSelectSkinAssets.Image.MODE_TAIKO_SMALL, SongSelectSkinAssets.Image.GRADE_A)) {
+                    int w = image == SongSelectSkinAssets.Image.GRADE_A ? 24 : 20;
+                    int h = image == SongSelectSkinAssets.Image.GRADE_A ? 16 : 12;
+                    var square = new Pixmap(w*density+(density==2 ? 1 : 0),h*density+(density==2 ? 1 : 0),Pixmap.Format.RGBA8888);
+                    square.setColor(Color.WHITE); square.fill();
+                    PixmapIO.writePNG(Gdx.files.absolute(dir.resolve(image.basename+(density==2 ? "@2x" : "")+".png").toString()),square);
+                    square.dispose();
+                }
+            }
             Path rowColours = Files.createDirectories(output.resolve("fixtures/row-colours-sprite"));
             Files.createDirectories(output.resolve("fixtures/row-colours-procedural"));
             var whiteRow = new Pixmap(800,64,Pixmap.Format.RGBA8888);
             whiteRow.setColor(Color.WHITE); whiteRow.fill();
             PixmapIO.writePNG(Gdx.files.absolute(rowColours.resolve("menu-button-background.png").toString()),whiteRow);
             whiteRow.dispose();
+            for (String mode : List.of("scale", "crop")) Files.copy(rowColours.resolve("menu-button-background.png"),
+                    output.resolve("fixtures/foreground-"+mode+"/menu-button-background.png"),java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             for (String mode : List.of("scale", "crop", "old-default-background")) {
                 Path dir = Files.createDirectories(output.resolve("fixtures/star-animation-" + mode));
                 Files.writeString(dir.resolve("skin.ini"), "[General]\nVersion: " + (mode.equals("scale") ? "2.2" : "1") + "\n");
@@ -219,6 +234,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
                     for (String mode : List.of("scale", "crop", "old-default-background"))
                         scenes.add(new Scene(size[0],size[1],size[2],"star-animation-" + mode));
+            } else if (phase.equals("foreground-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String mode : List.of("scale", "crop"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"foreground-" + mode));
             } else if (phase.equals("lifecycle-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
@@ -666,7 +686,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     assets = (SongSelectSkinAssets)field.get(screen); }
                 catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
             }
-            screen.legacyThumbnailPreview(scene.name.equals("phase25-legacy-b"));
+            screen.legacyThumbnailPreview(scene.name.equals("phase25-legacy-b") || scene.name.startsWith("foreground-"));
             screen.resize(scene.width,scene.height);
             fb.begin();
             if (scene.name.equals("configured")) {
@@ -685,6 +705,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseGroupCards(screen, scene.name, pointer, clicked, pressed, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if (scene.name.startsWith("foreground-")) {
+                exerciseForeground(screen, scene, assets, processor[0], layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
             if (scene.name.startsWith("star-animation-")) {
                 exerciseStarAnimation(screen, scene, assets, layout, fb, name);
                 fb.end(); advanceScene(); return;
@@ -760,6 +784,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 try {
                     var field = SongSelectScreen.class.getDeclaredField("thumbnails"); field.setAccessible(true);
                     ((BeatmapThumbnails)field.get(screen)).close();
+                    ((Map<?,?>)screenField(screen,"rowForeground")).clear();
                 } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
                 screen.render(0);
                 capture(fb, name + "-frame-00");
@@ -1105,6 +1130,109 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         }
         capture(fb, name + "-enter-held");
         held.remove(Input.Keys.ENTER); input.keyUp(Input.Keys.ENTER);
+    }
+
+    private void exerciseForeground(SongSelectScreen screen, Scene scene, SongSelectSkinAssets assets,
+            InputProcessor input, UiLayout layout, FrameBuffer fb, String name) {
+        boolean cropped = scene.name.endsWith("crop");
+        var animation = new SongSelectForegroundAnimation();
+        animation.update(3,false,1000,0);
+        var pixels = new Pixmap(64,48,Pixmap.Format.RGBA8888);
+        pixels.setColor(Color.WHITE); pixels.fill();
+        var image = new Texture(pixels); pixels.dispose();
+        int[] times = {0,100,200,300,500,1000,1150,1300};
+        try {
+            for (int time : times) {
+                if (time==1150) animation.update(1,false,2000,0);
+                animation.update(time>1000 ? 1 : 3,false,1000+time,0);
+                var row = new SongSelectRow(0,time>1000 ? -1 : 0,null,false,true,100,300,600,72,0,1);
+                var content = new SongSelectRowPresentation.Content("","","",null,
+                        SongSelectRowPresentation.Stars.of(OptionalDouble.empty()),1);
+                var geometry = SongSelectLayout.row(row,0,100,300,layout.width(),0,layout.height(),true,true,true,cropped);
+                var snapshot = animation.snapshot();
+                var item = new SongSelectRowRenderer.Presentation(row,content,true,dev.osujava.ruleset.osu.OsuGrade.A,
+                        image,geometry,false,0,SongSelectStarAnimation.Snapshot.EMPTY,snapshot);
+                var labelRow = new SongSelectRow(1,0,null,false,false,600,300,300,72,0,1);
+                var labelContent = new SongSelectRowPresentation.Content("MMMM","MMMM","MMMM",null,
+                        SongSelectRowPresentation.Stars.of(OptionalDouble.empty()),-1);
+                var labels = new SongSelectRowRenderer.Presentation(labelRow,labelContent,false,null,null,
+                        SongSelectLayout.row(labelRow,1,600,300,layout.width(),0,layout.height(),false,false,false,cropped),
+                        false,0,SongSelectStarAnimation.Snapshot.EMPTY,snapshot);
+                Gdx.gl.glClearColor(0,0,0,1); Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+                ((SongSelectRowRenderer)screenField(screen,"rowRenderer")).draw(List.of(item),
+                        new SongSelectRowRenderer.Style(layout.width(),assets,(Texture)screenField(screen,"rowFill"),Color.GREEN,Color.GREEN,true),
+                        layout,0,layout.height());
+                ((SongSelectRowRenderer)screenField(screen,"rowRenderer")).draw(List.of(labels),
+                        new SongSelectRowRenderer.Style(layout.width(),assets,(Texture)screenField(screen,"rowFill"),Color.GREEN,Color.GREEN,false),
+                        layout,0,layout.height());
+                // Independent reference coordinates for H=72: offsets * 1.5, image dimensions * .9375.
+                float cy = cropped ? 340.5f : 336, inset = cropped ? 15 : 5;
+                float detailAlpha = time<=1000 ? Math.min(1,time/300f) : 1-(time-1000)/300f;
+                int brightness = time<=1000 ? (int)(50+205*Math.min(1,time/300f)) : (int)(255-205*(time-1000)/300f);
+                float thumbnailAlpha = Math.min(1,time/1000f);
+                var captured=Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
+                try {
+                    assertForegroundRectangle(captured,layout,new SongSelectLayout.Rect(107.8f,295.546875f,106.875f,80.15625f),
+                            new float[]{brightness*thumbnailAlpha,brightness*thumbnailAlpha,brightness*thumbnailAlpha},name+" thumbnail t="+time);
+                    assertForegroundRectangle(captured,layout,new SongSelectLayout.Rect(100+(75+inset+1)*1.5f,cy+19.5f-4.5f,15,9),
+                            new float[]{0,255*detailAlpha,0},name+" mode t="+time);
+                    assertForegroundRectangle(captured,layout,new SongSelectLayout.Rect(100+(75+inset-1)*1.5f,cy-21-7.5f,22.5f,15),
+                            new float[]{255*detailAlpha,255*detailAlpha,255*detailAlpha},name+" grade t="+time);
+                    for (int label=0;label<3;label++) {
+                        float centre=cy+new float[]{24,6,-10.5f}[label];
+                        float alpha=label==2 ? detailAlpha : Math.min(1,time/200f);
+                        float sx=captured.getWidth()/layout.width(), sy=captured.getHeight()/layout.height();
+                        int maximum=0;
+                        for (int y=(int)((centre-4)*sy);y<(centre+4)*sy;y++)
+                            for (int x=(int)(615*sx);x<715*sx;x++) maximum=Math.max(maximum,captured.getPixel(x,y) >>> 16 & 255);
+                        if (Math.abs(maximum-255*alpha)>3) throw new AssertionError(name+" label="+label+" t="+time
+                                +" expected="+255*alpha+" actual="+maximum);
+                    }
+                } finally { captured.dispose(); }
+                capture(fb,name+"-sprites-"+time+"ms"); transitionFrames++;
+            }
+        } finally { image.dispose(); }
+
+        // Actual Screen: shared artwork must still produce different row brightness and per-row load fades.
+        screen.previewSelection(3,0);
+        for (int frame=0;frame<90;frame++) { screen.render(1f/60); transitionFrames++; }
+        String selected=browser(screen).selectedKey();
+        var before=foregroundPresentation(screen,selected);
+        float expectedTitleY=before.row().height()/2+(cropped ? 19 : 16)*before.row().height()/48;
+        if (Math.abs(before.geometry().text().titleY()-expectedTitleY)>.0001f)
+            throw new AssertionError("Screen foreground style/provider: " + name);
+        if (before.thumbnail()==null || before.foreground().thumbnailBrightness()!=255 || before.foreground().thumbnailOpacity()!=1)
+            throw new AssertionError("Selected thumbnail did not finish loading: " + name);
+        var collapsed=((List<?>)screenField(screen,"rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> p.row().difficultyIndex()<0 && p.thumbnail()!=null).findFirst().orElseThrow();
+        if (collapsed.thumbnail()!=before.thumbnail() || collapsed.foreground().thumbnailBrightness()!=50)
+            throw new AssertionError("Shared artwork lost row-owned colour: " + name);
+        tapKey(input,Input.Keys.RIGHT); screen.render(0);
+        capture(fb,name+"-screen-collapse-0ms");
+        for (int frame=1;frame<=60;frame++) {
+            screen.render(1f/60); transitionFrames++;
+            assertRenderedBounds(screen,layout);
+            if (Set.of(6,18,30,60).contains(frame)) capture(fb,name+"-screen-collapse-"+frame+"f");
+        }
+        var after=foregroundPresentation(screen,selected);
+        if (after.foreground().detailOpacity()!=0 || after.foreground().thumbnailBrightness()!=50
+                || !after.content().detail().equals(before.content().detail()))
+            throw new AssertionError("Collapsed representative lost its sprites: " + name);
+        System.out.println("FOREGROUND PASS " + name);
+    }
+
+    private SongSelectRowRenderer.Presentation foregroundPresentation(SongSelectScreen screen, String key) {
+        return ((List<?>)screenField(screen,"rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> p.row().key().equals(key)).findFirst().orElseThrow();
+    }
+
+    private static void assertForegroundRectangle(Pixmap pixels, UiLayout layout, SongSelectLayout.Rect rect, float[] rgb, String context) {
+        float sx=pixels.getWidth()/layout.width(), sy=pixels.getHeight()/layout.height();
+        for (int iy=1;iy<=3;iy++) for (int ix=1;ix<=3;ix++) {
+            int actual=pixels.getPixel((int)((rect.x()+rect.width()*ix/4)*sx),(int)((rect.y()+rect.height()*iy/4)*sy));
+            for (int channel=0;channel<3;channel++) if (Math.abs((actual >>> (24-8*channel) & 255)-rgb[channel])>3)
+                throw new AssertionError(context+" channel="+channel+" expected="+rgb[channel]+" actual="+(actual >>> (24-8*channel) & 255));
+        }
     }
 
     private void exerciseStarAnimation(SongSelectScreen screen, Scene scene, SongSelectSkinAssets assets,

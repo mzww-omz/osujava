@@ -125,6 +125,39 @@ class SongSelectNavigationTest {
         assertEquals(0x0096ecf0,presentation(old).backgroundRgba());
     }
 
+    @Test void residentRepresentativeKeepsItsDetailContentWhileFadingOutAndBackIn() throws Exception {
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,.016f);
+        String original = ((SongBrowserModel)field("browser")).selectedKey();
+        var before = presentation(original);
+        assertEquals(1, before.foreground().detailOpacity());
+        assertEquals(255, before.foreground().thumbnailBrightness());
+        key(Input.Keys.RIGHT); updatePointer(1280,720,0);
+        assertEquals(-1, presentation(original).row().difficultyIndex());
+        assertEquals(before.content().detail(), presentation(original).content().detail());
+        assertEquals(1, presentation(original).foreground().detailOpacity());
+        updatePointer(1280,720,.15f);
+        assertEquals(.5f, presentation(original).foreground().detailOpacity(), .00001);
+        assertEquals(152, presentation(original).foreground().thumbnailBrightness());
+        key(Input.Keys.LEFT); updatePointer(1280,720,0);
+        assertEquals(.5f, presentation(original).foreground().detailOpacity(), .00001);
+        updatePointer(1280,720,.15f);
+        assertEquals(.75f, presentation(original).foreground().detailOpacity(), .00001);
+        assertEquals(1, presentation(original).foreground().baseOpacity());
+    }
+
+    @Test void foregroundSnapshotsSurviveResizeAndDiscardNonResidentRows() throws Exception {
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,.016f);
+        String original = ((SongBrowserModel)field("browser")).selectedKey();
+        key(Input.Keys.RIGHT); updatePointer(1280,720,0); updatePointer(1280,720,.15f);
+        var snapshot = presentation(original).foreground();
+        screen.resize(1920,1080); updatePointer(1920,1080,0);
+        assertEquals(snapshot, presentation(original).foreground());
+        processor.keyTyped('G'); updatePointer(1920,1080,.016f);
+        var live = (java.util.Map<?,?>)field("rowForeground");
+        assertTrue(live.keySet().stream().map(SongSelectCarousel.Row.class::cast)
+                .allMatch(row -> row.resident && row.entry.visible() && row.entry.setIndex() == 2));
+    }
+
     @Test void screenHoverFadesWhileHeldAndRetiresHiddenRowAnimations() throws Exception {
         open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,0);
         var sibling = ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)

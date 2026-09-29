@@ -16,8 +16,15 @@ import java.util.List;
 /** Draw-only row pass. Receives immutable presentation and resident textures, never a browser or Library. */
 final class SongSelectRowRenderer {
     record Presentation(SongSelectRow row, SongSelectRowPresentation.Content content, boolean played,
-                        OsuGrade grade, Texture thumbnail, float thumbnailOpacity, SongSelectLayout.RowGeometry geometry,
-                        boolean groupContainsSelection, int backgroundRgba, SongSelectStarAnimation.Snapshot stars) {
+                        OsuGrade grade, Texture thumbnail, SongSelectLayout.RowGeometry geometry,
+                        boolean groupContainsSelection, int backgroundRgba, SongSelectStarAnimation.Snapshot stars,
+                        SongSelectForegroundAnimation.Snapshot foreground) {
+        Presentation(SongSelectRow row, SongSelectRowPresentation.Content content, boolean played,
+                     OsuGrade grade, Texture thumbnail, float thumbnailOpacity, SongSelectLayout.RowGeometry geometry,
+                     boolean groupContainsSelection, int backgroundRgba, SongSelectStarAnimation.Snapshot stars) {
+            this(row, content, played, grade, thumbnail, geometry, groupContainsSelection,
+                    backgroundRgba, stars, new SongSelectForegroundAnimation.Snapshot(1, 1, thumbnailOpacity, 255));
+        }
         Presentation(SongSelectRow row, SongSelectRowPresentation.Content content, boolean played,
                      OsuGrade grade, Texture thumbnail, float thumbnailOpacity, SongSelectLayout.RowGeometry geometry,
                      boolean groupContainsSelection, int backgroundRgba) {
@@ -85,7 +92,7 @@ final class SongSelectRowRenderer {
         if (row.revealAmount() < .01f) return;
         Color.rgba8888ToColor(rowTint, item.backgroundRgba());
         Color color = rowTint;
-        color.a *= row.revealAmount();
+        color.a *= row.revealAmount() * item.foreground().baseOpacity();
         float x = row.x(), y = row.y();
         if (has(Image.MENU_BUTTON_BACKGROUND)) {
             view.beginText();
@@ -103,7 +110,7 @@ final class SongSelectRowRenderer {
         // a light selected surface when that text is dark. Never wash custom skin artwork.
         var background = has(Image.MENU_BUTTON_BACKGROUND) ? style.skin().get(Image.MENU_BUTTON_BACKGROUND) : null;
         if (fallbackWash(row.selected() || row.group() && row.groupExpanded(), background != null && background.file().classpathResource() != null, style.activeText())) {
-            batch.setColor(1,1,1,.86f * row.revealAmount());
+            batch.setColor(1,1,1,.86f * row.revealAmount() * item.foreground().baseOpacity());
             batch.draw(style.fill(),x,y,row.width(),row.height());
             batch.setColor(Color.WHITE);
         }
@@ -112,23 +119,26 @@ final class SongSelectRowRenderer {
             clipContent(item, scaleX, scaleY);
             Color text = row.groupExpanded() ? style.activeText() : style.inactiveText();
             primaryTint.set(text == null ? UiTheme.TEXT : text);
-            primaryTint.a *= row.revealAmount();
+            primaryTint.a *= row.revealAmount() * item.foreground().baseOpacity();
             float inset = 15 * row.height() / SongSelectMetrics.ROW_PITCH;
             view.textSmooth(row.header(), x + inset, y + row.height() / 2,
                     Math.max(0, style.width() - x - inset), .90f, primaryTint);
             view.endText();
             return;
         }
-        var content = item.content();
         var geometry = item.geometry().text();
         float tx = x + geometry.thumbnailX(), ty = y + geometry.thumbnailY();
         if (style.thumbnails()) {
             // Keep body, thumbnail fallback, cover and text in the same sprite batch.
-            batch.setColor(thumbnailTint.set(THUMB_FALLBACK.r, THUMB_FALLBACK.g, THUMB_FALLBACK.b, row.revealAmount()));
-            batch.draw(style.fill(), tx, ty, geometry.thumbnailWidth(), geometry.thumbnailHeight());
+            float opacity = row.revealAmount() * item.foreground().thumbnailOpacity();
+            float brightness = item.foreground().thumbnailBrightness() / 255f;
             var texture = item.thumbnail();
-            float brightness = row.selected() ? 1 : .78f + row.hoverAmount() * .12f;
-            batch.setColor(brightness, brightness, brightness, row.revealAmount() * item.thumbnailOpacity());
+            if (texture == null) {
+                batch.setColor(thumbnailTint.set(THUMB_FALLBACK.r * brightness, THUMB_FALLBACK.g * brightness,
+                        THUMB_FALLBACK.b * brightness, opacity));
+                batch.draw(style.fill(), tx, ty, geometry.thumbnailWidth(), geometry.thumbnailHeight());
+            }
+            batch.setColor(brightness, brightness, brightness, opacity);
             view.imageCover(texture, tx, ty, geometry.thumbnailWidth(), geometry.thumbnailHeight());
             batch.setColor(Color.WHITE);
         }
@@ -152,21 +162,32 @@ final class SongSelectRowRenderer {
         Color secondary = SongSelectRowColours.label(secondaryTint, base, row, true);
         Color detail = SongSelectRowColours.label(detailTint, base, row, false);
         float x = row.x() + geometry.textX(), width = geometry.textWidth();
-        boolean child = row.difficultyIndex() >= 0;
-        float badgeScale = row.height() / 72;
-        float modeSize = 24 * badgeScale;
-        float column = (item.grade() == null ? 32 : 52) * badgeScale;
-        float modeY = item.grade() == null ? row.y() + (row.height() - modeSize) / 2
-                : row.y() + row.height() - modeSize - 2 * badgeScale;
-        if (content.mode() >= 0) SongSelectSkinDrawing.fit(batch, style.skin(), SongSelectSkinAssets.modeImage(content.mode(), 1),
-                x - column + (column - modeSize) / 2, modeY, modeSize, modeSize, detail);
-        if (item.grade() != null)
-            drawGrade(item.grade(), x - 48 * badgeScale, row.y() + 2 * badgeScale, 40 * badgeScale, 30 * badgeScale, thumbnailTint.set(1, 1, 1, detail.a), detail);
-        view.textSmooth(content.title(), x, row.y() + (child ? geometry.titleY() : row.height() / 2 + 8), width,
-                .87f, primary);
-        view.textSmooth(content.byline(), x, row.y() + (child ? geometry.bylineY() : row.height() / 2 - 12), width, .65f, secondary);
-        if (child) view.textSmoothBold(content.detail(), x, row.y() + geometry.detailY(), width, .90f, detail);
+        primary.a *= item.foreground().baseOpacity();
+        secondary.a *= item.foreground().baseOpacity();
+        detail.a *= item.foreground().detailOpacity();
+        float canvasScale = row.height() / (48 * 1.6f);
+        if (content.mode() > 0) nativeBadge(SongSelectSkinAssets.modeImage(content.mode(), 1),
+                row.x() + geometry.modeX(), row.y() + geometry.modeY(), .8f * canvasScale, detail);
+        if (item.grade() != null) {
+            thumbnailTint.set(1, 1, 1, row.revealAmount() * item.foreground().detailOpacity());
+            nativeBadge(gradeImage(item.grade()), row.x() + geometry.gradeX(), row.y() + geometry.gradeY(), canvasScale, thumbnailTint);
+        }
+        view.textCenteredVertically(content.title(), x, row.y() + geometry.titleY(), width, 16 * canvasScale / 17, primary, false);
+        float secondaryWidth = Math.max(0, width - (geometry.secondaryX() - geometry.textX()));
+        view.textCenteredVertically(content.byline(), row.x() + geometry.secondaryX(), row.y() + geometry.bylineY(), secondaryWidth,
+                12 * canvasScale / 17, secondary, false);
+        view.textCenteredVertically(content.detail(), row.x() + geometry.secondaryX(), row.y() + geometry.detailY(), secondaryWidth,
+                12 * canvasScale / 17, detail, true);
+        // Stars have their own opacity transforms and must not inherit the detail fade.
+        SongSelectRowColours.label(detail, base, row, false);
         if (width > 0) drawStars(item.stars(), row, x, detail);
+    }
+
+    private void nativeBadge(Image image, float x, float centreY, float scale, Color tint) {
+        if (!has(image)) return;
+        var asset = style.skin().get(image);
+        float w = (int) asset.logicalWidth() * scale, h = (int) asset.logicalHeight() * scale;
+        skinImage(image, x, centreY - h / 2, w, h, tint);
     }
 
     /** Native star dimensions are texture-based; clipping never compresses the ten sprite positions. */
@@ -196,12 +217,16 @@ final class SongSelectRowRenderer {
     }
 
     void drawGrade(OsuGrade grade, float x, float y, float w, float h, Color tint, Color textTint) {
-        Image image = switch (grade) {
+        Image image = gradeImage(grade);
+        if (has(image)) skinImageFit(image, x, y, w, h, tint);
+        else view.textSmoothBold(grade.name(), x + 3, y + h * .35f, w - 6, 1.35f, textTint);
+    }
+
+    static Image gradeImage(OsuGrade grade) {
+        return switch (grade) {
             case SS -> Image.GRADE_SS; case S -> Image.GRADE_S; case A -> Image.GRADE_A;
             case B -> Image.GRADE_B; case C -> Image.GRADE_C; case D -> Image.GRADE_D;
         };
-        if (has(image)) skinImageFit(image, x, y, w, h, tint);
-        else view.textSmoothBold(grade.name(), x + 3, y + h * .35f, w - 6, 1.35f, textTint);
     }
 
     private void skinImage(Image image, float x, float y, float w, float h, Color tint) {

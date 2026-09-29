@@ -14,7 +14,8 @@ final class SongSelectRowPresentation {
     }
     record Content(String title, String byline, String detail, Path thumbnail, Stars stars, int mode) { }
     record Geometry(float thumbnailX, float thumbnailY, float thumbnailWidth, float thumbnailHeight,
-                    float textX, float textWidth, float titleY, float bylineY, float detailY, float starsY) { }
+                    float textX, float textWidth, float titleY, float bylineY, float detailY, float starsY,
+                    float secondaryX, float modeX, float modeY, float gradeX, float gradeY) { }
 
     static Content content(BeatmapSet set, BeatmapDifficulty difficulty, OptionalDouble rating) {
         boolean child = difficulty != null;
@@ -33,22 +34,29 @@ final class SongSelectRowPresentation {
     }
 
     static Geometry geometry(float width, float height, float visibleWidth, boolean thumbnails) {
-        return geometry(width, height, visibleWidth, thumbnails, 0);
+        return geometry(width, height, visibleWidth, thumbnails, true, false, false, false);
     }
 
-    /** The mode/grade column sits between thumbnail and text. */
-    static Geometry geometry(float width, float height, float visibleWidth, boolean thumbnails, float gradeWidth) {
+    /** 06000fbf/0fc2/0fe4: text shifts with state; thumbnail and badge origins stay fixed. */
+    static Geometry geometry(float width, float height, float visibleWidth, boolean thumbnails,
+                             boolean expanded, boolean cropped, boolean mode, boolean grade) {
         // Stable 0fbf sets thumbnail scale to 1.425 (half for the larger cache).
         // 0fdc exposes the 114x85.5 envelope. Row pitch is independently 48/480.
         float canvasScale = height / (48 * 1.6f);
         float inset = 5.2f * height / 48;
         float thumbHeight = thumbnails ? 85.5f * canvasScale : 0;
         float thumbWidth = thumbnails ? 114 * canvasScale : 0;
-        float textX = thumbnails ? inset + thumbWidth + height * .13f : height * .20f;
-        textX += Math.max(0, gradeWidth);
+        float referenceScale = height / 48;
+        float styleInset = cropped ? 15 : 5;
+        float column = thumbnails ? 75 : 5;
+        float textX = (column + styleInset + (expanded && (mode || grade) ? 20 : 3)) * referenceScale;
+        float centreY = height / 2 - (cropped ? -3 : 0) * referenceScale;
         return new Geometry(inset, (height - thumbHeight) / 2 - .25f * height / 48, thumbWidth, thumbHeight,
                 textX, Math.max(0, Math.min(width, visibleWidth) - textX - 16),
-                height - 16, height - 31, height - 48, height - 66);
+                centreY + 16 * referenceScale, centreY + 4 * referenceScale,
+                centreY - 7 * referenceScale, centreY - 18 * referenceScale,
+                textX + referenceScale, (column + styleInset + 1) * referenceScale, centreY + 13 * referenceScale,
+                (column + styleInset - 1) * referenceScale, centreY - (mode ? 14 : 0) * referenceScale);
     }
 
     /** Stable 06000fd2 creates ten background/foreground pairs; 06000fbd caps fill at ten. */
