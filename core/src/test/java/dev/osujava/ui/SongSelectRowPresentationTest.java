@@ -25,6 +25,20 @@ class SongSelectRowPresentationTest {
         assertEquals(0, content.stars().width());
         assertEquals("", content.stars().label());
     }
+    @Test void acquiringGradeNeverRemovesRatingAndNarrowRowsKeepNumericValue() {
+        var stars = SongSelectRowPresentation.Stars.of(OptionalDouble.of(3.5));
+        for (float grade : new float[]{0,52}) {
+            var geometry = SongSelectRowPresentation.geometry(700,72,380,true,grade);
+            var band = stars.layout(geometry.textWidth());
+            assertEquals(4,band.icons());
+            assertEquals(stars.numericWidth(),band.numberWidth());
+            assertTrue(band.numberX()+band.numberWidth() <= geometry.textWidth());
+        }
+        var narrow = stars.layout(45);
+        assertEquals(0,narrow.icons()); assertEquals(42,narrow.numberWidth());
+        assertEquals(1,SongSelectRowPresentation.Stars.of(OptionalDouble.of(.5)).slots());
+        assertEquals(0,stars.layout(0).numberWidth());
+    }
     @ParameterizedTest @ValueSource(doubles = {Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, -1})
     void invalidRatingsAreAbsent(double value) {
         assertFalse(SongSelectRowPresentation.Stars.of(OptionalDouble.of(value)).present());

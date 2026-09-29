@@ -55,8 +55,20 @@ final class SongSelectRowPresentation {
         }
         boolean present() { return count > 0; }
         float fill(int index) { return index >= count ? 0 : index == count - 1 ? lastFill : 1; }
-        int slots() { return present() ? 9 : 0; }
+        int slots() { return count; }
         float numericWidth() { return label.length() > 5 ? 64 : 42; }
         float width() { return present() ? slots() * 18 + numericWidth() : 0; }
+        StarLayout layout(float available) {
+            float width = Float.isFinite(available) ? Math.max(0, available) : 0;
+            float numberWidth = Math.min(width, numericWidth());
+            float step = count == 0 ? 0 : Math.min(18, (width - numberWidth) / count);
+            // Preserve the numerical rating when there is no room for readable icons.
+            int icons = step >= 6 ? count : 0;
+            return new StarLayout(icons, icons == 0 ? 0 : step, numberWidth);
+        }
+    }
+    record StarLayout(int icons, float step, float numberWidth) {
+        float numberX() { return icons * step; }
+        float size() { return step * 15 / 18; }
     }
 }

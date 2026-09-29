@@ -21,9 +21,12 @@ final class SongBrowserControls {
     static Bounds groupBounds(float w, float h) { return new Bounds(w * .56f, h - 30, w * .23f, 26); }
     static Bounds sortBounds(float w, float h) { return new Bounds(w * .80f, h - 30, w * .19f, 26); }
     static Bounds tabBounds(float w, float h, int index) {
-        float start = w * .54f, width = (w - start - 12) / SongBrowserModel.Group.values().length;
+        if (index >= tabCount(w,h)) return new Bounds(0,0,0,0);
+        float start = w * .54f, width = (w - start - 12) / tabCount(w,h);
         return new Bounds(start + width * index, h - 52, width - 1, 20);
     }
+    // Four/five tabs are documented; this aspect threshold is a local layout policy.
+    static int tabCount(float w, float h) { return w <= h * 4 / 3f ? 4 : 5; }
     Menu menu() { return menu; }
     String hover(float x, float y, float w, float h) {
         if (groupBounds(w,h).hit(x,y)) return "group";
@@ -77,15 +80,23 @@ final class SongBrowserControls {
         view.textSmooth(browser.sort().label+"  ▾",s.x()+58,h-22,s.width()-62,.76f,UiTheme.TEXT);
         for (var group : SongBrowserModel.Group.values()) {
             var b = tabBounds(w,h,group.ordinal());
+            if (b.width() <= 0) continue;
             boolean selected = group == browser.group();
             Color tint = selected ? Color.WHITE : b.hit(px,py) ? UiTheme.ACCENT : TAB_IDLE;
-            SongSelectSkinDrawing.draw(batch,skin,Image.TAB,b.x(),b.y(),b.width(),b.height(),tint);
-            view.textSmooth(group == SongBrowserModel.Group.NONE ? "All" : group.label,
+            SongSelectSkinDrawing.fit(batch,skin,Image.TAB,b.x(),b.y(),b.width(),b.height(),tint);
+            String label = group == SongBrowserModel.Group.NONE ? "All" : group.label;
+            Color text = selected && SongSelectSkinDrawing.present(skin,Image.TAB) ? Color.BLACK : UiTheme.TEXT;
+            // A contrasting outline also works when the author supplies a transparent tab.
+            for (int[] offset : LABEL_OUTLINE) view.textSmooth(label,
+                    b.x()+10+offset[0],b.y()+6+offset[1],b.width()-20,.60f,
+                    text == Color.BLACK ? Color.WHITE : Color.BLACK, com.badlogic.gdx.utils.Align.center);
+            view.textSmooth(label,
                     b.x()+10,b.y()+6,b.width()-20,.60f,
-                    selected && SongSelectSkinDrawing.present(skin,Image.TAB) ? Color.BLACK : UiTheme.TEXT,
+                    text,
                     com.badlogic.gdx.utils.Align.center);
         }
     }
+    private static final int[][] LABEL_OUTLINE = {{-1,0},{1,0},{0,-1},{0,1}};
     void drawMenu(UiView view, float w, float h, SongSelectRenderer.BrowserView browser, float px, float py) {
         if (menu == null) return;
         var b = menu == Menu.GROUP ? groupBounds(w,h) : sortBounds(w,h);

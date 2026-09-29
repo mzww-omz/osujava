@@ -13,6 +13,7 @@ class SongSelectVisualComponentsTest {
             var layout = SongSelectLayout.create(ui,null);
             var controls = new SongBrowserControls(); var browser = new SongBrowserModel(List.of());
             for (var group : SongBrowserModel.Group.values()) {
+                if (group.ordinal() >= SongBrowserControls.tabCount(ui.width(),ui.height())) continue;
                 var tab = SongBrowserControls.tabBounds(ui.width(),ui.height(),group.ordinal());
                 assertTrue(tab.y() > layout.search().y()+layout.search().height());
                 assertTrue(layout.search().y() >= layout.chrome().carouselTop());
@@ -25,6 +26,15 @@ class SongSelectVisualComponentsTest {
             controls.click(g.x()+5,tab.y()+2,ui.width(),ui.height(),browser);
             assertEquals(SongBrowserModel.Group.NONE,browser.group()); // Dropdown takes precedence over tabs.
         }
+    }
+    @Test void narrowWindowRetainsAllGroupsInDropdownButUsesFourTabs() {
+        assertEquals(4,SongBrowserControls.tabCount(960,720));
+        assertEquals(5,SongBrowserControls.tabCount(1280,720));
+        var controls = new SongBrowserControls(); var browser = new SongBrowserModel(List.of());
+        var g = SongBrowserControls.groupBounds(960,720);
+        controls.click(g.x()+1,g.y()+1,960,720,browser);
+        assertTrue(controls.click(g.x()+1,g.y()-26*4-13,960,720,browser));
+        assertEquals(SongBrowserModel.Group.LENGTH,browser.group());
     }
     @Test void indicatorTracksBothEndsAndHidesWhenThereIsNoScrollRange() {
         assertEquals(0,SongSelectScrollbar.thumb(1280,84,636,0,0).height());

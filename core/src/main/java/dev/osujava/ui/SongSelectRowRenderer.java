@@ -142,17 +142,17 @@ final class SongSelectRowRenderer {
         view.textSmooth(content.byline(), x, row.y() + (child ? geometry.bylineY() : row.height() / 2 - 12), width, .65f, secondary);
         if (child) view.textSmoothBold(content.detail(), x, row.y() + geometry.detailY(), width, .90f, detail);
         var stars = content.stars();
-        if (stars.present() && width >= stars.width()) drawStars(stars, x,
-                row.y() + geometry.starsY(), detail, row.selected());
+        if (stars.present() && width > 0) drawStars(stars, x,
+                row.y() + geometry.starsY(), detail, row.selected(), width);
     }
 
-    private void drawStars(SongSelectRowPresentation.Stars stars, float x, float y, Color tint, boolean selected) {
+    private void drawStars(SongSelectRowPresentation.Stars stars, float x, float y, Color tint, boolean selected, float availableWidth) {
         var texture = style.skin() == null ? null : style.skin().starTexture();
-        if (texture == null) return;
-        float scale = Math.min(15f / texture.getWidth(), 15f / texture.getHeight());
-        float w = texture.getWidth() * scale, h = texture.getHeight() * scale;
-        for (int i = 0; i < stars.slots(); i++) {
-            float sx = x + i * 18 + (15 - w) / 2, sy = y + (15 - h) / 2;
+        var band = stars.layout(availableWidth);
+        float scale = texture == null ? 0 : Math.min(band.size() / texture.getWidth(), band.size() / texture.getHeight());
+        float w = texture == null ? 0 : texture.getWidth() * scale, h = texture == null ? 0 : texture.getHeight() * scale;
+        for (int i = 0; texture != null && i < band.icons(); i++) {
+            float sx = x + i * band.step() + (band.size() - w) / 2, sy = y + (15 - h) / 2;
             batch.setColor(starTint.set(tint.r, tint.g, tint.b, tint.a * .24f));
             batch.draw(texture, sx, sy, w, h);
             float fill = stars.fill(i);
@@ -164,7 +164,7 @@ final class SongSelectRowRenderer {
             }
         }
         batch.setColor(Color.WHITE);
-        view.textSmooth(stars.label(), x + stars.slots() * 18 + 3, y + 3, stars.numericWidth() - 3, .62f, tint);
+        view.textSmooth(stars.label(), x + band.numberX(), y + 3, band.numberWidth(), .62f, tint);
     }
 
     void drawGrade(OsuGrade grade, float x, float y, float w, float h, Color tint, Color textTint) {
@@ -188,7 +188,7 @@ final class SongSelectRowRenderer {
         var asset = style.skin().get(image);
         float scale = Math.min(w / asset.logicalWidth(), h / asset.logicalHeight());
         float width = asset.logicalWidth() * scale, height = asset.logicalHeight() * scale;
-        skinImage(image, x + (w - width) / 2, y, width, height, tint);
+        skinImage(image, x + (w - width) / 2, y + (h - height) / 2, width, height, tint);
     }
 
 }

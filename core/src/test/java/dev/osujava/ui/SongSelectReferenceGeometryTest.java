@@ -63,6 +63,6 @@ class SongSelectReferenceGeometryTest {
         assertEquals(plain.textWidth() - 30,grade.textWidth());
         assertTrue(plain.starsY() < plain.detailY());
         var stars = SongSelectRowPresentation.Stars.of(OptionalDouble.of(3.35));
-        assertEquals(9,stars.slots()); assertEquals(0,stars.fill(8)); assertEquals(.35f,stars.fill(3), .001);
+        assertEquals(4,stars.slots()); assertEquals(0,stars.fill(8)); assertEquals(.35f,stars.fill(3), .001);
     }
 }
