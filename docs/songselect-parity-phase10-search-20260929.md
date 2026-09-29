@@ -100,6 +100,9 @@ xvfb-run -a ./gradlew :lwjgl3:songSelectVisualHarness --offline --console=plain 
 
 ## 残りと次の対象
 
+後続の[時間統計・mode対応](songselect-parity-phase10-timing-20260929.md)で、以下のBPM／length／drainと公開mode名称の検索を実装した。
+この節は最初の実装単位の終了時点の記録であり、現在の残作業は[台帳](songselect-parity-roadmap-20260929.md)を参照。
+
 phase 10全体は継続中。次はsort／groupの分類条件と、残る検索fieldのデータ供給を対応する。
 
 - BPM／length／drain／stars／key／mode／status／played／unplayed／speed、日付、rank、collection／favourite、metadata／score。

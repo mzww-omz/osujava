@@ -75,7 +75,13 @@ final class SongBrowserQuery {
                 default -> null;
             };
             if (text != null) return equal ? text : text.negate();
-            if (List.of("ar", "cs", "od", "hp").contains(name) && NUMBER.matcher(value).matches()) {
+            if (name.equals("mode")) {
+                // 060013aa/1401: the enum dictionary accepts prefixes and otherwise returns NaN.
+                // Only the public osu/taiko/catch/mania aliases are established here.
+                double target = mode(value);
+                return d -> compare(d.difficulty().mode(), operator, target);
+            }
+            if (List.of("ar", "cs", "od", "hp", "bpm", "length", "drain").contains(name) && NUMBER.matcher(value).matches()) {
                 double target = Double.parseDouble(value);
                 if (Double.isFinite(target)) return d -> numeric(d.difficulty(), name, operator, target);
             }
@@ -93,23 +99,42 @@ final class SongBrowserQuery {
         // 060013f8/13fb: CS and AR do not match taiko/mania, even for '!='.
         if ((field.equals("ar") || field.equals("cs")) && (difficulty.mode() == 1 || difficulty.mode() == 3)) return false;
         var settings = difficulty.settings();
+        var timing = difficulty.timingStatistics();
         double value = switch (field) {
             case "ar" -> settings.approachRate();
             case "cs" -> settings.circleSize();
             case "od" -> settings.overallDifficulty();
             case "hp" -> settings.hpDrainRate();
+            case "bpm" -> timing.commonBpm();
+            case "length" -> timing.lengthSeconds();
+            case "drain" -> timing.drainSeconds();
             default -> throw new IllegalArgumentException(field);
         };
         // Native fields are single precision, promoted to double then rounded to one decimal (ties to even).
-        value = Math.rint((double) (float) value * 10) / 10;
+        if (List.of("ar", "cs", "od", "hp").contains(field)) value = Math.rint((double) (float) value * 10) / 10;
         if (!Double.isFinite(value)) return false;
+        return compare(value, operator, target);
+    }
+
+    private static double mode(String value) {
+        if (!value.isEmpty()) {
+            var names = List.of("osu", "taiko", "catch", "mania");
+            for (int i = 0; i < names.size(); i++) if (names.get(i).startsWith(value)) return i;
+        }
+        return Double.NaN;
+    }
+
+    private static boolean compare(double value, String operator, double target) {
+        // Double.CompareTo in .NET orders every finite mode above the NaN returned for an
+        // unknown/empty enum name. Java's Double.compare orders NaN the other way around.
+        int order = Double.isNaN(target) ? 1 : value == target ? 0 : value < target ? -1 : 1;
         return switch (operator) {
-            case "=", "==" -> value == target;
-            case "!=" -> value != target;
-            case "<" -> value < target;
-            case ">" -> value > target;
-            case "<=" -> value <= target;
-            case ">=" -> value >= target;
+            case "=", "==" -> order == 0;
+            case "!=" -> order != 0;
+            case "<" -> order < 0;
+            case ">" -> order > 0;
+            case "<=" -> order <= 0;
+            case ">=" -> order >= 0;
             default -> false;
         };
     }

@@ -19,7 +19,17 @@ public record BeatmapDifficulty(
         Path backgroundPath,
         Path beatmapPath,
         int previewTimeMs,
-        BeatmapMetadata metadata) {
+        BeatmapMetadata metadata,
+        BeatmapTimingStatistics timingStatistics) {
+
+    public BeatmapDifficulty(String title, String artist, String creator, String version, int mode,
+                             String audioFilename, String backgroundFilename, DifficultySettings settings,
+                             List<TimingPoint> timingPoints, List<HitObject> hitObjects,
+                             Path audioPath, Path backgroundPath, Path beatmapPath, int previewTimeMs,
+                             BeatmapMetadata metadata) {
+        this(title, artist, creator, version, mode, audioFilename, backgroundFilename, settings,
+                timingPoints, hitObjects, audioPath, backgroundPath, beatmapPath, previewTimeMs, metadata, null);
+    }
 
     public BeatmapDifficulty(String title, String artist, String creator, String version, int mode,
                              String audioFilename, String backgroundFilename, DifficultySettings settings,
@@ -57,15 +67,16 @@ public record BeatmapDifficulty(
         settings = Objects.requireNonNullElseGet(settings, DifficultySettings::defaults);
         timingPoints = List.copyOf(Objects.requireNonNullElse(timingPoints, List.of()));
         hitObjects = List.copyOf(Objects.requireNonNullElse(hitObjects, List.of()));
+        if (timingStatistics == null) timingStatistics = BeatmapTimingStatistics.fromObjects(timingPoints, hitObjects);
     }
 
     public BeatmapDifficulty withAssets(Path resolvedAudio, Path resolvedBackground) {
         return new BeatmapDifficulty(title, artist, creator, version, mode, audioFilename,
-                backgroundFilename, settings, timingPoints, hitObjects, resolvedAudio, resolvedBackground, beatmapPath, previewTimeMs, metadata);
+                backgroundFilename, settings, timingPoints, hitObjects, resolvedAudio, resolvedBackground, beatmapPath, previewTimeMs, metadata, timingStatistics);
     }
 
     public BeatmapDifficulty withAssets(Path resolvedAudio, Path resolvedBackground, Path resolvedBeatmap) {
         return new BeatmapDifficulty(title, artist, creator, version, mode, audioFilename,
-                backgroundFilename, settings, timingPoints, hitObjects, resolvedAudio, resolvedBackground, resolvedBeatmap, previewTimeMs, metadata);
+                backgroundFilename, settings, timingPoints, hitObjects, resolvedAudio, resolvedBackground, resolvedBeatmap, previewTimeMs, metadata, timingStatistics);
     }
 }

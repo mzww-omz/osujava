@@ -25,6 +25,7 @@ class SongBrowserSearchIntegrationTest {
                         osu file format v14
                         [General]
                         AudioFilename: song.ogg
+                        Mode: %d
                         [Metadata]
                         Title: Evening Sky
                         TitleUnicode: 夜空
@@ -38,9 +39,15 @@ class SongBrowserSearchIntegrationTest {
                         BeatmapSetID: 456
                         [Difficulty]
                         ApproachRate: %d
+                        [Events]
+                        2,5000,15000
+                        [TimingPoints]
+                        0,%s,4,0,0,100,1,0
                         [HitObjects]
                         256,192,1000,1,0
-                        """.formatted(version, i==0 ? "calm" : "fast", 123+i, i==0 ? 5 : 9);
+                        256,192,%d,1,0
+                        """.formatted(i == 2 ? 3 : 0, version, i==0 ? "calm" : "fast", 123+i, i==0 ? 5 : 9,
+                                Double.toString(60000.0 / (120+60*i)),66999+60000*i);
                 zip.putNextEntry(new ZipEntry(version+".osu")); zip.write(text.getBytes(StandardCharsets.UTF_8)); zip.closeEntry();
             }
             zip.putNextEntry(new ZipEntry("song.ogg")); zip.write(new byte[]{0}); zip.closeEntry();
@@ -84,10 +91,36 @@ class SongBrowserSearchIntegrationTest {
         byte[] before = Files.readAllBytes(index(set));
         var restored = storage().load().getFirst();
         assertArrayEquals(before,Files.readAllBytes(index(set)));
+        assertEquals(set.difficulties().stream().map(d -> d.timingStatistics()).toList(),
+                restored.difficulties().stream().map(d -> d.timingStatistics()).toList());
         assertEquals(set.difficulties().stream().map(d -> d.metadata()).toList(),restored.difficulties().stream().map(d -> d.metadata()).toList());
         var browser = new SongBrowserModel(List.of(restored)); browser.search("夜空 fast 125");
         assertEquals(List.of("Insane"),matches(browser));
         storage().save(restored); assertEquals("2",properties(set).getProperty("schemaVersion"));
+    }
+
+    @Test void persistedTimelineFieldsFilterDifficultiesAndRepairSelectionWithoutIndexRewrite() throws Exception {
+        var set = imported(); storage().save(set);
+        byte[] before = Files.readAllBytes(index(set));
+        var restored = storage().load().getFirst();
+        assertArrayEquals(before,Files.readAllBytes(index(set)));
+        assertEquals(set.difficulties().stream().map(d -> d.timingStatistics()).toList(),
+                restored.difficulties().stream().map(d -> d.timingStatistics()).toList());
+        var browser = new SongBrowserModel(List.of(restored));
+        browser.group(SongBrowserModel.Group.ARTIST);
+        browser.search("bpm=180 length>=126 drain=115 mode=o");
+        assertEquals(List.of("Hard"),matches(browser));
+        assertEquals(1,restored.difficulties().indexOf(browser.selectedDifficulty()));
+        assertEquals(1,browser.rows().stream().filter(r -> r.group()).mapToInt(r -> r.matchingChildren).sum());
+        browser.search("bpm=120 length>100");
+        assertTrue(matches(browser).isEmpty(), "Numeric terms must match the same difficulty");
+        assertNull(browser.selectedDifficulty());
+        browser.search("mode=m drain=175");
+        assertEquals(List.of("Insane"),matches(browser));
+        assertEquals(2,restored.difficulties().indexOf(browser.selectedDifficulty()));
+        browser.search("");
+        assertEquals(3,matches(browser).size());
+        assertEquals("Easy",browser.selectedDifficulty().version());
     }
 
     @Test void versionTwoPersistsMetadataAndIgnoresFutureUnsupportedSchemas() throws Exception {

@@ -1263,8 +1263,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
 
     private void exerciseSearch(SongSelectScreen screen, Scene scene, UiLayout layout, FrameBuffer fb, String name) {
         screen.browserMode(SongBrowserModel.Sort.TITLE,scene.name.endsWith("group") ? SongBrowserModel.Group.ARTIST : SongBrowserModel.Group.NONE);
-        String[] queries={"difficulty=\"difficulty 2\"", "difficulty!=\"difficulty 1\" artist=aether", "ar>=5 cs=5", "difficulty=absent", ""};
-        int[] expected={7,6,28,0,28};
+        String[] queries={"difficulty=\"difficulty 2\"", "difficulty!=\"difficulty 1\" artist=aether", "ar>=5 cs=5",
+                "bpm>=190 bpm<300 length>=271 drain<=450 mode=osu",
+                "bpm=135 length=181 drain=180 mode=o difficulty=\"difficulty 2\"", "mode=mania", "difficulty=absent", ""};
+        int[] expected={7,6,28,8,1,0,0,28};
         var browser=(SongBrowserModel)screenField(screen,"browser");
         for (int stage=0;stage<queries.length;stage++) {
             screen.browserSearch(queries[stage],true);
@@ -1275,7 +1277,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (var item : ((List<?>)screenField(screen,"rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast).toList()) {
                     var row=browser.row(item.row().key());
                     if (row.excluded) throw new AssertionError("Excluded search row was drawn");
-                    if (stage==0 && !row.group() && (item.row().difficultyIndex()!=1 || !item.content().detail().equals("Difficulty 2")))
+                    if ((stage==0 || stage==4) && !row.group() && (item.row().difficultyIndex()!=1 || !item.content().detail().equals("Difficulty 2")))
                         throw new AssertionError("Search singleton lost its original difficulty index or label");
                 }
                 if (scene.name.endsWith("group") && browser.rows().stream().filter(r -> r.group()).mapToInt(r -> r.matchingChildren).sum()!=expected[stage])

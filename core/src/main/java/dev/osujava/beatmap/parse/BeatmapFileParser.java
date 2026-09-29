@@ -2,6 +2,7 @@ package dev.osujava.beatmap.parse;
 
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapMetadata;
+import dev.osujava.beatmap.BeatmapTimingStatistics;
 import dev.osujava.beatmap.BeatmapFile;
 import dev.osujava.beatmap.BeatmapPoint;
 import dev.osujava.beatmap.DifficultySettings;
@@ -81,11 +82,13 @@ public final class BeatmapFileParser {
                 decimal(general.get("stackleniency"), 0.7), formatVersion);
 
         List<TimingPoint> timingPoints = parseTimingPoints(timingLines);
-        List<HitObject> hitObjects = parseHitObjects(objectLines);
+        ParsedObjects parsedObjects = parseHitObjects(objectLines);
+        var statistics = BeatmapTimingStatistics.calculate(timingPoints, parsedObjects.firstStartMs(),
+                parsedObjects.lastStartMs(), parsedObjects.lastEndMs(), breakDuration(eventLines));
         BeatmapDifficulty difficulty = new BeatmapDifficulty(title, artist, creator, version, mode,
-                audioFilename, backgroundFilename, settings, timingPoints, hitObjects, null, null, null, integer(general.get("previewtime"), -1),
+                audioFilename, backgroundFilename, settings, timingPoints, parsedObjects.objects(), null, null, null, integer(general.get("previewtime"), -1),
                 new BeatmapMetadata(titleUnicode, artistUnicode, value(metadata, "source", ""), value(metadata, "tags", ""),
-                        integer(metadata.get("beatmapid"), -1), beatmapSetId));
+                        integer(metadata.get("beatmapid"), -1), beatmapSetId), statistics);
         return new BeatmapFile(formatVersion, title, titleUnicode, artist, artistUnicode, creator,
                 beatmapSetId, difficulty);
     }
@@ -118,8 +121,11 @@ public final class BeatmapFileParser {
         return points;
     }
 
-    private List<HitObject> parseHitObjects(List<String> lines) {
+    private record ParsedObjects(List<HitObject> objects, int firstStartMs, int lastStartMs, int lastEndMs) { }
+
+    private ParsedObjects parseHitObjects(List<String> lines) {
         List<HitObject> objects = new ArrayList<>();
+        int firstStartMs = -1, lastStartMs = -1, lastEndMs = -1;
         for (String line : lines) {
             String[] fields = line.split(",", -1);
             if (fields.length < 5) continue;
@@ -131,6 +137,13 @@ public final class BeatmapFileParser {
                 SliderData slider = type == HitObject.Type.SLIDER ? parseSliderData(fields, x, y) : null;
                 long timeMs = Long.parseLong(fields[2].trim());
                 SpinnerData spinner = type == HitObject.Type.SPINNER ? parseSpinnerData(fields, timeMs) : null;
+                // Library-only metadata. This does not add mania gameplay or resolve slider tails.
+                double endMs = spinner == null ? timeMs : spinner.endTimeMs();
+                if (type == HitObject.Type.HOLD) {
+                    if (fields.length < 6) throw new IllegalArgumentException("Hold is missing its end time");
+                    endMs = Double.parseDouble(fields[5].split(":", 2)[0].trim());
+                    if (!Double.isFinite(endMs)) throw new IllegalArgumentException("Hold end time must be finite");
+                }
                 if (type == HitObject.Type.SPINNER) {
                     // Legacy osu! spinners always occupy the centre of the playfield.
                     x = 256;
@@ -138,12 +151,32 @@ public final class BeatmapFileParser {
                 }
                 objects.add(new HitObject(x, y, timeMs, type, rawType,
                         Integer.parseInt(fields[4].trim()), slider, spinner));
+                if (firstStartMs == -1) firstStartMs = BeatmapTimingStatistics.milliseconds(timeMs);
+                if (type != HitObject.Type.UNKNOWN) {
+                    lastStartMs = BeatmapTimingStatistics.milliseconds(type == HitObject.Type.HOLD ? endMs : timeMs);
+                    lastEndMs = BeatmapTimingStatistics.milliseconds(endMs);
+                }
             } catch (IllegalArgumentException ignored) {
                 // Invalid objects are skipped so one damaged line does not discard a whole set.
             }
         }
         objects.sort(Comparator.comparingLong(HitObject::timeMs));
-        return objects;
+        return new ParsedObjects(objects, firstStartMs, lastStartMs, lastEndMs);
+    }
+
+    private long breakDuration(List<String> lines) {
+        long total = 0;
+        for (String line : lines) {
+            String[] fields = line.split(",", -1);
+            if (fields.length < 3 || !(fields[0].trim().equals("2") || fields[0].trim().equalsIgnoreCase("Break"))) continue;
+            try {
+                int start = Integer.parseInt(fields[1].trim()), end = Integer.parseInt(fields[2].trim());
+                if (end >= start) total += (long) end - start;
+            } catch (NumberFormatException ignored) {
+                // A malformed event does not terminate archive import or discard valid objects.
+            }
+        }
+        return total;
     }
 
     private SpinnerData parseSpinnerData(String[] fields, long startTimeMs) {

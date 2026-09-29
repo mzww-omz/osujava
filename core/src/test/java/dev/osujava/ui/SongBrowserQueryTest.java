@@ -48,6 +48,43 @@ class SongBrowserQueryTest {
         assertTrue(new SongBrowserQuery("od=8.2 hp=6").matches(doc));
     }
 
+    @ParameterizedTest @CsvSource({"osu,0", "o,0", "os,0", "taiko,1", "t,1", "tai,1",
+            "catch,2", "c,2", "cat,2", "mania,3", "m,3", "MAN,3"})
+    void modeNamesAndPrefixesMatchOnlyTheirMode(String name, int expected) {
+        for (int mode=0; mode<4; mode++) {
+            var doc = SongBrowserQuery.Document.of(difficulty("Hard",mode,9));
+            assertEquals(mode == expected,new SongBrowserQuery("mode="+name).matches(doc));
+            assertEquals(mode != expected,new SongBrowserQuery("mode!="+name).matches(doc));
+        }
+    }
+
+    @ParameterizedTest @ValueSource(strings={"mode==osu", "mode<taiko", "mode<=o", "mode>=osu", "mode!=mania",
+            "mode!=", "mode>unknown", "mode>=unknown", "mode!=0"})
+    void modeComparisonUsesEnumOrderingIncludingUnknownNameNaN(String query) { assertTrue(matches(query)); }
+
+    @ParameterizedTest @ValueSource(strings={"mode=", "mode=unknown", "mode=0", "mode=osu!", "mode<unknown",
+            "mode<=", "mode>osu", "mode!=o"})
+    void modeUnknownNamesAreNotOrdinaryTextOrNumericModeIds(String query) { assertFalse(matches(query)); }
+
+    @ParameterizedTest @ValueSource(strings={"bpm=120", "bpm!=240", "bpm>=120", "bpm<121", "length=66",
+            "length==66", "length<67", "length<=66", "length>65", "length>=66", "length!=66.999",
+            "drain=55", "drain>54.999", "bpm=120 length=66 drain=55 mode=o"})
+    void tempoLengthAndDrainUseImportedStatistics(String query) throws Exception {
+        var chart = new dev.osujava.beatmap.parse.BeatmapFileParser().parse("""
+                osu file format v14
+                [Events]
+                2,10000,20000
+                [TimingPoints]
+                0,500,4,0,0,100,1,0
+                50000,250,4,0,0,100,1,0
+                [HitObjects]
+                256,192,1000,1,0
+                256,192,66999,1,0
+                """, "query.osu").difficulty();
+        assertTrue(new SongBrowserQuery(query).matches(SongBrowserQuery.Document.of(chart)));
+        assertFalse(new SongBrowserQuery("bpm=240").matches(SongBrowserQuery.Document.of(chart)), "BPM search uses common tempo, not the maximum");
+    }
+
     static Stream<Arguments> tokenCases() {
         return Stream.of(
                 Arguments.of("title=\"one two\" extra", List.of("title=one two", "extra")),
