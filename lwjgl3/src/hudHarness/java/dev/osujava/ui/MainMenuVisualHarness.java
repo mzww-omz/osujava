@@ -18,10 +18,10 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
                          MainMenuState state, double transitionMs, double playbackMs, float amplitude) { }
     private static final class FixedAnalysis implements MenuAudioAnalysis {
         private final float amplitude;
-        private final float[] bins = new float[200];
+        private final float[] bins = new float[1024];
         FixedAnalysis(float amplitude) {
             this.amplitude = amplitude;
-            for (int i = 0; i < bins.length; i++) bins[i] = (float) ((.015 + amplitude * .24)
+            for (int i = 0; i < bins.length; i++) bins[i] = (float) ((.005 + amplitude * .18) * Math.exp(-i / 90.0)
                     * (.5 + .3 * Math.sin(i * .137) + .2 * Math.cos(i * .071)));
         }
         public float maximumAmplitude() { return amplitude; }
@@ -69,11 +69,13 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
             PixmapIO.writePNG(Gdx.files.absolute(artwork.toString()),pixmap); pixmap.dispose();
             for (int[] size : new int[][]{{1024,768,1},{1280,720,1},{1366,768,1},{1920,1080,1},{2560,1440,1},{600,800,1},{1280,720,2},{600,800,2}})
                 for (boolean bg : new boolean[]{false,true}) {
-                    for (String name : new String[]{"closed", "beat-phase-0", "beat-impact", "between-beats", "audio-low", "audio-high", "visualiser-active", "logo-pressed"}) {
+                    for (String name : new String[]{"closed", "beat-phase-0", "beat-impact", "between-beats", "audio-low", "audio-high", "visualiser-active", "logo-pressed", "closed-hover", "parallax-top-left", "parallax-bottom-right"}) {
                         double playback = switch(name) { case "beat-phase-0" -> 0; case "beat-impact" -> 1000; case "between-beats" -> 1250; default -> 1170; };
                         float amplitude = (name.equals("audio-high") || name.equals("beat-impact")) ? .95f : name.equals("audio-low") ? .03f : .4f;
                         scenes.add(new Scene(size[0],size[1],size[2],bg,name,MainMenuState.CLOSED,0,playback,amplitude));
                     }
+                    for (int ms : new int[]{2000,2083,2167,2250,2333,2417})
+                        scenes.add(new Scene(size[0],size[1],size[2],bg,"idle-cycle-"+ms,MainMenuState.CLOSED,0,ms,.4f));
                     for (int ms : new int[]{0,100,200,190,380})
                         scenes.add(new Scene(size[0],size[1],size[2],bg,"opening-"+ms,MainMenuState.OPENING,ms,1170,.4f));
                     for (String name : new String[]{"open-idle","play-hover","exit-hover","logo-hover"})
@@ -113,7 +115,9 @@ public final class MainMenuVisualHarness extends ApplicationAdapter {
         try {
             MainMenuLayout m = MainMenuLayout.from(UiLayout.fromPixels(scene.width,scene.height));
             float x = -100, y = -100;
-            if (scene.name.equals("logo-hover") || scene.name.equals("logo-pressed")) { x = m.cx(); y = m.cy(); }
+            if (scene.name.equals("logo-hover") || scene.name.equals("logo-pressed") || scene.name.equals("closed-hover")) { x = m.cx(); y = m.cy(); }
+            if (scene.name.equals("parallax-top-left")) { x = 0; y = m.height(); }
+            if (scene.name.equals("parallax-bottom-right")) { x = m.width(); y = 0; }
             if (scene.name.equals("play-hover") || scene.name.equals("exit-hover")) {
                 int button = scene.name.equals("play-hover") ? 0 : 1;
                 x = m.cx() + m.direction(button) * m.targetWidth() * .85f; y = m.cy();

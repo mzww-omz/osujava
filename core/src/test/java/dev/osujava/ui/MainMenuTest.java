@@ -41,10 +41,10 @@ class MainMenuTest {
             assertTrue(frame.trackX() > frame.centerX() + frame.centerWidth());
             assertTrue(MainMenuFrame.controlX(frame, 0) >= frame.trackX());
             assertTrue(MainMenuFrame.controlY(frame) >= frame.height() - frame.topHeight());
-            // Fixed harness spectrum's maximum radius, including settled logo hover.
-            float spectrumRadius = menu.radius() * 1.1f * (1 + 3 * .111f);
-            assertTrue(menu.cy() + spectrumRadius + 24 < frame.height() - frame.topHeight());
-            assertTrue(menu.cy() - spectrumRadius - 24 > frame.bottomHeight());
+            // The larger stable cookie fits between the fixed HUD bands, including hover.
+            float cookieRadius = menu.radius() * 1.15f;
+            assertTrue(menu.cy() + cookieRadius < frame.height() - frame.topHeight());
+            assertTrue(menu.cy() - cookieRadius > frame.bottomHeight());
         }
         assertEquals("00:00:00",MainMenuFrame.uptime(-1));
         assertEquals("01:00:00",MainMenuFrame.uptime(3600));
@@ -102,35 +102,6 @@ class MainMenuTest {
         assertEquals(1000,beat.lengthMs()); assertEquals(.25,beat.phase());
         assertEquals(500,MenuBeatTiming.at(List.of(),1250,true).lengthMs());
     }
-    @Test void deterministicFallbackIsNotTrueSpectrumAndTracksBeatPhase() {
-        var a = new DeterministicMenuAudioFallback();
-        a.sample(100,MenuBeatTiming.at(List.of(),100,true));
-        float[] first = a.frequencyAmplitudes().clone(); float amplitude = a.maximumAmplitude();
-        a.sample(900,MenuBeatTiming.at(List.of(),900,true));
-        assertNotEquals(amplitude,a.maximumAmplitude());
-        a.sample(100,MenuBeatTiming.at(List.of(),100,true));
-        assertArrayEquals(first,a.frequencyAmplitudes()); assertFalse(a.available()); assertEquals(200,first.length);
-    }
-    private static MenuAudioAnalysis fixed(float amplitude, float[] bins) {
-        return new MenuAudioAnalysis() {
-            public float maximumAmplitude() { return amplitude; }
-            public float[] frequencyAmplitudes() { return bins; }
-            public boolean available() { return true; }
-        };
-    }
-    @Test void visualiserMatchesPeakHoldIndexRotationDecayDeadZoneAndFiftyMsSampling() {
-        float[] bins = new float[200]; bins[5] = .8f;
-        var v = new MenuVisualiser(); v.advance(0,fixed(.8f,bins),false);
-        assertEquals(200,v.amplitudes().length); assertEquals(.4f,v.amplitudes()[5]);
-        v.advance(49,fixed(0,new float[200]),true);
-        assertEquals(.4f - 49 * .0024f * (.4f + .03f),v.amplitudes()[5],.000001);
-        v.advance(1,fixed(.8f,bins),true); assertEquals(.8f,v.amplitudes()[0]); // index jumps five.
-        v.decay(10000); for (float value : v.amplitudes()) assertEquals(0,value);
-        assertFalse(MenuVisualiser.visible(MenuVisualiser.DEAD_ZONE * .99f));
-        assertTrue(MenuVisualiser.visible(MenuVisualiser.DEAD_ZONE));
-        assertEquals(Math.PI * 2 / 5,MenuVisualiser.rotation(0,1),.000001);
-        v.reset(); v.advance(0,fixed(1,new float[]{Float.NaN}),true); assertEquals(0,v.amplitudes()[0]);
-    }
     @Test void stateMachineOpensClosesAndReversesWithoutJumping() {
         var m = new MainMenuModel(); assertEquals(MainMenuState.CLOSED,m.state()); assertEquals(0,m.reveal());
         m.toggle(); assertEquals(MainMenuState.OPENING,m.state()); assertEquals(0,m.reveal());
@@ -182,41 +153,6 @@ class MainMenuTest {
             var closed=new MainMenuModel(); assertEquals(-1,layout.buttonAt(layout.cx()+250,layout.cy(),closed));
             closed.toggle();advance(closed,380);closed.toggle();assertEquals(-1,layout.buttonAt(layout.cx()+250,layout.cy(),closed));
         }
-    }
-    @Test void logoPulseAndContinuousAmplitudeAreSeparateSubtleLayers() {
-        var impact=MenuBeatTiming.at(List.of(point(0,500,true)),1000,true);
-        float pulse=MainMenuMotion.beatScale(impact,.9f); assertEquals(.98f,pulse,.00001);
-        var between=MenuBeatTiming.at(List.of(point(0,500,true)),1250,true);
-        assertTrue(MainMenuMotion.beatScale(between,.9f)>pulse);
-        assertEquals(.976f,MainMenuMotion.amplitudeTarget(1),.00001);
-        assertEquals(1,MainMenuMotion.amplitudeTarget(.3f));
-        assertEquals(1,MainMenuMotion.amplitudeTarget(Float.NaN));
-        assertEquals(.976f,MainMenuMotion.amplitudeTarget(9),.00001);
-        assertTrue(MainMenuMotion.beatScale(MenuBeatTiming.at(List.of(),945,true),1)<1);
-        var low=new MainMenuModel(); low.advance(100,impact,fixed(.1f,new float[200]));
-        var high=new MainMenuModel(); high.advance(100,impact,fixed(.9f,new float[200]));
-        assertTrue(high.scale()<low.scale());
-        low.pointer(true,-1,false);advance(low,500);assertTrue(low.scale()>1.07f);
-        low.pointer(true,-1,true);advance(low,1000);assertTrue(low.scale()<1);
-        low.pointer(true,-1,false);advance(low,500);assertTrue(low.scale()>1.07f);
-    }
-    @Test void beatAmplitudeIsSampledAtEarlyActivationSeparatelyFromContinuousAmplitude() {
-        float[] maximum={.8f};
-        var synthetic=new MenuAudioAnalysis() {
-            public float maximumAmplitude() { return maximum[0]; }
-            public float[] frequencyAmplitudes() { return new float[200]; }
-            public boolean available() { return false; }
-        };
-        var model=new MainMenuModel();
-        var early=MenuBeatTiming.at(List.of(point(0,500,true)),950,true);
-        model.advance(0,early,synthetic);
-        maximum[0]=0;
-        var impact=MenuBeatTiming.at(List.of(point(0,500,true)),1000,true);
-        model.advance(50,impact,synthetic);
-        assertEquals(MainMenuMotion.beatScale(impact,.8f),model.scale(),.00001);
-        var nextImpact=MenuBeatTiming.at(List.of(point(0,500,true)),1500,true);
-        model.advance(500,nextImpact,synthetic);
-        assertEquals(MainMenuMotion.beatScale(nextImpact,0),model.scale(),.00001);
     }
     @Test void streamStartsOnEnterFadesStopsDisposesAndReenterCreatesFreshStream() {
         int[] created={0}, stopped={0}, disposed={0}, played={0}; float[] volume={0};

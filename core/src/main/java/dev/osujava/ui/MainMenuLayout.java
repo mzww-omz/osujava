@@ -6,9 +6,14 @@ import dev.osujava.ui.theme.UiLayout;
 record MainMenuLayout(float width, float height, float cx, float cy, float radius, float targetWidth, float buttonHeight) {
     static final float WEDGE = 20;
     static MainMenuLayout from(UiLayout ui) {
-        float r = Math.min(ui.height() * .235f, ui.width() * .18f);
+        float r = Math.min(ui.height() * 150f / 480, ui.width() * .235f);
         return new MainMenuLayout(ui.width(), ui.height(), ui.width() / 2, ui.height() / 2, r,
                 (ui.width() / 2 - 32) / 1.22f, Math.min(92, ui.height() * .125f));
+    }
+    MainMenuLayout parallax(float x, float y) {
+        if (x < 0 || y < 0 || x > width || y > height) return this;
+        return new MainMenuLayout(width, height, cx - (x - width / 2) / 60,
+                cy - (y - height / 2) / 60, radius, targetWidth, buttonHeight);
     }
     int direction(int button) { return button == 0 ? 1 : -1; }
     float extent(float reveal, float hover, float explosion) { return targetWidth * reveal * (1 + .15f * hover + .25f * explosion); }

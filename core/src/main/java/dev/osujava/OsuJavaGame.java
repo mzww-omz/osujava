@@ -60,6 +60,11 @@ public class OsuJavaGame extends Game {
 
     public Path skinDirectory() { return skinDirectory; }
 
+    /** Desktop supplies decoding; the core and renderer never depend on a platform codec. */
+    public dev.osujava.ui.MenuAudioAnalysis createMenuAudioAnalysis() {
+        return new dev.osujava.ui.DeterministicMenuAudioFallback();
+    }
+
     /** Application lifetime, including time spent away from the Main Menu. */
     public long sessionUptimeSeconds() { return Math.max(0, (System.nanoTime() - sessionStartNanos) / 1_000_000_000L); }
 

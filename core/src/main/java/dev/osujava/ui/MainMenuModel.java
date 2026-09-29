@@ -10,18 +10,13 @@ final class MainMenuModel {
     private Runnable pending;
     private double exitElapsed;
     private int exploded = -1;
-    private final Spring[] hover = {new Spring(), new Spring(), new Spring()};
-    private final Spring bounce = new Spring();
-    private float amplitudeScale = 1, flash;
-    private boolean pressed;
-    private float beatScale = 1, beatAmplitude;
-    private long lastBeatIndex = Long.MIN_VALUE;
-    private double lastBeatOrigin = Double.NaN;
+    private final Spring[] hover = {new Spring(), new Spring()};
+    private final MenuCookieMotion cookie = new MenuCookieMotion();
     MainMenuState state() { return state; }
     void toggle() {
         if (pending != null) return;
         startFrame = frameEmphasis();
-        startReveal = reveal(); startScale = transitionScale(); elapsed = 0; flash = .4f;
+        startReveal = reveal(); startScale = transitionScale(); elapsed = 0; cookie.click();
         state = state == MainMenuState.CLOSED || state == MainMenuState.CLOSING ? MainMenuState.OPENING : MainMenuState.CLOSING;
     }
     float reveal() {
@@ -48,10 +43,8 @@ final class MainMenuModel {
         };
     }
     void pointer(boolean logo, int button, boolean down) {
-        hover[0].target(logo ? 1 : 0);
-        hover[1].target(button == 0 ? 1 : 0); hover[2].target(button == 1 ? 1 : 0);
-        pressed = logo && down;
-        bounce.target(pressed ? 1 : 0);
+        cookie.pointer(logo);
+        hover[0].target(button == 0 ? 1 : 0); hover[1].target(button == 1 ? 1 : 0);
     }
     void request(int button, Runnable action) {
         if (pending != null) return;
@@ -62,23 +55,16 @@ final class MainMenuModel {
     float fade() { return pending() ? MainMenuMotion.clamp(exitElapsed / EXIT_MS) : 0; }
     float explosion(int button) { return pending() && exploded == button ? MainMenuMotion.outExpo(exitElapsed / EXIT_MS) : 0; }
     float buttonAlpha(int button) { return reveal() * (1 - (pending() && exploded == button ? fade() : 0)); }
-    float hover(int button) { return hover[button + 1].value; }
-    float flash() { return flash; }
-    float scale() { return (1 + .1f * hover[0].value) * (1 - .1f * bounce.value) * beatScale * amplitudeScale * transitionScale(); }
-    boolean pressed() { return pressed; }
-    void resetTrackAnalysis() {
-        lastBeatIndex = Long.MIN_VALUE; lastBeatOrigin = Double.NaN;
-        beatScale = amplitudeScale = 1; beatAmplitude = 0;
-    }
+    float hover(int button) { return hover[button].value; }
+    float scale() { return cookie.scale() * transitionScale(); }
+    MenuCookieMotion cookie() { return cookie; }
+    void resetTrackAnalysis() { cookie.resetTrack(); }
     boolean advance(double ms, MenuBeatTiming.Beat beat, MenuAudioAnalysis analysis) {
         ms = Math.max(0, ms); elapsed += ms;
         if (state == MainMenuState.OPENING && elapsed >= EXPAND_MS) state = MainMenuState.OPEN;
         if (state == MainMenuState.CLOSING && elapsed >= CLOSE_MS) state = MainMenuState.CLOSED;
         for (Spring h : hover) h.advance(ms, 500);
-        bounce.advance(ms, pressed ? 1000 : 500, !pressed);
-        flash *= Math.pow(2, -10 * ms / 1500);
-        updateBeat(beat, analysis);
-        amplitudeScale = MainMenuMotion.damp(amplitudeScale, analysis.available() ? MainMenuMotion.amplitudeTarget(analysis.maximumAmplitude()) : 1, ms);
+        cookie.advance(ms, beat, analysis);
         if (pending == null) return false;
         exitElapsed += ms;
         if (exitElapsed < EXIT_MS) return false;
@@ -89,22 +75,10 @@ final class MainMenuModel {
         if (requested == MainMenuState.OPEN || requested == MainMenuState.CLOSING) { toggle(); elapsed = EXPAND_MS; state = MainMenuState.OPEN; }
         if (requested == MainMenuState.OPENING || requested == MainMenuState.CLOSING) toggle();
         elapsed = ms;
-        flash = requested == MainMenuState.OPENING || requested == MainMenuState.CLOSING
-                ? .4f * (float) Math.pow(2, -10 * ms / 1500) : 0;
+
     }
-    void settleCapture(MenuBeatTiming.Beat beat, MenuAudioAnalysis analysis) {
+    void settleCapture() {
         for (Spring h : hover) h.advance(500, 500);
-        bounce.advance(1000, 1000, !pressed);
-        updateBeat(beat, analysis);
-        amplitudeScale = analysis.available() ? MainMenuMotion.amplitudeTarget(analysis.maximumAmplitude()) : 1;
-    }
-    private void updateBeat(MenuBeatTiming.Beat beat, MenuAudioAnalysis analysis) {
-        long index = (long) Math.floor((beat.positionMs() + 60 - beat.originMs()) / beat.lengthMs());
-        if (index != lastBeatIndex || beat.originMs() != lastBeatOrigin) {
-            lastBeatIndex = index; lastBeatOrigin = beat.originMs();
-            beatAmplitude = analysis.maximumAmplitude();
-        }
-        beatScale = MainMenuMotion.beatScale(beat, beatAmplitude);
     }
     private static final class Spring {
         float value, start, target;

@@ -4,6 +4,9 @@ dependencies {
     implementation project(':core')
     implementation "com.badlogicgames.gdx:gdx-backend-lwjgl3:$gdxVersion"
     runtimeOnly "com.badlogicgames.gdx:gdx-platform:$gdxVersion:natives-desktop"
+    testImplementation platform("org.junit:junit-bom:$junitVersion")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 application {
@@ -108,6 +111,13 @@ tasks.register('mainMenuAudioSmoke', JavaExec) {
     classpath = sourceSets.hudHarness.runtimeClasspath
     mainClass = 'dev.osujava.ui.MainMenuAudioSmoke'
     args project.findProperty('mainMenuAudio') ?: '/tmp/osujava-main-menu-audio'
+}
+
+tasks.register('mainMenuAnalysisSmoke', JavaExec) {
+    dependsOn hudHarnessClasses
+    classpath = sourceSets.hudHarness.runtimeClasspath
+    mainClass = 'dev.osujava.lwjgl3.MenuAnalysisSmoke'
+    args project.findProperty('mainMenuAudio') ?: '/tmp/osujava-cookie-audio'
 }
 
 // Use -PskinHarnessJar=... to verify the same gameplay against only the packaged runtime.

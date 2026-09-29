@@ -108,6 +108,14 @@ public final class UiView {
         var crop = ImageCover.crop(texture.getWidth(), texture.getHeight(), w, h);
         game.batch().draw(texture, x, y, w, h, crop.left(), crop.bottom(), crop.right(), crop.top());
     }
+    public void imageCover(Texture texture, float x, float y, float w, float h, float alpha, boolean additive) {
+        SpriteBatch batch = game.batch();
+        batch.setBlendFunction(GL20.GL_SRC_ALPHA, additive ? GL20.GL_ONE : GL20.GL_ONE_MINUS_SRC_ALPHA);
+        batch.setColor(1, 1, 1, alpha);
+        imageCover(texture, x, y, w, h);
+        batch.setColor(Color.WHITE);
+        batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+    }
     public void endText() {
         game.batch().end();
         game.font().getData().setScale(1f);

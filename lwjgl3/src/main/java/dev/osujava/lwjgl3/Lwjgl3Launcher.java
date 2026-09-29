@@ -31,7 +31,11 @@ public final class Lwjgl3Launcher {
                 return true;
             }
         });
-        new Lwjgl3Application(new OsuJavaGame(new DesktopFileChooser()), configuration);
+        new Lwjgl3Application(new OsuJavaGame(new DesktopFileChooser()) {
+            @Override public dev.osujava.ui.MenuAudioAnalysis createMenuAudioAnalysis() {
+                return new DesktopMenuAudioAnalysis();
+            }
+        }, configuration);
     }
 
     private static void installMacQuitHandler() {

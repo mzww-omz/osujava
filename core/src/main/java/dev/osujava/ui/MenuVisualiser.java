@@ -1,36 +1,34 @@
-// Behaviour adapted from osu!lazer (ppy Pty Ltd), MIT; see docs/licenses/ppy-MIT.txt.
 package dev.osujava.ui;
 
 import java.util.Arrays;
 
-/** Lazer LogoVisualisation peak hold and decay, with no rendering or decoding responsibilities. */
+/** Stable's 1024 FFT spokes, four turns, 10ms index shifts and exponential peak decay. */
 public final class MenuVisualiser {
-    public static final int BARS = 200, ROUNDS = 5, INDEX_CHANGE = 5;
-    public static final double UPDATE_MS = 50;
-    public static final float MAX_LENGTH = 600, DECAY_PER_MS = .0024f, DEAD_ZONE = 1f / MAX_LENGTH;
+    public static final int BARS = 1024;
     private final float[] bars = new float[BARS];
-    private double untilUpdate;
+    private double segmentMs;
     private int offset;
-    public void reset() { Arrays.fill(bars, 0); untilUpdate = 0; offset = 0; }
+    public void reset() { Arrays.fill(bars, 0); segmentMs = 0; offset = 0; }
     public void advance(double deltaMs, MenuAudioAnalysis source, boolean kiai) {
-        // No catch-up sampling: match lazer's scheduler; a stall does not invent audio history.
-        decay(Math.max(0, deltaMs));
-        untilUpdate -= Math.max(0, deltaMs);
-        if (untilUpdate > 0) return;
-        untilUpdate = UPDATE_MS;
+        if (!Double.isFinite(deltaMs) || deltaMs <= 0 || deltaMs > 1000) return;
+        double remaining = Math.max(0, deltaMs);
         float[] bins = source.frequencyAmplitudes();
-        for (int i = 0; i < BARS; i++) {
-            int index = (i + offset) % BARS;
-            float value = index < bins.length ? bins[index] : 0;
-            if (!Float.isFinite(value)) value = 0;
-            bars[i] = Math.max(bars[i], Math.max(0, Math.min(1, value)) * (kiai ? 1 : .5f));
-        }
-        offset = (offset + INDEX_CHANGE) % BARS;
-    }
-    public void decay(double ms) {
-        for (int i = 0; i < BARS; i++) bars[i] = Math.max(0, bars[i] - (float) ms * DECAY_PER_MS * (bars[i] + .03f));
+        do {
+            double step = Math.min(remaining, 10 - segmentMs);
+            double decay = Math.pow(.95, step / (1000.0 / 60));
+            for (int i = 0; i < BARS; i++) {
+                int bin = (BARS - 1 - i + offset) % BARS;
+                float value = source.available() && bin < bins.length ? bins[bin] : 0;
+                if (!Float.isFinite(value)) value = 0;
+                bars[i] = (float) (Math.max(bars[i], Math.max(0, value) * 1.6f * 3) * decay);
+                if (bars[i] < .01f) bars[i] = 0;
+            }
+            remaining -= step; segmentMs += step;
+            // stable rotates only when it passes the 10ms boundary.
+            if (segmentMs >= 10 && remaining > 0) { segmentMs = 0; offset = (offset + 50) % BARS; }
+        } while (remaining > 0);
     }
     public float[] amplitudes() { return bars.clone(); }
-    public static boolean visible(float amplitude) { return amplitude >= DEAD_ZONE; }
-    public static double rotation(int bar, int round) { return bar * Math.PI * 2 / BARS + round * Math.PI * 2 / ROUNDS; }
+    public static float opacity(float length) { return .4f * MainMenuMotion.clamp((length - .04f) / .08f); }
+    public static double rotation(int bar) { return Math.PI * 2 * (.4 + bar * 4.0 / BARS); }
 }

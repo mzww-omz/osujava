@@ -1,5 +1,7 @@
 # Music-first Main Menu
 
+**2026-09-29 update:** Cookie motion, size, parallax, spectrum and audio analysis below are superseded by [the stable cookie investigation and implementation](main-menu-stable-cookie-20260929.md). The local menu actions, transitions and music controls remain. The older lazer constants and synthetic-analysis description below are retained as implementation history, not the current cookie contract.
+
 The centre keeps the lazer-inspired logo and mirrored local actions, while a stable-inspired information frame stays visible above and below it. Song Select, Gameplay, gameplay audio timing and skin rendering are unchanged. The app remains fully local.
 
 ## Composition and state

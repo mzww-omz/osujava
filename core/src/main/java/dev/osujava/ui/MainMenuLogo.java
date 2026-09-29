@@ -15,20 +15,20 @@ final class MainMenuLogo implements AutoCloseable {
         texture.setFilter(Texture.TextureFilter.MipMapLinearLinear, Texture.TextureFilter.Linear);
     }
 
-    void visualiser(UiView view, MainMenuLayout m, float scale, float[] bins) {
-        float radius = m.radius() * scale;
-        float lengthScale = m.radius() / 200 * scale;
-        Color tint = new Color(1, .94f, .98f, .5f * .2f);
-        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
+    void visualiser(UiView view, MainMenuLayout m, MainMenuModel model, float[] bins) {
+        float unit = m.radius() / 150 * model.transitionScale();
+        float radius = m.radius() * model.transitionScale() * model.cookie().spectrumScale();
+        Color tint = new Color(128 / 255f, 128 / 255f, 160 / 255f, 1);
         view.beginShapes();
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
-        for (int round = 0; round < MenuVisualiser.ROUNDS; round++) for (int i = 0; i < MenuVisualiser.BARS; i++) {
-            if (!MenuVisualiser.visible(bins[i])) continue;
-            double angle = MenuVisualiser.rotation(i, round);
-            float dx = (float) Math.cos(angle), dy = (float) Math.sin(angle);
-            float halfWidth = radius * (float) Math.sin(Math.PI / MenuVisualiser.BARS);
+        for (int i = 0; i < MenuVisualiser.BARS; i++) {
+            tint.a = MenuVisualiser.opacity(bins[i]) * model.cookie().spectrumAlpha(model.reveal());
+            if (tint.a <= 0) continue;
+            double angle = MenuVisualiser.rotation(i);
+            float dx = (float) Math.cos(angle), dy = -(float) Math.sin(angle);
+            float halfWidth = .25f * unit;
             float x = m.cx() + dx * radius, y = m.cy() + dy * radius;
-            float length = MenuVisualiser.MAX_LENGTH * bins[i] * lengthScale;
+            float length = 300 * bins[i] * unit;
             float tx = -dy * halfWidth, ty = dx * halfWidth;
             view.quad(x - tx, y - ty, x + dx * length - tx, y + dy * length - ty,
                     x + dx * length + tx, y + dy * length + ty, x + tx, y + ty, tint);
@@ -37,7 +37,18 @@ final class MainMenuLogo implements AutoCloseable {
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
     }
     void draw(UiView view, MainMenuLayout m, MainMenuModel model) {
-        draw(view, m.cx(), m.cy(), m.radius() * model.scale(), model.flash());
+        var motion = model.cookie();
+        float base = m.radius() * model.transitionScale();
+        view.beginText();
+        for (var ripple : motion.ripples()) {
+            float r = base * motion.rippleScale(ripple);
+            view.imageCover(texture, m.cx() - r, m.cy() - r, r * 2, r * 2, motion.rippleAlpha(ripple), true);
+        }
+        float r = m.radius() * model.scale();
+        view.imageCover(texture, m.cx() - r, m.cy() - r, r * 2, r * 2);
+        r = base * motion.echoScale();
+        view.imageCover(texture, m.cx() - r, m.cy() - r, r * 2, r * 2, motion.echoAlpha(), motion.echoAdditive());
+        view.endText();
     }
     void draw(UiView view, float x, float y, float r, float flash) {
         view.beginShapes();

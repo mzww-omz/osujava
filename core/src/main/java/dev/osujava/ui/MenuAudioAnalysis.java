@@ -2,6 +2,7 @@ package dev.osujava.ui;
 
 /** Playback-position analysis seam. available() means real PCM analysis, never synthetic bins. */
 public interface MenuAudioAnalysis extends AutoCloseable {
+    default void select(java.nio.file.Path path) { }
     default void sample(double playbackMs, MenuBeatTiming.Beat beat) { }
     float maximumAmplitude();
     float[] frequencyAmplitudes();
