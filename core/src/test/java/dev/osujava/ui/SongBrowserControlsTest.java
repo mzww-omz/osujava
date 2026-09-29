@@ -33,11 +33,11 @@ class SongBrowserControlsTest {
         assertNull(SongSelectAction.bottom(650,40,layout));
         assertNull(SongSelectAction.bottom(340,layout.controlHeight,layout));
     }
-    @Test void compactHeadersShareMotionWithoutChangingBeatmapPitch() {
+    @Test void groupCardsShareMotionWithoutChangingBeatmapPitch() {
         var c = new SongSelectCarousel();
         c.content(List.of(new SongSelectCarousel.Entry("group:A",-1,-2),new SongSelectCarousel.Entry("a#0",0,0),
                 new SongSelectCarousel.Entry("a#1",0,1),new SongSelectCarousel.Entry("b#-1",1,-1)),574,80,76.8f,81.6f,"a#1");
-        assertEquals(76.8f*.69f,c.rows().get(1).logicalY-c.rows().get(0).logicalY,.001);
+        assertEquals(76.8f,c.rows().get(1).logicalY-c.rows().get(0).logicalY,.001);
         assertEquals(81.6f,c.rows().get(2).logicalY-c.rows().get(1).logicalY,.001);
         c.reordered(); for(int i=0;i<120;i++)c.advance(1f/60,null);
         assertEquals(658 - 574 * 220f / 480,c.renderY(c.rows().get(2),658)+40,.01);

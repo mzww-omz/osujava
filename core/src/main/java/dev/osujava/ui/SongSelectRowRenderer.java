@@ -24,7 +24,9 @@ final class SongSelectRowRenderer {
     private Style style;
     private final Color rowTint = new Color(), thumbnailTint = new Color();
     private final Color primaryTint = new Color(), secondaryTint = new Color(), detailTint = new Color(), starTint = new Color();
-    private static final Color TOP = new Color(.025f, .022f, .045f, .68f);
+    // 06000fb1 -> 04000857/0856; Group state colour selection in 060025e6.
+    private static final Color GROUP_CLOSED = new Color(35 / 255f, 50 / 255f, 143 / 255f, 1);
+    private static final Color GROUP_OPEN = new Color(163 / 255f, 240 / 255f, 44 / 255f, 1);
     private static final Color OTHER = new Color(.58f, .30f, .49f, .90f);
     private static final Color OTHER_HOVER = new Color(.73f, .38f, .59f, .96f);
     private static final Color PLAYED = new Color(.79f, .46f, .23f, .92f);
@@ -67,24 +69,13 @@ final class SongSelectRowRenderer {
     private void drawRow(Presentation item, float scaleX, float scaleY) {
         var row = item.row();
         if (row.revealAmount() < .01f) return;
-        if (row.setIndex() < 0) {
-            clipContent(item, scaleX, scaleY);
-            // Compact divider at the row center; no beatmap body, thumbnail, hover or play target.
-            view.beginShapes();
-            view.box(row.x() + 12, row.y() + row.height() / 2 - 13, row.width(), 26, 0, TOP);
-            view.endShapes();
-            view.beginText();
-            view.textSmoothBold(row.header(), row.x() + 22,
-                    row.y() + row.height() / 2 + 2, style.width() - row.x() - 30, .74f, UiTheme.TEXT);
-            view.endText();
-            return;
-        }
         boolean played = item.played();
         var tone = SongSelectRowPresentation.tone(row.selected(), row.sibling(), played);
         Color color = rowTint.set(switch (tone) {
             case SELECTED -> SELECTED; case SIBLING -> SIBLING; case PLAYED -> PLAYED; case UNPLAYED -> OTHER;
         });
-        if (!row.selected()) color.lerp(row.sibling() ? SIBLING_HOVER : played ? PLAYED_HOVER : OTHER_HOVER,row.hoverAmount());
+        if (row.group()) color.set(row.groupExpanded() ? GROUP_OPEN : GROUP_CLOSED);
+        else if (!row.selected()) color.lerp(row.sibling() ? SIBLING_HOVER : played ? PLAYED_HOVER : OTHER_HOVER,row.hoverAmount());
         color.a *= row.revealAmount();
         float x = row.x(), y = row.y();
         if (has(Image.MENU_BUTTON_BACKGROUND)) {
@@ -102,10 +93,22 @@ final class SongSelectRowRenderer {
         // The bundled default is dark artwork. Keep an authored text colour, but provide
         // a light selected surface when that text is dark. Never wash custom skin artwork.
         var background = has(Image.MENU_BUTTON_BACKGROUND) ? style.skin().get(Image.MENU_BUTTON_BACKGROUND) : null;
-        if (fallbackWash(row.selected(), background != null && background.file().classpathResource() != null, style.activeText())) {
+        if (fallbackWash(row.selected() || row.group() && row.groupExpanded(), background != null && background.file().classpathResource() != null, style.activeText())) {
             batch.setColor(1,1,1,.86f * row.revealAmount());
             batch.draw(style.fill(),x,y,row.width(),row.height());
             batch.setColor(Color.WHITE);
+        }
+        if (row.group()) {
+            batch.flush();
+            clipContent(item, scaleX, scaleY);
+            Color text = row.groupExpanded() ? style.activeText() : style.inactiveText();
+            primaryTint.set(text == null ? UiTheme.TEXT : text);
+            primaryTint.a *= row.revealAmount();
+            float inset = 15 * row.height() / SongSelectMetrics.ROW_PITCH;
+            view.textSmooth(row.header(), x + inset, y + row.height() / 2,
+                    Math.max(0, style.width() - x - inset), .90f, primaryTint);
+            view.endText();
+            return;
         }
         var content = item.content();
         var geometry = item.geometry().text();

@@ -42,7 +42,7 @@ final class SongSelectLayout {
         return new RowGeometry(index, row.selected(), row.hoverAmount() > 0, targetX, targetY, body, thumbnail,
                 new Rect(row.x() + text.textX(), row.y() + text.titleY(), text.textWidth(), 16),
                 new Rect(row.x() + text.textX(), row.y() + text.starsY(), text.textWidth(), text.bylineY() - text.starsY() + 16),
-                clip, row.setIndex() >= 0 && row.revealAmount() >= .05f ? clip : new Rect(0, 0, 0, 0),
+                clip, row.interactive() && row.revealAmount() >= .05f ? clip : new Rect(0, 0, 0, 0),
                 row.revealAmount(), row.selected() ? Integer.MAX_VALUE : index, text);
     }
 }

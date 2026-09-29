@@ -20,6 +20,28 @@ final class SongBrowserModel {
     enum Kind { GROUP_HEADER, SET, DIFFICULTY }
     record Selection(String setId, String difficultyId) { }
     record Entry(Kind kind, String key, String label, BeatmapSet set, BeatmapDifficulty difficulty) { }
+    /** Stable row states, from 06003257/3268; singleton means one matching difficulty. */
+    enum RowState { HIDDEN, COLLAPSED, SINGLETON, EXPANDED, SELECTED }
+    static final class Row {
+        final String key;
+        BeatmapSet set;
+        BeatmapDifficulty difficulty;
+        Row parent, representative;
+        String label = "";
+        int matchingChildren;
+        boolean excluded, expanded;
+        RowState state = RowState.HIDDEN;
+        Row(String key) { this.key = key; }
+        boolean group() { return set == null; }
+        boolean visible() { return state != RowState.HIDDEN; }
+    }
+    private final Map<String, Row> rowsByKey = new HashMap<>();
+    private List<Row> rows = List.of();
+    private String openGroupKey;
+    // Last directly activated Group anchors scrolling without replacing the playable selection.
+    // Keyboard focus (06003277) is a separate, not-yet-ported input state.
+    private String groupTargetKey;
+    private boolean revealSelection = true;
     private record Indexed(BeatmapSet set, List<String> fields, double bpm, double length) { }
     private record Bucket(int order, String label) { }
     /** Token processing is separate from metadata indexing, allowing future field predicates. */
@@ -73,6 +95,20 @@ final class SongBrowserModel {
     }
     List<BeatmapSet> visibleSets() { return visible; }
     List<Entry> entries() { return entries; }
+    List<Row> rows() { return rows; }
+    Row row(String key) { return rowsByKey.get(key); }
+    String groupTargetKey() { return groupTargetKey; }
+    String selectedKey() { return selectedSet() == null ? null : rowKey(selection.setId(), selection.difficultyId()); }
+    static String rowKey(String setId, String difficultyId) {
+        return "beatmap:" + identityField(setId) + identityField(difficultyId);
+    }
+    void toggleGroup(String key) {
+        Row row = rowsByKey.get(key);
+        if (row == null || !row.group() || row.excluded) return;
+        openGroupKey = row.expanded ? null : key;
+        groupTargetKey = key;
+        expand();
+    }
     String search() { return search; }
     Sort sort() { return sort; }
     Group group() { return group; }
@@ -84,13 +120,14 @@ final class SongBrowserModel {
                 .filter(d -> difficultyId(d).equals(selection.difficultyId())).findFirst().orElse(set.difficulties().getFirst());
     }
     void sort(Sort next) { if (sort != next) { sort = Objects.requireNonNull(next); rebuild(); } }
-    void group(Group next) { if (group != next) { group = Objects.requireNonNull(next); rebuild(); } }
+    void group(Group next) { if (group != next) { group = Objects.requireNonNull(next); revealSelection = true; groupTargetKey = null; rebuild(); } }
     void search(String next) {
         next = Objects.requireNonNullElse(next, "");
         if (search.equals(next)) return;
         if (search.isBlank() && !next.isBlank()) beforeSearch = selection;
         boolean clearing = !search.isBlank() && next.isBlank();
         search = next;
+        revealSelection = true; groupTargetKey = null;
         if (clearing && beforeSearch != null) selection = beforeSearch;
         rebuild();
         if (clearing) beforeSearch = null;
@@ -100,11 +137,11 @@ final class SongBrowserModel {
         if (set == null) return;
         var difficulty = set.difficulties().get(Math.max(0, Math.min(difficultyIndex, set.difficulties().size() - 1)));
         Selection next = new Selection(set.id(), difficultyId(difficulty));
-        if (next.equals(selection)) return;
-        boolean expansionChanged = selection == null || !selection.setId().equals(setId);
+        if (next.equals(selection) && groupTargetKey == null) return;
         selection = next;
         if (!search.isBlank()) beforeSearch = next;
-        if (expansionChanged) expand();
+        revealSelection = true; groupTargetKey = null;
+        expand();
     }
     /** Relative navigation follows the current filtered/sorted projection, skipping group headers. */
     void moveDifficulty(int direction) {
@@ -163,6 +200,7 @@ final class SongBrowserModel {
                     .findFirst().orElse(set.difficulties().getFirst());
             iterator.remove(); selection = new Selection(set.id(), difficultyId(difficulty));
             if (!search.isBlank()) beforeSearch = selection;
+            revealSelection = true; groupTargetKey = null;
             expand(); return;
         }
     }
@@ -190,6 +228,7 @@ final class SongBrowserModel {
         visibleById = Map.copyOf(nextById);
         var set = find(selection);
         if (set == null && !visible.isEmpty()) {
+            revealSelection = true; groupTargetKey = null;
             set = visible.getFirst(); selection = new Selection(set.id(), difficultyId(set.difficulties().getFirst()));
         } else if (set != null && set.difficulties().stream().noneMatch(d -> difficultyId(d).equals(selection.difficultyId()))) {
             selection = new Selection(set.id(), difficultyId(set.difficulties().getFirst()));
@@ -197,24 +236,89 @@ final class SongBrowserModel {
         // Retain identity through zero results, but expose no playable selection.
         expand();
     }
+    /** Retain hidden/excluded rows; entries is only the renderer's visible projection. */
     private void expand() {
-        Map<String, Indexed> byId = new HashMap<>();
-        for (var item : library) byId.put(item.set.id(), item);
-        List<Entry> result = new ArrayList<>();
-        Bucket previous = null;
-        for (var set : visible) {
+        Map<String, Row> retained = new LinkedHashMap<>();
+        Map<String, List<Row>> children = new LinkedHashMap<>();
+        Map<String, Indexed> indexed = new HashMap<>();
+        for (var item : library) indexed.put(item.set.id(), item);
+        // Matching sets follow browser order. Excluded rows remain at the end, with state 0.
+        List<BeatmapSet> ordered = new ArrayList<>(visible);
+        for (var item : library) if (!visibleById.containsKey(item.set.id())) ordered.add(item.set);
+        for (var set : ordered) {
+            boolean excluded = !visibleById.containsKey(set.id());
+            Row parent = null;
             if (group != Group.NONE) {
-                Bucket bucket = bucket(byId.get(set.id()));
-                if (!bucket.equals(previous)) result.add(new Entry(Kind.GROUP_HEADER,
-                        "group:" + group + ":" + bucket.label(), bucket.label(), null, null));
-                previous = bucket;
+                Bucket bucket = bucket(indexed.get(set.id()));
+                String key = "group:" + group + ":" + bucket.label();
+                parent = retained.get(key);
+                if (parent == null) {
+                    parent = rowsByKey.computeIfAbsent(key, Row::new);
+                    parent.label = bucket.label();
+                    parent.matchingChildren = 0;
+                    retained.put(key, parent);
+                    children.put(key, new ArrayList<>());
+                }
+                if (!excluded) parent.matchingChildren += set.difficulties().size();
             }
-            if (selection != null && set.id().equals(selection.setId())) {
-                for (var d : set.difficulties()) result.add(new Entry(Kind.DIFFICULTY,
-                        set.id() + "#" + difficultyId(d), "", set, d));
-            } else result.add(new Entry(Kind.SET, set.id() + "#set", "", set, null));
+            Row representative = null;
+            for (var difficulty : set.difficulties()) {
+                String key = rowKey(set.id(), difficultyId(difficulty));
+                Row row = rowsByKey.computeIfAbsent(key, Row::new);
+                row.set = set; row.difficulty = difficulty; row.parent = parent;
+                row.excluded = excluded;
+                if (representative == null) representative = row;
+                row.representative = excluded ? null : representative;
+                retained.put(key, row);
+                if (parent != null) children.get(parent.key).add(row);
+            }
         }
-        entries = List.copyOf(result);
+        Row selected = retained.get(selectedKey());
+        if (revealSelection || openGroupKey != null && !retained.containsKey(openGroupKey)) {
+            openGroupKey = selected == null || selected.parent == null ? null : selected.parent.key;
+            revealSelection = false;
+        }
+        List<Row> orderedRows = new ArrayList<>();
+        for (Row row : retained.values()) {
+            if (row.group()) {
+                row.excluded = row.matchingChildren == 0;
+                row.expanded = row.key.equals(openGroupKey);
+                row.state = row.excluded ? RowState.HIDDEN : row.expanded ? RowState.EXPANDED : RowState.COLLAPSED;
+                orderedRows.add(row);
+                orderedRows.addAll(children.get(row.key));
+            } else if (row.parent == null) orderedRows.add(row);
+        }
+        List<Entry> result = new ArrayList<>();
+        for (Row row : orderedRows) {
+            if (!row.group()) {
+                boolean sameSet = selected != null && row.set.id().equals(selected.set.id());
+                row.state = row.excluded || row.parent != null && !row.parent.expanded ? RowState.HIDDEN
+                        : row == selected ? RowState.SELECTED : sameSet ? RowState.EXPANDED
+                        : row.set.difficulties().size() == 1 ? RowState.SINGLETON
+                        : row == row.representative ? RowState.COLLAPSED : RowState.HIDDEN;
+            }
+            if (!row.visible()) continue;
+            Kind kind = row.group() ? Kind.GROUP_HEADER
+                    : row.state == RowState.COLLAPSED ? Kind.SET : Kind.DIFFICULTY;
+            result.add(new Entry(kind, row.key, row.label, row.set,
+                    kind == Kind.DIFFICULTY ? row.difficulty : null));
+        }
+        rowsByKey.keySet().retainAll(retained.keySet());
+        rows = List.copyOf(orderedRows);
+        // Moving between expanded siblings only changes selection; keep the carousel projection
+        // intact. A library refresh must still publish the new metadata object references.
+        if (!sameProjection(result)) entries = List.copyOf(result);
+        Row target = rowsByKey.get(groupTargetKey);
+        if (target == null || !target.visible()) groupTargetKey = null;
+    }
+    private boolean sameProjection(List<Entry> next) {
+        if (entries.size() != next.size()) return false;
+        for (int i = 0; i < next.size(); i++) {
+            Entry a = entries.get(i), b = next.get(i);
+            if (a.kind() != b.kind() || !a.key().equals(b.key()) || !a.label().equals(b.label())
+                    || a.set() != b.set() || a.difficulty() != b.difficulty()) return false;
+        }
+        return true;
     }
     private Bucket bucket(Indexed item) {
         return switch (group) {

@@ -106,6 +106,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         "phase3-group-none", "phase3-group-artist", "phase3-group-creator", "phase3-group-bpm", "phase3-group-length",
                         "phase3-search-inactive", "phase3-search-active", "phase3-search-short", "phase3-search-long", "phase3-search-unicode", "phase3-search-none",
                         "phase3-group-expanded", "phase3-group-selected", "phase3-group-first", "phase3-group-last",
+                        "phase3-group-toggle", "phase3-group-close",
                         "phase3-chrome-full", "phase3-chrome-cookie", "phase3-menu-group", "phase3-menu-sort", "phase3-large-library", "phase3-transitions", "phase3-fallback", "phase3-modern"))
                     scenes.add(new Scene(size[0],size[1],size[2],name));
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
@@ -191,6 +192,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         Integer.getInteger("osujava.songSelectDensity", 1), "configured"));
             } else if (phase.equals("star-contracts")) {
                 var cases = Set.of("phase2-no-rating", "phase2-low-rating", "phase2-tenth-star", "phase2-high-rating");
+                scenes.removeIf(scene -> !cases.contains(scene.name));
+                for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
+                    scenes.add(new Scene(1024,768,1,scene.name));
+            } else if (phase.equals("browser-contracts")) {
+                var cases = Set.of("phase3-group-toggle", "phase3-group-close", "phase3-group-artist",
+                        "phase3-group-creator", "phase3-group-bpm", "phase3-group-length", "phase3-search-none");
                 scenes.removeIf(scene -> !cases.contains(scene.name));
                 for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
                     scenes.add(new Scene(1024,768,1,scene.name));
@@ -593,6 +600,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 pointerRow(screen,carousel(screen).rows().stream().filter(r -> r.entry.difficultyIndex() == 1).findFirst().orElseThrow().entry.setIndex(),2,pointer,layout,scene.height);
                 for (int frame = 0; frame < 60; frame++) screen.render(1f / 60);
             }
+            if (scene.name.equals("phase3-group-toggle") || scene.name.equals("phase3-group-close"))
+                exerciseGroupCards(screen, scene.name, pointer, clicked, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
             if (scene.name.equals("repair-empty") || scene.name.equals("repair-single")) {
@@ -1310,6 +1319,41 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         try { var f = SongSelectScreen.class.getDeclaredField("controls"); f.setAccessible(true); ((SongBrowserControls)f.get(screen)).close(); }
         catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
     }
+    private void exerciseGroupCards(SongSelectScreen screen, String name,
+                                    int[] pointer, boolean[] clicked, UiLayout layout, int height) {
+        var browser = (SongBrowserModel) screenField(screen, "browser");
+        var selection = browser.selection();
+        var parent = browser.row(browser.selectedKey()).parent;
+        clickGroupCard(screen, parent.key, pointer, clicked, layout, height);
+        if (parent.expanded || !selection.equals(browser.selection()) || pending(screen))
+            throw new AssertionError("Closing Group lost selection or started gameplay");
+        if (browser.entries().stream().anyMatch(e -> e.kind() != SongBrowserModel.Kind.GROUP_HEADER))
+            throw new AssertionError("Closed Groups still expose children");
+        clickGroupCard(screen, parent.key, pointer, clicked, layout, height);
+        if (!parent.expanded || pending(screen)) throw new AssertionError("Group re-click did not reopen Group");
+        var next = browser.rows().stream().filter(r -> r.group() && r != parent).findFirst().orElseThrow();
+        clickGroupCard(screen, next.key, pointer, clicked, layout, height);
+        if (parent.expanded || !next.expanded || !selection.equals(browser.selection()) || pending(screen))
+            throw new AssertionError("Opening another Group changed playable selection");
+        if (name.endsWith("close")) clickGroupCard(screen, next.key, pointer, clicked, layout, height);
+        pointer[0] = 40;
+        for (int i = 0; i < 90; i++) screen.render(1f / 60);
+        assertRenderedBounds(screen, layout);
+    }
+
+    private void clickGroupCard(SongSelectScreen screen, String key, int[] pointer, boolean[] clicked,
+                                UiLayout layout, int height) {
+        // Position the viewport, then use the production press/release and shared hit geometry.
+        carousel(screen).select(key);
+        pointer[0] = 40;
+        for (int i = 0; i < 90; i++) screen.render(1f / 60);
+        var snapshots = (List<?>) screenField(screen, "visibleRows");
+        var row = snapshots.stream().map(SongSelectRow.class::cast)
+                .filter(r -> key.equals(r.key())).findFirst().orElseThrow();
+        clickBrowser(screen, Math.min(layout.width() - 30, row.x() + 120), row.y() + row.height() / 2,
+                pointer, clicked, layout, height);
+    }
+
     private void configureBrowserScene(SongSelectScreen screen, String name, InputProcessor processor, int[] pointer, boolean[] clicked, UiLayout layout, int height) {
         var sort = switch(name) {
             case "phase3-sort-artist" -> SongBrowserModel.Sort.ARTIST;
@@ -1321,7 +1365,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "phase3-group-creator" -> SongBrowserModel.Group.CREATOR;
             case "phase3-group-bpm" -> SongBrowserModel.Group.BPM;
             case "phase3-group-length" -> SongBrowserModel.Group.LENGTH;
-            case "phase3-fallback", "phase3-modern", "phase3-group-artist", "phase3-group-expanded", "phase3-group-selected", "phase3-group-first", "phase3-group-last" -> SongBrowserModel.Group.ARTIST;
+            case "phase3-fallback", "phase3-modern", "phase3-group-artist", "phase3-group-expanded", "phase3-group-selected", "phase3-group-first", "phase3-group-last", "phase3-group-toggle", "phase3-group-close" -> SongBrowserModel.Group.ARTIST;
             default -> SongBrowserModel.Group.NONE;
         };
         screen.browserMode(sort,group);

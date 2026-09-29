@@ -128,4 +128,27 @@ class SongSelectCarouselTest {
         model.select("set#4"); assertEquals(4*72,model.scrollTarget(), .001);
     }
 
+    @Test void expansionUsesExplicitFamilyEvenWhenPersistentPathsHaveDifferentHashes() {
+        var m = new SongSelectCarousel();
+        var first = new SongSelectCarousel.Entry("a#folder/easy.osu", 0, -1, "set-a", false);
+        var other = new SongSelectCarousel.Entry("b#folder/normal.osu", 1, 0, "set-b", false);
+        m.content(List.of(first, other), 620, 76, 72, other.key());
+        settle(m);
+        float oldY = m.renderY(m.rows().getFirst(), 658);
+        var child = new SongSelectCarousel.Entry("completely#different#path/hard.osu", 0, 1, "set-a", true);
+        m.content(List.of(new SongSelectCarousel.Entry(first.key(), 0, 0, "set-a", true), child, other),
+                620, 76, 72, child.key());
+        assertEquals(oldY, m.renderY(m.rows().get(1), 658), .001);
+    }
+    @Test void adjacentGroupCardsHaveFullRowPitchAndAGroupBoundaryAddsTenUnits() {
+        var m = new SongSelectCarousel();
+        m.content(List.of(new SongSelectCarousel.Entry("group:A", -1, -2),
+                new SongSelectCarousel.Entry("group:B", -1, -2),
+                new SongSelectCarousel.Entry("b", 0, 0),
+                new SongSelectCarousel.Entry("group:C", -1, -2)), 620, 72, 72, "group:A");
+        assertEquals(72, m.rows().get(1).logicalY - m.rows().get(0).logicalY, .001);
+        assertEquals(72, m.rows().get(2).logicalY - m.rows().get(1).logicalY, .001);
+        assertEquals(87, m.rows().get(3).logicalY - m.rows().get(2).logicalY, .001);
+    }
+
 }

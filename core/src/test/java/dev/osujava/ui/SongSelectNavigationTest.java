@@ -327,16 +327,37 @@ class SongSelectNavigationTest {
         for(char c : "𠮷".toCharArray())processor.keyTyped(c);
         key(Input.Keys.BACKSPACE); assertEquals("",field("search"));
     }
-    @Test void controlsPreserveDifficultyAndHeadersAreNeverClickable() throws Exception {
+    @Test void controlsPreserveDifficultyAndGroupCardsAreClickable() throws Exception {
         open("Beta",1); screen.resize(1280,720);
         screen.browserMode(SongBrowserModel.Sort.BPM,SongBrowserModel.Group.CREATOR);
         selected(1,1,"Beta-hard.png"); settle(); screen.resize(1280,720);
         for (Object snapshot : (List<?>) field("visibleRows")) {
             var row = (SongSelectRow) snapshot;
-            if (row.setIndex() < 0) assertFalse(row.contains(row.x() + 20, row.y() + 40));
+            if (row.group()) assertTrue(row.contains(row.x() + 20, row.y() + 40));
         }
         key(Input.Keys.ENTER); assertTrue(((UiNavigation)field("outgoing")).pending());
         selected(1,1,"Beta-hard.png");
+    }
+    @Test void groupClicksToggleWithoutChangingThePlayableDifficulty() throws Exception {
+        open("Beta", 1); screen.resize(1280,720);
+        screen.browserMode(SongBrowserModel.Sort.TITLE, SongBrowserModel.Group.CREATOR);
+        settle();
+        var browser = (SongBrowserModel) field("browser");
+        var selection = browser.selection();
+        click(-1, -2);
+        assertEquals(selection, browser.selection());
+        assertTrue(browser.entries().stream().allMatch(e -> e.kind() == SongBrowserModel.Kind.GROUP_HEADER));
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        settle(); click(-1, -2);
+        assertEquals(selection, browser.selection());
+        assertTrue(browser.entries().stream().anyMatch(e -> e.kind() == SongBrowserModel.Kind.DIFFICULTY));
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        key(Input.Keys.UP);
+        assertNull(browser.groupTargetKey());
+        assertEquals(SongBrowserModel.RowState.SELECTED, browser.row(browser.selectedKey()).state);
+        assertTrue(carousel().rows().stream().anyMatch(r -> r.entry.key().equals(browser.selectedKey())));
+        key(Input.Keys.ENTER);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
     }
     @Test void zeroResultsHaveNoCookieOrMetadataPlayTarget() throws Exception {
         open("Beta",1);

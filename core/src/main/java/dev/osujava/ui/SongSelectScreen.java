@@ -71,6 +71,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final ScoreBrowserModel scores;
     private final SongSelectScoreSnapshot scoreSnapshot;
     private final SongBrowserControls controls = new SongBrowserControls();
+    private List<SongBrowserModel.Entry> browserEntries = List.of();
     private Map<String, String> groupLabels = Map.of();
     // Transient display indices only; browser identities are authoritative.
     private List<BeatmapSet> sets;
@@ -333,7 +334,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 if (slot >= 0) scores.select(scores.first() + slot);
                 else {
                     var row = hitRow(px, py);
-                    input.pressRow(row == null ? null : rowKey(row.setIndex(), row.difficultyIndex()), px, py);
+                    input.pressRow(row == null ? null : row.key(), px, py);
                 }
             }
         }
@@ -342,7 +343,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         float scrollBeforePointer = carousel.scrollOffset();
         var releasedRow = hitRow(px, py);
         if (input.pointer(Gdx.input.isButtonPressed(Input.Buttons.LEFT),
-                releasedRow == null ? null : rowKey(releasedRow.setIndex(), releasedRow.difficultyIndex()), px, py, carousel) != null)
+                releasedRow == null ? null : releasedRow.key(), px, py, carousel) != null)
             handleRowClick(px, py);
         // Direct dragging changed viewport position; publish the same geometry for drawing and the next hit test.
         if (carousel.scrollOffset() != scrollBeforePointer)
@@ -361,7 +362,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 } else if (!controls.open()) {
                     var row = hitRow(px, py);
                     if (row != null) {
-                        target = "row:" + rowKey(row.setIndex(), row.difficultyIndex());
+                        target = "row:" + row.key();
                         cue = SongSelectAudio.Cue.HOVER_ROW;
                     }
                 }
@@ -479,7 +480,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         updateContent(layout);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         SongSelectRow hit = toolbox.open() ? null : hitRow(px, py);
-        carousel.advance(delta, hit == null || hit.setIndex() < 0 ? null : rowKey(hit.setIndex(), hit.difficultyIndex()));
+        carousel.advance(delta, hit == null ? null : hit.key());
         List<SongSelectRow> result = new ArrayList<>();
         for (SongSelectCarousel.Row entry : carousel.rows()) {
             float y = carousel.renderY(entry, top);
@@ -488,7 +489,8 @@ public final class SongSelectScreen extends ScreenAdapter {
             boolean selected = setIndex == selectedSetIndex && diffIndex == selectedDifficultyIndex;
             var target = carousel.targetPosition(entry.logicalIndex, layout.width(), top);
             result.add(new SongSelectRow(setIndex, diffIndex, groupLabels.get(entry.entry.key()), selected, setIndex == selectedSetIndex && !selected,
-                    carousel.renderX(entry, layout.width()), y, rowWidth(layout), carousel.rowHeight(), entry.hoverAmount, selected ? 1 : entry.revealAmount * entry.revealAmount, entry.logicalIndex, target[0], target[1]));
+                    carousel.renderX(entry, layout.width()), y, rowWidth(layout), carousel.rowHeight(), entry.hoverAmount, selected ? 1 : entry.revealAmount * entry.revealAmount, entry.logicalIndex, target[0], target[1], entry.entry.key(),
+                    browser.row(entry.entry.key()).group() && browser.row(entry.entry.key()).expanded));
         }
         return result;
     }
@@ -498,7 +500,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void updateContent(UiLayout layout) {
         float height = SongSelectMetrics.rowHeight(layout.height());
         float viewportHeight = top - bottom;
-        if (contentDirty || contentWidth != layout.width() || contentViewportHeight != viewportHeight || contentRowHeight != height) {
+        if (contentDirty || browserEntries != browser.entries() || contentWidth != layout.width() || contentViewportHeight != viewportHeight || contentRowHeight != height) {
             List<SongSelectCarousel.Entry> entries = new ArrayList<>();
             Map<String, String> labels = new java.util.HashMap<>();
             Map<String, Integer> indices = new java.util.HashMap<>();
@@ -506,14 +508,17 @@ public final class SongSelectScreen extends ScreenAdapter {
             for (var entry : browser.entries()) {
                 if (entry.kind() == SongBrowserModel.Kind.GROUP_HEADER) {
                     entries.add(new SongSelectCarousel.Entry(entry.key(), -1, -2));
-                    labels.put(entry.key(), entry.label());
+                    int count = browser.row(entry.key()).matchingChildren;
+                    labels.put(entry.key(), entry.label() + " (" + count + (count == 1 ? " beatmap)" : " beatmaps)"));
                 } else {
                     int i = indices.get(entry.set().id());
                     int j = entry.difficulty() == null ? -1 : entry.set().difficulties().indexOf(entry.difficulty());
-                    entries.add(new SongSelectCarousel.Entry(rowKey(i, j), i, j));
+                    entries.add(new SongSelectCarousel.Entry(entry.key(), i, j, entry.set().id(),
+                            browser.row(entry.key()).state.ordinal() >= SongBrowserModel.RowState.EXPANDED.ordinal()));
                 }
             }
             groupLabels = Map.copyOf(labels);
+            browserEntries = browser.entries();
             carousel.content(entries, viewportHeight, height, SongSelectMetrics.rowPitch(layout.height()), SongSelectMetrics.rowPitch(layout.height()),
                     selectedRowKey(), layout.height(), top);
             contentDirty = false;
@@ -521,7 +526,9 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
-    private String selectedRowKey() { return selectedSet() == null ? null : rowKey(selectedSetIndex, selectedDifficultyIndex); }
+    private String selectedRowKey() {
+        return browser.groupTargetKey() != null ? browser.groupTargetKey() : browser.selectedKey();
+    }
 
     private void refreshSelection(boolean rebuild) {
         contentDirty |= rebuild;
@@ -595,6 +602,12 @@ public final class SongSelectScreen extends ScreenAdapter {
         var identity = browser.selection();
         SongSelectRow row = hitRow(x, y);
         if (row == null) return;
+        if (row.group()) {
+            browser.toggleGroup(row.key());
+            syncBrowser(true);
+            sound(SongSelectAudio.Cue.CONFIRM);
+            return;
+        }
         if (row.difficultyIndex() >= 0) {
             if (row.setIndex() == selectedSetIndex && row.difficultyIndex() == selectedDifficultyIndex) {
                 if (setClickGuard == 0) playSelected();
@@ -668,10 +681,6 @@ public final class SongSelectScreen extends ScreenAdapter {
         return rowPresentations.stream().map(SongSelectRowRenderer.Presentation::geometry).toList();
     }
 
-    private String rowKey(int setIndex, int difficultyIndex) {
-        // Existing carousel keys are display projections; browser keeps persistent difficulty identities.
-        return sets.get(setIndex).id() + "#" + difficultyIndex;
-    }
     private BeatmapSet selectedSet() { return browser.selectedSet(); }
     private BeatmapDifficulty selectedDifficulty() { return browser.selectedDifficulty(); }
     private void selectBackground() {

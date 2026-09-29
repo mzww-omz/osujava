@@ -54,7 +54,9 @@ class SongBrowserModelTest {
         var model = new SongBrowserModel(fixture()); model.select("c",0); model.group(group);
         long headers = model.entries().stream().filter(e -> e.kind() == SongBrowserModel.Kind.GROUP_HEADER).count();
         assertEquals(group == SongBrowserModel.Group.NONE ? 0 : 3,headers);
-        assertEquals(3, model.entries().stream().filter(e -> e.set() != null).count());
+        assertEquals(3, model.rows().stream().filter(r -> !r.group()).count());
+        assertEquals(group == SongBrowserModel.Group.NONE ? 3 : 1,
+                model.entries().stream().filter(e -> e.set() != null).count());
         assertTrue(model.entries().stream().filter(e -> e.kind() == SongBrowserModel.Kind.GROUP_HEADER)
                 .allMatch(e -> e.set() == null && e.difficulty() == null && !e.label().isBlank()));
     }
@@ -105,7 +107,7 @@ class SongBrowserModelTest {
     void sortKeepsSelectionAndExpandedSet(SongBrowserModel.Sort mode) {
         var model = new SongBrowserModel(fixture()); model.select("a",0); var selected = model.selection(); model.sort(mode);
         assertEquals(selected,model.selection()); assertEquals("a",model.selectedSet().id());
-        assertEquals(1,model.entries().stream().filter(e -> e.kind() == SongBrowserModel.Kind.DIFFICULTY).count());
+        assertEquals(1,model.rows().stream().filter(r -> r.state == SongBrowserModel.RowState.SELECTED).count());
     }
     @ParameterizedTest @EnumSource(SongBrowserModel.Group.class)
     void groupingKeepsSelection(SongBrowserModel.Group mode) {

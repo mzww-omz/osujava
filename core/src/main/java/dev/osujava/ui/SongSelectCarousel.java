@@ -7,7 +7,10 @@ import java.util.Map;
 
 /** UI-only content coordinates (downwards), viewport and transient visual offsets. */
 final class SongSelectCarousel {
-    record Entry(String key, int setIndex, int difficultyIndex) {
+    record Entry(String key, int setIndex, int difficultyIndex, String familyKey, boolean expanded) {
+        Entry(String key, int setIndex, int difficultyIndex) {
+            this(key, setIndex, difficultyIndex, setIndex < 0 ? key : Integer.toString(setIndex), difficultyIndex >= 0);
+        }
         boolean header() { return setIndex < 0; }
     }
     static final class Row {
@@ -78,13 +81,13 @@ final class SongSelectCarousel {
         float logicalY = selectionAnchor;
         for (int i = 0; i < entries.size(); i++) {
             Entry entry = entries.get(i);
-            if (i > 0 && (entry.header() || entries.get(i - 1).header()))
-                logicalY += rowStep * (entry.header() && entries.get(i - 1).header() ? .38f : .69f);
+            if (i > 0 && entry.header() && !entries.get(i - 1).header())
+                logicalY += rowStep * (1 + 10f / SongSelectMetrics.ROW_PITCH);
             else if (i > 0) logicalY += (entries.get(i - 1).difficultyIndex() >= 0 && entry.difficultyIndex() >= 0
                     && entries.get(i - 1).setIndex() == entry.setIndex()) ? childStep : rowStep;
             Row row = new Row(entry, logicalY);
             row.logicalIndex = i;
-            row.groupAmount = !initialized && entry.difficultyIndex() >= 0 ? 1 : 0;
+            row.groupAmount = !initialized && (entry.header() || entry.expanded()) ? 1 : 0;
             Row old = previous.get(entry.key());
             if (old != null) copyEmphasis(old, row);
             next.add(row);
@@ -126,8 +129,7 @@ final class SongSelectCarousel {
     }
 
     private static String setKey(Entry entry) {
-        int separator = entry.key().lastIndexOf('#');
-        return separator < 0 ? entry.key() : entry.key().substring(0, separator);
+        return entry.familyKey();
     }
 
     private static void copyEmphasis(Row old, Row row) {
@@ -214,12 +216,12 @@ final class SongSelectCarousel {
                     && row != selected && row != hovered) {
                 // Settled off-screen rows need no easing work; keep their eventual spacing ready.
                 row.hoverAmount = 0; row.selectedAmount = 0;
-                row.groupAmount = row.entry.difficultyIndex() >= 0 ? 1 : 0;
+                row.groupAmount = (row.entry.header() || row.entry.expanded()) ? 1 : 0;
                 row.separationY = separation; row.selectionSeparationY = selectionSpace;
                 row.expansionY = 0; row.expansionVelocityY = 0; row.expansionX = 0; row.revealAmount = 1;
                 continue;
             }
-            row.groupAmount += ((row.entry.difficultyIndex() >= 0 ? 1 : 0) - row.groupAmount) * expansionEase;
+            row.groupAmount += (((row.entry.header() || row.entry.expanded()) ? 1 : 0) - row.groupAmount) * expansionEase;
             boolean hover = row == hovered;
             row.hoverAmount += ((hover ? hoverStrength : 0) - row.hoverAmount) * (hover ? hoverEase : releaseEase);
             row.separationY += (separation - row.separationY) * releaseEase;
