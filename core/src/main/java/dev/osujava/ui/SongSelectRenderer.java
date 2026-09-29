@@ -147,13 +147,20 @@ final class SongSelectRenderer {
         drawScoreShapes(layout, px, py);
         if (frame.toastSeconds > 0) view.box(18, frame.bottom + 12, Math.min(450, layout.width() * .42f), 35, 0, BOTTOM);
         view.endShapes();
+        // Stable metadata (.79) and scores precede selection artwork (.95/.96).
+        // A selection-mode canvas may include opaque upper chrome, not just buttons.
+        view.beginText();
+        drawMetadata(layout);
+        drawRanking(layout);
+        view.endText();
         // Composite artwork may extend above the control reservation. Only the viewport
         // clips decoration; the bounded input geometry remains independent.
         Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
         try {
             chromeClip(layout, new SongSelectChrome.Bounds(0, 0, layout.width(), layout.height()));
             view.beginText();
-            for (var action : Selection.values()) drawSelection(action,px,py);
+            for (var action : Selection.values()) drawSelection(action, false);
+            for (var action : Selection.values()) drawSelection(action, true);
             view.endText();
         } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
         if (frame.selectedDifficulty != null) {
@@ -183,8 +190,6 @@ final class SongSelectRenderer {
         }
         batch.flush();
         Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
-        drawMetadata(layout);
-        drawRanking(layout);
         frame.controls.drawLabels(view,batch,layout.width(),layout.height(),frame.browser,frame.skin,px,py);
         var modeControl = frame.bottomLayout.control(Selection.MODE).slot();
         SongSelectSkinDrawing.additiveFit(batch,frame.skin,SongSelectSkinAssets.modeImage(
@@ -269,14 +274,13 @@ final class SongSelectRenderer {
                 && (action != Selection.RANDOM || frame.browser.visibleCount() != 0);
     }
 
-    private void drawSelection(Selection action, float px, float py) {
+    private void drawSelection(Selection action, boolean hover) {
         var geometry = frame.bottomLayout.control(action);
         boolean enabled = selectionEnabled(action);
         float brightness = enabled ? 1 : .54f;
-        actionTint.set(brightness,brightness,brightness,1);
-        skinImage(action.normal,geometry.normal().image(),actionTint);
-        actionTint.a = frame.hoverAppearance.alpha(action);
-        skinImage(action.hover,geometry.hover().image(),actionTint);
+        actionTint.set(brightness,brightness,brightness,hover ? frame.hoverAppearance.alpha(action) : 1);
+        skinImage(hover ? action.hover : action.normal,
+                (hover ? geometry.hover() : geometry.normal()).image(),actionTint);
     }
 
     private void drawRows(UiLayout layout) {

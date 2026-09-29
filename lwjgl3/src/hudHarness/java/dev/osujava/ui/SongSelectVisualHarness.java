@@ -162,7 +162,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}}) {
                 for (String fixture : List.of("all", "normal", "high", "missing", "malformed", "composite", "fallback", "bundled",
-                        "transparent", "asymmetric", "asymmetric-high", "oversized-hover", "mismatched-high", "tiny-chrome", "normal-bundled"))
+                        "transparent", "asymmetric", "asymmetric-high", "oversized-hover", "mismatched-high", "tiny-chrome", "normal-bundled", "upper-chrome", "upper-chrome-high"))
                     scenes.add(new Scene(size[0],size[1],size[2],"phase5a-assets-" + fixture));
                 for (String state : toolboxStates()) {
                     scenes.add(new Scene(size[0],size[1],size[2],"phase5a-current-" + state));
@@ -189,6 +189,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 scenes.add(new Scene(Integer.getInteger("osujava.songSelectWidth", 1280),
                         Integer.getInteger("osujava.songSelectHeight", 720),
                         Integer.getInteger("osujava.songSelectDensity", 1), "configured"));
+            } else if (phase.equals("selection-chrome")) {
+                scenes.removeIf(scene -> !scene.name.startsWith("phase5a-assets-upper-chrome")
+                        && !scene.name.equals("phase5a-assets-composite") && !scene.name.equals("phase5a-current-mode-view"));
+                for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
+                    scenes.add(new Scene(1024,768,1,scene.name));
             } else if (phase.equals("thumbnail-mode")) {
                 var cases = Set.of("phase25-thumbnail-wide", "phase25-thumbnail-tall", "phase25-thumbnail-missing",
                         "phase4-selected", "phase5a-current-mode-view", "phase5a-assets-transparent", "phasechrome-bundled");
@@ -259,7 +264,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
 
     private void createToolboxFixtures() throws Exception {
         for (String name : List.of("all", "normal", "high", "missing", "malformed", "composite",
-                "transparent", "asymmetric", "asymmetric-high", "oversized-hover", "mismatched-high", "tiny-chrome", "normal-bundled")) {
+                "transparent", "asymmetric", "asymmetric-high", "oversized-hover", "mismatched-high", "tiny-chrome", "normal-bundled", "upper-chrome", "upper-chrome-high")) {
             Path dir = Files.createDirectories(output.resolve("fixtures/toolbox-" + name));
             Files.writeString(dir.resolve("skin.ini"),"[General]\nVersion: 2.5\n");
             if (name.equals("missing")) continue;
@@ -270,6 +275,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 if (name.equals("malformed")) { Files.writeString(file,"not a PNG"); continue; }
                 int width = (int)action.logicalWidth*density, height = 90*density;
                 if (name.equals("composite") && image == SongSelectSkinAssets.Image.MODE) { width=1150; height=540; }
+                if (name.startsWith("upper-chrome") && image == SongSelectSkinAssets.Image.MODE) { width=1150*density; height=768*density; }
+                if (name.startsWith("upper-chrome") && image == SongSelectSkinAssets.Image.MODE_OVER) { width=220*density; height=90*density; }
                 if (name.equals("transparent")) { width=density; height=density; }
                 if (name.startsWith("asymmetric")) { width=400*density; height=150*density; }
                 if (name.equals("oversized-hover") && image == action.hover) { width=1200; height=700; }
@@ -286,6 +293,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     p.setColor(Color.GREEN); p.fillRectangle(30, 130, 40, 40);
                     // Deliberately cross the carousel: cards must not erase foreground chrome.
                     p.fillRectangle(650, 290, 80, 40);
+                }
+                if (name.startsWith("upper-chrome")) {
+                    if (image == SongSelectSkinAssets.Image.MODE) {
+                        p.setColor(Color.GREEN); p.fillRectangle(0, 0, 450*density, 80*density);
+                    } else if (image == SongSelectSkinAssets.Image.MODE_OVER) {
+                        p.setColor(Color.RED); p.fillRectangle(110*density, 30*density, 30*density, 30*density);
+                    }
                 }
                 PixmapIO.writePNG(Gdx.files.absolute(file.toString()),p); p.dispose();
                 if (name.equals("mismatched-high")) {
@@ -864,7 +878,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             dev.osujava.score.LocalScoreStore store, BeatmapLibrary library) {
         String state = scene.name.replaceFirst("phase5a-profile-[0-9]+-", "").replaceFirst("phase5a-(current|state|assets)-", "");
         var geometry = toolboxLayout(screen);
-        if (state.equals("oversized-hover")) point(geometry.control(SongSelectSkinAssets.Selection.MODE).interaction(),pointer,layout,scene.height);
+        if (state.equals("oversized-hover") || state.startsWith("upper-chrome")) point(geometry.control(SongSelectSkinAssets.Selection.MODE).interaction(),pointer,layout,scene.height);
         for (var action : SongSelectSkinAssets.Selection.values()) if (state.equals(action.name().toLowerCase(Locale.ROOT)+"-hover")
                 || state.equals(action.name().toLowerCase(Locale.ROOT)+"-pressed")) point(geometry.control(action).interaction(),pointer,layout,scene.height);
         if (state.startsWith("back-")) point(geometry.backInteraction,pointer,layout,scene.height);
@@ -930,6 +944,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         if (state.equals("large-hover")) point(geometry.control(SongSelectSkinAssets.Selection.RANDOM).interaction(),pointer,layout,scene.height);
         if (state.equals("large-scroll")) for (int i=0;i<12;i++) { carousel(screen).scrollBy(80); screen.render(1f/60); }
         screen.render(1f/60);
+        if (state.startsWith("upper-chrome")) for (int frame = 0; frame < 12; frame++) screen.render(1f/60);
         assertRenderedBounds(screen,layout);
     }
 
@@ -976,6 +991,33 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 if ((rgba >>> 16 & 255) < 180 || (rgba >>> 24 & 255) > 50 || (rgba >>> 8 & 255) > 50)
                     throw new AssertionError("Carousel overwrote composite chrome: " + Integer.toHexString(rgba));
             } finally { overlap.dispose(); }
+        }
+        if (name.startsWith("phase5a-assets-upper-chrome")) {
+            var art = geometry.control(SongSelectSkinAssets.Selection.MODE).normal().image();
+            // Sample the full title/mapper band: old metadata-after-chrome ordering
+            // leaks white glyphs into this opaque green part of selection-mode.
+            var pixels = Pixmap.createFromFrameBuffer(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
+            try {
+                for (int x = 15; x < Math.min(430, (layout.width()*.52f-28-art.x())/scale); x += 2) for (int y = 5; y < 70; y += 2) {
+                    int px = Math.round((art.x() + x * scale) * pixels.getWidth() / layout.width());
+                    int py = Math.round((art.y() + (768-y) * scale) * pixels.getHeight() / layout.height());
+                    int rgba = pixels.getPixel(px, py);
+                    if ((rgba >>> 16 & 255) < 240 || (rgba >>> 24 & 255) > 15 || (rgba >>> 8 & 255) > 15)
+                        throw new AssertionError("Metadata overwrote upper selection-mode chrome: " + Integer.toHexString(rgba));
+                }
+            } finally { pixels.dispose(); }
+            // The red hover decoration crosses MODS' blue normal canvas.
+            var overlap = Pixmap.createFromFrameBuffer(
+                    Math.round((art.x() + 125 * scale) * Gdx.graphics.getBackBufferWidth() / layout.width()),
+                    Math.round((art.y() + 45 * scale) * Gdx.graphics.getBackBufferHeight() / layout.height()), 1, 1);
+            try {
+                int rgba = overlap.getPixel(0, 0);
+                if ((rgba >>> 24 & 255) < 240 || (rgba >>> 16 & 255) > 15 || (rgba >>> 8 & 255) > 15)
+                    throw new AssertionError("Normal button covered Mode hover: " + Integer.toHexString(rgba));
+            } finally { overlap.dispose(); }
+            if (geometry.control(SongSelectSkinAssets.Selection.MODE).interaction().contains(
+                    art.x() + 125 * scale, art.y() + 45 * scale))
+                throw new AssertionError("Hover decoration expanded Mode input into Mods");
         }
         boolean legacy = assets.configuration().legacyVersion() < 2;
         if (Math.abs(geometry.control(SongSelectSkinAssets.Selection.MODE).anchorX()
