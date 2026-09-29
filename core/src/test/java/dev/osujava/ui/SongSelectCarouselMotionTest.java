@@ -117,9 +117,9 @@ class SongSelectCarouselMotionTest {
     }
 
     @Test void horizontalMotionTracksTheCurveAtTheConfirmedDecayRate() {
-        var model = model(); model.scrollBy(2000);
+        var model = model(); model.scrollBy(200);
         for (int i = 0; i < 12; i++) {
-            var row = row(model, "s20#-1");
+            var row = row(model, "s4#-1");
             float before = model.renderX(row, 1280);
             model.advance(1f / 60, null);
             float down = row.logicalY - model.scrollOffset() + model.predictedTravel();
@@ -127,7 +127,7 @@ class SongSelectCarouselMotionTest {
             assertEquals(target - (target - before) * .95, model.renderX(row, 1280), .001);
         }
         settle(model);
-        var row = row(model, "s20#-1");
+        var row = row(model, "s4#-1");
         assertEquals(SongSelectMetrics.curveX(row.logicalY - model.scrollOffset(), 1280, 620),
                 model.renderX(row, 1280), .02);
     }

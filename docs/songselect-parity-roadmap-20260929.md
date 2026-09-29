@@ -1,8 +1,8 @@
 # Song Select 1:1対応 — 残phase台帳
 
 2026-09-29。[全体再調査](songselect-parity-reinvestigation-20260929.md)と
-[Skin独立調査](skin-stable-independent-audit-20260929.md)を、phase 1〜6の実装後の残作業へ整理したもの。
-phase 7以降の番号は今回付与した実装単位で、当初から確定していた工数・完了予定ではない。
+[Skin独立調査](skin-stable-independent-audit-20260929.md)を、phase 1〜7の実装後の残作業へ整理したもの。
+phase 7以降の番号はphase 6時点で付与した実装単位で、当初から確定していた工数・完了予定ではない。
 追加調査で依存や大きさが判明した場合は、根拠とともに分割する。
 
 ## 完了した実装範囲
@@ -13,6 +13,7 @@ phase 7以降の番号は今回付与した実装単位で、当初から確定�
 - phase 4: 行の参照座標とX/Y補間、hoverによる間隔と曲線。
 - phase 5: viewportの指数慣性、wheel、選択/focus追従、曲線への予測移動量。
 - [phase 6](songselect-parity-phase6-20260929.md): drag中の速度推定、直接移動、静止時間を使うrelease慣性、入力→積分→描画の更新順。
+- [phase 7](songselect-parity-phase7-20260929.md): Group開時の初期位置配布、画面外の行群snap・再進入、active範囲と行の表示状態。
 
 これは各phaseで閉じた静的契約とJava側検証の範囲を示す。実機を含む全画面の1:1一致が完了したという意味ではない。
 
@@ -20,7 +21,6 @@ phase 7以降の番号は今回付与した実装単位で、当初から確定�
 
 | Phase | 対象 | 主な作業と完了条件 |
 | --- | --- | --- |
-| **7** | Group初期配置・画面外からの復帰 | `06003273`のGroup開閉初期配置、`06003263/3266`の再進入・snap・sprite可視化。展開/縮小/並べ替え/スクロール往復時の行位置と寿命を時系列fixtureで照合する。 |
 | **8** | 入力判定・dispatcher | native hitboxと優先順位、押下候補・クリック取消距離、右button位置指定、修飾キー、repeat、wheel/callback/polling順。phase 6で残した6 logical unitsのクリックslop、release時の最終移動の扱い、drag-out callbackを閉じる。同一入力列のfocus/selection/play requestと時刻を比較する。 |
 | **9** | 行の状態別描画・animation | 状態0〜4のtint/alpha、foregroundの生成・破棄・継承、星のscale/cropと500ms・index遅延、thumbnail/grade/mode/textのorigin/depth/blend/clip。各要素の台帳と中断を含む時間テストを揃える。10枠への変更済み部分は再実装しない。 |
 | **10** | Browserデータ・検索・分類 | tags/source/Unicode/引用/比較検索、sort/groupの残条件、日付・mode・rank・collection/favourite、近い難易度を選ぶ規則、metadata/score。必要な情報をImport→Library永続化→index→行へ保持する。オンライン未取得値を捏造しない。評価互換はRuleset側の依存として追跡し、見た目の比較では同じ評価を固定する。 |
@@ -42,4 +42,4 @@ phase 14の参照環境・自作fixtureの準備も先行可能。Javaのcapture
 - Import / Gameplay / Renderer / Ruleset / GameClockの責務を維持し、必要な変更だけを行う。
 
 **現在の比較上の制約:** この環境ではstableのSong Selectに正常到達する参照実行を確保できておらず、同条件pixel/audio比較は未実施。
-これはphase 7以降の静的契約調査・Java実装を止める理由にはしないが、最終的な1:1合格の条件として残す。
+これはphase 8以降の静的契約調査・Java実装を止める理由にはしないが、最終的な1:1合格の条件として残す。

@@ -22,7 +22,7 @@ final class SongSelectCarousel {
         int logicalIndex;
         float hoverAmount, separationY, selectedAmount, groupAmount, focusAmount;
         float focusStart, focusElapsed;
-        boolean focused;
+        boolean focused, resident;
         float motionY, motionX, revealAmount = 1;
         Row(Entry entry, float logicalY) { this.entry = entry; this.logicalY = logicalY; }
     }
@@ -34,7 +34,8 @@ final class SongSelectCarousel {
     private float hoverAbsence, viewportHeight, rowHeight = 76, maxScroll;
     private final SongSelectScroll scroll = new SongSelectScroll();
     private boolean keyboardTracking, pointerTracking;
-    private boolean initialized;
+    private boolean initialized, snapNextFrame;
+    private int activeStart, activeEnd;
     private float selectionAnchor, screenHeight, viewportTop, referenceScale;
     private float rowStep = 72;
 
@@ -44,6 +45,9 @@ final class SongSelectCarousel {
 
     List<Row> rows() { return rows; }
     List<Row> allRows() { return allRows; }
+    boolean presents(Row row) {
+        return row.entry.visible() && row.resident && row.logicalIndex >= activeStart && row.logicalIndex < activeEnd;
+    }
     float scrollOffset() { return (float) (scroll.position() * referenceScale); }
     float scrollTarget() { return (float) (scroll.destination() * referenceScale); }
     float maxScroll() { return maxScroll; }
@@ -61,6 +65,10 @@ final class SongSelectCarousel {
             select(selection);
             return;
         }
+        boolean sameOrder = allRows.size() == entries.size();
+        for (int i = 0; sameOrder && i < entries.size(); i++)
+            sameOrder = allRows.get(i).entry.key().equals(entries.get(i).key());
+        List<String> openingGroups = new ArrayList<>();
         Map<String, Row> previous = new HashMap<>(byKey);
         Map<String, Row> representatives = new HashMap<>();
         for (Row row : allRows) representatives.putIfAbsent(row.entry.familyKey(), row);
@@ -91,6 +99,8 @@ final class SongSelectCarousel {
             }
             // Hidden rows have an index/coordinate too, but do not advance the visible pitch.
             Row row = previous.get(entry.key());
+            if (initialized && entry.header() && entry.expanded()
+                    && (row == null || !row.entry.expanded())) openingGroups.add(entry.key());
             if (row == null) {
                 row = new Row(entry, logicalY);
                 Row representative = representatives.get(entry.familyKey());
@@ -105,10 +115,12 @@ final class SongSelectCarousel {
                 }
             }
             row.entry = entry; row.logicalY = logicalY; row.logicalIndex = i;
+            if (!entry.visible()) row.resident = false;
             next.add(row); byKey.put(entry.key(), row);
             if (entry.visible()) { visible.add(row); previousVisible = entry; }
         }
         allRows = List.copyOf(next); rows = List.copyOf(visible); contentEntries = List.copyOf(entries);
+        if (!sameOrder) { activeStart = 0; activeEnd = allRows.size(); }
         maxScroll = rows.isEmpty() ? 0 : rows.getLast().logicalY - rows.getFirst().logicalY;
         scroll.range(maxScroll / (double) referenceScale);
         if (!java.util.Objects.equals(selection, selectedKey) || !initialized) select(selection);
@@ -121,9 +133,27 @@ final class SongSelectCarousel {
             }
             initialized = true;
         }
+        for (String key : openingGroups) seedGroup(byKey.get(key));
         Row hover = byKey.get(hoverKey);
         if (hover == null || !hover.entry.visible()) { hoverKey = null; hoverAbsence = 0; }
     }
+
+    /** 06003273: seed every child; only visible family representatives advance the starting Y. */
+    private void seedGroup(Row group) {
+        float y = group.motionY;
+        var families = new java.util.HashSet<String>();
+        for (int i = group.logicalIndex + 1; i < allRows.size(); i++) {
+            Row row = allRows.get(i);
+            if (row.entry.header()) break;
+            row.motionX = group.motionX; row.motionY = y;
+            if (insideBuffer(y)) row.resident = true;
+            if (families.add(row.entry.familyKey()) && row.entry.visible())
+                y += SongSelectMetrics.ROW_PITCH * referenceScale;
+        }
+    }
+
+    /** Native one-frame snap flag, used when entering the screen after selection is restored. */
+    void snapOnNextFrame() { snapNextFrame = true; }
 
     /** Visual keyboard focus is separate from both scrolling and the playable selection. */
     void focus(String key) { focusKey = key; }
@@ -141,6 +171,7 @@ final class SongSelectCarousel {
 
     /** Reordering has no spatial correspondence: discard row travel and center selection. */
     void reordered() {
+        activeStart = 0; activeEnd = allRows.size();
         for (Row row : allRows) row.motionY = row.logicalY;
         Row selected = byKey.get(selectedKey);
         scroll.seek(selected == null ? 0 : (selected.logicalY - selectionAnchor) / referenceScale,
@@ -194,6 +225,7 @@ final class SongSelectCarousel {
         }
         float hoverEase = ease(dt, 19), releaseEase = ease(dt, 13);
         Row hovered = byKey.get(hoverKey), selected = byKey.get(emphasisKey);
+        advanceRows(dt, hovered);
         float selectionEase = ease(dt, 10);
         for (Row row : rows) {
             boolean focused = row.entry.key().equals(focusKey);
@@ -202,16 +234,85 @@ final class SongSelectCarousel {
             }
             row.focusElapsed = Math.min(.05f, row.focusElapsed + dt);
             row.focusAmount = row.focusStart + ((focused ? 1 : 0) - row.focusStart) * (row.focusElapsed / .05f);
-            float targetY = row.logicalY + (hovered == null ? 0
-                    : Math.signum(row.logicalIndex - hovered.logicalIndex) * SongSelectMetrics.HOVER_SPACING * referenceScale);
-            float targetX = horizontalTarget(row.entry, row.motionY, row == hovered);
-            // 06003266 and 06002316: decay exponents are elapsed milliseconds / (1000 / 60).
-            row.motionX = interpolate(row.motionX, targetX, .95, dt);
-            row.motionY = interpolate(row.motionY, targetY, .875, dt);
-            row.separationY = row.logicalY - row.motionY;
             row.groupAmount += (((row.entry.header() || row.entry.expanded()) ? 1 : 0) - row.groupAmount) * (1 - (float)Math.pow(.95, dt * 60));
             row.hoverAmount += ((row == hovered ? 1 : 0) - row.hoverAmount) * (row == hovered ? hoverEase : releaseEase);
             row.selectedAmount += ((row == selected ? 1 : 0) - row.selectedAmount) * selectionEase;
+        }
+    }
+
+    private float targetY(Row row, Row hovered) {
+        return row.logicalY + (hovered == null ? 0
+                : Math.signum(row.logicalIndex - hovered.logicalIndex) * SongSelectMetrics.HOVER_SPACING * referenceScale);
+    }
+    private float screenY(float y) { return screenHeight - viewportTop + y - scrollOffset(); }
+    private boolean aboveBuffer(float screenY) { return screenY < -20 * referenceScale; }
+    private boolean belowBuffer(float screenY) { return screenY > 640 * referenceScale; }
+    private boolean insideBuffer(float y) { return !aboveBuffer(screenY(y)) && !belowBuffer(screenY(y)); }
+    private float stateIndent(Row row, Row hovered) {
+        return -((row.entry.header() || row.entry.expanded()) ? SongSelectMetrics.OPEN_INDENT * referenceScale : 0)
+                - (row == hovered ? SongSelectMetrics.HOVER_INDENT * referenceScale : 0);
+    }
+
+    /** Active indices include hidden rows, as do native layout and range scans (06003263/3267). */
+    private void advanceRows(float dt, Row hovered) {
+        activeEnd = Math.min(activeEnd, allRows.size()); activeStart = Math.min(activeStart, activeEnd);
+        Row anchor = null;
+        for (int i = activeStart; i < activeEnd; i++)
+            if (allRows.get(i).entry.visible()) { anchor = allRows.get(i); break; }
+        while (activeStart > 0) {
+            Row row = allRows.get(activeStart - 1);
+            if (aboveBuffer(screenY(targetY(row, hovered)) - predictedTravel())) break;
+            activeStart--;
+            reenter(row, anchor, hovered);
+            if (row.entry.visible()) anchor = row;
+        }
+        anchor = null;
+        for (int i = activeEnd - 1; i >= activeStart; i--)
+            if (allRows.get(i).entry.visible()) { anchor = allRows.get(i); break; }
+        while (activeEnd < allRows.size()) {
+            Row row = allRows.get(activeEnd);
+            if (belowBuffer(screenY(targetY(row, hovered)) - predictedTravel())) break;
+            activeEnd++;
+            reenter(row, anchor, hovered);
+            if (row.entry.visible()) anchor = row;
+        }
+        for (int i = activeStart; i < activeEnd; i++) {
+            Row row = allRows.get(i);
+            if (!row.entry.visible()) { row.resident = false; continue; }
+            float y = targetY(row, hovered), x = horizontalTarget(row.entry, row.motionY, row == hovered);
+            row.motionX = snapNextFrame ? x : interpolate(row.motionX, x, .95, dt);
+            row.motionY = snapNextFrame ? y : interpolate(row.motionY, y, .875, dt);
+            row.separationY = row.logicalY - row.motionY;
+            if (insideBuffer(row.motionY)) row.resident = true;
+            else if (belowBuffer(screenY(y)) && belowBuffer(screenY(row.motionY))) {
+                // Both current and destination are below the buffer: retire and snap the whole suffix.
+                for (int j = activeEnd - 1; j >= i; j--) retire(allRows.get(j), hovered);
+                activeEnd = i;
+            } else if (aboveBuffer(screenY(y)) && aboveBuffer(screenY(row.motionY))) {
+                for (int j = activeStart; j <= i; j++) retire(allRows.get(j), hovered);
+                activeStart = i + 1;
+            }
+        }
+        snapNextFrame = false;
+    }
+    private void retire(Row row, Row hovered) {
+        row.motionX = horizontalTarget(row.entry, row.motionY, row == hovered);
+        row.motionY = targetY(row, hovered);
+        row.separationY = row.logicalY - row.motionY;
+        row.resident = false;
+    }
+    /** Recover relative displacement from a visible neighbour, with the native 200-unit X cap. */
+    private void reenter(Row row, Row anchor, Row hovered) {
+        if (!row.entry.visible()) {
+            row.motionX = anchor == null ? 160 * referenceScale : anchor.motionX;
+            row.motionY = anchor == null ? viewportTop - screenHeight / 2 : anchor.motionY;
+        } else if (anchor != null) {
+            row.motionY = anchor.motionY + row.logicalY - anchor.logicalY;
+            row.motionX = Math.min(anchor.motionX - stateIndent(anchor, hovered) + stateIndent(row, hovered),
+                    (-SongSelectMetrics.ROW_RIGHT_OFFSET + 200) * referenceScale + stateIndent(row, hovered));
+        } else {
+            row.motionX = horizontalTarget(row.entry, row.motionY, row == hovered) + 200 * referenceScale;
+            row.motionY = viewportTop - screenHeight + scrollOffset() + predictedTravel();
         }
     }
 

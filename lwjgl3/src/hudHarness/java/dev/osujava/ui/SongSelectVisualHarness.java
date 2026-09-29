@@ -196,6 +196,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 scenes.removeIf(scene -> !cases.contains(scene.name));
                 for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
                     scenes.add(new Scene(1024,768,1,scene.name));
+            } else if (phase.equals("lifecycle-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String name : List.of("group", "reentry"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"lifecycle-" + name));
             } else if (phase.equals("drag-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
@@ -480,7 +485,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         });
         var library = new BeatmapLibrary();
         int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern") || scene.name.equals("phase3-large-library") || scene.name.startsWith("phase4-large") || scene.name.startsWith("phase5a-state-large")) ? 1000 : 7;
-        if (scene.name.equals("phase3-focus-page")) setCount = 24;
+        if (scene.name.equals("phase3-focus-page") || scene.name.startsWith("lifecycle-")) setCount = 24;
         if (scene.name.equals("repair-empty")) setCount = 0;
         if (scene.name.equals("repair-single")) setCount = 1;
         boolean phase2 = scene.name.startsWith("phase2");
@@ -491,7 +496,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 title = "Local song 2 — A Very Long English Title with Unicode 星の旅人 that extends beyond the row";
             String mapper = "Harness", version = "Difficulty ";
             String artist = "Local artist";
-            boolean browserScene = scene.name.startsWith("phase3") || scene.name.startsWith("phase4");
+            boolean browserScene = scene.name.startsWith("phase3") || scene.name.startsWith("phase4") || scene.name.startsWith("lifecycle-");
             if (scene.name.equals("phase4-long") && i == 3) title = "A Very Long Song Title Beyond the Carousel — 夜空の星と夢の続き";
             if (scene.name.equals("phase4-unicode") && i == 3) title = "夜空の星と夢の続き 별빛 创作者";
             if (browserScene) {
@@ -625,6 +630,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseGroupCards(screen, scene.name, pointer, clicked, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if (scene.name.startsWith("lifecycle-")) {
+                exerciseLifecycle(screen, scene, processor[0], pointer, clicked, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
             if (scene.name.startsWith("drag-")) {
                 exerciseDrag(screen, scene, processor[0], pointer, clicked, pressed, layout, fb, name);
                 fb.end(); advanceScene(); return;
@@ -933,6 +942,50 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         store.save(new dev.osujava.score.LocalScore(UUID.randomUUID(),dev.osujava.score.DifficultyIdentity.of(set.id(),set.difficulties().get(difficulty)),
                 1_790_467_200_000L,new dev.osujava.gameplay.ScoreState(123456,0,100,100,0,0,0,1)),dev.osujava.gameplay.GameplayRunMode.MANUAL);
     }
+    private void exerciseLifecycle(SongSelectScreen screen, Scene scene, InputProcessor input,
+            int[] pointer, boolean[] clicked, UiLayout layout, FrameBuffer fb, String name) {
+        pointer[0] = Math.round((layout.width() - 30) * layout.scale()); pointer[1] = scene.height / 2;
+        var model = carousel(screen); var browser = browser(screen); var selection = browser.selection();
+        if (scene.name.equals("lifecycle-group")) {
+            screen.browserMode(SongBrowserModel.Sort.TITLE, SongBrowserModel.Group.ARTIST);
+            for (int frame = 0; frame < 60; frame++) screen.render(1f / 60);
+            var groups = browser.rows().stream().filter(r -> r.group() && !r.expanded).toList();
+            for (int stage = 0; stage < groups.size(); stage++) {
+                var group = groups.get(stage); clickGroupCard(screen, group.key, pointer, clicked, layout, scene.height);
+                var parent = model.rows().stream().filter(r -> r.entry.key().equals(group.key)).findFirst().orElseThrow();
+                var child = model.rows().stream().filter(r -> browser.row(r.entry.key()).parent == group).findFirst().orElseThrow();
+                if (Math.abs(parent.motionY - child.motionY) > .001 || Math.abs(parent.motionX - child.motionX) > .001)
+                    throw new AssertionError("Group opening did not seed its first child");
+                capture(fb, name + "-stage-" + stage + "-frame-0");
+                for (int frame = 1; frame <= 30; frame++) {
+                    screen.render(1f / 60); transitionFrames++; assertRenderedBounds(screen, layout);
+                    if (frame == 1 || frame == 4 || frame == 10 || frame == 30)
+                        capture(fb, name + "-stage-" + stage + "-frame-" + frame);
+                }
+            }
+        } else {
+            var identities = List.copyOf(model.allRows());
+            var seen = new HashSet<String>(); var retired = new HashSet<String>(); var returned = new HashSet<String>();
+            for (var row : identities) if (row.resident) seen.add(row.entry.key());
+            for (int frame = 0; frame < 240; frame++) {
+                if (frame < 8 || frame >= 120 && frame < 128) input.scrolled(0, frame < 120 ? 3 : -3);
+                screen.render(frame % 5 == 0 ? 1f / 30 : 1f / 60); transitionFrames++;
+                assertRenderedBounds(screen, layout);
+                for (int i = 0; i < identities.size(); i++) {
+                    var row = model.allRows().get(i);
+                    if (row != identities.get(i)) throw new AssertionError("Scroll replaced persistent rows");
+                    if (row.resident) { if (retired.contains(row.entry.key())) returned.add(row.entry.key()); seen.add(row.entry.key()); }
+                    else if (seen.contains(row.entry.key())) retired.add(row.entry.key());
+                }
+                if (frame == 0 || frame == 7 || frame == 30 || frame == 119 || frame == 127 || frame == 150 || frame == 239)
+                    capture(fb, name + "-frame-" + frame);
+            }
+            if (retired.isEmpty() || returned.isEmpty()) throw new AssertionError("Fixture did not retire and reenter rows");
+            assertScrollSettled(screen, name);
+        }
+        if (!selection.equals(browser.selection()) || pending(screen)) throw new AssertionError("Lifecycle changed playable selection");
+    }
+
     private void exerciseDrag(SongSelectScreen screen, Scene scene, InputProcessor input,
             int[] pointer, boolean[] clicked, boolean[] pressed, UiLayout layout, FrameBuffer fb, String name) {
         var model = carousel(screen);
@@ -1388,9 +1441,6 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         capture.dispose();
         captures++;
     }
-    private Object valueUnchecked(Class<?> type, Object object, String name) {
-        try { return value(type,object,name); } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
-    }
     private void closeBrowserMenu(SongSelectScreen screen) {
         try { var f = SongSelectScreen.class.getDeclaredField("controls"); f.setAccessible(true); ((SongBrowserControls)f.get(screen)).close(); }
         catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
@@ -1594,17 +1644,17 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             var model = carousel(screen);
             for (Object snapshot : (List<?>) field.get(screen)) {
                 var type = snapshot.getClass();
-                int set = (int) value(type,snapshot,"setIndex"), diff = (int) value(type,snapshot,"difficultyIndex");
-                var row = model.rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff
-                        && (set >= 0 || Math.abs(model.renderY(r,screen.chromeBounds(layout).carouselTop()) - (float)valueUnchecked(type,snapshot,"y")) < .001f)).findFirst().orElseThrow();
+                String key = (String) value(type, snapshot, "key");
+                var row = model.rows().stream().filter(r -> r.entry.key().equals(key)).findFirst().orElseThrow();
+                if (!model.presents(row)) throw new AssertionError("Retired row was published for drawing");
                 float x = (float) value(type,snapshot,"x"), y = (float) value(type,snapshot,"y");
                 if (Math.abs(x - model.renderX(row,layout.width())) > .001f
                         || Math.abs(y - model.renderY(row,screen.chromeBounds(layout).carouselTop())) > .001f)
                     throw new AssertionError("Draw snapshot diverged from motion bounds");
-                // Reference bounds: -340 base, up to -50 open/-45 hover, or +200 curve.
+                // Reference bounds: -340 base, -50 open/-45 hover, +200 curve and +200 unanchored reentry.
                 float scale = SongSelectMetrics.carouselScale(layout.height());
                 if (!Float.isFinite(x) || !Float.isFinite(y)
-                        || x < layout.width() - 435 * scale - .01f || x > layout.width() - 140 * scale + .01f)
+                        || x < layout.width() - 435 * scale - .01f || x > layout.width() + 60 * scale + .01f)
                     throw new AssertionError("Invalid row bounds: " + x + ", " + y);
                 float bodyWidth = (float) value(type, snapshot, "width");
                 if (x + bodyWidth < layout.width()) throw new AssertionError("Row ends inside the viewport");

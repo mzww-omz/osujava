@@ -541,4 +541,27 @@ class SongSelectNavigationTest {
         }
     }
 
+    @Test void productionGroupOpeningPublishesSeededChildrenBeforeTimeAdvances() throws Exception {
+        open("Beta", 1); screen.resize(1280, 720);
+        screen.browserMode(SongBrowserModel.Sort.TITLE, SongBrowserModel.Group.CREATOR);
+        var browser = (SongBrowserModel) field("browser");
+        var selection = browser.selection();
+        shift = true; key(Input.Keys.ENTER); settle();
+        var group = carousel().rows().stream().filter(r -> r.entry.header()).findFirst().orElseThrow();
+        float y = group.motionY, x = group.motionX;
+        key(Input.Keys.ENTER);
+        assertEquals(selection, browser.selection());
+        var alpha = carousel().rows().stream().filter(r -> r.entry.setIndex() == 0).findFirst().orElseThrow();
+        var beta = carousel().rows().stream().filter(r -> r.entry.setIndex() == 1 && r.entry.difficultyIndex() == 0).findFirst().orElseThrow();
+        assertEquals(y, alpha.motionY); assertEquals(x, alpha.motionX);
+        assertEquals(y + 72, beta.motionY); assertEquals(x, beta.motionX);
+        assertTrue(carousel().presents(alpha)); assertTrue(carousel().presents(beta));
+        for (var snapshot : ((List<?>) field("visibleRows")).stream().map(SongSelectRow.class::cast).toList()) {
+            var row = carousel().allRows().get(snapshot.logicalIndex());
+            assertTrue(carousel().presents(row));
+            assertEquals(carousel().renderY(row, 636), snapshot.y(), .001);
+        }
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+
 }

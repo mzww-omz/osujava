@@ -204,6 +204,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             }
         });
         Gdx.input.setInputProcessor(input);
+        carousel.snapOnNextFrame();
         if (preview == null && Gdx.audio != null && Gdx.gl != null) {
             preview = new SongSelectPreview(path -> java.nio.file.Files.isRegularFile(path)
                     ? Gdx.audio.newMusic(Gdx.files.absolute(path.toString())) : null, game.audioVolumes());
@@ -324,7 +325,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             scores.target(set == null ? null : DifficultyIdentity.of(set.id(),selectedDifficulty()));
         }
         thumbnails.advance(delta);
-        visibleRows = layoutRows(layout, 0);
+        visibleRows = layoutRows(layout, 0, false);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             carousel.pointerPressed();
@@ -493,6 +494,9 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private List<SongSelectRow> layoutRows(UiLayout layout, float delta) {
+        return layoutRows(layout, delta, true);
+    }
+    private List<SongSelectRow> layoutRows(UiLayout layout, float delta, boolean advance) {
         updateContent(layout);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         SongSelectRow hit = toolbox.open() ? null : hitRow(px, py);
@@ -501,9 +505,10 @@ public final class SongSelectScreen extends ScreenAdapter {
         carousel.focus(browser.focusKey());
         carousel.selectionTrackingTarget(browser.selectionTrackingKey());
         carousel.emphasize(browser.selectedKey());
-        carousel.advance(delta, hit == null ? null : hit.key());
+        if (advance) carousel.advance(delta, hit == null ? null : hit.key());
         List<SongSelectRow> result = new ArrayList<>();
         for (SongSelectCarousel.Row entry : carousel.rows()) {
+            if (!carousel.presents(entry)) continue;
             float y = carousel.renderY(entry, top);
             if (y + carousel.rowHeight() < bottom || y > top) continue;
             int setIndex = entry.entry.setIndex(), diffIndex = entry.entry.difficultyIndex();
