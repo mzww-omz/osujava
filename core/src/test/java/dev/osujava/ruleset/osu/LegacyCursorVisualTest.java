@@ -75,13 +75,21 @@ class LegacyCursorVisualTest {
         assertTrue(new LegacyCursorVisual(config, false, true, 40).disjoint()); // no cursor provider
     }
     @Test void partScaleIsCapturedAtBirthWhileRotationRemainsLive() {
-        var v = visual(true); input(v, 0, true, true);
+        var v = new LegacyCursorVisual(new Cursor(true, true, true, true), true, true, 40);
+        input(v, 0, true, true);
         v.move(100, 200, 100); var old = v.parts().getFirst(); assertEquals(1.3, old.scale(), 1e-6);
         input(v, 200, false, false); v.move(300, 300, 100);
         assertEquals(1, v.parts().getLast().scale()); assertEquals(1.3, old.scale(), 1e-6);
         assertEquals(90, v.trailRotation(2500)); assertEquals(180, v.trailRotation(5000));
         var fixed = new LegacyCursorVisual(new Cursor(true, true, true, false), true, true, 40);
         assertEquals(0, fixed.trailRotation(2500));
+    }
+    @Test void defaultOldTrailDoesNotRotateButExplicitSettingDoes() {
+        var defaults = visual(false);
+        assertEquals(90, defaults.rotation(2500));
+        assertEquals(0, defaults.trailRotation(2500));
+        var rotating = new LegacyCursorVisual(new Cursor(true, true, true, true), true, false, 40);
+        assertEquals(90, rotating.trailRotation(2500));
     }
     @Test void rawInputKeepsSmallCurvesIntegerInputResamplesAndExtremeMovementIsBounded() {
         var v = visual(true); v.move(0, .25, 0);

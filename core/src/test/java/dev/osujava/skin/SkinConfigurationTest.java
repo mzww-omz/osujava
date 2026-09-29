@@ -16,7 +16,7 @@ class SkinConfigurationTest {
         var defaults = SkinConfiguration.defaults().spinner();
         org.junit.jupiter.api.Assertions.assertFalse(defaults.noBlink());
         org.junit.jupiter.api.Assertions.assertEquals(100 / 255f, defaults.background().r());
-        var parsed = SkinConfiguration.parse(new java.io.StringReader("[General]\nSpinnerNoBlink=1\n[Colours]\nSpinnerBackground: 10,20,30"));
+        var parsed = SkinConfiguration.parse(new java.io.StringReader("[General]\nSpinnerNoBlink:1\n[Colours]\nSpinnerBackground: 10,20,30"));
         org.junit.jupiter.api.Assertions.assertTrue(parsed.spinner().noBlink());
         org.junit.jupiter.api.Assertions.assertEquals(20 / 255f, parsed.spinner().background().g());
         var malformed = SkinConfiguration.parse(new java.io.StringReader("[General]\nSpinnerNoBlink: yes\n[Colours]\nSpinnerBackground: 256,0,bad"));
@@ -127,18 +127,18 @@ class SkinConfigurationTest {
 
     @Test
     void invalidSliderColoursFallBackToLegacyDefaults() throws IOException {
-        for (String value : new String[]{"", "0,0", "0,0,0,128", "256,0,0", "-1,0,0", "NaN,0,0",
+        for (String value : new String[]{"", "0,0", "256,0,0", "-1,0,0", "NaN,0,0",
                 "1.5,0,0", "99999999999999999999,0,0", "red"}) {
             var c = parse("[Colours]\nSliderBorder: " + value + "\nSliderTrackOverride: " + value);
             assertEquals(SkinConfiguration.Colours.defaults(),c.colours(),value);
         }
         assertEquals(SkinConfiguration.Colours.defaults(),parse("[Fonts]\nSliderBorder: 0,0,0").colours());
-        assertEquals(SkinConfiguration.Colours.defaults(),parse("[Colours]\nSliderBorder: 0,0,0\nSliderBorder: bad").colours());
-        assertEquals(new SkinConfiguration.Rgb(0,1,0),parse("[colours]\nsliderborder: 0,255,0").colours().sliderBorder());
+        assertEquals(new SkinConfiguration.Rgb(0,0,0),parse("[Colours]\nSliderBorder: 0,0,0\nSliderBorder: bad").colours().sliderBorder());
+        assertEquals(SkinConfiguration.Colours.defaults(),parse("[colours]\nsliderborder: 0,255,0").colours());
     }
 
     @Test
-    void cursorSettingsUseLazerDefaultsSectionsAndSafeMalformedFallback() throws IOException {
+    void cursorSettingsUseStableDefaultsSectionsAndSafeMalformedFallback() throws IOException {
         var defaults = SkinConfiguration.Cursor.defaults();
         assertEquals(defaults, SkinConfiguration.defaults().cursor());
         assertEquals(defaults, parse("[General]\n").cursor());
@@ -146,10 +146,45 @@ class SkinConfigurationTest {
         assertEquals(new SkinConfiguration.Cursor(false, false, false, false),
                 parse("[General]\n" + keys.formatted("0", "0", "0", "0")).cursor());
         assertEquals(defaults, parse("[Fonts]\n" + keys.formatted("0", "0", "0", "0")).cursor());
-        for (String bad : new String[]{"", "broken", "true", "2", "-1"})
+        for (String bad : new String[]{"", "broken", "2147483648"})
             assertEquals(defaults, parse("[General]\n" + keys.formatted(bad, bad, bad, bad)).cursor());
         assertEquals(new SkinConfiguration.Cursor(false, true, false, true),
-                parse("[general]\ncursorcentre: 0\nCursorRotate: 1\nCursorExpand: 0\nCursorTrailRotate: 1").cursor());
+                parse("[General]\nCursorCentre: 0\nCursorRotate: 1\nCursorExpand: 0\nCursorTrailRotate: 1").cursor());
+    }
+
+    @Test
+    void spellingExactKeysAndSectionsKeepFirstValuesIncludingInvalidOnes() throws IOException {
+        assertEquals(1, parse("[General]\nVersion: 1\nVersion: 2.7").legacyVersion());
+        assertEquals(1, parse("[General]\nVersion: broken\nVersion: 2.7").legacyVersion());
+        assertEquals(1, parse("[General]\nversion: 2.7").legacyVersion());
+        assertEquals(1, parse("[general]\nVersion: 2.7").legacyVersion());
+        assertEquals(2.7, parse("[General]\nversion: 1\nVersion: 2.7").legacyVersion());
+        assertTrue(parse("[General]\nCursorRotate=0").cursor().rotate());
+        assertTrue(parse("[General]\ncursorrotate: 0").cursor().rotate());
+        assertTrue(parse("[General]\nCursorRotate: invalid\nCursorRotate: 0").cursor().rotate());
+        assertEquals("score", parse("[Fonts]\nScorePrefix: score\nScorePrefix: foreign").fonts().scorePrefix());
+        assertEquals(SkinConfiguration.SongSelect.defaults(),
+                parse("[Colours]\nsongselectactivetext: 255,128,64").songSelect());
+    }
+
+    @Test
+    void booleanConversionAcceptsTextAndAnyNonzeroInt() throws IOException {
+        for (String value : new String[]{"true", "TRUE", "1", "2", "-1"})
+            assertTrue(parse("[General]\nCursorTrailRotate: " + value).cursor().trailRotate(), value);
+        for (String value : new String[]{"false", "FALSE", "0", "+0"})
+            assertFalse(parse("[General]\nCursorRotate: " + value).cursor().rotate(), value);
+        assertFalse(parse("[General]\n").cursor().trailRotate());
+    }
+
+    @Test
+    void fourComponentColoursIgnoreAlphaAndKeepTheFirstColour() throws IOException {
+        var expected = new SkinConfiguration.Rgb(1, 128 / 255f, 64 / 255f);
+        for (String alpha : new String[]{"0", "255", "ignored"}) {
+            var configuration = parse("[Colours]\nSongSelectActiveText: 255,128,64," + alpha
+                    + "\nSongSelectActiveText: 0,0,0\nSliderBorder: 255,128,64," + alpha);
+            assertEquals(expected, configuration.songSelect().activeText());
+            assertEquals(expected, configuration.colours().sliderBorder());
+        }
     }
 
     private SkinConfiguration parse(String ini) throws IOException {

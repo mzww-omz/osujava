@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
 import java.util.TreeMap;
 
@@ -36,9 +37,9 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
     public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay) { this(fonts, hasIni, overlay, 1); }
     public SkinConfiguration(Fonts fonts, boolean hasIni) { this(fonts, hasIni, true); }
 
-    /** OsuCursor / LegacyCursor / LegacyCursorTrail null-config defaults. */
+    /** b20230727.9 SkinOsu defaults: CursorTrailRotate is not initialised by the constructor. */
     public record Cursor(boolean centre, boolean rotate, boolean expand, boolean trailRotate) {
-        public static Cursor defaults() { return new Cursor(true, true, true, true); }
+        public static Cursor defaults() { return new Cursor(true, true, true, false); }
     }
 
     public record Rgb(float r, float g, float b) { }
@@ -52,7 +53,8 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
 
     private static Rgb parseRgb(String value) {
         String[] components = value.split(",", -1);
-        if (components.length != 3) return null;
+        // Stable Colours reads RGB or RGBA with AllowTransparentColours=false.
+        if (components.length != 3 && components.length != 4) return null;
         int[] rgb = new int[3];
         try {
             for (int i = 0; i < 3; i++) {
@@ -61,6 +63,13 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             }
         } catch (NumberFormatException ignored) { return null; }
         return new Rgb(rgb[0] / 255f, rgb[1] / 255f, rgb[2] / 255f);
+    }
+
+    private static Boolean parseBoolean(String value) {
+        if (value.equalsIgnoreCase("true")) return true;
+        if (value.equalsIgnoreCase("false")) return false;
+        try { return Integer.parseInt(value) != 0; }
+        catch (NumberFormatException ignored) { return null; }
     }
 
     public record Fonts(String hitCirclePrefix, float hitCircleOverlap, String scorePrefix, float scoreOverlap,
@@ -94,6 +103,7 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
     static SkinConfiguration parse(Reader source) throws IOException {
         BufferedReader reader = source instanceof BufferedReader buffered ? buffered : new BufferedReader(source);
         String section = "";
+        var sectionKeys = new HashSet<String>();
         String prefix = Fonts.defaults().hitCirclePrefix();
         float overlap = Fonts.defaults().hitCircleOverlap();
         String scorePrefix = "score", comboPrefix = "score";
@@ -106,7 +116,7 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
         Rgb activeText = SongSelect.defaults().activeText(), inactiveText = SongSelect.defaults().inactiveText();
         var comboColours = new TreeMap<Integer, Rgb>();
         boolean allowSliderBallTint = false;
-        boolean centre = true, rotate = true, expand = true, trailRotate = true, noBlink = false;
+        boolean centre = true, rotate = true, expand = true, trailRotate = false, noBlink = false;
         Rgb spinnerBackground = Spinner.defaults().background();
         Boolean overlay = null;
         Boolean typoOverlay = null;
@@ -120,15 +130,17 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             if (line.isEmpty() || line.startsWith(";") || line.startsWith("#")) continue;
             if (line.startsWith("[") && line.endsWith("]")) {
                 section = line.substring(1, line.length() - 1).trim();
+                sectionKeys.clear();
                 continue;
             }
             int separator = line.indexOf(':');
-            if (separator < 0) separator = line.indexOf('=');
             if (separator < 0) continue;
             String key = line.substring(0, separator).trim();
+            // Stable Section stores the first spelling-exact key, even if its value is invalid.
+            if (!sectionKeys.add(key)) continue;
             String value = line.substring(separator + 1).trim();
-            if (section.equalsIgnoreCase("General")) {
-                if (key.equalsIgnoreCase("Version")) {
+            if (section.equals("General")) {
+                if (key.equals("Version")) {
                     if (value.equals("latest")) version = LATEST_VERSION;
                     else if (value.matches("[0-9]+(?:\\.[0-9]*)?")) {
                         double parsedVersion = Double.parseDouble(value);
@@ -141,52 +153,52 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
                         if (rate == -1 || rate > 0) animationFramerate = rate;
                     } catch (NumberFormatException ignored) { }
                 }
-                Boolean parsed = value.equals("1") ? Boolean.TRUE : value.equals("0") ? Boolean.FALSE : null;
+                Boolean parsed = parseBoolean(value);
                 if (parsed != null) {
-                    if (key.equalsIgnoreCase("AllowSliderBallTint")) allowSliderBallTint = parsed;
-                    if (key.equalsIgnoreCase("SpinnerNoBlink")) noBlink = parsed;
-                    if (key.equalsIgnoreCase("CursorCentre")) centre = parsed;
-                    if (key.equalsIgnoreCase("CursorRotate")) rotate = parsed;
-                    if (key.equalsIgnoreCase("CursorExpand")) expand = parsed;
-                    if (key.equalsIgnoreCase("CursorTrailRotate")) trailRotate = parsed;
-                    if (key.equalsIgnoreCase("HitCircleOverlayAboveNumber")) overlay = parsed;
-                    if (key.equalsIgnoreCase("HitCircleOverlayAboveNumer")) typoOverlay = parsed;
+                    if (key.equals("AllowSliderBallTint")) allowSliderBallTint = parsed;
+                    if (key.equals("SpinnerNoBlink")) noBlink = parsed;
+                    if (key.equals("CursorCentre")) centre = parsed;
+                    if (key.equals("CursorRotate")) rotate = parsed;
+                    if (key.equals("CursorExpand")) expand = parsed;
+                    if (key.equals("CursorTrailRotate")) trailRotate = parsed;
+                    if (key.equals("HitCircleOverlayAboveNumber")) overlay = parsed;
+                    if (key.equals("HitCircleOverlayAboveNumer")) typoOverlay = parsed;
                 }
             }
-            if (section.equalsIgnoreCase("Colours")) {
-                if (key.equalsIgnoreCase("SongSelectActiveText")) {
+            if (section.equals("Colours")) {
+                if (key.equals("SongSelectActiveText")) {
                     Rgb parsed = parseRgb(value);
                     if (parsed != null) activeText = parsed;
                 }
-                if (key.equalsIgnoreCase("SongSelectInactiveText")) {
+                if (key.equals("SongSelectInactiveText")) {
                     Rgb parsed = parseRgb(value);
                     if (parsed != null) inactiveText = parsed;
                 }
-                if (key.matches("(?i)Combo[1-8]")) {
+                if (key.matches("Combo[1-8]")) {
                     Rgb parsed = parseRgb(value);
                     if (parsed != null) comboColours.put(Integer.parseInt(key.substring(5)), parsed);
                 }
-                if (key.equalsIgnoreCase("SliderBorder")) {
+                if (key.equals("SliderBorder")) {
                     Rgb parsed = parseRgb(value);
                     border = parsed != null ? parsed : Colours.defaults().sliderBorder();
                 }
-                if (key.equalsIgnoreCase("SliderTrackOverride")) track = parseRgb(value);
-                if (key.equalsIgnoreCase("SpinnerBackground")) {
+                if (key.equals("SliderTrackOverride")) track = parseRgb(value);
+                if (key.equals("SpinnerBackground")) {
                     Rgb parsed = parseRgb(value);
                     spinnerBackground = parsed != null ? parsed : Spinner.defaults().background();
                 }
             }
-            if (!section.equalsIgnoreCase("Fonts")) continue;
-            if (key.equalsIgnoreCase("HitCirclePrefix") && !value.isEmpty()) prefix = value;
-            if (key.equalsIgnoreCase("ScorePrefix") && !value.isEmpty()) scorePrefix = value;
-            if (key.equalsIgnoreCase("ComboPrefix") && !value.isEmpty()) comboPrefix = value;
-            if (key.equalsIgnoreCase("HitCircleOverlap") || key.equalsIgnoreCase("ScoreOverlap")
-                    || key.equalsIgnoreCase("ComboOverlap")) {
+            if (!section.equals("Fonts")) continue;
+            if (key.equals("HitCirclePrefix") && !value.isEmpty()) prefix = value;
+            if (key.equals("ScorePrefix") && !value.isEmpty()) scorePrefix = value;
+            if (key.equals("ComboPrefix") && !value.isEmpty()) comboPrefix = value;
+            if (key.equals("HitCircleOverlap") || key.equals("ScoreOverlap")
+                    || key.equals("ComboOverlap")) {
                 try {
                     float parsed = Float.parseFloat(value);
                     if (Float.isFinite(parsed)) {
-                        if (key.equalsIgnoreCase("HitCircleOverlap")) overlap = parsed;
-                        else if (key.equalsIgnoreCase("ScoreOverlap")) scoreOverlap = parsed;
+                        if (key.equals("HitCircleOverlap")) overlap = parsed;
+                        else if (key.equals("ScoreOverlap")) scoreOverlap = parsed;
                         else comboOverlap = parsed;
                     }
                 } catch (NumberFormatException ignored) {

@@ -10,13 +10,13 @@ class SongSelectConfigurationTest {
     @ParameterizedTest @ValueSource(strings = {"1.0", "2.1", "2.2", "latest"})
     void coloursAreIndependentOfVersion(String version) throws Exception {
         var config = SkinConfiguration.parse(new StringReader("[General]\nVersion: " + version
-                + "\n[Colours]\nsongselectactivetext: 12, 34, 56 // comment\nSongSelectInactiveText=78,90,123\n"));
+                + "\n[Colours]\nSongSelectActiveText: 12, 34, 56 // comment\nSongSelectInactiveText:78,90,123\n"));
         assertEquals(version.equals("latest") ? 2.7 : Double.parseDouble(version), config.legacyVersion());
         assertEquals(new SkinConfiguration.Rgb(12 / 255f,34 / 255f,56 / 255f), config.songSelect().activeText());
         assertEquals(new SkinConfiguration.Rgb(78 / 255f,90 / 255f,123 / 255f), config.songSelect().inactiveText());
     }
 
-    @ParameterizedTest @ValueSource(strings = {"", "1,2", "1,2,3,4", "256,0,0", "-1,0,0", "NaN,0,0", "red", "1.5,0,0"})
+    @ParameterizedTest @ValueSource(strings = {"", "1,2", "1,2,3,4,5", "256,0,0", "-1,0,0", "NaN,0,0", "red", "1.5,0,0"})
     void malformedColoursKeepDefaultOrPreviousValue(String value) throws Exception {
         var absent = SkinConfiguration.parse(new StringReader("[Colours]\nSongSelectActiveText: " + value + "\nSongSelectInactiveText: " + value));
         assertEquals(SkinConfiguration.SongSelect.defaults(), absent.songSelect());

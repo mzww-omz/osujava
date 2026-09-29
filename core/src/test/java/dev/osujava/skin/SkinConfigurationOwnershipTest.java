@@ -47,6 +47,6 @@ class SkinConfigurationOwnershipTest {
         for (String rate : new String[]{"0", "-2", "NaN", "2.5", "999999999999"})
             assertEquals(-1, SkinConfiguration.parse(new StringReader("[General]\nAnimationFramerate: " + rate)).animationFramerate());
         assertEquals(24, SkinConfiguration.parse(new StringReader("[General]\nAnimationFramerate: 24\nAnimationFramerate: 0")).animationFramerate());
-        assertEquals(-1, SkinConfiguration.parse(new StringReader("[General]\nAnimationFramerate: 24\nAnimationFramerate: -1")).animationFramerate());
+        assertEquals(24, SkinConfiguration.parse(new StringReader("[General]\nAnimationFramerate: 24\nAnimationFramerate: -1")).animationFramerate());
     }
 }
