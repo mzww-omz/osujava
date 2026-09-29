@@ -21,13 +21,13 @@ class SongSelectFoundationTest {
     }
 
     private void press(SongSelectInputController input, SongSelectCarousel motion) {
-        input.buttons(false, false, false);
+        input.buttons(false, false, false, 0);
         input.pressPointer("s0", 800, 300, false, motion);
-        input.samplePointer(input.buttons(true, false, false), 800, 300, 1, 533, 200, 0, motion);
+        input.samplePointer(input.buttons(true, false, false, 0), 800, 300, 1, 533, 200, 0, motion);
     }
     private String pointer(SongSelectInputController input, SongSelectCarousel motion, boolean held,
                            boolean inside, float x, float y, float scale, float delta) {
-        var buttons = input.buttons(held, false, false);
+        var buttons = input.buttons(held, false, false, 0);
         String clicked = buttons.released() ? input.releasePointer(held, inside) : null;
         input.samplePointer(buttons, x, y, scale, x / scale, y / scale, delta, motion);
         return clicked;
@@ -113,21 +113,21 @@ class SongSelectFoundationTest {
     @Test void rightScrollMustBeginOffRowsAndStopsOnReleaseOrCancellation() {
         var input = input(); var motion = carousel();
         input.pressPointer("s0", 450, 400, true, motion);
-        input.samplePointer(input.buttons(false, true, false), 450, 400, 1, 300, 400, 0, motion);
+        input.samplePointer(input.buttons(false, true, false, 0), 450, 400, 1, 300, 400, 0, motion);
         assertFalse(input.rightScrolling()); assertEquals(0, motion.scrollTarget());
-        input.releasePointer(false, false); input.buttons(false, false, false);
+        input.releasePointer(false, false); input.buttons(false, false, false, 0);
         input.pressPointer(null, 450, 235, true, motion);
-        var both = input.buttons(true, true, false);
+        var both = input.buttons(true, true, false, 0);
         input.samplePointer(both, 450, 235, 1, 300, 235, 0, motion);
         assertTrue(input.rightScrolling()); assertEquals(0, motion.scrollTarget());
         input.releasePointer(false, false);
-        input.samplePointer(input.buttons(false, true, false), 450, 235, 1, 300, 235, 0, motion);
+        input.samplePointer(input.buttons(false, true, false, 0), 450, 235, 1, 300, 235, 0, motion);
         assertEquals(motion.maxScroll() / 2, motion.scrollTarget(), .001);
         float velocity = motion.scrollVelocity();
-        input.samplePointer(input.buttons(false, false, false), 450, 400, 1, 300, 400, 0, motion);
+        input.samplePointer(input.buttons(false, false, false, 0), 450, 400, 1, 300, 400, 0, motion);
         assertFalse(input.rightScrolling()); assertEquals(velocity, motion.scrollVelocity());
         input.pressPointer(null, 450, 400, true, motion); input.cancelPointer();
-        input.samplePointer(input.buttons(false, true, false), 450, 400, 1, 300, 400, 0, motion);
+        input.samplePointer(input.buttons(false, true, false, 0), 450, 400, 1, 300, 400, 0, motion);
         assertFalse(input.rightScrolling()); assertEquals(velocity, motion.scrollVelocity());
     }
     @Test void heldScrollKeepsThePressedHoverUntilRelease() {

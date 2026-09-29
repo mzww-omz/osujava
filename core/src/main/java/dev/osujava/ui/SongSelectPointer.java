@@ -9,8 +9,9 @@ final class SongSelectPointer {
     private boolean dragged;
 
     void press(String key, float x, float y) {
-        pressedKey = key; startX = x; startY = y;
+        pressedKey = key; pressPosition(x, y);
     }
+    void pressPosition(float x, float y) { startX = x; startY = y; }
     String pressedKey() { return pressedKey; }
     void sample(float x, float y) {
         float dx = x - startX, dy = y - startY;

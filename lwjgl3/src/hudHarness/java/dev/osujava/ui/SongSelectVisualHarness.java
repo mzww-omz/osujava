@@ -211,6 +211,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
                     for (String name : List.of("threshold", "right", "context", "chord"))
                         scenes.add(new Scene(size[0],size[1],size[2],"pointer-" + name));
+            } else if (phase.equals("activation-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String name : List.of("left", "right", "middle"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"activation-" + name));
             } else if (phase.equals("drag-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
@@ -483,6 +488,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         boolean[] clicked = {false};
         boolean[] pressed = {false};
         boolean[] rightClicked = {false}, rightPressed = {false};
+        boolean[] middlePressed = {false};
         Set<Integer> heldKeys = new HashSet<>();
         UiLayout layout = UiLayout.fromPixels(scene.width,scene.height);
         int[] pointer = {40,scene.height / 2};
@@ -493,7 +499,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "getX" -> pointer[0]; case "getY" -> pointer[1];
             case "isKeyPressed" -> heldKeys.contains((int)a[0]);
             case "isButtonJustPressed" -> (int)a[0] == Input.Buttons.LEFT ? clicked[0] : (int)a[0] == Input.Buttons.RIGHT && rightClicked[0];
-            case "isButtonPressed" -> (int)a[0] == Input.Buttons.LEFT ? pressed[0] : (int)a[0] == Input.Buttons.RIGHT && rightPressed[0];
+            case "isButtonPressed" -> (int)a[0] == Input.Buttons.LEFT ? pressed[0]
+                    : (int)a[0] == Input.Buttons.RIGHT ? rightPressed[0] : (int)a[0] == Input.Buttons.MIDDLE && middlePressed[0];
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
         var library = new BeatmapLibrary();
@@ -640,11 +647,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if (scene.name.startsWith("phase3-focus-"))
                 exerciseKeyboardFocus(screen, scene.name, processor[0], layout);
             if (scene.name.equals("phase3-group-toggle") || scene.name.equals("phase3-group-close"))
-                exerciseGroupCards(screen, scene.name, pointer, clicked, layout, scene.height);
+                exerciseGroupCards(screen, scene.name, pointer, clicked, pressed, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
             if (scene.name.startsWith("lifecycle-")) {
-                exerciseLifecycle(screen, scene, processor[0], pointer, clicked, layout, fb, name);
+                exerciseLifecycle(screen, scene, processor[0], pointer, clicked, pressed, layout, fb, name);
                 fb.end(); advanceScene(); return;
             }
             if (scene.name.startsWith("drag-")) {
@@ -653,6 +660,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             if (scene.name.startsWith("pointer-")) {
                 exercisePointer(screen, scene, pointer, clicked, pressed, rightClicked, rightPressed, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
+            if (scene.name.startsWith("activation-")) {
+                exerciseActivation(screen, scene, pointer, clicked, pressed, rightPressed, middlePressed, layout, fb, name);
                 fb.end(); advanceScene(); return;
             }
             if (scene.name.startsWith("keyboard-")) {
@@ -714,15 +725,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             switch (scene.name) {
                 case "greylooks-set-selected" -> {
                     pointerRow(screen,2,-1,pointer,layout,scene.height);
-                    clicked[0] = true; screen.render(1f/60); clicked[0] = false;
-                    // A second click after expansion must not trigger Play.
-                    pointerRow(screen,2,0,pointer,layout,scene.height);
-                    clicked[0] = true; screen.render(1f/60); clicked[0] = false;
-                    if (pending(screen)) throw new AssertionError("Set double click played: " + name);
+                    tapPointer(screen, clicked, pressed);
+                    if (pending(screen) || !browser(screen).selectedSet().id().equals("set2"))
+                        throw new AssertionError("Set click did not select without playing: " + name);
                 }
                 case "greylooks-difficulty-selected" -> {
                     pointerRow(screen,3,2,pointer,layout,scene.height);
-                    clicked[0] = true; screen.render(1f/60); clicked[0] = false;
+                    tapPointer(screen, clicked, pressed);
                     if (pending(screen)) throw new AssertionError("Unselected difficulty played: " + name);
                 }
                 case "greylooks-hover" -> pointerRow(screen,3,2,pointer,layout,scene.height);
@@ -735,7 +744,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 case "greylooks-random" -> tapKey(processor[0], Input.Keys.F2);
                 case "greylooks-expanded-many-first", "greylooks-expanded-many-last", "greylooks-expanded-single" -> {
                     pointerRow(screen,3,-1,pointer,layout,scene.height);
-                    clicked[0] = true; screen.render(0); clicked[0] = false;
+                    tapPointer(screen, clicked, pressed);
                     if (scene.name.endsWith("last")) for (int i = 0; i < 15; i++) tapKey(processor[0], Input.Keys.DOWN);
                     long children = carousel(screen).rows().stream().filter(r -> r.entry.setIndex() == 3 && r.entry.difficultyIndex() >= 0).count();
                     if (children != (scene.name.endsWith("single") ? 1 : 16)) throw new AssertionError("Expansion input missed: " + name);
@@ -882,7 +891,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 tapKey(processor[0], Input.Keys.DOWN);
                 pointer[0] = Math.round((layout.width()-20)*layout.scale()); pointer[1] = scene.height-Math.round(30*layout.scale());
             } else pointerRow(screen,selectedRow.entry.setIndex(),selectedRow.entry.difficultyIndex(),pointer,layout,scene.height);
-            clicked[0] = true; screen.render(0); clicked[0] = false;
+            tapPointer(screen, clicked, pressed);
             if (!pending(screen)) throw new AssertionError("Selected re-click did not play: " + name);
             if ((scene.name.equals("phase3-chrome-cookie") || scene.name.equals("phase4-sibling"))) {
                 try {
@@ -964,7 +973,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 1_790_467_200_000L,new dev.osujava.gameplay.ScoreState(123456,0,100,100,0,0,0,1)),dev.osujava.gameplay.GameplayRunMode.MANUAL);
     }
     private void exerciseLifecycle(SongSelectScreen screen, Scene scene, InputProcessor input,
-            int[] pointer, boolean[] clicked, UiLayout layout, FrameBuffer fb, String name) {
+            int[] pointer, boolean[] clicked, boolean[] pressed, UiLayout layout, FrameBuffer fb, String name) {
         pointer[0] = Math.round((layout.width() - 30) * layout.scale()); pointer[1] = scene.height / 2;
         var model = carousel(screen); var browser = browser(screen); var selection = browser.selection();
         if (scene.name.equals("lifecycle-group")) {
@@ -972,7 +981,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for (int frame = 0; frame < 60; frame++) screen.render(1f / 60);
             var groups = browser.rows().stream().filter(r -> r.group() && !r.expanded).toList();
             for (int stage = 0; stage < groups.size(); stage++) {
-                var group = groups.get(stage); clickGroupCard(screen, group.key, pointer, clicked, layout, scene.height);
+                var group = groups.get(stage); clickGroupCard(screen, group.key, pointer, clicked, pressed, layout, scene.height);
                 var parent = model.rows().stream().filter(r -> r.entry.key().equals(group.key)).findFirst().orElseThrow();
                 var child = model.rows().stream().filter(r -> browser.row(r.entry.key()).parent == group).findFirst().orElseThrow();
                 if (Math.abs(parent.motionY - child.motionY) > .001 || Math.abs(parent.motionX - child.motionX) > .001)
@@ -1047,6 +1056,40 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         }
         capture(fb, name + "-enter-held");
         held.remove(Input.Keys.ENTER); input.keyUp(Input.Keys.ENTER);
+    }
+
+    private void tapPointer(SongSelectScreen screen, boolean[] clicked, boolean[] pressed) {
+        clicked[0] = true; pressed[0] = true; screen.render(0); transitionFrames++;
+        clicked[0] = false; pressed[0] = false; screen.render(0); transitionFrames++;
+    }
+
+    private void exerciseActivation(SongSelectScreen screen, Scene scene, int[] pointer,
+            boolean[] clicked, boolean[] pressed, boolean[] right, boolean[] middle,
+            UiLayout layout, FrameBuffer fb, String name) {
+        boolean middleCase = scene.name.endsWith("middle"), rightCase = scene.name.endsWith("right");
+        pointerRow(screen, 2, -1, pointer, layout, scene.height);
+        clicked[0] = pressed[0] = !middleCase && !rightCase;
+        middle[0] = middleCase; right[0] = rightCase;
+        screen.render(0); transitionFrames++;
+        clicked[0] = pressed[0] = middle[0] = right[0] = false;
+        screen.render(0); transitionFrames++;
+        if (pending(screen) || !browser(screen).selectedSet().id().equals("set2"))
+            throw new AssertionError("First release must expand the Set without playing");
+        capture(fb, name + "-expanded");
+        var selected = carousel(screen).rows().stream().filter(r -> r.entry.key().equals(browser(screen).selectedKey())).findFirst().orElseThrow();
+        pointerRow(screen, selected.entry.setIndex(), selected.entry.difficultyIndex(), pointer, layout, scene.height);
+        if (middleCase) {
+            middle[0] = true; screen.render(0); transitionFrames++;
+            if (((SongSelectInputController) screenField(screen, "input")).pressedKey() != null)
+                throw new AssertionError("Middle double-click recaptured a row");
+            middle[0] = false; screen.render(0); transitionFrames++;
+            if (pending(screen)) throw new AssertionError("Middle double-click started play");
+            capture(fb, name + "-second-release");
+            middle[0] = true; screen.render(0); transitionFrames++;
+            middle[0] = false; screen.render(0); transitionFrames++;
+        } else tapPointer(screen, clicked, pressed);
+        if (!pending(screen)) throw new AssertionError("Valid selected release was blocked after Set expansion");
+        assertRenderedBounds(screen, layout); capture(fb, name + "-play-requested");
     }
 
     private void exercisePointer(SongSelectScreen screen, Scene scene, int[] pointer,
@@ -1618,28 +1661,28 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     }
 
     private void exerciseGroupCards(SongSelectScreen screen, String name,
-                                    int[] pointer, boolean[] clicked, UiLayout layout, int height) {
+                                    int[] pointer, boolean[] clicked, boolean[] pressed, UiLayout layout, int height) {
         var browser = (SongBrowserModel) screenField(screen, "browser");
         var selection = browser.selection();
         var parent = browser.row(browser.selectedKey()).parent;
-        clickGroupCard(screen, parent.key, pointer, clicked, layout, height);
+        clickGroupCard(screen, parent.key, pointer, clicked, pressed, layout, height);
         if (parent.expanded || !selection.equals(browser.selection()) || pending(screen))
             throw new AssertionError("Closing Group lost selection or started gameplay");
         if (browser.entries().stream().anyMatch(e -> e.kind() != SongBrowserModel.Kind.GROUP_HEADER))
             throw new AssertionError("Closed Groups still expose children");
-        clickGroupCard(screen, parent.key, pointer, clicked, layout, height);
+        clickGroupCard(screen, parent.key, pointer, clicked, pressed, layout, height);
         if (!parent.expanded || pending(screen)) throw new AssertionError("Group re-click did not reopen Group");
         var next = browser.rows().stream().filter(r -> r.group() && r != parent).findFirst().orElseThrow();
-        clickGroupCard(screen, next.key, pointer, clicked, layout, height);
+        clickGroupCard(screen, next.key, pointer, clicked, pressed, layout, height);
         if (parent.expanded || !next.expanded || !selection.equals(browser.selection()) || pending(screen))
             throw new AssertionError("Opening another Group changed playable selection");
-        if (name.endsWith("close")) clickGroupCard(screen, next.key, pointer, clicked, layout, height);
+        if (name.endsWith("close")) clickGroupCard(screen, next.key, pointer, clicked, pressed, layout, height);
         pointer[0] = 40;
         for (int i = 0; i < 90; i++) screen.render(1f / 60);
         assertRenderedBounds(screen, layout);
     }
 
-    private void clickGroupCard(SongSelectScreen screen, String key, int[] pointer, boolean[] clicked,
+    private void clickGroupCard(SongSelectScreen screen, String key, int[] pointer, boolean[] clicked, boolean[] pressed,
                                 UiLayout layout, int height) {
         // Position the viewport, then use the production press/release and shared hit geometry.
         carousel(screen).select(key);
@@ -1649,8 +1692,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         var snapshots = (List<?>) screenField(screen, "visibleRows");
         var row = snapshots.stream().map(SongSelectRow.class::cast)
                 .filter(r -> key.equals(r.key())).findFirst().orElseThrow();
-        clickBrowser(screen, Math.min(layout.width() - 30, row.x() + 120), row.y() + row.height() / 2,
-                pointer, clicked, layout, height);
+        pointer[0] = Math.round(Math.min(layout.width() - 30, row.x() + 120) * layout.scale());
+        pointer[1] = height - Math.round((row.y() + row.height() / 2) * layout.scale());
+        tapPointer(screen, clicked, pressed);
     }
 
     private void configureBrowserScene(SongSelectScreen screen, String name, InputProcessor processor, int[] pointer, boolean[] clicked, UiLayout layout, int height) {

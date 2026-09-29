@@ -5,9 +5,10 @@ final class SongSelectInputController extends SongSelectInput {
     enum PointerState { IDLE, HOVER, PRESSED, DRAGGING, RELEASED }
     private final SongSelectPointer clicks = new SongSelectPointer();
     private PointerState state = PointerState.IDLE;
-    record Buttons(boolean left, boolean right, boolean leftPressed, boolean pressed,
+    record Buttons(boolean left, boolean right, boolean leftPressed, boolean physicalPressed, boolean pressed,
                    boolean released, boolean context) { }
     private boolean previousLeft, previousRight, previousMiddle, active, rightScrolling;
+    private int doubleClickRemainingMs;
     private SongSelectCarousel dragOwner;
     private String hoverKey;
     private float startX, startY, lastY;
@@ -19,13 +20,26 @@ final class SongSelectInputController extends SongSelectInput {
     String pressedKey() { return clicks.pressedKey(); }
     boolean rightScrolling() { return rightScrolling; }
     /** 06002af9: one down/up notification per snapshot, including mixed-button edges. */
-    Buttons buttons(boolean left, boolean right, boolean middle) {
-        var result = new Buttons(left, right, left && !previousLeft,
-                left && !previousLeft || right && !previousRight || middle && !previousMiddle,
+    Buttons buttons(boolean left, boolean right, boolean middle, double elapsedMs) {
+        // Native subtracts the frame time before testing the integer counter (06002af9).
+        if (Double.isFinite(elapsedMs) && elapsedMs > 0)
+            doubleClickRemainingMs = (int) Math.max(0, doubleClickRemainingMs - elapsedMs);
+        boolean leftDown = left && !previousLeft, rightDown = right && !previousRight;
+        boolean physicalDown = leftDown || rightDown || middle && !previousMiddle;
+        // Double-click has its own notification. Left/right additionally notify ordinary down;
+        // a middle-only second press does not. The next physical press starts a fresh pair.
+        boolean ordinaryDown = physicalDown && (doubleClickRemainingMs == 0 || leftDown || rightDown);
+        if (physicalDown) doubleClickRemainingMs = doubleClickRemainingMs > 0 ? 0 : 250;
+        var result = new Buttons(left, right, leftDown, physicalDown, ordinaryDown,
                 !left && previousLeft || !right && previousRight || !middle && previousMiddle,
                 previousRight);
         previousLeft = left; previousRight = right; previousMiddle = middle;
         return result;
+    }
+
+    /** Physical down updates the cancellation origin even when ordinary down is suppressed. */
+    void pressPosition(float x, float y) {
+        clicks.pressPosition(x, y); startX = x; startY = y;
     }
 
     /** Generic down captures a row but does not start or restart a left drag. Coordinates are window pixels. */

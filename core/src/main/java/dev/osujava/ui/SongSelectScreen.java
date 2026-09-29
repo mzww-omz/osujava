@@ -81,7 +81,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private String search = "";
     private String toast = "";
     private Color toastColor = UiTheme.TEXT;
-    private float toastSeconds, seconds, setClickGuard;
+    private float toastSeconds, seconds;
     private float backgroundFade;
     private Path backgroundPath;
     private SongSelectToolboxLayout bottomLayout;
@@ -320,7 +320,6 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (cursor != null) cursor.update(layout, Gdx.input.getX(), Gdx.input.getY(), viewState.pointerPressed,
                 Gdx.input.isButtonPressed(Input.Buttons.RIGHT), seconds);
         toastSeconds = Math.max(0, toastSeconds - delta);
-        setClickGuard = Math.max(0, setClickGuard - Math.max(0, delta));
         calculateLayout(layout);
         if (scoreSnapshot.refresh(sets)) {
             var set = selectedSet();
@@ -330,7 +329,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         visibleRows = layoutRows(layout, 0, false);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         var buttons = input.buttons(Gdx.input.isButtonPressed(Input.Buttons.LEFT),
-                Gdx.input.isButtonPressed(Input.Buttons.RIGHT), Gdx.input.isButtonPressed(Input.Buttons.MIDDLE));
+                Gdx.input.isButtonPressed(Input.Buttons.RIGHT), Gdx.input.isButtonPressed(Input.Buttons.MIDDLE), delta * 1000.0);
+        if (buttons.physicalPressed()) input.pressPosition(Gdx.input.getX(), Gdx.input.getY());
         boolean rowPressAllowed = true;
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             carousel.pointerPressed();
@@ -650,13 +650,11 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
         if (row.difficultyIndex() >= 0) {
             if (row.setIndex() == selectedSetIndex && row.difficultyIndex() == selectedDifficultyIndex) {
-                if (!context && setClickGuard == 0) playSelected();
+                if (!context) playSelected();
             }
             else { selectSet(row.setIndex()); selectDifficulty(row.difficultyIndex()); }
         } else {
             selectSet(row.setIndex());
-            // Expansion replaces the clicked Set at this position; its double-click must not play.
-            setClickGuard = .24f;
         }
         selectionSound(identity);
         if (context) perform(SongSelectAction.OPTIONS);

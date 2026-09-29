@@ -314,13 +314,12 @@ class SongSelectNavigationTest {
         assertFalse(((UiNavigation)field("outgoing")).pending());
     }
 
-    @Test void setDoubleClickCannotPlayTheDifficultyReplacingItsRow() throws Exception {
+    @Test void selectedDifficultyCanPlayImmediatelyAfterSetExpansion() throws Exception {
         open("Beta",0); screen.resize(1280,720);
-        click(2,-1); screen.resize(1280,720); click(2,0);
+        click(2,-1); screen.resize(1280,720);
         selected(2,0,"Gamma-easy.png");
         assertFalse(((UiNavigation)field("outgoing")).pending());
-        assertTrue((float)field("setClickGuard") > 0);
-        setField("setClickGuard",0f); settle(); click(2,0);
+        click(2,0);
         assertTrue(((UiNavigation)field("outgoing")).pending());
     }
 
@@ -556,6 +555,65 @@ class SongSelectNavigationTest {
         selected(1, 0, "Beta-easy.png");
         middlePressed = false; updatePointer(1280, 720, 0);
         selected(1, 1, "Beta-hard.png"); assertEquals("", field("toast"));
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void productionSetExpansionAllowsTheNextLeftClickWithoutAPlayDelay(boolean rightFirst) throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(2, -1);
+        pointerPressed = !rightFirst; pointerClicked = !rightFirst; rightPressed = rightFirst;
+        updatePointer(1280, 720, .01f);
+        pointerPressed = false; pointerClicked = false; rightPressed = false; updatePointer(1280, 720, .01f);
+        selected(2, 0, "Gamma-easy.png"); assertFalse(((UiNavigation) field("outgoing")).pending());
+        pointAtRow(2, 0); pointerPressed = true; pointerClicked = true; updatePointer(1280, 720, .01f);
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        pointerPressed = false; pointerClicked = false; updatePointer(1280, 720, .01f);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionMiddleDoubleClickDoesNotRecaptureButThirdPressCanPlay() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(2, -1);
+        middlePressed = true; updatePointer(1280, 720, .01f);
+        middlePressed = false; updatePointer(1280, 720, .01f);
+        selected(2, 0, "Gamma-easy.png"); assertFalse(((UiNavigation) field("outgoing")).pending());
+        pointAtRow(2, 0);
+        middlePressed = true; updatePointer(1280, 720, .01f);
+        assertNull(((SongSelectInputController) processor).pressedKey());
+        middlePressed = false; updatePointer(1280, 720, .01f);
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        pointAtRow(2, 0); middlePressed = true; updatePointer(1280, 720, 0);
+        middlePressed = false; updatePointer(1280, 720, 0);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionMiddlePressAfterTheDoubleClickWindowCanPlay() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 1);
+        middlePressed = true; updatePointer(1280, 720, 0);
+        middlePressed = false; updatePointer(1280, 720, 0);
+        selected(1, 1, "Beta-hard.png");
+        pointAtRow(1, 1); middlePressed = true; updatePointer(1280, 720, .25f);
+        pointAtRow(1, 1); // Release over the current bounds after the selection-follow animation.
+        middlePressed = false; updatePointer(1280, 720, 0);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionSuppressedMiddleDownResetsThePhysicalDistanceOriginDuringLeftDrag() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 0);
+        pointerPressed = true; pointerClicked = true; updatePointer(1280, 720, 0);
+        pointerClicked = false; pointerY -= 50; updatePointer(1280, 720, .02f);
+        var candidate = ((SongSelectInputController) processor).pressedKey();
+        middlePressed = true; updatePointer(1280, 720, 0);
+        assertEquals(candidate, ((SongSelectInputController) processor).pressedKey());
+        pointerY -= 40; updatePointer(1280, 720, .02f);
+        middlePressed = false; updatePointer(1280, 720, 0);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionChromeClickAlsoParticipatesInTheSharedDoubleClickCounter() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle();
+        pointerX = 1000; pointerY = 70; // Search chrome.
+        pointerPressed = true; pointerClicked = true; updatePointer(1280, 720, 0);
+        pointerPressed = false; pointerClicked = false; updatePointer(1280, 720, 0);
+        assertTrue((boolean) field("searchActive"));
+        pointAtRow(1, 0); middlePressed = true; updatePointer(1280, 720, .01f);
+        assertNull(((SongSelectInputController) processor).pressedKey());
+        middlePressed = false; updatePointer(1280, 720, 0);
+        assertFalse(((UiNavigation) field("outgoing")).pending());
     }
     @Test void productionRightClickOnAnOrdinaryGroupTogglesWithoutBeatmapOptions() throws Exception {
         open("Beta", 1); screen.resize(1280, 720);
