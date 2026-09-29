@@ -201,6 +201,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
                     for (String name : List.of("group", "reentry"))
                         scenes.add(new Scene(size[0],size[1],size[2],"lifecycle-" + name));
+            } else if (phase.equals("wheel-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (int fps : new int[]{30, 60, 144})
+                        scenes.add(new Scene(size[0],size[1],size[2],"wheel-" + fps));
             } else if (phase.equals("keyboard-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
@@ -666,6 +671,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseActivation(screen, scene, pointer, clicked, pressed, rightPressed, middlePressed, layout, fb, name);
                 fb.end(); advanceScene(); return;
             }
+            if (scene.name.startsWith("wheel-")) {
+                exerciseWheel(screen, scene, processor[0], pointer, heldKeys, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
             if (scene.name.startsWith("keyboard-")) {
                 exerciseHeldKeyboard(screen, scene, processor[0], heldKeys, layout, fb, name);
                 fb.end(); advanceScene(); return;
@@ -1056,6 +1065,40 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         }
         capture(fb, name + "-enter-held");
         held.remove(Input.Keys.ENTER); input.keyUp(Input.Keys.ENTER);
+    }
+
+    private void exerciseWheel(SongSelectScreen screen, Scene scene, InputProcessor input,
+            int[] pointer, Set<Integer> held, UiLayout layout, FrameBuffer fb, String name) {
+        int fps = Integer.parseInt(scene.name.substring("wheel-".length()));
+        pointer[0] = Math.round(scene.width * .8f); pointer[1] = scene.height / 2;
+        var model = carousel(screen); var selection = browser(screen).selection();
+        float initial = model.scrollVelocity();
+        input.scrolled(0, 20); input.scrolled(0, -20); screen.render(0); transitionFrames++;
+        if (model.scrollVelocity() != initial) throw new AssertionError("Cancelled batch changed velocity: " + name);
+        capture(fb, name + "-cancelled");
+        double scale = SongSelectMetrics.carouselScale(layout.height()) * 1000;
+        double velocity = initial / scale;
+        float delta = 1f / fps;
+        for (int frame = 0; frame < fps / 2; frame++) {
+            int direction = frame < fps / 4 ? 1 : -1;
+            // Twenty callbacks still yield one impulse; the negative half first brakes inertia.
+            for (int event = 0; event < 20; event++) input.scrolled(0, direction * 3);
+            velocity += direction * .4 * (1 + Math.min(Math.abs(velocity) / 2, 5));
+            velocity *= Math.pow(.994, delta * 1000.0);
+            if (Math.abs(velocity) < .01) velocity = 0;
+            screen.render(delta); transitionFrames++; assertRenderedBounds(screen, layout);
+            if (Math.abs(model.scrollVelocity() - velocity * scale) > .02)
+                throw new AssertionError("Wheel aggregation/integration: " + name + " frame " + frame);
+            if (!selection.equals(browser(screen).selection()) || pending(screen))
+                throw new AssertionError("Wheel changed selection: " + name);
+            if (frame == 0 || frame == fps / 4 || frame == fps / 2 - 1) capture(fb, name + "-frame-" + frame);
+        }
+        held.add(Input.Keys.DOWN); input.keyDown(Input.Keys.DOWN);
+        screen.render(0); screen.render(.25f); transitionFrames += 2;
+        input.scrolled(0, 1); screen.render(0); transitionFrames++;
+        if (model.pointerCancellationEnabled(300)) throw new AssertionError("Wheel ran after key repeat: " + name);
+        assertRenderedBounds(screen, layout); capture(fb, name + "-key-repeat");
+        held.remove(Input.Keys.DOWN); input.keyUp(Input.Keys.DOWN);
     }
 
     private void tapPointer(SongSelectScreen screen, boolean[] clicked, boolean[] pressed) {
@@ -1502,14 +1545,14 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         var scores=scoreBrowser(screen); var bounds=screen.scoreBounds(layout);
         pointer[0]=Math.round(100*layout.scale()); pointer[1]=height-Math.round((bounds.top()-32)*layout.scale());
         float carouselTarget=carousel(screen).scrollTarget();
-        int before=scores.first(); input.scrolled(0,1);
+        int before=scores.first(); input.scrolled(0,1); ((SongSelectWheelInput) input).dispatch();
         if(carousel(screen).scrollTarget()!=carouselTarget) throw new AssertionError("Left wheel moved carousel");
         scores.scroll(-1);
         if(scores.first()!=before) throw new AssertionError("Score scroll did not reverse");
         pointer[0]=Math.round(layout.width()*.9f*layout.scale()); pointer[1]=height/2;
-        input.scrolled(0,1);
+        input.scrolled(0,1); ((SongSelectWheelInput) input).dispatch();
         if(scores.first()!=before) throw new AssertionError("Right wheel moved score browser");
-        input.scrolled(0,-1);
+        input.scrolled(0,-1); ((SongSelectWheelInput) input).dispatch();
         pointer[0]=Math.round(100*layout.scale()); pointer[1]=height-Math.round((bounds.top()-32)*layout.scale());
         if(name.equals("phase4-scroll-middle")) scores.scroll(6);
         if(name.equals("phase4-scroll-bottom") || name.equals("phase4-numbers-bottom")) scores.scroll(10000);

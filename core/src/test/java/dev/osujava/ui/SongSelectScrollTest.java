@@ -19,14 +19,14 @@ class SongSelectScrollTest {
         assertEquals(66.46646606437685, s.destination(), 1e-10);
     }
     @Test void repeatedNotchesAccelerateAndReverseInputFirstBrakes() {
-        var s = scroll(); s.wheel(2);
+        var s = scroll(); s.wheel(1); s.wheel(1);
         assertEquals(.88, s.velocity(), 1e-12);
         s.wheel(-1); assertEquals(.304, s.velocity(), 1e-12);
         s.wheel(-1); assertEquals(-.1568, s.velocity(), 1e-12);
         s.wheel(-1); assertEquals(-.58816, s.velocity(), 1e-12);
     }
     @Test void highSpeedUsesCappedAccelerationNotCappedVelocity() {
-        var s = scroll(); s.wheel(100);
+        var s = scroll(); for (int i = 0; i < 100; i++) s.wheel(1);
         double before = s.velocity();
         assertTrue(before > 10);
         s.wheel(1); assertEquals(before + 2.4, s.velocity(), 1e-10);
@@ -72,14 +72,13 @@ class SongSelectScrollTest {
         s.advance(1e-10); assertEquals(4e-11, s.position(), 1e-20);
         s.jump(50); assertEquals(50, s.position()); assertEquals(0, s.velocity());
     }
-    @Test void fractionalAndBatchedInputAreFiniteAndBatchedNotchesMatchCallbacks() {
-        var a = scroll(); var b = scroll(); a.wheel(4.25f);
-        for (int i = 0; i < 4; i++) b.wheel(1);
-        b.wheel(.25f); assertEquals(a.velocity(), b.velocity());
-        for (float bad : new float[]{Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY}) a.wheel(bad);
-        assertEquals(b.velocity(), a.velocity());
-        a.wheel(Float.MAX_VALUE); assertTrue(Double.isFinite(a.velocity()));
-        a.wheel(-Float.MAX_VALUE); assertTrue(Double.isFinite(a.velocity()));
+    @Test void wheelCallbackMagnitudeDoesNotScaleTheNativeImpulse() {
+        for (float amount : new float[]{.0001f, .25f, 1, 4.25f, Float.MAX_VALUE}) {
+            var s = scroll(); s.wheel(amount); assertEquals(.4, s.velocity());
+            s.wheel(-amount); assertEquals(-.08, s.velocity(), 1e-12);
+            for (float bad : new float[]{0, Float.NaN, Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY}) s.wheel(bad);
+            assertEquals(-.08, s.velocity(), 1e-12);
+        }
     }
     @Test void dragSamplesAccelerationDecelerationAndReversalInReferenceUnitsPerMillisecond() {
         var s = scroll(); s.jump(100); s.beginDrag(); s.drag(20, 20);

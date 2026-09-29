@@ -31,14 +31,8 @@ final class SongSelectScroll {
     }
     void wheel(float amount) {
         if (!Float.isFinite(amount) || amount == 0 || limit == 0) return;
-        // Native callbacks represent one notch. Split batched notches; interpolate a trackpad remainder.
-        // The finite event cap is the existing Java input guard, not a stable velocity limit.
-        double left = Math.min(10000, Math.abs((double) amount));
-        while (left > 0) {
-            double part = Math.min(1, left);
-            velocity += Math.signum(amount) * .4 * (1 + Math.min(Math.abs(velocity) / 2, 5)) * part;
-            left -= part;
-        }
+        // 06003245/3246 receive one direction, with no wheel magnitude argument.
+        velocity += Math.signum(amount) * .4 * (1 + Math.min(Math.abs(velocity) / 2, 5));
         decay = WHEEL_DECAY;
     }
     void beginDrag() { dragging = true; stationaryMs = 0; }

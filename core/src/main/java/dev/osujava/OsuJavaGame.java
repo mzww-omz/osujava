@@ -21,6 +21,7 @@ import dev.osujava.skin.SkinImportException;
 import dev.osujava.ui.BeatmapFileChooser;
 import dev.osujava.ui.MainMenuScreen;
 import dev.osujava.ui.SongSelectScreen;
+import dev.osujava.ui.SongSelectWheelInput;
 import dev.osujava.ui.VolumeHud;
 import dev.osujava.ui.VolumeHudInput;
 import dev.osujava.ui.VolumeHudRenderer;
@@ -122,7 +123,9 @@ public class OsuJavaGame extends Game {
         InputProcessor screenInput = Gdx.input.getInputProcessor();
         if (screenInput == volumeInput || screenInput instanceof InputMultiplexer multiplexer
                 && multiplexer.getProcessors().contains(volumeInput, true)) return;
-        Gdx.input.setInputProcessor(screenInput == null ? volumeInput : new InputMultiplexer(volumeInput, screenInput));
+        // Route volume through Song Select's wheel poll, before key repeat and mouse gestures.
+        if (screenInput instanceof SongSelectWheelInput wheel) wheel.addProcessor(0, volumeInput);
+        else Gdx.input.setInputProcessor(screenInput == null ? volumeInput : new InputMultiplexer(volumeInput, screenInput));
     }
 
     @Override public void render() {

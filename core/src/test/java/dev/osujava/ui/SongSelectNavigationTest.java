@@ -576,7 +576,7 @@ class SongSelectNavigationTest {
         selected(2, 0, "Gamma-easy.png"); assertFalse(((UiNavigation) field("outgoing")).pending());
         pointAtRow(2, 0);
         middlePressed = true; updatePointer(1280, 720, .01f);
-        assertNull(((SongSelectInputController) processor).pressedKey());
+        assertNull(((SongSelectInputController) field("input")).pressedKey());
         middlePressed = false; updatePointer(1280, 720, .01f);
         assertFalse(((UiNavigation) field("outgoing")).pending());
         pointAtRow(2, 0); middlePressed = true; updatePointer(1280, 720, 0);
@@ -597,9 +597,9 @@ class SongSelectNavigationTest {
         open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 0);
         pointerPressed = true; pointerClicked = true; updatePointer(1280, 720, 0);
         pointerClicked = false; pointerY -= 50; updatePointer(1280, 720, .02f);
-        var candidate = ((SongSelectInputController) processor).pressedKey();
+        var candidate = ((SongSelectInputController) field("input")).pressedKey();
         middlePressed = true; updatePointer(1280, 720, 0);
-        assertEquals(candidate, ((SongSelectInputController) processor).pressedKey());
+        assertEquals(candidate, ((SongSelectInputController) field("input")).pressedKey());
         pointerY -= 40; updatePointer(1280, 720, .02f);
         middlePressed = false; updatePointer(1280, 720, 0);
         assertTrue(((UiNavigation) field("outgoing")).pending());
@@ -611,7 +611,7 @@ class SongSelectNavigationTest {
         pointerPressed = false; pointerClicked = false; updatePointer(1280, 720, 0);
         assertTrue((boolean) field("searchActive"));
         pointAtRow(1, 0); middlePressed = true; updatePointer(1280, 720, .01f);
-        assertNull(((SongSelectInputController) processor).pressedKey());
+        assertNull(((SongSelectInputController) field("input")).pressedKey());
         middlePressed = false; updatePointer(1280, 720, 0);
         assertFalse(((UiNavigation) field("outgoing")).pending());
     }
@@ -621,7 +621,7 @@ class SongSelectNavigationTest {
         settle(); carousel().scrollBy(-carousel().maxScroll()); settle(); pointAtRow(-1, -2);
         var browser = (SongBrowserModel) field("browser"); var selection = browser.selection();
         rightPressed = true; updatePointer(1280, 720, 0);
-        assertEquals(browser.entries().getFirst().key(), ((SongSelectInputController) processor).pressedKey());
+        assertEquals(browser.entries().getFirst().key(), ((SongSelectInputController) field("input")).pressedKey());
         rightPressed = false; updatePointer(1280, 720, 0);
         assertTrue(browser.entries().stream().allMatch(e -> e.kind() == SongBrowserModel.Kind.GROUP_HEADER));
         assertEquals(selection, browser.selection()); assertEquals("", field("toast"));
@@ -716,7 +716,7 @@ class SongSelectNavigationTest {
         float velocity = carousel().scrollVelocity();
         rightPressed = false; pointerY = height; updatePointer(width, height, 0);
         assertEquals(velocity, carousel().scrollVelocity());
-        assertFalse(((SongSelectInputController) processor).rightScrolling());
+        assertFalse(((SongSelectInputController) field("input")).rightScrolling());
         selected(1, 0, "Beta-easy.png");
         assertFalse(((UiNavigation) field("outgoing")).pending());
     }
@@ -726,16 +726,16 @@ class SongSelectNavigationTest {
         pointerX = Math.round(row.x() + 120); pointerY = 720 - Math.round(row.y() + row.height() / 2);
         float target = carousel().scrollTarget();
         rightClicked = true; rightPressed = true; updatePointer(1280, 720, 0);
-        assertFalse(((SongSelectInputController) processor).rightScrolling());
+        assertFalse(((SongSelectInputController) field("input")).rightScrolling());
         assertEquals(target, carousel().scrollTarget());
         rightClicked = false; rightPressed = false; updatePointer(1280, 720, 0);
         assertFalse(((UiNavigation) field("outgoing")).pending());
         pointerX = 500; rightClicked = true; rightPressed = true; updatePointer(1280, 720, 0);
-        assertTrue(((SongSelectInputController) processor).rightScrolling());
+        assertTrue(((SongSelectInputController) field("input")).rightScrolling());
         rightClicked = false; key(Input.Keys.F1); updatePointer(1280, 720, 0);
-        assertFalse(((SongSelectInputController) processor).rightScrolling());
+        assertFalse(((SongSelectInputController) field("input")).rightScrolling());
         key(Input.Keys.ESCAPE); updatePointer(1280, 720, 0);
-        assertFalse(((SongSelectInputController) processor).rightScrolling());
+        assertFalse(((SongSelectInputController) field("input")).rightScrolling());
     }
 
     @Test void modifiedTextNeverEntersSearchAndOrdinaryUnicodeStillDoes() throws Exception {

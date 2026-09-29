@@ -62,6 +62,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final OsuCookie playCookie = new OsuCookie();
     private final SongSelectCarousel carousel = viewState.carousel;
     private SongSelectInputController input;
+    private SongSelectWheelInput wheelInput;
     private boolean contentDirty = true;
     private float contentWidth, contentViewportHeight, contentRowHeight;
     private boolean legacyThumbnailPreview;
@@ -204,7 +205,8 @@ public final class SongSelectScreen extends ScreenAdapter {
                 if (cursor != null) cursor.event(Gdx.input.getCurrentEventTime(), x, y, button, down);
             }
         });
-        Gdx.input.setInputProcessor(input);
+        wheelInput = new SongSelectWheelInput(input);
+        Gdx.input.setInputProcessor(wheelInput);
         carousel.snapOnNextFrame();
         if (preview == null && Gdx.audio != null && Gdx.gl != null) {
             preview = new SongSelectPreview(path -> java.nio.file.Files.isRegularFile(path)
@@ -305,6 +307,7 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     /** Input, model synchronization, animation and resource preparation precede drawing. */
     private boolean update(UiLayout layout, float delta) {
+        wheelInput.dispatch();
         input.advanceKeys(delta);
         viewState.sample(layout, Gdx.input.getX(), Gdx.input.getY(), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
         viewState.advance(delta);
@@ -484,9 +487,13 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
-    @Override public void pause() { if (input != null) input.cancel(); }
-    @Override public void hide() { if (input != null) input.cancel(); if (preview != null) preview.close(); if (cursor != null) cursor.hide(); }
-    @Override public void dispose() { closed = true; if (input != null) input.cancel(); if (preview != null) preview.close(); if (audio != null) audio.close(); if (cursor != null) cursor.close(); thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
+    private void cancelInput() {
+        if (input != null) input.cancel();
+        if (wheelInput != null) wheelInput.cancel();
+    }
+    @Override public void pause() { cancelInput(); }
+    @Override public void hide() { cancelInput(); if (preview != null) preview.close(); if (cursor != null) cursor.hide(); }
+    @Override public void dispose() { closed = true; cancelInput(); if (preview != null) preview.close(); if (audio != null) audio.close(); if (cursor != null) cursor.close(); thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
 
     private void calculateLayout(UiLayout layout) {
         viewportHeight = layout.height();
