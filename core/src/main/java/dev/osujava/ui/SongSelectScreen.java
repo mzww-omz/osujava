@@ -198,6 +198,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 selectionSound(identity);
             }
             @Override public boolean scroll(float amount) { return scrollAtPointer(amount); }
+            @Override public boolean repeatEnabled() { return !closed && !importing && !outgoing.pending() && !game.volumeHud().active(); }
             @Override public void cursor(int x, int y, int button, boolean down) {
                 if (button == Input.Buttons.LEFT && down) carousel.pointerPressed();
                 if (cursor != null) cursor.event(Gdx.input.getCurrentEventTime(), x, y, button, down);
@@ -304,6 +305,7 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     /** Input, model synchronization, animation and resource preparation precede drawing. */
     private boolean update(UiLayout layout, float delta) {
+        input.advanceKeys(delta);
         viewState.sample(layout, Gdx.input.getX(), Gdx.input.getY(), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
         viewState.advance(delta);
         seconds = viewState.elapsed;
@@ -482,8 +484,9 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
-    @Override public void hide() { if (input != null) input.cancelPointer(); if (preview != null) preview.close(); if (cursor != null) cursor.hide(); }
-    @Override public void dispose() { closed = true; if (input != null) input.cancelPointer(); if (preview != null) preview.close(); if (audio != null) audio.close(); if (cursor != null) cursor.close(); thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
+    @Override public void pause() { if (input != null) input.cancel(); }
+    @Override public void hide() { if (input != null) input.cancel(); if (preview != null) preview.close(); if (cursor != null) cursor.hide(); }
+    @Override public void dispose() { closed = true; if (input != null) input.cancel(); if (preview != null) preview.close(); if (audio != null) audio.close(); if (cursor != null) cursor.close(); thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
 
     private void calculateLayout(UiLayout layout) {
         viewportHeight = layout.height();

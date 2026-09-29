@@ -201,6 +201,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
                     for (String name : List.of("group", "reentry"))
                         scenes.add(new Scene(size[0],size[1],size[2],"lifecycle-" + name));
+            } else if (phase.equals("keyboard-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (int fps : new int[]{30, 60, 144})
+                        scenes.add(new Scene(size[0],size[1],size[2],"keyboard-" + fps));
             } else if (phase.equals("pointer-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
@@ -478,6 +483,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         boolean[] clicked = {false};
         boolean[] pressed = {false};
         boolean[] rightClicked = {false}, rightPressed = {false};
+        Set<Integer> heldKeys = new HashSet<>();
         UiLayout layout = UiLayout.fromPixels(scene.width,scene.height);
         int[] pointer = {40,scene.height / 2};
         if (scene.name.equals("greylooks-random-hover") || scene.name.equals("phasechrome-current-hover")) { pointer[0] = Math.round(344 * layout.scale()); pointer[1] = scene.height - Math.round(19 * layout.scale()); }
@@ -485,13 +491,14 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "setInputProcessor" -> { processor[0] = (InputProcessor)a[0]; yield null; }
             case "getInputProcessor" -> processor[0];
             case "getX" -> pointer[0]; case "getY" -> pointer[1];
+            case "isKeyPressed" -> heldKeys.contains((int)a[0]);
             case "isButtonJustPressed" -> (int)a[0] == Input.Buttons.LEFT ? clicked[0] : (int)a[0] == Input.Buttons.RIGHT && rightClicked[0];
             case "isButtonPressed" -> (int)a[0] == Input.Buttons.LEFT ? pressed[0] : (int)a[0] == Input.Buttons.RIGHT && rightPressed[0];
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
         var library = new BeatmapLibrary();
         int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern") || scene.name.equals("phase3-large-library") || scene.name.startsWith("phase4-large") || scene.name.startsWith("phase5a-state-large")) ? 1000 : 7;
-        if (scene.name.equals("phase3-focus-page") || scene.name.startsWith("lifecycle-")) setCount = 24;
+        if (scene.name.equals("phase3-focus-page") || scene.name.startsWith("lifecycle-") || scene.name.startsWith("keyboard-")) setCount = 24;
         if (scene.name.equals("repair-empty")) setCount = 0;
         if (scene.name.equals("repair-single")) setCount = 1;
         boolean phase2 = scene.name.startsWith("phase2");
@@ -603,7 +610,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         };
         if (scene.name.startsWith("phase5a")) resolver = toolboxResolver(scene.name,greylooks);
         var assets = scene.name.startsWith("phasechrome-current") || scene.name.equals("phasechrome-custom") ? null : new SongSelectSkinAssets(resolver);
-        String preferredSet = scene.name.equals("greylooks-first-item") ? "set0"
+        String preferredSet = scene.name.equals("greylooks-first-item") || scene.name.startsWith("keyboard-") ? "set0"
                 : scene.name.equals("greylooks-last-item") ? "set6"
                 : scene.name.startsWith("greylooks-expanded") ? "set2" : "set3";
         int preferredDifficulty = scene.name.equals("greylooks-first-item") ? 0
@@ -648,11 +655,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exercisePointer(screen, scene, pointer, clicked, pressed, rightClicked, rightPressed, layout, fb, name);
                 fb.end(); advanceScene(); return;
             }
+            if (scene.name.startsWith("keyboard-")) {
+                exerciseHeldKeyboard(screen, scene, processor[0], heldKeys, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
             if (scene.name.equals("repair-empty") || scene.name.equals("repair-single")) {
                 // Genuine empty/one-difficulty libraries, not a filtered seven-Set fixture.
                 if (carousel(screen).rows().size() != setCount) throw new AssertionError("Wrong small-library fixture");
                 for (int key : new int[]{Input.Keys.UP, Input.Keys.DOWN, Input.Keys.PAGE_UP, Input.Keys.PAGE_DOWN, Input.Keys.F2})
-                    processor[0].keyDown(key);
+                    tapKey(processor[0], key);
                 pointer[0] = Math.round((layout.width() - 100) * layout.scale());
                 pointer[1] = scene.height / 2;
                 processor[0].scrolled(0, 4);
@@ -660,13 +671,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 assertRenderedBounds(screen, layout);
                 assertScrollSettled(screen, name);
                 capture(fb, name);
-                processor[0].keyDown(Input.Keys.ESCAPE);
+                tapKey(processor[0], Input.Keys.ESCAPE);
                 screen.render(.3f);
                 if (destination[0] == null) throw new AssertionError("Back did not leave small Library");
                 fb.end(); advanceScene(); return;
             }
             if (scene.name.equals("repair-low-fps")) {
-                processor[0].keyDown(Input.Keys.DOWN);
+                tapKey(processor[0], Input.Keys.DOWN);
                 for (int frame = 0; frame < 20; frame++) {
                     screen.render(.1f); assertRenderedBounds(screen, layout); transitionFrames++;
                     if (frame == 0 || frame == 2 || frame == 19) capture(fb, name + "-frame-" + frame);
@@ -678,7 +689,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 assertToolbox(screen,assets,scene.name,layout);
                 capture(fb,name);
                 if (scene.name.contains("large")) profileToolbox(screen,processor[0],name,scene.name);
-                if (toolboxState(screen).open()) processor[0].keyDown(Input.Keys.ESCAPE);
+                if (toolboxState(screen).open()) tapKey(processor[0], Input.Keys.ESCAPE);
                 pressed[0] = false; pointer[0] = 40;
                 fb.end();
                 advanceScene();
@@ -721,16 +732,16 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     if (!processor[0].scrolled(0,1)) throw new AssertionError("Wheel lost: " + name);
                     if (carousel(screen).rows() != before) throw new AssertionError("Wheel rebuilt selection: " + name);
                 }
-                case "greylooks-random" -> processor[0].keyDown(Input.Keys.F2);
+                case "greylooks-random" -> tapKey(processor[0], Input.Keys.F2);
                 case "greylooks-expanded-many-first", "greylooks-expanded-many-last", "greylooks-expanded-single" -> {
                     pointerRow(screen,3,-1,pointer,layout,scene.height);
                     clicked[0] = true; screen.render(0); clicked[0] = false;
-                    if (scene.name.endsWith("last")) for (int i = 0; i < 15; i++) processor[0].keyDown(Input.Keys.DOWN);
+                    if (scene.name.endsWith("last")) for (int i = 0; i < 15; i++) tapKey(processor[0], Input.Keys.DOWN);
                     long children = carousel(screen).rows().stream().filter(r -> r.entry.setIndex() == 3 && r.entry.difficultyIndex() >= 0).count();
                     if (children != (scene.name.endsWith("single") ? 1 : 16)) throw new AssertionError("Expansion input missed: " + name);
                     pointer[0] = 40;
                 }
-                case "greylooks-collapse-many" -> { processor[0].keyDown(Input.Keys.RIGHT); pointer[0] = 40; }
+                case "greylooks-collapse-many" -> { tapKey(processor[0], Input.Keys.RIGHT); pointer[0] = 40; }
                 case "greylooks-slow-scroll", "greylooks-fast-scroll", "greylooks-scroll-reverse", "greylooks-large-library" ->
                     pointerRow(screen,3,1,pointer,layout,scene.height);
             }
@@ -764,7 +775,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             if (scene.name.equals("phase4-transitions")) {
                 for (int stage=0;stage<4;stage++) {
-                    processor[0].keyDown(stage % 2 == 0 ? Input.Keys.DOWN : Input.Keys.UP);
+                    tapKey(processor[0], stage % 2 == 0 ? Input.Keys.DOWN : Input.Keys.UP);
                     assertScoreTarget(screen);
                     for (int frame=0;frame<=24;frame++) {
                         screen.render(1f/60); assertRenderedBounds(screen,layout);
@@ -827,7 +838,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             // Wheel scenes intentionally leave selection behind. A real difficulty change restores it.
             if (scene.name.contains("scroll") || setCount > 7) {
-                processor[0].keyDown(Input.Keys.DOWN); pointer[0] = 40;
+                tapKey(processor[0], Input.Keys.DOWN); pointer[0] = 40;
                 for (int frame = 0; frame < 90; frame++) screen.render(1f/60);
             }
             // Position the pointer on the current selected row for the existing input smoke checks.
@@ -837,15 +848,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             // Navigation and search still work even with malformed/missing visual assets.
             if (!processor[0].scrolled(0,1)) throw new AssertionError("Wheel lost: " + name);
             for (int key : new int[]{Input.Keys.UP,Input.Keys.DOWN,Input.Keys.PAGE_UP,Input.Keys.PAGE_DOWN,Input.Keys.LEFT,Input.Keys.RIGHT,Input.Keys.F2})
-                if (!processor[0].keyDown(key)) throw new AssertionError("Key lost: " + name + " / " + key);
+                if (!tapKey(processor[0], key)) throw new AssertionError("Key lost: " + name + " / " + key);
             screen.render(.05f);
             pointer[0] = Math.round((layout.width() - 100) * layout.scale());
             pointer[1] = Math.round(45 * layout.scale());
             clicked[0] = true; screen.render(0); clicked[0] = false;
             for (char c : (setCount > 7 ? "Local song 002" : "Local song 2").toCharArray()) if (!processor[0].keyTyped(c)) throw new AssertionError("Search lost: " + name);
-            processor[0].keyDown(Input.Keys.ENTER);
+            tapKey(processor[0], Input.Keys.ENTER);
             var randomBounds = toolboxLayout(screen).control(SongSelectSkinAssets.Selection.RANDOM).interaction();
-            if (randomBounds.empty()) processor[0].keyDown(Input.Keys.F2);
+            if (randomBounds.empty()) tapKey(processor[0], Input.Keys.F2);
             else {
                 point(randomBounds,pointer,layout,scene.height);
                 clicked[0] = true; screen.render(0); clicked[0] = false;
@@ -868,7 +879,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             selectedRow = model.rows().stream().max(Comparator.comparingDouble(r -> r.selectedAmount)).orElseThrow();
             if ((scene.name.equals("phase3-chrome-cookie") || scene.name.equals("phase4-sibling"))) {
                 screen.browserMode(SongBrowserModel.Sort.LENGTH,SongBrowserModel.Group.BPM);
-                processor[0].keyDown(Input.Keys.DOWN);
+                tapKey(processor[0], Input.Keys.DOWN);
                 pointer[0] = Math.round((layout.width()-20)*layout.scale()); pointer[1] = scene.height-Math.round(30*layout.scale());
             } else pointerRow(screen,selectedRow.entry.setIndex(),selectedRow.entry.difficultyIndex(),pointer,layout,scene.height);
             clicked[0] = true; screen.render(0); clicked[0] = false;
@@ -996,6 +1007,48 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         if (!selection.equals(browser.selection()) || pending(screen)) throw new AssertionError("Lifecycle changed playable selection");
     }
 
+    private void exerciseHeldKeyboard(SongSelectScreen screen, Scene scene, InputProcessor input,
+            Set<Integer> held, UiLayout layout, FrameBuffer fb, String name) {
+        int fps = Integer.parseInt(scene.name.substring("keyboard-".length()));
+        var browser = browser(screen);
+        var visible = browser.rows().stream().filter(SongBrowserModel.Row::visible).map(r -> r.key).toList();
+        int start = visible.indexOf(browser.selectedKey());
+        Set<Integer> pulses = switch (fps) {
+            case 30 -> Set.of(7,10,13,16,19,22,25,28);
+            case 60 -> Set.of(14,20,26,32,38,44,50,56);
+            case 144 -> Set.of(32,47,61,75,90,104,119,133);
+            default -> throw new AssertionError("Unknown frame-rate fixture");
+        };
+        held.add(Input.Keys.DOWN); input.keyDown(Input.Keys.DOWN); screen.render(0);
+        int moves = 1;
+        for (int frame = 0; frame < fps; frame++) {
+            if (pulses.contains(frame)) moves++;
+            screen.render(1f / fps); transitionFrames++;
+            String active = browser.focusKey() == null ? browser.selectedKey() : browser.focusKey();
+            if (!visible.get(start + moves).equals(active)) throw new AssertionError("Repeat state/timing: " + name + " frame " + frame);
+            if (pending(screen)) throw new AssertionError("Held Down played a row");
+            assertRenderedBounds(screen, layout);
+            if (frame == 0 || frame == pulses.stream().mapToInt(Integer::intValue).min().orElseThrow()
+                    || frame == fps / 2 || frame == fps - 1) capture(fb, name + "-frame-" + frame);
+        }
+        String focus = browser.focusKey();
+        if (focus == null) throw new AssertionError("Fixture did not reach a collapsed Set");
+        held.remove(Input.Keys.DOWN); input.keyUp(Input.Keys.DOWN);
+        for (int frame = 0; frame < 10; frame++) {
+            screen.render(.05f); transitionFrames++;
+            if (!focus.equals(browser.focusKey())) throw new AssertionError("Released key still repeats");
+        }
+        held.add(Input.Keys.ENTER); input.keyDown(Input.Keys.ENTER); screen.render(0);
+        var selection = browser.selection();
+        capture(fb, name + "-confirmed");
+        for (int frame = 0; frame < 30; frame++) {
+            screen.render(1f / 30); transitionFrames++; assertRenderedBounds(screen, layout);
+            if (pending(screen) || !selection.equals(browser.selection())) throw new AssertionError("Held Enter repeated confirmation/play");
+        }
+        capture(fb, name + "-enter-held");
+        held.remove(Input.Keys.ENTER); input.keyUp(Input.Keys.ENTER);
+    }
+
     private void exercisePointer(SongSelectScreen screen, Scene scene, int[] pointer,
             boolean[] clicked, boolean[] pressed, boolean[] rightClicked, boolean[] rightPressed,
             UiLayout layout, FrameBuffer fb, String name) {
@@ -1068,7 +1121,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if (Math.abs(model.scrollOffset() - position) > .001 || model.scrollVelocity() != velocity)
                 throw new AssertionError("Stationary hold moved: " + name);
         }
-        if (scene.name.equals("drag-cancel")) { input.keyDown(Input.Keys.F1); screen.render(0); }
+        if (scene.name.equals("drag-cancel")) { tapKey(input, Input.Keys.F1); screen.render(0); }
         pressed[0] = false; screen.render(0);
         float expectedVelocity = scene.name.equals("drag-cancel") ? 0
                 : scene.name.equals("drag-pause") ? velocity * (float)Math.pow(.95, 34) : velocity;
@@ -1108,7 +1161,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if (state.equals("mods-view")) {
                 point(geometry.control(SongSelectSkinAssets.Selection.MODS).interaction(),pointer,layout,scene.height);
                 clicked[0] = true; screen.render(0); clicked[0] = false;
-            } else input.keyDown(Input.Keys.F1);
+            } else tapKey(input, Input.Keys.F1);
             if (toolboxState(screen).overlay() != SongSelectToolboxState.Overlay.MODS || !toolboxState(screen).active().isEmpty())
                 throw new AssertionError("Mods selector invented gameplay capabilities");
         }
@@ -1119,7 +1172,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     new SongSelectToolboxLayout.Bounds(800,590,70,40),new SongSelectToolboxLayout.Bounds(30,560,70,30))) {
                 point(b,pointer,layout,scene.height); clicked[0] = true; screen.render(0); clicked[0] = false;
             }
-            for (int key : new int[]{Input.Keys.F2,Input.Keys.F3,Input.Keys.I,Input.Keys.ENTER,Input.Keys.F6,Input.Keys.DOWN}) input.keyDown(key);
+            for (int key : new int[]{Input.Keys.F2,Input.Keys.F3,Input.Keys.I,Input.Keys.ENTER,Input.Keys.F6,Input.Keys.DOWN}) tapKey(input, key);
             input.keyTyped('x'); input.scrolled(0,3);
             if (browser(screen).selectedDifficulty() != selected || !screenField(screen,"search").equals(search)
                     || pending(screen) || scores.first() != first || !Objects.equals(scores.selected(),selectedScore))
@@ -1147,7 +1200,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 @Override public void navigate(Screen next) { next.dispose(); }
             };
             var gameplay = new GameplayScreen(game,browser(screen).selectedSet(),browser(screen).selectedDifficulty());
-            gameplay.show(); Gdx.input.getInputProcessor().keyDown(Input.Keys.ESCAPE); gameplay.dispose(); Gdx.input.setInputProcessor(input);
+            gameplay.show(); tapKey(Gdx.input.getInputProcessor(), Input.Keys.ESCAPE); gameplay.dispose(); Gdx.input.setInputProcessor(input);
             if (store.revision() != revision) throw new AssertionError("Aborted gameplay marked played");
         }
         if (state.equals("large-hover")) point(geometry.control(SongSelectSkinAssets.Selection.RANDOM).interaction(),pointer,layout,scene.height);
@@ -1302,11 +1355,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
 
     private void toolboxTransitions(SongSelectScreen screen, InputProcessor input, FrameBuffer fb, String name, UiLayout layout) {
         for (int stage = 0; stage < 5; stage++) {
-            if (stage == 0) input.keyDown(Input.Keys.F1);
-            if (stage == 1) input.keyDown(Input.Keys.ESCAPE);
+            if (stage == 0) tapKey(input, Input.Keys.F1);
+            if (stage == 1) tapKey(input, Input.Keys.ESCAPE);
             if (stage == 2) screen.browserMode(SongBrowserModel.Sort.ARTIST,SongBrowserModel.Group.ARTIST);
             if (stage == 3) screen.browserSearch("Local song 2",false);
-            if (stage == 4) { screen.browserSearch("",false); input.keyDown(Input.Keys.F2); }
+            if (stage == 4) { screen.browserSearch("",false); tapKey(input, Input.Keys.F2); }
             for (int frame = 0; frame < 25; frame++) {
                 screen.render(1f/60); assertRenderedBounds(screen,layout); transitionFrames++;
                 if (frame == 0 || frame == 8 || frame == 24) capture(fb,name+"-stage-"+stage+"-frame-"+frame);
@@ -1323,9 +1376,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         Arrays.sort(samples);
         System.out.printf(Locale.ROOT,"Toolbox CPU submission %s: mean %.3f ms, p95 %.3f ms, max %.3f ms (180 samples)%n",name,
                 Arrays.stream(samples).average().orElseThrow()/1e6,samples[170]/1e6,samples[179]/1e6);
-        if (toolboxState(screen).open()) input.keyDown(Input.Keys.ESCAPE);
+        if (toolboxState(screen).open()) tapKey(input, Input.Keys.ESCAPE);
         long[] switches = new long[100];
-        for (int i=0;i<140;i++) { long start=System.nanoTime(); input.keyDown(i%2==0 ? Input.Keys.DOWN : Input.Keys.UP);
+        for (int i=0;i<140;i++) { long start=System.nanoTime(); tapKey(input, i%2==0 ? Input.Keys.DOWN : Input.Keys.UP);
             if(i>=40)switches[i-40]=System.nanoTime()-start; }
         Arrays.sort(switches);
         System.out.printf(Locale.ROOT,"Toolbox difficulty switch %s: mean %.3f ms, p95 %.3f ms, max %.3f ms%n",name,
@@ -1389,7 +1442,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         if(name.equals("phase4-scroll-middle")) scores.scroll(6);
         if(name.equals("phase4-scroll-bottom") || name.equals("phase4-numbers-bottom")) scores.scroll(10000);
         if(name.equals("phase4-selected")) { clicked[0]=true; screen.render(0); clicked[0]=false; if(scores.selected()==null)throw new AssertionError("Score click lost"); }
-        if(name.equals("phase4-no-score")) input.keyDown(Input.Keys.UP);
+        if(name.equals("phase4-no-score")) tapKey(input, Input.Keys.UP);
         if(name.equals("phase4-group")) screen.browserMode(SongBrowserModel.Sort.ARTIST,SongBrowserModel.Group.ARTIST);
         if(name.equals("phase4-search")) screen.browserSearch("Local song",true);
         assertScoreTarget(screen);
@@ -1406,7 +1459,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     case "sort" -> { var copy=new ArrayList<>(store.query(target)); copy.sort(dev.osujava.score.LocalScore.ORDER); }
                     case "scroll" -> scores.scroll(i%2==0 ? 1 : -1);
                     case "difficulty" -> { scores.target(null); scores.target(target); }
-                    case "input-switch" -> Gdx.input.getInputProcessor().keyDown(i%2==0 ? Input.Keys.DOWN : Input.Keys.UP);
+                    case "input-switch" -> tapKey(Gdx.input.getInputProcessor(), i%2==0 ? Input.Keys.DOWN : Input.Keys.UP);
                     case "cold-format" -> new ScoreBrowserModel(store).target(target);
                 }
                 if(i>=40)samples[i-40]=System.nanoTime()-start;
@@ -1465,7 +1518,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             default -> throw new IllegalArgumentException("Unknown capture action");
         };
         if (key == -2) toolboxState(screen).open(SongSelectToolboxState.Overlay.MODE);
-        else if (key >= 0) input.keyDown(key);
+        else if (key >= 0) tapKey(input, key);
         String[] hover = System.getProperty("osujava.songSelectHover", "40,360").split(",");
         pointer[0] = Math.round(Float.parseFloat(hover[0]) * layout.scale());
         pointer[1] = scene.height - Math.round(Float.parseFloat(hover[1]) * layout.scale());
@@ -1503,12 +1556,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     }
     private void exerciseKeyboardFocus(SongSelectScreen screen, String name, InputProcessor processor, UiLayout layout) {
         var browser = (SongBrowserModel) screenField(screen, "browser");
-        if (name.endsWith("page")) processor.keyDown(Input.Keys.PAGE_DOWN);
+        if (name.endsWith("page")) tapKey(processor, Input.Keys.PAGE_DOWN);
         else if (name.contains("group")) {
             for (int i = 0; i < 20 && (browser.focusKey() == null || !browser.row(browser.focusKey()).group()); i++)
-                processor.keyDown(Input.Keys.UP);
+                tapKey(processor, Input.Keys.UP);
         } else {
-            for (int i = 0; i < 20 && browser.focusKey() == null; i++) processor.keyDown(Input.Keys.DOWN);
+            for (int i = 0; i < 20 && browser.focusKey() == null; i++) tapKey(processor, Input.Keys.DOWN);
         }
         if (browser.focusKey() == null) throw new AssertionError("Keyboard did not reach focus: " + name);
         var focused = browser.row(browser.focusKey());
@@ -1521,12 +1574,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             throw new AssertionError("Focus and selected emphasis were conflated");
         if (pending(screen)) throw new AssertionError("Focus navigation started gameplay");
         if (name.endsWith("confirm")) {
-            processor.keyDown(Input.Keys.ENTER);
+            tapKey(processor, Input.Keys.ENTER);
             if (browser.focusKey() != null || !browser.selectedSet().id().equals(focused.set.id()) || pending(screen))
                 throw new AssertionError("Enter must confirm the focused Set before starting gameplay");
         } else if (name.endsWith("toggle")) {
             boolean expanded = focused.expanded;
-            processor.keyDown(Input.Keys.ENTER);
+            tapKey(processor, Input.Keys.ENTER);
             if (focused.expanded == expanded || !selected.equals(browser.selection()) || pending(screen))
                 throw new AssertionError("Enter on focused Group must only toggle that Group");
         }
@@ -1607,8 +1660,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "phase3-search-long" -> screen.browserSearch("Local song Camellia Harness Difficulty Local song Camellia Harness Difficulty",true);
             case "phase3-search-unicode" -> screen.browserSearch("夜空",true);
             case "phase3-search-none" -> screen.browserSearch("no matching beatmap",true);
-            case "phase3-group-first" -> { for(int i=0;i<12;i++)processor.keyDown(Input.Keys.LEFT); }
-            case "phase3-group-last" -> { for(int i=0;i<12;i++)processor.keyDown(Input.Keys.RIGHT); }
+            case "phase3-group-first" -> { for(int i=0;i<12;i++)tapKey(processor, Input.Keys.LEFT); }
+            case "phase3-group-last" -> { for(int i=0;i<12;i++)tapKey(processor, Input.Keys.RIGHT); }
             case "phase3-menu-group", "phase3-menu-sort" -> {
                 var bounds = name.endsWith("group") ? SongBrowserControls.groupBounds(layout.width(),layout.height()) : SongBrowserControls.sortBounds(layout.width(),layout.height());
                 pointer[0] = Math.round((bounds.x()+20)*layout.scale()); pointer[1] = height - Math.round((bounds.y()+10)*layout.scale());
@@ -1659,6 +1712,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             return (SongSelectCarousel) field.get(screen);
         } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
     }
+    private static boolean tapKey(InputProcessor input, int key) {
+        boolean handled = input.keyDown(key);
+        input.keyUp(key);
+        return handled;
+    }
+
     private boolean pending(SongSelectScreen screen) {
         try {
             var field = SongSelectScreen.class.getDeclaredField("outgoing"); field.setAccessible(true);

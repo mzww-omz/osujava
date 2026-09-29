@@ -1,7 +1,7 @@
 # Song Select 1:1対応 — 残phase台帳
 
 2026-09-29。[全体再調査](songselect-parity-reinvestigation-20260929.md)と
-[Skin独立調査](skin-stable-independent-audit-20260929.md)を、phase 1〜8aの実装後の残作業へ整理したもの。
+[Skin独立調査](skin-stable-independent-audit-20260929.md)を、phase 8bのキーボード対応までの実装を反映して整理したもの。
 phase 7以降の番号はphase 6時点で付与した実装単位で、当初から確定していた工数・完了予定ではない。
 追加調査で依存や大きさが判明した場合は、根拠とともに分割する。
 
@@ -15,6 +15,7 @@ phase 7以降の番号はphase 6時点で付与した実装単位で、当初か
 - [phase 6](songselect-parity-phase6-20260929.md): drag中の速度推定、直接移動、静止時間を使うrelease慣性、入力→積分→描画の更新順。
 - [phase 7](songselect-parity-phase7-20260929.md): Group開時の初期位置配布、画面外の行群snap・再進入、active範囲と行の表示状態。
 - [phase 8a](songselect-parity-phase8a-20260929.md): 80 window pixelsのクリック取消、押下行自身の現在矩形への解放、保持中だけのdrag sample、右button位置指定、gesture中のhover保持。
+- [phase 8bのキーボード部分](songselect-parity-phase8b-keyboard-20260929.md): 共有counterによるUp/Down/Page保持repeat、初回入力との区別、修飾キーによるreset、overlay等の優先、消費済み文字のrepeat抑制。8b全体は継続中。
 
 これは各phaseで閉じた静的契約とJava側検証の範囲を示す。実機を含む全画面の1:1一致が完了したという意味ではない。
 
@@ -22,7 +23,7 @@ phase 7以降の番号はphase 6時点で付与した実装単位で、当初か
 
 | Phase | 対象 | 主な作業と完了条件 |
 | --- | --- | --- |
-| **8b** | 入力判定・dispatcherの残り | native background spriteのhitbox/丸め/clipとhover候補の優先・alpha条件、修飾キー・保持repeat、wheel/callback/polling順、左右同時入力・右行context、Set展開後のplay guard。8aで距離・release移動・右位置指定を実装済み。Song Selectのdrag-out先は空callbackと確認済み。同一入力列のfocus/selection/play requestと時刻を比較する。 |
+| **8b（継続中）** | 入力判定・dispatcherの残り | native background spriteのhitbox/丸め/clip・depthとhover候補の優先・alpha条件、wheel/callback/polling順、同一frameの初回key順序、左右同時入力・右行context、Set展開後のplay guard。行移動の保持repeatと修飾キーroutingは実装済み。検索編集repeat/IMEはphase 10と照合する。8aのpointer契約も実装済み。Song Selectのdrag-out先は空callbackと確認済み。同一入力列のfocus/selection/play requestと時刻を比較する。 |
 | **9** | 行の状態別描画・animation | 状態0〜4のtint/alpha、foregroundの生成・破棄・継承、星のscale/cropと500ms・index遅延、thumbnail/grade/mode/textのorigin/depth/blend/clip。各要素の台帳と中断を含む時間テストを揃える。10枠への変更済み部分は再実装しない。 |
 | **10** | Browserデータ・検索・分類 | tags/source/Unicode/引用/比較検索、sort/groupの残条件、日付・mode・rank・collection/favourite、近い難易度を選ぶ規則、metadata/score。必要な情報をImport→Library永続化→index→行へ保持する。オンライン未取得値を捏造しない。評価互換はRuleset側の依存として追跡し、見た目の比較では同じ評価を固定する。 |
 | **11** | フォント・画面構成 | GDI系文字測定とJavaの字幅/baseline/省略/Unicode fallback、DPI・丸め・影。chrome予約/延長、search/tab/metadata/score/Mode/Mods/Options/Back/Cookie/scrollbarのdepth・clip・hitを揃える。診断UIと通常画面を区別し、フォント差を全面maskして合格にしない。backendの大変更は実測が必要性を示した場合だけ行う。 |

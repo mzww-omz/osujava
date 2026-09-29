@@ -103,7 +103,7 @@ class SongSelectWheelTest {
             }
             for(char c:"nonexistent".toCharArray())processor.keyTyped(c);
             assertNull(scores.target()); assertTrue(scores.rows().isEmpty());
-            for(int i=0;i<11;i++)processor.keyDown(Input.Keys.BACKSPACE);
+            for(int i=0;i<11;i++) { processor.keyDown(Input.Keys.BACKSPACE); processor.keyUp(Input.Keys.BACKSPACE); }
             assertEquals(identity,scores.target()); assertEquals(100,scores.rows().size());
         } finally { screen.dispose(); }
     }

@@ -49,4 +49,5 @@ final class SongSelectInputController extends SongSelectInput {
         dragOwner = null; active = false; state = PointerState.IDLE; clicks.cancel();
     }
     void cancelPointer() { cancelLeftPointer(); rightScrolling = false; }
+    void cancel() { cancelKeys(); cancelPointer(); }
 }
