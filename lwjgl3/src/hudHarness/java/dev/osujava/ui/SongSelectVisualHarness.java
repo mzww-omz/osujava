@@ -284,6 +284,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 }
                 if (name.equals("composite") && image == SongSelectSkinAssets.Image.MODE) {
                     p.setColor(Color.GREEN); p.fillRectangle(30, 130, 40, 40);
+                    // Deliberately cross the carousel: cards must not erase foreground chrome.
+                    p.fillRectangle(650, 290, 80, 40);
                 }
                 PixmapIO.writePNG(Gdx.files.absolute(file.toString()),p); p.dispose();
                 if (name.equals("mismatched-high")) {
@@ -965,6 +967,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             } finally { pixel.dispose(); }
             if (geometry.control(SongSelectSkinAssets.Selection.MODE).interaction().contains(x, y))
                 throw new AssertionError("Composite decoration expanded the control hitbox");
+            int cardX = Math.round(art.x() + 690 * scale), cardY = Math.round(art.y() + (540 - 310) * scale);
+            var overlap = Pixmap.createFromFrameBuffer(
+                    Math.round(cardX * Gdx.graphics.getBackBufferWidth() / layout.width()),
+                    Math.round(cardY * Gdx.graphics.getBackBufferHeight() / layout.height()), 1, 1);
+            try {
+                int rgba = overlap.getPixel(0, 0);
+                if ((rgba >>> 16 & 255) < 180 || (rgba >>> 24 & 255) > 50 || (rgba >>> 8 & 255) > 50)
+                    throw new AssertionError("Carousel overwrote composite chrome: " + Integer.toHexString(rgba));
+            } finally { overlap.dispose(); }
         }
         boolean legacy = assets.configuration().legacyVersion() < 2;
         if (Math.abs(geometry.control(SongSelectSkinAssets.Selection.MODE).anchorX()

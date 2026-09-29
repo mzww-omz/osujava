@@ -2,7 +2,7 @@ package dev.osujava.ui;
 
 /** Song Select geometry in UiLayout's 720-high logical units, never framebuffer pixels.
  * Inherited carousel parameters use a 480-high space; exact stable motion remains unmeasured (see stable-spec).
- * Skin chrome alone uses the documented 768-high legacy asset canvas.
+ * Skin artwork uses the 768-high legacy asset canvas independently of row pitch.
  */
 final class SongSelectMetrics {
     static final float LEGACY_CANVAS_HEIGHT = 768;
@@ -22,8 +22,7 @@ final class SongSelectMetrics {
         return Math.max(width * .50f + 18, width - wheelLeft(width, height) + 18);
     }
     static float rowHeight(float height) {
-        // Artwork is fitted into this body, not used to derive it. Previously a 72-unit
-        // pitch with an 88-unit skin body covered the next row's title and hit bounds.
+        // Navigation and label clipping use row pitch. Artwork has its own native canvas.
         return rowPitch(height);
     }
     static float wheelLeft(float width, float height) {

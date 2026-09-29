@@ -89,10 +89,10 @@ final class SongSelectRowRenderer {
         float x = row.x(), y = row.y();
         if (has(Image.MENU_BUTTON_BACKGROUND)) {
             view.beginText();
-            var body = style.skin().rowBody();
-            float imageWidth = row.width() / body.width(), imageHeight = row.height() / body.height();
-            skinImage(Image.MENU_BUTTON_BACKGROUND, x - body.left() * imageWidth,
-                    y - body.bottom() * imageHeight, imageWidth, imageHeight, color);
+            var artwork = SongSelectArtwork.card(x, y + row.height() / 2,
+                    row.height() * SongSelectMetrics.CAROUSEL_HEIGHT / SongSelectMetrics.ROW_PITCH,
+                    1, style.skin().get(Image.MENU_BUTTON_BACKGROUND));
+            skinImage(Image.MENU_BUTTON_BACKGROUND, artwork.x(), artwork.y(), artwork.width(), artwork.height(), color);
         } else {
             view.beginShapes();
             view.quad(x, y, x + row.width(), y, x + row.width(), y + row.height(), x + 9, y + row.height(), color);

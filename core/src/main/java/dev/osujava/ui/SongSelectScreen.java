@@ -443,8 +443,8 @@ public final class SongSelectScreen extends ScreenAdapter {
             } else if (image == Image.BACK) {
                 width = bottomLayout.backImage.width(); height = bottomLayout.backImage.height();
             } else if (image == Image.MENU_BUTTON_BACKGROUND) {
-                width = rowWidth(layout) / skin.rowBody().width();
-                height = carousel.rowHeight() / skin.rowBody().height();
+                width = asset.logicalWidth() * layout.height() / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
+                height = asset.logicalHeight() * layout.height() / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
             } else continue; // Stars and grades vary per row; this inventory covers chrome and row canvases.
             Gdx.app.log("SongSelect geometry", String.format(Locale.ROOT,
                     "%s: source %dx%d @%dx -> SD %.1fx%.1f -> UI %.1fx%.1f -> window %.1fx%.1f -> framebuffer %.1fx%.1f",

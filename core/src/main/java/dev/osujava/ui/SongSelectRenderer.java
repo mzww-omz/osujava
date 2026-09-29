@@ -107,6 +107,17 @@ final class SongSelectRenderer {
         if (renderedBottomProcedural) view.box(0, 0, layout.width(), frame.bottom, 0, BOTTOM);
         view.endShapes();
         SongSelectDecorations.draw(view,batch,frame.skin,layout,frame.seconds,frame.previewSeconds,frame.selectedDifficulty);
+        drawRows(layout);
+        var thumb = SongSelectScrollbar.thumb(layout.width(),frame.bottom,frame.top,frame.scrollOffset,frame.scrollRange);
+        if (thumb.height() > 0) {
+            view.beginShapes();
+            view.box(thumb.x(),frame.bottom,thumb.width(),frame.top-frame.bottom,0,LEFT);
+            view.box(thumb.x(),thumb.y(),thumb.width(),thumb.height(),0,UiTheme.TEXT);
+            view.endShapes();
+        }
+        view.beginText();
+        drawScoreBackgrounds(layout);
+        view.endText();
         // Artwork can exceed the content reservation; retain the authored canvas inside the viewport.
         Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
         try {
@@ -132,7 +143,7 @@ final class SongSelectRenderer {
         }
         frame.controls.drawShapes(view,layout.width(),layout.height(),frame.skin);
         if (frame.searchActive || !frame.search.isEmpty()) view.box(frame.searchX, layout.height() - 80, frame.searchW, 25, 0, LEFT);
-        view.box(18, frame.chromeContent.rankingHeaderTop() - 28, layout.width() * .35f, 28, 0, TOP);
+        view.box(18, frame.chromeContent.rankingHeaderTop() - 28, frame.scoreBounds.width(), 28, 0, TOP);
         drawScoreShapes(layout, px, py);
         if (frame.toastSeconds > 0) view.box(18, frame.bottom + 12, Math.min(450, layout.width() * .42f), 35, 0, BOTTOM);
         view.endShapes();
@@ -145,14 +156,6 @@ final class SongSelectRenderer {
             for (var action : Selection.values()) drawSelection(action,px,py);
             view.endText();
         } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
-        drawRows(layout);
-        var thumb = SongSelectScrollbar.thumb(layout.width(),frame.bottom,frame.top,frame.scrollOffset,frame.scrollRange);
-        if (thumb.height() > 0) {
-            view.beginShapes();
-            view.box(thumb.x(),frame.bottom,thumb.width(),frame.top-frame.bottom,0,LEFT);
-            view.box(thumb.x(),thumb.y(),thumb.width(),thumb.height(),0,UiTheme.TEXT);
-            view.endShapes();
-        }
         if (frame.selectedDifficulty != null) {
             playCookie.draw(view, (float) SongSelectDecorations.beat(frame.previewSeconds, frame.selectedDifficulty), !frame.toolbox.open() && playCookie.hit(px, py),
                     !frame.toolbox.open() && frame.pointerPressed);
@@ -252,14 +255,11 @@ final class SongSelectRenderer {
         var asset = frame.skin.get(Image.TOP);
         var bounds = SongSelectChrome.top(layout.width(), layout.height(), asset);
         var texture = asset.texture();
-        float edgePixels = Math.min(20 * asset.density(), texture.getWidth());
-        float tileWidth = edgePixels / asset.density() * layout.height() / 768f;
-        // Edge repetitions go underneath the original. Window clipping handles over-wide artwork.
-        for (float x = Math.max(0, bounds.width() - tileWidth); x < layout.width(); x += tileWidth) {
-            float width = Math.min(tileWidth, layout.width() - x);
-            batch.draw(texture, x, bounds.y(), width, bounds.height(),
-                    1 - edgePixels / texture.getWidth(), 1,
-                    1 - edgePixels / texture.getWidth() + width / tileWidth * edgePixels / texture.getWidth(), 0);
+        // Extend one edge column, not a repeating 20-pixel decoration. Sampling the
+        // column centre avoids linear filtering pulling neighbouring artwork into it.
+        if (bounds.width() < layout.width()) {
+            float u = 1 - .5f / texture.getWidth();
+            batch.draw(texture, bounds.width(), bounds.y(), layout.width() - bounds.width(), bounds.height(), u, 1, u, 0);
         }
         skinImage(Image.TOP, bounds, Color.WHITE);
     }
@@ -321,6 +321,20 @@ final class SongSelectRenderer {
         }
     }
 
+    private void drawScoreBackgrounds(UiLayout layout) {
+        if (!has(Image.MENU_BUTTON_BACKGROUND)) return;
+        var bounds = frame.scoreBounds;
+        for (int slot = 0; slot < bounds.capacity() && frame.scores.first() + slot < frame.scores.rows().size(); slot++) {
+            var row = frame.scores.rows().get(frame.scores.first() + slot);
+            boolean selected = row.score().playId().equals(frame.scores.selected());
+            boolean hovered = !frame.toolbox.open() && bounds.slot(frame.pointerX, frame.pointerY) == slot;
+            // Stable 060013b4: CentreLeft origin and scalar .55, independent of PNG alpha.
+            var artwork = SongSelectArtwork.card(bounds.x(), bounds.rowY(slot) + ScoreBrowserBounds.HEIGHT / 2,
+                    layout.height(), .55f, frame.skin.get(Image.MENU_BUTTON_BACKGROUND));
+            skinImage(Image.MENU_BUTTON_BACKGROUND, artwork, actionTint.set(0, 0, 0, selected || hovered ? .6f : .3f));
+        }
+    }
+
     private void drawRanking(UiLayout layout) {
         var bounds = frame.scoreBounds;
         view.textSmooth("Local Rankings", 28, frame.chromeContent.rankingHeaderTop() - 17, bounds.width() - 20, .96f, UiTheme.TEXT);
@@ -336,14 +350,6 @@ final class SongSelectRenderer {
         for (int slot = 0; slot < bounds.capacity() && frame.scores.first() + slot < frame.scores.rows().size(); slot++) {
             var row = frame.scores.rows().get(frame.scores.first() + slot);
             float y = bounds.rowY(slot), x = bounds.x();
-            boolean selected = row.score().playId().equals(frame.scores.selected());
-            boolean hovered = !frame.toolbox.open() && bounds.slot(frame.pointerX,frame.pointerY) == slot;
-            if (has(Image.MENU_BUTTON_BACKGROUND)) {
-                var body = frame.skin.rowBody();
-                float imageWidth = bounds.width() / body.width(), imageHeight = ScoreBrowserBounds.HEIGHT / body.height();
-                skinImage(Image.MENU_BUTTON_BACKGROUND, x - body.left() * imageWidth, y - body.bottom() * imageHeight,
-                        imageWidth, imageHeight, actionTint.set(selected ? SIBLING : hovered ? SIBLING_HOVER : OTHER));
-            }
             view.textSmooth(Integer.toString(frame.scores.first()+slot+1),x+5,y+28,24,.65f,UiTheme.TEXT);
             rowRenderer.drawGrade(row.score().grade(), x + 30, y + 13, 44, 38, UiTheme.TEXT, UiTheme.TEXT);
             float textX = x + 82, width = bounds.width() - 92;
