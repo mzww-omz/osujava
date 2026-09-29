@@ -38,7 +38,7 @@ final class SongSelectToolboxLayout {
     SongSelectToolboxLayout(float width, float height, boolean legacy, EnumMap<Image, SkinTexture> images,
             EnumMap<Image, SelectionAssetBounds> metrics) {
         float scale = height / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
-        baseline = 0; spacing = 0; controlHeight = (legacy ? 87 : 90) * scale;
+        baseline = 0; spacing = 0; controlHeight = (legacy ? SongSelectSkinAssets.LEGACY_SELECTION_HEIGHT : 90) * scale;
         var bottom = images.get(Image.BOTTOM);
         // Artwork presence, raw draw height and reservation are independent. Tiny transparent
         // replacements suppress foreign visuals without reducing the browser's navigation area.
@@ -114,8 +114,8 @@ final class SongSelectToolboxLayout {
     }
     static Bounds intersect(Bounds a, Bounds b) {
         float x = Math.max(a.x(),b.x()), y = Math.max(a.y(),b.y());
-        return new Bounds(x,y,Math.max(0,Math.min(a.x()+a.width(),b.x()+b.width())-x),
-                Math.max(0,Math.min(a.y()+a.height(),b.y()+b.height())-y));
+        return new Bounds(x,y,Math.max(0, Math.min(Math.min(a.width(), b.width()), Math.min(a.x()+a.width(),b.x()+b.width())-x)),
+                Math.max(0, Math.min(Math.min(a.height(), b.height()), Math.min(a.y()+a.height(),b.y()+b.height())-y)));
     }
     private static Bounds union(Bounds a, Bounds b) {
         if (a.empty()) return b; if (b.empty()) return a;

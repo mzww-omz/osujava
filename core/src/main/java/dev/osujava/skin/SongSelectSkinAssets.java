@@ -18,6 +18,7 @@ import java.util.function.Predicate;
 
 /** SongSelect visuals only. Resolution and configuration belong to the shared skin resolver. */
 public final class SongSelectSkinAssets implements Disposable {
+    public static final float LEGACY_SELECTION_HEIGHT = 86.4f;
     public enum Image {
         MENU_BUTTON_BACKGROUND("menu-button-background"), STAR("star"),
         GRADE_SS("ranking-X-small"), GRADE_S("ranking-S-small"), GRADE_A("ranking-A-small"),
@@ -54,8 +55,8 @@ public final class SongSelectSkinAssets implements Disposable {
 
     /** Official selection action family. Widths describe control canvases, never composite PNGs. */
     public enum Selection {
-        MODE(Image.MODE, Image.MODE_OVER, 92), MODS(Image.MODS, Image.MODS_OVER, 77),
-        RANDOM(Image.RANDOM, Image.RANDOM_OVER, 77), OPTIONS(Image.OPTIONS, Image.OPTIONS_OVER, 77);
+        MODE(Image.MODE, Image.MODE_OVER, 92.16f), MODS(Image.MODS, Image.MODS_OVER, 76.8f),
+        RANDOM(Image.RANDOM, Image.RANDOM_OVER, 76.8f), OPTIONS(Image.OPTIONS, Image.OPTIONS_OVER, 76.8f);
         public final Image normal, hover;
         public final float logicalWidth;
         Selection(Image normal, Image hover, float logicalWidth) {
@@ -138,7 +139,7 @@ public final class SongSelectSkinAssets implements Disposable {
                                 var action = Selection.of(image);
                                 boolean legacy = legacySelectionAnchors();
                                 selectionBounds.put(image, SelectionAssetBounds.detect(pixels.getWidth(), pixels.getHeight(),
-                                        file.density(), action.logicalWidth, legacy ? 87 : 90, legacy,
+                                        file.density(), action.logicalWidth, legacy ? LEGACY_SELECTION_HEIGHT : 90, legacy,
                                         (x, y) -> source.getPixel(x, y) & 255));
                             } else {
                                 var body = SongSelectBodyBounds.detect(pixels.getWidth(), pixels.getHeight(),

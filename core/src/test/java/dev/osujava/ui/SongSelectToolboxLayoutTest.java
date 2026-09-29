@@ -16,6 +16,15 @@ class SongSelectToolboxLayoutTest {
             @Override public int getHeight() { return height; }
         },new SkinAssetResolver.AssetFile(Path.of("fixture.png"),density));
     }
+    @Test void selectionSpacingKeepsFractionalCoordinatesFromThe480HighCanvas() {
+        var layout = new SongSelectToolboxLayout(1366, 768, true, new EnumMap<>(Image.class), new EnumMap<>(Image.class));
+        assertEquals(224, layout.control(Selection.MODE).anchorX(), .0001);
+        assertEquals(316.16, layout.control(Selection.MODS).anchorX(), .0001);
+        assertEquals(392.96, layout.control(Selection.RANDOM).anchorX(), .0001);
+        assertEquals(469.76, layout.control(Selection.OPTIONS).anchorX(), .0001);
+        assertEquals(86.4, layout.control(Selection.MODE).anchorY(), .0001);
+    }
+
     @Test void tinyBottomRetainsNativeArtworkWhileReservationAndInputStayUsable() {
         for (float height : new float[]{720,1080}) for (int density : new int[]{1,2}) {
             var images = new EnumMap<Image,SkinTexture>(Image.class);
@@ -38,7 +47,10 @@ class SongSelectToolboxLayoutTest {
         var control = layout.control(Selection.MODE);
         assertEquals(92*720f/768,control.normal().image().width());
         assertEquals(600*720f/768,control.hover().image().width());
-        assertEquals(control.slot(),control.interaction());
+        assertEquals(control.slot().x(), control.interaction().x(), .0001);
+        assertEquals(control.slot().y(), control.interaction().y(), .0001);
+        assertEquals(control.slot().width(), control.interaction().width(), .0001);
+        assertEquals(control.slot().height(), control.interaction().height(), .0001);
         assertFalse(control.interaction().contains(800,300));
     }
     @Test void commonCanvasesPreserveBaselineAspectAndAuxiliaryPriorityAtEveryResolution() {
@@ -53,7 +65,7 @@ class SongSelectToolboxLayoutTest {
                 var c = l.control(action);
                 assertEquals(l.baseline,c.slot().y()); assertEquals(l.controlHeight,c.slot().height());
                 assertEquals(end,c.slot().x(),.001);
-                assertEquals(action.logicalWidth/90,c.normal().image().width()/c.normal().image().height(),.001);
+                assertEquals((int)action.logicalWidth/90f,c.normal().image().width()/c.normal().image().height(),.001);
                 assertTrue(c.interaction().width() <= c.slot().width());
                 assertTrue(c.slot().x()+c.slot().width() < l.cookie.x());
                 end += c.slot().width();
@@ -114,7 +126,7 @@ class SongSelectToolboxLayoutTest {
         metrics.put(Image.BACK,new SelectionAssetBounds(backRect,backRect));
         var l = new SongSelectToolboxLayout(1280,720,true,images,metrics);
         var c = l.control(Selection.MODE);
-        assertEquals(87*720f/768,c.anchorY());
+        assertEquals(86.4f*720f/768,c.anchorY());
         assertEquals(c.anchorY(),c.normal().image().y()+c.normal().image().height());
         assertEquals(l.baseline,l.backImage.y());
         assertEquals(174*720f/768,l.backImage.width());
@@ -132,7 +144,7 @@ class SongSelectToolboxLayoutTest {
                 for (var action : Selection.values()) {
                     images.put(action.normal,texture(size[0]*density,size[1]*density,density));
                     metrics.put(action.normal,SelectionAssetBounds.detect(size[0]*density,size[1]*density,density,
-                            action.logicalWidth,legacy ? 87 : 90,legacy,
+                            action.logicalWidth,legacy ? 86.4f : 90,legacy,
                             (x,y) -> x >= 3*density && x < 6*density && y >= 5*density && y < 10*density ? 255 : 0));
                 }
                 var l = new SongSelectToolboxLayout(1280,720,legacy,images,metrics);
@@ -209,8 +221,8 @@ class SongSelectToolboxLayoutTest {
                 assertEquals(.9375f,l.control(Selection.MODS).normal().image().height());
             }
             if (profile == 2) {
-                assertEquals(1.875f,l.control(Selection.MODE).normal().image().y());
-                assertEquals(.9375f,l.control(Selection.MODS).normal().image().y());
+                assertEquals(1.3125f,l.control(Selection.MODE).normal().image().y());
+                assertEquals(.375f,l.control(Selection.MODS).normal().image().y());
             }
         }
     }
