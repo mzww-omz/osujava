@@ -215,6 +215,9 @@ final class SongSelectCarousel {
     }
     void releaseDrag() { scroll.releaseDrag(); }
     void cancelDrag() { scroll.cancelDrag(); }
+    boolean pointerCancellationEnabled(float referenceX) {
+        return !keyboardTracking && (referenceX >= 200 || scroll.dragging());
+    }
 
     /** 06003253/324f: right-button position in the 70..400 reference-Y interval. */
     void rightScroll(float referenceX, float referenceY) {

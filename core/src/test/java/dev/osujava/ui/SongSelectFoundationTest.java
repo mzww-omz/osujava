@@ -20,6 +20,19 @@ class SongSelectFoundationTest {
         return new SongSelectInputController(new SongSelectToolboxState(), new SongBrowserControls(), null);
     }
 
+    private void press(SongSelectInputController input, SongSelectCarousel motion) {
+        input.buttons(false, false, false);
+        input.pressPointer("s0", 800, 300, false, motion);
+        input.samplePointer(input.buttons(true, false, false), 800, 300, 1, 533, 200, 0, motion);
+    }
+    private String pointer(SongSelectInputController input, SongSelectCarousel motion, boolean held,
+                           boolean inside, float x, float y, float scale, float delta) {
+        var buttons = input.buttons(held, false, false);
+        String clicked = buttons.released() ? input.releasePointer(held, inside) : null;
+        input.samplePointer(buttons, x, y, scale, x / scale, y / scale, delta, motion);
+        return clicked;
+    }
+
     @Test void modeAndGradeColumnScalesWithTheRowWithoutStealingThumbnailSpace() {
         for (float height : new float[]{72, 96, 144}) for (boolean grade : new boolean[]{false, true}) {
             var row = new SongSelectRow(0, 0, null, true, false, 600, 300, 800, height, 0, 1);
@@ -35,8 +48,8 @@ class SongSelectFoundationTest {
         var input = input(); var motion = carousel();
         motion.scrollBy(300); motion.advance(.05f, null);
         float start = motion.scrollOffset();
-        input.pressRow("s0", 800, 300, motion);
-        assertNull(input.pointer(true, true, 800, 210, 1, .02f));
+        press(input, motion);
+        assertNull(pointer(input, motion, true, true, 800, 210, 1, .02f));
         assertEquals(start + 90, motion.scrollOffset(), .001);
         float speed = motion.scrollVelocity();
         assertTrue(speed > 0);
@@ -44,83 +57,86 @@ class SongSelectFoundationTest {
         assertEquals(start + 90, motion.scrollOffset(), .001, "Held input must not integrate free flight");
         assertEquals(speed, motion.scrollVelocity());
         assertEquals(SongSelectInputController.PointerState.DRAGGING, input.pointerState());
-        assertNull(input.pointer(false, true, 800, 210, 1, .02f));
+        assertNull(pointer(input, motion, false, true, 800, 210, 1, .02f));
         motion.advance(.02f, null);
         assertTrue(motion.scrollOffset() > start + 90);
     }
     @Test void cancellingAHeldDragDiscardsVelocityAndCannotLeaveTheViewportFrozen() {
         var input = input(); var motion = carousel();
-        input.pressRow("s0", 800, 300, motion);
-        input.pointer(true, true, 800, 210, 1, .02f);
+        press(input, motion);
+        pointer(input, motion, true, true, 800, 210, 1, .02f);
         float position = motion.scrollOffset();
         input.cancelPointer(); motion.advance(.2f, null);
         assertEquals(position, motion.scrollOffset()); assertEquals(0, motion.scrollVelocity());
-        assertNull(input.pointer(false, true, 800, 210, 1, .02f));
+        assertNull(pointer(input, motion, false, true, 800, 210, 1, .02f));
         motion.wheel(1); motion.advance(.02f, null);
         assertTrue(motion.scrollOffset() > position);
     }
     @Test void smallMovementCanStillClickAndCancelledPressCannotClick() {
         var input = input(); var motion = carousel();
-        input.pressRow("s0", 800, 300, motion);
-        assertEquals("s0", input.pointer(false, true, 802, 299, 1, .02f));
+        press(input, motion);
+        assertEquals("s0", pointer(input, motion, false, true, 802, 299, 1, .02f));
         assertEquals(0, motion.scrollOffset());
-        input.pressRow("s0", 800, 300, motion); input.cancelPointer();
-        assertNull(input.pointer(false, true, 800, 300, 1, .02f));
+        press(input, motion); input.cancelPointer();
+        assertNull(pointer(input, motion, false, true, 800, 300, 1, .02f));
     }
     @Test void horizontalExcursionCancelsClickEvenIfPointerReturns() {
         var input = input(); var motion = carousel();
-        input.pressRow("s0", 800, 300, motion);
-        input.pointer(true, true, 881, 300, 1, .02f);
-        assertNull(input.pointer(false, true, 800, 300, 1, .02f));
+        press(input, motion);
+        pointer(input, motion, true, true, 881, 300, 1, .02f);
+        assertNull(pointer(input, motion, false, true, 800, 300, 1, .02f));
         assertEquals(0, motion.scrollOffset());
     }
     @ParameterizedTest @ValueSource(floats = {1, 1.5f, 1.0666667f, 2})
     void cancellationUsesWindowPixelsWhileDragUsesLogicalCoordinates(float scale) {
         var input = input(); var motion = carousel();
-        input.pressRow("s0", 800, 300, motion);
-        input.pointer(true, true, 800, 220, scale, .02f);
+        press(input, motion);
+        pointer(input, motion, true, true, 800, 220, scale, .02f);
         assertEquals(80 / scale, motion.scrollOffset(), .001);
-        assertEquals("s0", input.pointer(false, true, 800, 220, scale, .02f));
-        input.pressRow("s0", 800, 300, motion);
-        input.pointer(true, true, 881, 300, scale, .02f);
-        assertNull(input.pointer(false, true, 800, 300, scale, .02f));
+        assertEquals("s0", pointer(input, motion, false, true, 800, 220, scale, .02f));
+        press(input, motion);
+        pointer(input, motion, true, true, 881, 300, scale, .02f);
+        assertNull(pointer(input, motion, false, true, 800, 300, scale, .02f));
     }
     @Test void releaseAndZeroTimeSamplesCannotAddDragDistanceOrVelocity() {
         var input = input(); var motion = carousel();
-        input.pressRow("s0", 800, 300, motion);
-        input.pointer(true, true, 800, 290, 1, 0);
+        press(input, motion);
+        pointer(input, motion, true, true, 800, 290, 1, 0);
         assertEquals(0, motion.scrollOffset());
-        input.pointer(true, true, 800, 280, 1, .02f);
+        pointer(input, motion, true, true, 800, 280, 1, .02f);
         assertEquals(10, motion.scrollOffset());
         float velocity = motion.scrollVelocity();
-        input.pointer(false, false, 800, 200, 1, .1f);
+        pointer(input, motion, false, false, 800, 200, 1, .1f);
         assertEquals(10, motion.scrollOffset());
         assertEquals(velocity, motion.scrollVelocity());
     }
     @Test void rightScrollMustBeginOffRowsAndStopsOnReleaseOrCancellation() {
         var input = input(); var motion = carousel();
-        input.pressRight(true);
-        input.rightPointer(true, false, 300, 400, motion);
+        input.pressPointer("s0", 450, 400, true, motion);
+        input.samplePointer(input.buttons(false, true, false), 450, 400, 1, 300, 400, 0, motion);
         assertFalse(input.rightScrolling()); assertEquals(0, motion.scrollTarget());
-        input.pressRight(false);
-        input.rightPointer(true, true, 300, 400, motion);
+        input.releasePointer(false, false); input.buttons(false, false, false);
+        input.pressPointer(null, 450, 235, true, motion);
+        var both = input.buttons(true, true, false);
+        input.samplePointer(both, 450, 235, 1, 300, 235, 0, motion);
         assertTrue(input.rightScrolling()); assertEquals(0, motion.scrollTarget());
-        input.rightPointer(true, false, 300, 235, motion);
+        input.releasePointer(false, false);
+        input.samplePointer(input.buttons(false, true, false), 450, 235, 1, 300, 235, 0, motion);
         assertEquals(motion.maxScroll() / 2, motion.scrollTarget(), .001);
         float velocity = motion.scrollVelocity();
-        input.rightPointer(false, false, 300, 400, motion);
+        input.samplePointer(input.buttons(false, false, false), 450, 400, 1, 300, 400, 0, motion);
         assertFalse(input.rightScrolling()); assertEquals(velocity, motion.scrollVelocity());
-        input.pressRight(false); input.cancelPointer();
-        input.rightPointer(true, false, 300, 400, motion);
+        input.pressPointer(null, 450, 400, true, motion); input.cancelPointer();
+        input.samplePointer(input.buttons(false, true, false), 450, 400, 1, 300, 400, 0, motion);
         assertFalse(input.rightScrolling()); assertEquals(velocity, motion.scrollVelocity());
     }
     @Test void heldScrollKeepsThePressedHoverUntilRelease() {
         var input = input(); var motion = carousel();
-        input.pressRow("s0", 800, 300, motion);
+        press(input, motion);
         motion.advance(.2f, "s1");
         assertTrue(motion.rows().get(0).hoverAmount > .9f);
         assertEquals(0, motion.rows().get(1).hoverAmount);
-        input.pointer(false, false, 800, 300, 1, .02f);
+        pointer(input, motion, false, false, 800, 300, 1, .02f);
         motion.advance(.2f, "s1");
         assertTrue(motion.rows().get(1).hoverAmount > .9f);
         motion.advance(.2f, null, true);

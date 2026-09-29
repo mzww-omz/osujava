@@ -18,7 +18,7 @@ class SongSelectNavigationTest {
     private final BeatmapLibrary library = new BeatmapLibrary();
     private SongSelectScreen screen;
     private int importRequests;
-    private boolean shift, control, alt, pointerPressed, pointerClicked, rightPressed, rightClicked;
+    private boolean shift, control, alt, pointerPressed, pointerClicked, rightPressed, rightClicked, middlePressed;
     private int pointerX, pointerY;
     private final java.util.Set<Integer> heldKeys = new java.util.HashSet<>();
 
@@ -29,7 +29,8 @@ class SongSelectNavigationTest {
             case "getInputProcessor" -> processor;
             case "getX" -> pointerX;
             case "getY" -> pointerY;
-            case "isButtonPressed" -> (int)a[0] == Input.Buttons.LEFT ? pointerPressed : (int)a[0] == Input.Buttons.RIGHT && rightPressed;
+            case "isButtonPressed" -> (int)a[0] == Input.Buttons.LEFT ? pointerPressed
+                    : (int)a[0] == Input.Buttons.RIGHT ? rightPressed : (int)a[0] == Input.Buttons.MIDDLE && middlePressed;
             case "isButtonJustPressed" -> (int)a[0] == Input.Buttons.LEFT ? pointerClicked : (int)a[0] == Input.Buttons.RIGHT && rightClicked;
             case "isKeyPressed" -> heldKeys.contains((int)a[0]) || control && (int)a[0] == Input.Keys.CONTROL_LEFT || alt && (int)a[0] == Input.Keys.ALT_LEFT || shift && ((int)a[0] == Input.Keys.SHIFT_LEFT || (int)a[0] == Input.Keys.SHIFT_RIGHT);
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
@@ -484,6 +485,97 @@ class SongSelectNavigationTest {
         var update = SongSelectScreen.class.getDeclaredMethod("update", dev.osujava.ui.theme.UiLayout.class, float.class);
         update.setAccessible(true);
         update.invoke(screen, dev.osujava.ui.theme.UiLayout.fromPixels(width, height), delta);
+    }
+    private void pointAtRow(int set, int difficulty) throws Exception {
+        var row = ((List<?>) field("visibleRows")).stream().map(SongSelectRow.class::cast)
+                .filter(r -> r.setIndex() == set && r.difficultyIndex() == difficulty).findFirst().orElseThrow();
+        float low = Math.max(row.y(), (float) field("bottom")), high = Math.min(row.y() + row.height(), (float) field("top"));
+        assertTrue(high > low, "Fixture row must intersect the viewport");
+        pointerX = Math.round(row.x() + 120); pointerY = 720 - Math.round((low + high) / 2);
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"1,0,Beta-easy.png", "1,1,Beta-hard.png", "2,-1,Gamma-easy.png"})
+    void productionRightReleaseSelectsBeforeRequestingOptionsWithoutPlaying(int set, int difficulty, String background) throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(set, difficulty);
+        rightPressed = true; updatePointer(1280, 720, 0);
+        selected(1, 0, "Beta-easy.png"); assertEquals("", field("toast"));
+        rightPressed = false; updatePointer(1280, 720, 0);
+        selected(set, Math.max(0, difficulty), background);
+        assertEquals("Beatmap Options unavailable in this version.", field("toast"));
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionRightReleaseWhileLeftHeldRequestsOptionsOnceAndKeepsDragging() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 0);
+        pointerClicked = true; pointerPressed = true; rightPressed = true; updatePointer(1280, 720, .02f);
+        pointerClicked = false; rightPressed = false; updatePointer(1280, 720, .02f);
+        assertEquals("Beatmap Options unavailable in this version.", field("toast"));
+        setField("toast", ""); float before = carousel().scrollOffset();
+        pointerY -= 30; updatePointer(1280, 720, .02f);
+        assertEquals(before + 30, carousel().scrollOffset(), .001);
+        pointerPressed = false; updatePointer(1280, 720, 0);
+        assertEquals("", field("toast")); assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionExchangingRightForLeftUsesPreviousRightStateForContext() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 0);
+        rightPressed = true; updatePointer(1280, 720, 0);
+        rightPressed = false; pointerPressed = true; pointerClicked = true; updatePointer(1280, 720, 0);
+        assertEquals("Beatmap Options unavailable in this version.", field("toast"));
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        pointerClicked = false; pointerPressed = false; updatePointer(1280, 720, 0);
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionExchangingLeftForRightUsesPreviousRightStateForPlay() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 0);
+        pointerPressed = true; pointerClicked = true; updatePointer(1280, 720, 0);
+        pointerPressed = false; pointerClicked = false; rightPressed = true; updatePointer(1280, 720, 0);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+        assertEquals("", field("toast"));
+    }
+    @Test void productionRightMotionCancellationSurvivesReturnToThePressedRow() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 1);
+        rightPressed = true; updatePointer(1280, 720, 0);
+        pointerX += 81; updatePointer(1280, 720, .02f);
+        pointerX -= 81; rightPressed = false; updatePointer(1280, 720, 0);
+        selected(1, 0, "Beta-easy.png"); assertEquals("", field("toast"));
+    }
+    @Test void productionRightReleaseOutsideThePressedRowDoesNotSelectOrRequestOptions() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 1);
+        rightPressed = true; updatePointer(1280, 720, 0);
+        pointerX = 0; rightPressed = false; updatePointer(1280, 720, 0);
+        selected(1, 0, "Beta-easy.png"); assertEquals("", field("toast"));
+    }
+    @Test void productionRowClickRequiresAPressedSnapshotRatherThanOnlyABackendClickFlag() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 0);
+        pointerClicked = true; updatePointer(1280, 720, 0);
+        pointerClicked = false; updatePointer(1280, 720, 0);
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionMiddleReleaseUsesTheGenericRowSelectionPath() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 1);
+        middlePressed = true; updatePointer(1280, 720, 0);
+        selected(1, 0, "Beta-easy.png");
+        middlePressed = false; updatePointer(1280, 720, 0);
+        selected(1, 1, "Beta-hard.png"); assertEquals("", field("toast"));
+    }
+    @Test void productionRightClickOnAnOrdinaryGroupTogglesWithoutBeatmapOptions() throws Exception {
+        open("Beta", 1); screen.resize(1280, 720);
+        screen.browserMode(SongBrowserModel.Sort.TITLE, SongBrowserModel.Group.CREATOR);
+        settle(); carousel().scrollBy(-carousel().maxScroll()); settle(); pointAtRow(-1, -2);
+        var browser = (SongBrowserModel) field("browser"); var selection = browser.selection();
+        rightPressed = true; updatePointer(1280, 720, 0);
+        assertEquals(browser.entries().getFirst().key(), ((SongSelectInputController) processor).pressedKey());
+        rightPressed = false; updatePointer(1280, 720, 0);
+        assertTrue(browser.entries().stream().allMatch(e -> e.kind() == SongBrowserModel.Kind.GROUP_HEADER));
+        assertEquals(selection, browser.selection()); assertEquals("", field("toast"));
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionOverlayCancelsARightRowCandidateAndClosingDoesNotRecaptureAHeldButton() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 1);
+        rightPressed = true; updatePointer(1280, 720, 0);
+        key(Input.Keys.F1); updatePointer(1280, 720, 0);
+        key(Input.Keys.ESCAPE); updatePointer(1280, 720, 0);
+        rightPressed = false; updatePointer(1280, 720, 0);
+        selected(1, 0, "Beta-easy.png"); assertEquals("", field("toast"));
     }
     @Test void productionHeldNavigationUpdatesFocusBeforeLayoutAndHeldEnterCannotPlayAfterConfirming() throws Exception {
         open("Beta", 0); screen.resize(1280, 720);

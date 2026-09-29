@@ -209,7 +209,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             } else if (phase.equals("pointer-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
-                    for (String name : List.of("threshold", "right"))
+                    for (String name : List.of("threshold", "right", "context", "chord"))
                         scenes.add(new Scene(size[0],size[1],size[2],"pointer-" + name));
             } else if (phase.equals("drag-contracts")) {
                 scenes.clear();
@@ -1068,6 +1068,35 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 if (pending(screen) != (distance == 80)) throw new AssertionError("Window-pixel click threshold: " + name);
                 assertRenderedBounds(screen, layout); capture(fb, name + "-released-" + distance);
             }
+        } else if (scene.name.equals("pointer-context")) {
+            var other = model.rows().stream().filter(r -> r.entry.setIndex() == row.entry.setIndex()
+                    && r.entry.difficultyIndex() >= 0 && !r.entry.key().equals(selection)).findFirst().orElseThrow();
+            pointerRow(screen, other.entry.setIndex(), other.entry.difficultyIndex(), pointer, layout, scene.height);
+            rightPressed[0] = true; screen.render(0); transitionFrames++;
+            if (!selection.equals(browser.selectedKey())) throw new AssertionError("Right down selected before release");
+            capture(fb, name + "-pressed");
+            rightPressed[0] = false; screen.render(0); transitionFrames++;
+            if (!other.entry.key().equals(browser.selectedKey()) || pending(screen)
+                    || !"Beatmap Options unavailable in this version.".equals(screenField(screen, "toast")))
+                throw new AssertionError("Right release did not select and request Options");
+            assertRenderedBounds(screen, layout); capture(fb, name + "-released");
+            return;
+        } else if (scene.name.equals("pointer-chord")) {
+            pointerRow(screen, row.entry.setIndex(), row.entry.difficultyIndex(), pointer, layout, scene.height);
+            clicked[0] = true; pressed[0] = true; rightPressed[0] = true;
+            screen.render(.02f); transitionFrames++; clicked[0] = false;
+            rightPressed[0] = false; screen.render(.02f); transitionFrames++;
+            if (pending(screen) || !"Beatmap Options unavailable in this version.".equals(screenField(screen, "toast")))
+                throw new AssertionError("Mixed-button release played instead of requesting Options");
+            capture(fb, name + "-right-released");
+            float before = model.scrollOffset();
+            pointer[1] -= 30; screen.render(.02f); transitionFrames++;
+            if (Math.abs(model.scrollOffset() - before - 30 / layout.scale()) > .01)
+                throw new AssertionError("Right release stopped left drag");
+            assertRenderedBounds(screen, layout); capture(fb, name + "-left-held");
+            pressed[0] = false; screen.render(0); transitionFrames++;
+            if (pending(screen)) throw new AssertionError("Candidate committed twice");
+            capture(fb, name + "-left-released");
         } else {
             pointerRow(screen, row.entry.setIndex(), row.entry.difficultyIndex(), pointer, layout, scene.height);
             rightClicked[0] = true; rightPressed[0] = true; screen.render(0); rightClicked[0] = false;

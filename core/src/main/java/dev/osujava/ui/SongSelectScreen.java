@@ -329,9 +329,12 @@ public final class SongSelectScreen extends ScreenAdapter {
         thumbnails.advance(delta);
         visibleRows = layoutRows(layout, 0, false);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
+        var buttons = input.buttons(Gdx.input.isButtonPressed(Input.Buttons.LEFT),
+                Gdx.input.isButtonPressed(Input.Buttons.RIGHT), Gdx.input.isButtonPressed(Input.Buttons.MIDDLE));
+        boolean rowPressAllowed = true;
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             carousel.pointerPressed();
-            input.cancelLeftPointer();
+            rowPressAllowed = false;
             var oldSort = browser.sort(); var oldGroup = browser.group();
             var previousMenu = controls.menu();
             if (toolbox.open()) SongSelectToolboxOverlay.click(toolbox,layout,px,py);
@@ -353,27 +356,24 @@ public final class SongSelectScreen extends ScreenAdapter {
                 searchActive = false;
                 int slot = scoreBounds(layout).slot(px, py);
                 if (slot >= 0) scores.select(scores.first() + slot);
-                else {
-                    var row = hitRow(px, py);
-                    input.pressRow(row == null ? null : row.key(), Gdx.input.getX(), Gdx.input.getY(), carousel);
-                }
+                else rowPressAllowed = true;
             }
         }
 
-        boolean blocked = toolbox.open() || importing || outgoing.pending();
-        if (!blocked && !controls.open() && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
-            carousel.pointerPressed();
-            input.pressRight(hitRow(px, py) != null);
-        }
+        boolean blocked = toolbox.open() || controls.open() || importing || outgoing.pending() || !rowPressAllowed;
         if (blocked) input.cancelPointer();
+        else if (buttons.pressed()) {
+            var row = hitRow(px, py);
+            input.pressPointer(row == null ? null : row.key(), Gdx.input.getX(), Gdx.input.getY(), buttons.right(), carousel);
+        }
         var pressedRow = visibleRows.stream().filter(row -> row.key().equals(input.pressedKey())).findFirst().orElse(null);
-        if (input.pointer(Gdx.input.isButtonPressed(Input.Buttons.LEFT),
-                pressedRow != null && pressedRow.boundsContain(px, py),
-                Gdx.input.getX(), Gdx.input.getY(), layout.scale(), delta) != null)
-            handleRowClick(pressedRow);
+        if (buttons.released() && input.releasePointer(buttons.left(),
+                pressedRow != null && pressedRow.boundsContain(px, py)) != null)
+            handleRowClick(pressedRow, buttons.context());
         float referenceScale = SongSelectMetrics.carouselScale(layout.height());
-        input.rightPointer(Gdx.input.isButtonPressed(Input.Buttons.RIGHT), Gdx.input.isButtonPressed(Input.Buttons.LEFT),
-                px / referenceScale, (layout.height() - py) / referenceScale, carousel);
+        if (!blocked && !outgoing.pending()) input.samplePointer(buttons, Gdx.input.getX(), Gdx.input.getY(),
+                layout.scale(), px / referenceScale, (layout.height() - py) / referenceScale, delta, carousel);
+        else input.cancelPointer();
         // Sample input before integrating free flight, then publish drawing and hit geometry together.
         visibleRows = layoutRows(layout, delta);
         prepareRowPresentations();
@@ -637,9 +637,9 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private void handleRowClick(float x, float y) {
-        handleRowClick(hitRow(x, y));
+        handleRowClick(hitRow(x, y), false);
     }
-    private void handleRowClick(SongSelectRow row) {
+    private void handleRowClick(SongSelectRow row, boolean context) {
         var identity = browser.selection();
         if (row == null) return;
         if (row.group()) {
@@ -650,7 +650,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
         if (row.difficultyIndex() >= 0) {
             if (row.setIndex() == selectedSetIndex && row.difficultyIndex() == selectedDifficultyIndex) {
-                if (setClickGuard == 0) playSelected();
+                if (!context && setClickGuard == 0) playSelected();
             }
             else { selectSet(row.setIndex()); selectDifficulty(row.difficultyIndex()); }
         } else {
@@ -659,6 +659,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             setClickGuard = .24f;
         }
         selectionSound(identity);
+        if (context) perform(SongSelectAction.OPTIONS);
     }
     private void randomize() {
         if (importing || outgoing.pending()) return;
