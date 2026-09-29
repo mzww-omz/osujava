@@ -52,4 +52,17 @@ class SongSelectVisualComponentsTest {
         assertFalse(SongSelectRowRenderer.fallbackWash(false,true,Color.BLACK));
         assertFalse(SongSelectRowRenderer.fallbackWash(true,true,Color.WHITE));
     }
+    @Test void focusedRowBrightensEachRgbByteByFortyPercentWithoutChangingAlpha() {
+        var tint = new Color(35 / 255f, 143 / 255f, 240 / 255f, .37f);
+        SongSelectRowRenderer.focusTint(tint, 1);
+        assertEquals(49 / 255f, tint.r, .0001f);
+        assertEquals(200 / 255f, tint.g, .0001f);
+        assertEquals(1, tint.b, .0001f);
+        assertEquals(.37f, tint.a);
+        var base = new Color(.1f, .2f, .3f, .4f);
+        var unchanged = new Color(base);
+        SongSelectRowRenderer.focusTint(unchanged, 0);
+        assertEquals(base, unchanged);
+    }
+
 }

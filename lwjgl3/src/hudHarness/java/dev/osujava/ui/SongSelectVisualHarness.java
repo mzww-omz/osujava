@@ -107,6 +107,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         "phase3-search-inactive", "phase3-search-active", "phase3-search-short", "phase3-search-long", "phase3-search-unicode", "phase3-search-none",
                         "phase3-group-expanded", "phase3-group-selected", "phase3-group-first", "phase3-group-last",
                         "phase3-group-toggle", "phase3-group-close",
+                        "phase3-focus-set", "phase3-focus-confirm", "phase3-focus-group", "phase3-focus-group-toggle", "phase3-focus-page",
                         "phase3-chrome-full", "phase3-chrome-cookie", "phase3-menu-group", "phase3-menu-sort", "phase3-large-library", "phase3-transitions", "phase3-fallback", "phase3-modern"))
                     scenes.add(new Scene(size[0],size[1],size[2],name));
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
@@ -193,6 +194,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             } else if (phase.equals("star-contracts")) {
                 var cases = Set.of("phase2-no-rating", "phase2-low-rating", "phase2-tenth-star", "phase2-high-rating");
                 scenes.removeIf(scene -> !cases.contains(scene.name));
+                for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
+                    scenes.add(new Scene(1024,768,1,scene.name));
+            } else if (phase.equals("navigation-contracts")) {
+                scenes.removeIf(scene -> !scene.name.startsWith("phase3-focus-")
+                        && !scene.name.equals("phase3-group-toggle"));
                 for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
                     scenes.add(new Scene(1024,768,1,scene.name));
             } else if (phase.equals("browser-contracts")) {
@@ -462,6 +468,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         });
         var library = new BeatmapLibrary();
         int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern") || scene.name.equals("phase3-large-library") || scene.name.startsWith("phase4-large") || scene.name.startsWith("phase5a-state-large")) ? 1000 : 7;
+        if (scene.name.equals("phase3-focus-page")) setCount = 24;
         if (scene.name.equals("repair-empty")) setCount = 0;
         if (scene.name.equals("repair-single")) setCount = 1;
         boolean phase2 = scene.name.startsWith("phase2");
@@ -600,6 +607,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 pointerRow(screen,carousel(screen).rows().stream().filter(r -> r.entry.difficultyIndex() == 1).findFirst().orElseThrow().entry.setIndex(),2,pointer,layout,scene.height);
                 for (int frame = 0; frame < 60; frame++) screen.render(1f / 60);
             }
+            if (scene.name.startsWith("phase3-focus-"))
+                exerciseKeyboardFocus(screen, scene.name, processor[0], layout);
             if (scene.name.equals("phase3-group-toggle") || scene.name.equals("phase3-group-close"))
                 exerciseGroupCards(screen, scene.name, pointer, clicked, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
@@ -756,6 +765,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 } finally { rendered.dispose(); }
             }
             capture(fb,name);
+            if (scene.name.startsWith("phase3-focus-")) {
+                // The generic pointer checks below target the playable row. Focus deliberately
+                // leaves that row behind, so explicitly restore selection before those checks.
+                var browser = (SongBrowserModel) screenField(screen, "browser");
+                screen.previewSelection(browser.librarySets().indexOf(browser.selectedSet()),
+                        browser.selectedSet().difficulties().indexOf(browser.selectedDifficulty()));
+            }
             if (scene.name.startsWith("phase3") || scene.name.startsWith("phase4")) {
                 screen.browserSearch("",false);
                 closeBrowserMenu(screen);
@@ -1319,6 +1335,40 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         try { var f = SongSelectScreen.class.getDeclaredField("controls"); f.setAccessible(true); ((SongBrowserControls)f.get(screen)).close(); }
         catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
     }
+    private void exerciseKeyboardFocus(SongSelectScreen screen, String name, InputProcessor processor, UiLayout layout) {
+        var browser = (SongBrowserModel) screenField(screen, "browser");
+        if (name.endsWith("page")) processor.keyDown(Input.Keys.PAGE_DOWN);
+        else if (name.contains("group")) {
+            for (int i = 0; i < 20 && (browser.focusKey() == null || !browser.row(browser.focusKey()).group()); i++)
+                processor.keyDown(Input.Keys.UP);
+        } else {
+            for (int i = 0; i < 20 && browser.focusKey() == null; i++) processor.keyDown(Input.Keys.DOWN);
+        }
+        if (browser.focusKey() == null) throw new AssertionError("Keyboard did not reach focus: " + name);
+        var focused = browser.row(browser.focusKey());
+        var selected = browser.selection();
+        if (!focused.group() && focused.set.id().equals(selected.setId()))
+            throw new AssertionError("Same-family movement should select directly");
+        for (int i = 0; i < 90; i++) screen.render(1f / 60);
+        var row = carousel(screen).rows().stream().filter(r -> r.entry.key().equals(focused.key)).findFirst().orElseThrow();
+        if (row.focusAmount != 1 || row.selectedAmount > .001f)
+            throw new AssertionError("Focus and selected emphasis were conflated");
+        if (pending(screen)) throw new AssertionError("Focus navigation started gameplay");
+        if (name.endsWith("confirm")) {
+            processor.keyDown(Input.Keys.ENTER);
+            if (browser.focusKey() != null || !browser.selectedSet().id().equals(focused.set.id()) || pending(screen))
+                throw new AssertionError("Enter must confirm the focused Set before starting gameplay");
+        } else if (name.endsWith("toggle")) {
+            boolean expanded = focused.expanded;
+            processor.keyDown(Input.Keys.ENTER);
+            if (focused.expanded == expanded || !selected.equals(browser.selection()) || pending(screen))
+                throw new AssertionError("Enter on focused Group must only toggle that Group");
+        }
+        for (int i = 0; i < 90; i++) screen.render(1f / 60);
+        assertRenderedBounds(screen, layout);
+        assertScoreTarget(screen);
+    }
+
     private void exerciseGroupCards(SongSelectScreen screen, String name,
                                     int[] pointer, boolean[] clicked, UiLayout layout, int height) {
         var browser = (SongBrowserModel) screenField(screen, "browser");
@@ -1365,7 +1415,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "phase3-group-creator" -> SongBrowserModel.Group.CREATOR;
             case "phase3-group-bpm" -> SongBrowserModel.Group.BPM;
             case "phase3-group-length" -> SongBrowserModel.Group.LENGTH;
-            case "phase3-fallback", "phase3-modern", "phase3-group-artist", "phase3-group-expanded", "phase3-group-selected", "phase3-group-first", "phase3-group-last", "phase3-group-toggle", "phase3-group-close" -> SongBrowserModel.Group.ARTIST;
+            case "phase3-fallback", "phase3-modern", "phase3-group-artist", "phase3-group-expanded", "phase3-group-selected", "phase3-group-first", "phase3-group-last", "phase3-group-toggle", "phase3-group-close", "phase3-focus-group", "phase3-focus-group-toggle" -> SongBrowserModel.Group.ARTIST;
             default -> SongBrowserModel.Group.NONE;
         };
         screen.browserMode(sort,group);

@@ -144,19 +144,22 @@ class SongBrowserModelTest {
         model.select("a",0); var chosen = model.selection(); model.search(""); assertEquals(chosen,model.selection());
     }
 
-    @Test void relativeNavigationUsesFilteredOrderAndSkipsGroupHeaders() {
+    @Test void relativeNavigationFocusesClosedGroupsAndSetNavigationUsesFilteredOrder() {
         var model = new SongBrowserModel(fixture());
         model.group(SongBrowserModel.Group.ARTIST);
         model.select("a", 0);
         model.moveDifficulty(1);
-        assertEquals("c", model.selectedSet().id());
+        assertEquals("a", model.selectedSet().id());
+        assertTrue(model.row(model.focusKey()).group());
+        assertEquals("B", model.row(model.focusKey()).label);
         model.moveDifficulty(-1);
+        assertNull(model.focusKey());
         assertEquals("a", model.selectedSet().id());
         model.search("Zulu Alpha");
         model.moveSet(1);
         assertEquals("b", model.selectedSet().id());
         model.moveSet(1);
-        assertEquals("b", model.selectedSet().id());
+        assertEquals("a", model.selectedSet().id()); // Circular traversal.
         model.search("no matches");
         model.moveDifficulty(1); model.moveSet(-1);
         assertNull(model.selectedDifficulty());
@@ -172,11 +175,14 @@ class SongBrowserModelTest {
         var model = new SongBrowserModel(List.of(multiple, fixture().get(2)));
         model.select("a", 1);
         model.moveDifficulty(1);
-        assertSame(extra, model.selectedDifficulty()); // Last set, no wrapping.
+        assertSame(extra, model.selectedDifficulty());
+        assertEquals("c", model.row(model.focusKey()).set.id()); // Wrap focuses the other Set.
+        model.moveDifficulty(-1);
+        assertSame(extra, model.selectedDifficulty()); assertNull(model.focusKey());
         model.moveDifficulty(-1);
         assertSame(first.difficulties().getFirst(), model.selectedDifficulty());
         model.moveDifficulty(-1);
-        assertEquals("c", model.selectedSet().id());
+        assertEquals("c", model.row(model.focusKey()).set.id());
         model.moveDifficulty(1);
         assertEquals("a", model.selectedSet().id());
         assertSame(first.difficulties().getFirst(), model.selectedDifficulty());
@@ -188,11 +194,13 @@ class SongBrowserModelTest {
         var model = new SongBrowserModel(sets);
         model.group(SongBrowserModel.Group.ARTIST);
         model.movePage(1);
-        assertEquals("set10", model.selectedSet().id());
-        model.movePage(-1);
         assertEquals("set0", model.selectedSet().id());
+        assertEquals("set10", model.row(model.focusKey()).set.id());
         model.movePage(-1);
-        assertEquals("set10", model.selectedSet().id());
+        assertEquals("set0", model.selectedSet().id()); assertNull(model.focusKey());
+        model.movePage(-1);
+        assertEquals("set11", model.row(model.focusKey()).set.id()); // Group counts as a row.
+        assertEquals("set0", model.selectedSet().id());
         model.search("Song 00");
         var selected = model.selection();
         model.movePage(1); assertEquals(selected, model.selection());

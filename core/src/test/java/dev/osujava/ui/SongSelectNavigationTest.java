@@ -88,12 +88,77 @@ class SongSelectNavigationTest {
     @Test void preferredDifficultyAndExistingNavigationKeepBackgroundInSync() throws Exception {
         open("Beta",1); selected(1,1,"Beta-hard.png");
         key(Input.Keys.UP); selected(1,0,"Beta-easy.png");
-        key(Input.Keys.UP); selected(0,1,"Alpha-hard.png");
-        key(Input.Keys.DOWN); selected(1,0,"Beta-easy.png");
+        key(Input.Keys.UP); selected(1,0,"Beta-easy.png");
+        var browser = (SongBrowserModel) field("browser");
+        assertEquals("Alpha", browser.row(browser.focusKey()).set.id());
+        key(Input.Keys.DOWN); selected(1,0,"Beta-easy.png"); assertNull(browser.focusKey());
         key(Input.Keys.DOWN); selected(1,1,"Beta-hard.png");
         key(Input.Keys.UP); selected(1,0,"Beta-easy.png");
         key(Input.Keys.RIGHT); selected(2,0,"Gamma-easy.png");
         key(Input.Keys.LEFT); selected(1,0,"Beta-easy.png");
+    }
+
+    @Test void enterConfirmsFocusedSetBeforeItCanStartGameplay() throws Exception {
+        open("Beta", 1); screen.resize(1280,720);
+        key(Input.Keys.DOWN);
+        var browser = (SongBrowserModel) field("browser");
+        assertEquals("Gamma", browser.row(browser.focusKey()).set.id());
+        selected(1,1,"Beta-hard.png");
+        key(Input.Keys.ENTER);
+        selected(2,0,"Gamma-easy.png"); assertNull(browser.focusKey());
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        key(Input.Keys.ENTER);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void horizontalArrowConfirmsFocusAndMetadataStaysOnSelectionUntilThen() throws Exception {
+        open("Beta", 0); screen.resize(1280,720);
+        key(Input.Keys.UP); selected(1,0,"Beta-easy.png");
+        var browser = (SongBrowserModel) field("browser");
+        assertEquals("Alpha", browser.row(browser.focusKey()).set.id());
+        key(Input.Keys.RIGHT);
+        selected(0,0,"Alpha-easy.png"); assertNull(browser.focusKey());
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void shiftArrowsAndEnterOperateGroupsWhileControlShiftEnterKeepsConfirmRouting() throws Exception {
+        open("Beta", 1); screen.resize(1280,720);
+        screen.browserMode(SongBrowserModel.Sort.TITLE, SongBrowserModel.Group.CREATOR);
+        var browser = (SongBrowserModel) field("browser");
+        var selection = browser.selection();
+        shift = true; key(Input.Keys.ENTER);
+        assertFalse(browser.row(browser.groupTargetKey()).expanded);
+        key(Input.Keys.LEFT); assertTrue(browser.row(browser.groupTargetKey()).expanded);
+        key(Input.Keys.RIGHT); assertFalse(browser.row(browser.groupTargetKey()).expanded);
+        key(Input.Keys.ENTER); assertTrue(browser.row(browser.groupTargetKey()).expanded);
+        assertEquals(selection, browser.selection());
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        control = true; key(Input.Keys.ENTER);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void filteringAndOverlaysCannotAccidentallyConfirmAStaleFocus() throws Exception {
+        open("Beta", 1); key(Input.Keys.DOWN);
+        var browser = (SongBrowserModel) field("browser"); var focus = browser.focusKey();
+        key(Input.Keys.F1); key(Input.Keys.ENTER); key(Input.Keys.DOWN);
+        assertEquals(focus, browser.focusKey()); assertFalse(((UiNavigation) field("outgoing")).pending());
+        key(Input.Keys.ESCAPE);
+        processor.keyTyped('A');
+        assertNull(browser.focusKey());
+        key(Input.Keys.ENTER); // Search consumes this key.
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+
+    @Test void pendingGameplayAndImportPreventFocusConfirmationOrNavigation() throws Exception {
+        open("Beta", 1); key(Input.Keys.DOWN);
+        var browser = (SongBrowserModel) field("browser");
+        var selection = browser.selection(); var focus = browser.focusKey();
+        setField("importing", true);
+        for (int k : new int[]{Input.Keys.ENTER, Input.Keys.UP, Input.Keys.RIGHT, Input.Keys.PAGE_DOWN}) key(k);
+        assertEquals(selection, browser.selection()); assertEquals(focus, browser.focusKey());
+        setField("importing", false);
+        key(Input.Keys.SPACE); // Direct play action starts the current playable selection.
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+        for (int k : new int[]{Input.Keys.ENTER, Input.Keys.DOWN, Input.Keys.LEFT, Input.Keys.PAGE_UP}) key(k);
+        shift = true; key(Input.Keys.ENTER); key(Input.Keys.LEFT);
+        assertEquals(selection, browser.selection()); assertEquals(focus, browser.focusKey());
     }
 
     @Test void randomActuallyChangesSetAndHonoursSearchIncludingNoMatches() throws Exception {

@@ -17,14 +17,16 @@ final class SongSelectCarousel {
         final Entry entry;
         final float logicalY;
         int logicalIndex;
-        float hoverAmount, separationY, selectedAmount, groupAmount;
+        float hoverAmount, separationY, selectedAmount, groupAmount, focusAmount;
+        float focusStart, focusElapsed;
+        boolean focused;
         float selectionSeparationY, expansionY, expansionVelocityY, expansionX, revealAmount = 1;
         Row(Entry entry, float logicalY) { this.entry = entry; this.logicalY = logicalY; }
     }
 
     private List<Row> rows = List.of();
     private final Map<String, Row> byKey = new HashMap<>();
-    private String selectedKey, hoverKey;
+    private String selectedKey, hoverKey, focusKey, emphasisKey;
     private float hoverAbsence, viewportHeight, rowHeight = 76, scrollOffset, scrollTarget, maxScroll;
     private boolean initialized;
     private float selectionAnchor, screenHeight, viewportTop, referenceScale;
@@ -134,6 +136,8 @@ final class SongSelectCarousel {
 
     private static void copyEmphasis(Row old, Row row) {
         row.groupAmount = old.groupAmount;
+        row.focusAmount = old.focusAmount;
+        row.focusStart = old.focusStart; row.focusElapsed = old.focusElapsed; row.focused = old.focused;
         row.hoverAmount = old.hoverAmount;
         row.separationY = old.separationY;
         row.selectedAmount = old.selectedAmount;
@@ -142,7 +146,11 @@ final class SongSelectCarousel {
         row.expansionX = old.expansionX;
     }
 
+    /** Visual keyboard focus is separate from both scrolling and the playable selection. */
+    void focus(String key) { focusKey = key; }
+    void emphasize(String key) { emphasisKey = key; }
     void select(String key) {
+        emphasisKey = key;
         if (initialized && java.util.Objects.equals(selectedKey, key)) return;
         selectedKey = key;
         Row selected = byKey.get(key);
@@ -204,10 +212,16 @@ final class SongSelectCarousel {
             scrollOffset = clamp(nextOffset);
             if (scrollOffset != nextOffset) viewportVelocity = 0;
         }
-        Row hovered = byKey.get(hoverKey), selected = byKey.get(selectedKey);
+        Row hovered = byKey.get(hoverKey), selected = byKey.get(emphasisKey);
         float hoverStrength = 1 - .9f * velocityInfluence;
         float selectionEase = ease(dt, 10), expansionEase = ease(dt, 9);
         for (Row row : rows) {
+            boolean focused = row.entry.key().equals(focusKey);
+            if (row.focused != focused) {
+                row.focusStart = row.focusAmount; row.focusElapsed = 0; row.focused = focused;
+            }
+            row.focusElapsed = Math.min(.05f, row.focusElapsed + dt);
+            row.focusAmount = row.focusStart + ((focused ? 1 : 0) - row.focusStart) * (row.focusElapsed / .05f);
             float selectionSpace = selected == null ? 0 : Math.signum(selected.logicalY - row.logicalY) * rowHeight * SongSelectMetrics.SELECTION_SPACING;
             float separation = hovered == null ? 0 : Math.signum(hovered.logicalY - row.logicalY) * referenceScale * SongSelectMetrics.HOVER_SPACING * hoverStrength;
             float down = visualDown(row);

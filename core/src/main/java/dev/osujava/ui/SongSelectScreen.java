@@ -175,7 +175,22 @@ public final class SongSelectScreen extends ScreenAdapter {
             @Override public void perform(SongSelectAction action) { SongSelectScreen.this.perform(action); }
             @Override public void difficulty(int direction) { advance(direction); }
             @Override public void set(int direction) { advanceSet(direction); }
+            @Override public void group(int direction) {
+                if (importing || outgoing.pending()) return;
+                browser.moveGroup(direction); syncBrowser(true);
+            }
+            @Override public void parentGroup() {
+                if (importing || outgoing.pending()) return;
+                browser.toggleParentGroup(); syncBrowser(true);
+            }
+            @Override public void confirm() {
+                if (importing || outgoing.pending()) return;
+                var identity = browser.selection();
+                if (browser.confirmFocus()) { syncBrowser(true); selectionSound(identity); }
+                else perform(SongSelectAction.PLAY);
+            }
             @Override public void page(int direction) {
+                if (importing || outgoing.pending()) return;
                 var identity = browser.selection();
                 var previous = browser.selectedSet();
                 browser.movePage(direction); syncBrowser(previous != browser.selectedSet());
@@ -480,6 +495,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         updateContent(layout);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         SongSelectRow hit = toolbox.open() ? null : hitRow(px, py);
+        carousel.focus(browser.focusKey());
+        carousel.emphasize(browser.selectedKey());
         carousel.advance(delta, hit == null ? null : hit.key());
         List<SongSelectRow> result = new ArrayList<>();
         for (SongSelectCarousel.Row entry : carousel.rows()) {
@@ -490,7 +507,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             var target = carousel.targetPosition(entry.logicalIndex, layout.width(), top);
             result.add(new SongSelectRow(setIndex, diffIndex, groupLabels.get(entry.entry.key()), selected, setIndex == selectedSetIndex && !selected,
                     carousel.renderX(entry, layout.width()), y, rowWidth(layout), carousel.rowHeight(), entry.hoverAmount, selected ? 1 : entry.revealAmount * entry.revealAmount, entry.logicalIndex, target[0], target[1], entry.entry.key(),
-                    browser.row(entry.entry.key()).group() && browser.row(entry.entry.key()).expanded));
+                    browser.row(entry.entry.key()).group() && browser.row(entry.entry.key()).expanded, entry.focusAmount));
         }
         return result;
     }
@@ -527,7 +544,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private String selectedRowKey() {
-        return browser.groupTargetKey() != null ? browser.groupTargetKey() : browser.selectedKey();
+        return browser.scrollTargetKey();
     }
 
     private void refreshSelection(boolean rebuild) {
@@ -631,11 +648,13 @@ public final class SongSelectScreen extends ScreenAdapter {
         browser.previousRandom(); syncBrowser(true); selectionSound(identity);
     }
     private void advance(int direction) {
+        if (importing || outgoing.pending()) return;
         var identity = browser.selection();
         var previous = browser.selectedSet();
         browser.moveDifficulty(direction); syncBrowser(previous != browser.selectedSet()); selectionSound(identity);
     }
     private void advanceSet(int direction) {
+        if (importing || outgoing.pending()) return;
         var identity = browser.selection();
         var previous = browser.selectedSet();
         browser.moveSet(direction); syncBrowser(previous != browser.selectedSet()); selectionSound(identity);

@@ -76,6 +76,7 @@ final class SongSelectRowRenderer {
         });
         if (row.group()) color.set(row.groupExpanded() ? GROUP_OPEN : GROUP_CLOSED);
         else if (!row.selected()) color.lerp(row.sibling() ? SIBLING_HOVER : played ? PLAYED_HOVER : OTHER_HOVER,row.hoverAmount());
+        focusTint(color, row.focusAmount());
         color.a *= row.revealAmount();
         float x = row.x(), y = row.y();
         if (has(Image.MENU_BUTTON_BACKGROUND)) {
@@ -129,6 +130,13 @@ final class SongSelectRowRenderer {
         clipContent(item, scaleX, scaleY);
         drawRowLabel(item, geometry);
         view.endText();
+    }
+
+    /** 06001965: brighten RGB by 40%, saturate each byte, and leave alpha unchanged. */
+    static void focusTint(Color color, float amount) {
+        color.r += (Math.min(255, (int) (color.r * 255 * 1.4f)) / 255f - color.r) * amount;
+        color.g += (Math.min(255, (int) (color.g * 255 * 1.4f)) / 255f - color.g) * amount;
+        color.b += (Math.min(255, (int) (color.b * 255 * 1.4f)) / 255f - color.b) * amount;
     }
 
     static boolean fallbackWash(boolean selected, boolean bundled, Color text) {

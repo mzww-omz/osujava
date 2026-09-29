@@ -151,4 +151,26 @@ class SongSelectCarouselTest {
         assertEquals(87, m.rows().get(3).logicalY - m.rows().get(2).logicalY, .001);
     }
 
+    @Test void focusColourTransitionTakesFiftyMillisecondsAndRestartsFromInterruptedValue() {
+        var m = model(3); var row = m.rows().get(1);
+        m.focus("set#1"); m.advance(.025f, null);
+        assertEquals(.5f, row.focusAmount, .0001f);
+        m.focus(null); m.advance(.025f, null);
+        assertEquals(.25f, row.focusAmount, .0001f);
+        m.advance(.025f, null); assertEquals(0, row.focusAmount, .0001f);
+        m.focus("set#1"); m.advance(.05f, null); assertEquals(1, row.focusAmount, .0001f);
+        m.content(entries(3),620,76,72,"set#0");
+        assertEquals(1, m.rows().get(1).focusAmount, .0001f);
+        m.focus(null); m.advance(.05f, null); assertEquals(0, m.rows().get(1).focusAmount, .0001f);
+    }
+    @Test void focusingAndScrollingToAnotherRowDoesNotGiveItSelectedEmphasis() {
+        var m = model(6);
+        m.select("set#4"); m.focus("set#4"); m.emphasize("set#0");
+        settle(m);
+        assertEquals(1, m.rows().get(4).focusAmount, .0001f);
+        assertEquals(0, m.rows().get(4).selectedAmount, .0001f);
+        assertEquals(1, m.rows().get(0).selectedAmount, .0001f);
+        assertEquals(4 * 72, m.scrollTarget(), .001f);
+    }
+
 }

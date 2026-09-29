@@ -39,8 +39,7 @@ final class SongBrowserModel {
     private List<Row> rows = List.of();
     private String openGroupKey;
     // Last directly activated Group anchors scrolling without replacing the playable selection.
-    // Keyboard focus (06003277) is a separate, not-yet-ported input state.
-    private String groupTargetKey;
+    private String groupTargetKey, focusKey;
     private boolean revealSelection = true;
     private record Indexed(BeatmapSet set, List<String> fields, double bpm, double length) { }
     private record Bucket(int order, String label) { }
@@ -98,6 +97,10 @@ final class SongBrowserModel {
     List<Row> rows() { return rows; }
     Row row(String key) { return rowsByKey.get(key); }
     String groupTargetKey() { return groupTargetKey; }
+    String focusKey() { return focusKey; }
+    String scrollTargetKey() {
+        return focusKey != null ? focusKey : groupTargetKey != null ? groupTargetKey : selectedKey();
+    }
     String selectedKey() { return selectedSet() == null ? null : rowKey(selection.setId(), selection.difficultyId()); }
     static String rowKey(String setId, String difficultyId) {
         return "beatmap:" + identityField(setId) + identityField(difficultyId);
@@ -120,14 +123,14 @@ final class SongBrowserModel {
                 .filter(d -> difficultyId(d).equals(selection.difficultyId())).findFirst().orElse(set.difficulties().getFirst());
     }
     void sort(Sort next) { if (sort != next) { sort = Objects.requireNonNull(next); rebuild(); } }
-    void group(Group next) { if (group != next) { group = Objects.requireNonNull(next); revealSelection = true; groupTargetKey = null; rebuild(); } }
+    void group(Group next) { if (group != next) { group = Objects.requireNonNull(next); revealSelection = true; groupTargetKey = null; focusKey = null; rebuild(); } }
     void search(String next) {
         next = Objects.requireNonNullElse(next, "");
         if (search.equals(next)) return;
         if (search.isBlank() && !next.isBlank()) beforeSearch = selection;
         boolean clearing = !search.isBlank() && next.isBlank();
         search = next;
-        revealSelection = true; groupTargetKey = null;
+        revealSelection = true; groupTargetKey = null; focusKey = null;
         if (clearing && beforeSearch != null) selection = beforeSearch;
         rebuild();
         if (clearing) beforeSearch = null;
@@ -137,46 +140,97 @@ final class SongBrowserModel {
         if (set == null) return;
         var difficulty = set.difficulties().get(Math.max(0, Math.min(difficultyIndex, set.difficulties().size() - 1)));
         Selection next = new Selection(set.id(), difficultyId(difficulty));
-        if (next.equals(selection) && groupTargetKey == null) return;
+        if (next.equals(selection) && groupTargetKey == null && focusKey == null) return;
         selection = next;
         if (!search.isBlank()) beforeSearch = next;
-        revealSelection = true; groupTargetKey = null;
+        revealSelection = true; groupTargetKey = null; focusKey = null;
         expand();
     }
-    /** Relative navigation follows the current filtered/sorted projection, skipping group headers. */
-    void moveDifficulty(int direction) {
-        BeatmapSet current = selectedSet();
-        if (current == null || direction == 0) return;
-        int step = Integer.signum(direction);
-        int next = current.difficulties().indexOf(selectedDifficulty()) + step;
-        if (next >= 0 && next < current.difficulties().size()) { select(current.id(), next); return; }
-        int setIndex = visible.indexOf(current) + step;
-        if (setIndex < 0 || setIndex >= visible.size()) return;
-        BeatmapSet target = visible.get(setIndex);
-        select(target.id(), step < 0 ? target.difficulties().size() - 1 : 0);
-    }
+    /** 06003247: Up/Down and Page use the same traversal and only differ in distance. */
+    void moveDifficulty(int direction) { moveRows(Integer.signum(direction), true, false); }
+    void movePage(int direction) { moveRows(10 * Integer.signum(direction), true, false); }
 
-    /** Traverse the current visible row projection once, never counting collapsed children or headers. */
-    void movePage(int direction) {
-        if (selectedSet() == null || direction == 0) return;
-        var candidates = entries.stream().filter(entry -> entry.kind() != Kind.GROUP_HEADER).toList();
-        int start = -1;
-        for (int i = 0; i < candidates.size(); i++) {
-            var entry = candidates.get(i);
-            if (entry.difficulty() == selectedDifficulty()) { start = i; break; }
-        }
-        if (start < 0) return;
-        // The reference stops a long page traversal after one complete circuit, at the origin.
-        int distance = Math.min(10, candidates.size()) * Integer.signum(direction);
-        var target = candidates.get(Math.floorMod(start + distance, candidates.size()));
-        select(target.set().id(), target.difficulty() == null ? 0 : target.set().difficulties().indexOf(target.difficulty()));
-    }
-
+    /** Left/Right first confirm a focus; otherwise traverse outside the selected family. */
     void moveSet(int direction) {
-        BeatmapSet current = selectedSet();
-        if (current == null || direction == 0) return;
-        int next = visible.indexOf(current) + Integer.signum(direction);
-        if (next >= 0 && next < visible.size()) select(visible.get(next).id(), 0);
+        if (direction == 0 || confirmFocus()) return;
+        moveRows(Integer.signum(direction), false, true);
+    }
+
+    /** Confirming a focus selects/expands it; callers must not start gameplay on this action. */
+    boolean confirmFocus() {
+        Row focused = rowsByKey.get(focusKey);
+        if (focused == null) return false;
+        activate(focused);
+        return true;
+    }
+
+    /** Shift+Enter toggles the active/containing Group, independently of keyboard focus. */
+    void toggleParentGroup() {
+        Row parent = activeGroup();
+        if (parent == null) return;
+        focusKey = null;
+        toggleGroup(parent.key);
+    }
+
+    /** Shift+Left/Right counts non-excluded Groups and wraps at most once (06003275). */
+    void moveGroup(int direction) {
+        Row origin = activeGroup();
+        if (origin == null || direction == 0) return;
+        focusKey = null;
+        int start = rows.indexOf(origin), index = start;
+        do {
+            index = Math.floorMod(index + Integer.signum(direction), rows.size());
+            Row candidate = rows.get(index);
+            if (candidate.group() && !candidate.excluded) { toggleGroup(candidate.key); return; }
+        } while (index != start);
+    }
+
+    private Row activeGroup() {
+        Row active = rowsByKey.get(groupTargetKey != null ? groupTargetKey : openGroupKey);
+        if (active != null) return active;
+        Row selected = rowsByKey.get(selectedKey());
+        return selected == null ? null : selected.parent;
+    }
+
+    /** 06003276 walks ALL rows. A full circuit dispatches the origin even if count < distance. */
+    private void moveRows(int distance, boolean visibleOnly, boolean commit) {
+        if (distance == 0 || rows.isEmpty()) return;
+        Row selected = rowsByKey.get(selectedKey());
+        Row origin = rowsByKey.get(focusKey != null ? focusKey : selectedKey());
+        Row active = activeGroup();
+        if (origin != null && !origin.visible() && active != null && active.expanded) origin = active;
+        if (origin == null) return;
+        int start = rows.indexOf(origin);
+        if (start < 0) return;
+        int index = start, count = 0;
+        Row candidate;
+        do {
+            index = Math.floorMod(index + Integer.signum(distance), rows.size());
+            candidate = rows.get(index);
+            boolean eligible = !candidate.excluded && (visibleOnly ? candidate.visible()
+                    : !candidate.group() && !sameFamily(candidate, selected));
+            if (eligible) count++;
+        } while (index != start && count < Math.abs(distance));
+        if (commit) activate(candidate);
+        else {
+            focusKey = null;
+            if (sameFamily(candidate, selected)) selectRow(candidate);
+            else focusKey = candidate.key;
+        }
+    }
+
+    private static boolean sameFamily(Row a, Row b) {
+        return a != null && b != null && a.representative != null && a.representative == b.representative;
+    }
+    private void activate(Row row) {
+        if (row.excluded) return;
+        if (row.group()) toggleGroup(row.key);
+        // 0600326a also chooses the nearest preferred star rating. Until a trusted rating
+        // preference exists, retain the local first-difficulty fallback for Set activation.
+        else selectRow(row.representative != null ? row.representative : row);
+    }
+    private void selectRow(Row row) {
+        select(row.set.id(), row.set.difficulties().indexOf(row.difficulty));
     }
 
     void random() {
@@ -200,7 +254,7 @@ final class SongBrowserModel {
                     .findFirst().orElse(set.difficulties().getFirst());
             iterator.remove(); selection = new Selection(set.id(), difficultyId(difficulty));
             if (!search.isBlank()) beforeSearch = selection;
-            revealSelection = true; groupTargetKey = null;
+            revealSelection = true; groupTargetKey = null; focusKey = null;
             expand(); return;
         }
     }
@@ -228,7 +282,7 @@ final class SongBrowserModel {
         visibleById = Map.copyOf(nextById);
         var set = find(selection);
         if (set == null && !visible.isEmpty()) {
-            revealSelection = true; groupTargetKey = null;
+            revealSelection = true; groupTargetKey = null; focusKey = null;
             set = visible.getFirst(); selection = new Selection(set.id(), difficultyId(set.difficulties().getFirst()));
         } else if (set != null && set.difficulties().stream().noneMatch(d -> difficultyId(d).equals(selection.difficultyId()))) {
             selection = new Selection(set.id(), difficultyId(set.difficulties().getFirst()));
@@ -310,6 +364,8 @@ final class SongBrowserModel {
         if (!sameProjection(result)) entries = List.copyOf(result);
         Row target = rowsByKey.get(groupTargetKey);
         if (target == null || !target.visible()) groupTargetKey = null;
+        Row focused = rowsByKey.get(focusKey);
+        if (focused == null || !focused.visible()) focusKey = null;
     }
     private boolean sameProjection(List<Entry> next) {
         if (entries.size() != next.size()) return false;

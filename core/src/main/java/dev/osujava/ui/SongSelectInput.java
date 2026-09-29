@@ -15,6 +15,9 @@ class SongSelectInput extends InputAdapter {
         void difficulty(int direction);
         void set(int direction);
         void page(int direction);
+        default void group(int direction) { }
+        default void parentGroup() { }
+        default void confirm() { perform(SongSelectAction.PLAY); }
         boolean scroll(float amount);
         default void cursor(int x, int y, int button, boolean down) { }
     }
@@ -55,6 +58,12 @@ class SongSelectInput extends InputAdapter {
             if (key == Input.Keys.ESCAPE || key == Input.Keys.ENTER) { target.searchActive(false); return true; }
             return false;
         }
+        if (key == Input.Keys.ENTER) {
+            if (shift() && !Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT)
+                    && !Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT)) target.parentGroup();
+            else target.confirm();
+            return true;
+        }
         var action = SongSelectAction.shortcut(key, false);
         if (action != null) {
             // GLFW sends keyTyped after keyDown even when the shortcut was consumed.
@@ -63,12 +72,12 @@ class SongSelectInput extends InputAdapter {
             target.perform(action);
             return true;
         }
-        // Arrow roles follow the public shortcuts; page distance remains a provisional local policy.
+        // Stable 06003247: arrows/page traverse rows; Shift+Left/Right traverses Groups.
         switch (key) {
             case Input.Keys.UP -> target.difficulty(-1);
             case Input.Keys.DOWN -> target.difficulty(1);
-            case Input.Keys.LEFT -> target.set(-1);
-            case Input.Keys.RIGHT -> target.set(1);
+            case Input.Keys.LEFT -> { if (shift()) target.group(-1); else target.set(-1); }
+            case Input.Keys.RIGHT -> { if (shift()) target.group(1); else target.set(1); }
             case Input.Keys.PAGE_UP -> target.page(-1);
             case Input.Keys.PAGE_DOWN -> target.page(1);
             default -> { return false; }

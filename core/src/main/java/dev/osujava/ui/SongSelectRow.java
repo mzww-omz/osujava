@@ -5,7 +5,13 @@ import java.util.List;
 /** Immutable shared drawing/input geometry. Coordinates have already incorporated all motion. */
 record SongSelectRow(int setIndex, int difficultyIndex, String header, boolean selected, boolean sibling,
                      float x, float y, float width, float height, float hoverAmount, float revealAmount,
-                     int logicalIndex, float targetX, float targetY, String key, boolean groupExpanded) {
+                     int logicalIndex, float targetX, float targetY, String key, boolean groupExpanded, float focusAmount) {
+    SongSelectRow(int setIndex, int difficultyIndex, String header, boolean selected, boolean sibling,
+                  float x, float y, float width, float height, float hoverAmount, float revealAmount,
+                  int logicalIndex, float targetX, float targetY, String key, boolean groupExpanded) {
+        this(setIndex, difficultyIndex, header, selected, sibling, x, y, width, height,
+                hoverAmount, revealAmount, logicalIndex, targetX, targetY, key, groupExpanded, 0);
+    }
     SongSelectRow(int setIndex, int difficultyIndex, String header, boolean selected, boolean sibling,
                   float x, float y, float width, float height, float hoverAmount, float revealAmount,
                   int logicalIndex, float targetX, float targetY) {
