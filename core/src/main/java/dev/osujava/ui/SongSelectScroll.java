@@ -5,7 +5,10 @@ final class SongSelectScroll {
     static final double IDLE_DECAY = .9959999918937683;
     static final double SELECT_DECAY = .99, TRACK_DECAY = .992, WHEEL_DECAY = .994;
     private double position, limit, velocity, decay = IDLE_DECAY;
+    private boolean dragging;
+    private double stationaryMs;
 
+    boolean dragging() { return dragging; }
     double position() { return position; }
     double velocity() { return velocity; }
     double decay() { return decay; }
@@ -38,8 +41,33 @@ final class SongSelectScroll {
         }
         decay = WHEEL_DECAY;
     }
-    void advance(double milliseconds) {
+    void beginDrag() { dragging = true; stationaryMs = 0; }
+    void drag(double distance, double milliseconds) {
+        if (!dragging || !Double.isFinite(distance)) return;
+        // Geometry-only updates may move the pointer, but cannot manufacture a velocity sample.
+        position = clamp(position + distance);
         if (!Double.isFinite(milliseconds) || milliseconds <= 0) return;
+        stationaryMs += milliseconds;
+        double measured = distance / stationaryMs;
+        if (measured == 0) return;
+        double base = Math.signum(measured) == -Math.signum(velocity)
+                || Math.abs(measured) > Math.abs(velocity) ? .9 : .95;
+        double weight = Math.pow(base, stationaryMs);
+        velocity = velocity * weight + (1 - weight) * measured;
+        decay = velocity == 0 ? .5 : Math.max(.5, IDLE_DECAY - .002 / Math.abs(velocity));
+        stationaryMs = 0;
+    }
+    void releaseDrag() {
+        if (!dragging) return;
+        velocity *= Math.pow(.95, Math.max(0, stationaryMs - 66));
+        stationaryMs = 0; dragging = false;
+    }
+    void cancelDrag() {
+        if (!dragging) return;
+        dragging = false; stationaryMs = 0; jump(position);
+    }
+    void advance(double milliseconds) {
+        if (dragging || !Double.isFinite(milliseconds) || milliseconds <= 0) return;
         double log = Math.log(decay);
         double travel = velocity * Math.expm1(log * milliseconds) / log;
         velocity *= Math.exp(log * milliseconds);

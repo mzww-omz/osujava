@@ -324,7 +324,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             scores.target(set == null ? null : DifficultyIdentity.of(set.id(),selectedDifficulty()));
         }
         thumbnails.advance(delta);
-        visibleRows = layoutRows(layout, delta);
+        visibleRows = layoutRows(layout, 0);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             carousel.pointerPressed();
@@ -352,20 +352,18 @@ public final class SongSelectScreen extends ScreenAdapter {
                 if (slot >= 0) scores.select(scores.first() + slot);
                 else {
                     var row = hitRow(px, py);
-                    input.pressRow(row == null ? null : row.key(), px, py);
+                    input.pressRow(row == null ? null : row.key(), px, py, carousel);
                 }
             }
         }
 
         if (toolbox.open() || importing || outgoing.pending()) input.cancelPointer();
-        float scrollBeforePointer = carousel.scrollOffset();
         var releasedRow = hitRow(px, py);
         if (input.pointer(Gdx.input.isButtonPressed(Input.Buttons.LEFT),
-                releasedRow == null ? null : releasedRow.key(), px, py, carousel) != null)
+                releasedRow == null ? null : releasedRow.key(), px, py, delta) != null)
             handleRowClick(px, py);
-        // Direct dragging changed viewport position; publish the same geometry for drawing and the next hit test.
-        if (carousel.scrollOffset() != scrollBeforePointer)
-            visibleRows = layoutRows(layout, 0);
+        // Sample input before integrating free flight, then publish drawing and hit geometry together.
+        visibleRows = layoutRows(layout, delta);
         prepareRowPresentations();
         if (audio != null) {
             String target = null;
@@ -474,8 +472,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
-    @Override public void hide() { if (preview != null) preview.close(); if (cursor != null) cursor.hide(); }
-    @Override public void dispose() { closed = true; if (preview != null) preview.close(); if (audio != null) audio.close(); if (cursor != null) cursor.close(); thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
+    @Override public void hide() { if (input != null) input.cancelPointer(); if (preview != null) preview.close(); if (cursor != null) cursor.hide(); }
+    @Override public void dispose() { closed = true; if (input != null) input.cancelPointer(); if (preview != null) preview.close(); if (audio != null) audio.close(); if (cursor != null) cursor.close(); thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
 
     private void calculateLayout(UiLayout layout) {
         viewportHeight = layout.height();

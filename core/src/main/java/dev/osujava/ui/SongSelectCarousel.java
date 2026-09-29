@@ -165,12 +165,21 @@ final class SongSelectCarousel {
         keyboardTracking = false;
         scroll.seek(scroll.destination() + distance / referenceScale, SongSelectScroll.SELECT_DECAY);
     }
-    /** Direct manipulation; native drag velocity sampling remains a separate input-timing task. */
+    /** Instant local positioning for diagnostics; pointer gestures use the timed drag methods. */
     void dragBy(float distance) {
         if (!Float.isFinite(distance) || referenceScale <= 0) return;
         keyboardTracking = false;
         scroll.jump(scroll.position() + distance / referenceScale);
     }
+
+    void beginDrag() { keyboardTracking = false; scroll.beginDrag(); }
+    void drag(float distance, float delta) {
+        if (referenceScale <= 0) return;
+        float dt = Float.isFinite(delta) ? Math.max(0, Math.min(2, delta)) : 0;
+        scroll.drag(distance / (double) referenceScale, dt * 1000);
+    }
+    void releaseDrag() { scroll.releaseDrag(); }
+    void cancelDrag() { scroll.cancelDrag(); }
 
     /** Retain the existing hover gap policy; row displacement is independent of scroll speed. */
     void advance(float delta, String hitKey) {
@@ -179,7 +188,7 @@ final class SongSelectCarousel {
         else if ((hoverAbsence += dt) >= .075f) hoverKey = null;
         if (dt > 0) {
             Row tracking = byKey.get(keyboardTracking && focusKey != null ? focusKey : selectionTrackingKey);
-            if ((keyboardTracking || pointerTracking) && tracking != null && tracking.entry.visible())
+            if (!scroll.dragging() && (keyboardTracking || pointerTracking) && tracking != null && tracking.entry.visible())
                 scroll.seek((tracking.logicalY - selectionAnchor) / referenceScale, SongSelectScroll.TRACK_DECAY);
             scroll.advance(dt * 1000);
         }

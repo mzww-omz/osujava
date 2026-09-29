@@ -515,4 +515,30 @@ class SongSelectNavigationTest {
         }
     }
 
+    @Test void productionDragSamplesBeforeViewportIntegrationAndFlicksAfterRelease() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle();
+        var row = ((List<?>) field("visibleRows")).stream().map(SongSelectRow.class::cast).filter(SongSelectRow::selected).findFirst().orElseThrow();
+        pointerX = Math.round(row.x() + 120); pointerY = 720 - Math.round(row.y() + row.height() / 2);
+        var update = SongSelectScreen.class.getDeclaredMethod("update", dev.osujava.ui.theme.UiLayout.class, float.class);
+        update.setAccessible(true);
+        var layout = dev.osujava.ui.theme.UiLayout.fromPixels(1280, 720);
+        float before = carousel().scrollOffset();
+        pointerClicked = true; pointerPressed = true; update.invoke(screen, layout, .02f);
+        pointerClicked = false; pointerY -= 30; update.invoke(screen, layout, .02f);
+        assertEquals(before + 30, carousel().scrollOffset(), .001);
+        assertEquals(.8784233454094307 * 1500, carousel().scrollVelocity(), .01);
+        update.invoke(screen, layout, .1f);
+        assertEquals(before + 30, carousel().scrollOffset(), .001);
+        pointerPressed = false; update.invoke(screen, layout, 0f);
+        assertEquals(.15357002292559258 * 1500, carousel().scrollVelocity(), .01);
+        update.invoke(screen, layout, .02f);
+        assertTrue(carousel().scrollOffset() > before + 30);
+        selected(1, 0, "Beta-easy.png");
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        for (var geometry : screen.rowGeometrySnapshot()) {
+            var motion = carousel().allRows().get(geometry.logicalIndex());
+            assertEquals(carousel().renderY(motion, 636), geometry.body().y(), .001);
+        }
+    }
+
 }

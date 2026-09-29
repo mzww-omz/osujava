@@ -31,34 +31,47 @@ class SongSelectFoundationTest {
         }
     }
 
-    @Test void directDragCancelsSelectionVelocityAndDoesNotClickOnReturn() {
+    @Test void dragMovesDirectlyAndReleasesSmoothedVelocityWithoutClicking() {
         var input = input(); var motion = carousel();
         motion.scrollBy(300); motion.advance(.05f, null);
         float start = motion.scrollOffset();
-        input.pressRow("s0", 800, 300);
-        assertNull(input.pointer(true, "s0", 800, 330, motion));
+        input.pressRow("s0", 800, 300, motion);
+        assertNull(input.pointer(true, "s0", 800, 330, .02f));
         assertEquals(start + 30, motion.scrollOffset(), .001);
-        assertEquals(motion.scrollOffset(), motion.scrollTarget());
-        assertEquals(0, motion.scrollVelocity());
+        float speed = motion.scrollVelocity();
+        assertTrue(speed > 0);
+        motion.advance(.02f, null);
+        assertEquals(start + 30, motion.scrollOffset(), .001, "Held input must not integrate free flight");
+        assertEquals(speed, motion.scrollVelocity());
         assertEquals(SongSelectInputController.PointerState.DRAGGING, input.pointerState());
-        assertNull(input.pointer(false, "s0", 800, 300, motion));
-        assertEquals(start, motion.scrollOffset(), .001);
-        motion.advance(1, null);
-        assertEquals(start, motion.scrollOffset(), .001, "Old selection target must not resume after release");
+        assertNull(input.pointer(false, "s0", 800, 330, .02f));
+        motion.advance(.02f, null);
+        assertTrue(motion.scrollOffset() > start + 30);
     }
-    @Test void clickSlopAndCancelHaveNoScrollSideEffects() {
+    @Test void cancellingAHeldDragDiscardsVelocityAndCannotLeaveTheViewportFrozen() {
         var input = input(); var motion = carousel();
-        input.pressRow("s0", 800, 300);
-        assertEquals("s0", input.pointer(false, "s0", 802, 301, motion));
-        assertEquals(0, motion.scrollOffset());
-        input.pressRow("s0", 800, 300); input.cancelPointer();
-        assertNull(input.pointer(false, "s0", 800, 300, motion));
+        input.pressRow("s0", 800, 300, motion);
+        input.pointer(true, "s0", 800, 330, .02f);
+        float position = motion.scrollOffset();
+        input.cancelPointer(); motion.advance(.2f, null);
+        assertEquals(position, motion.scrollOffset()); assertEquals(0, motion.scrollVelocity());
+        assertNull(input.pointer(false, "s0", 800, 330, .02f));
+        motion.wheel(1); motion.advance(.02f, null);
+        assertTrue(motion.scrollOffset() > position);
+    }
+    @Test void smallMovementCanStillClickAndCancelledPressCannotClick() {
+        var input = input(); var motion = carousel();
+        input.pressRow("s0", 800, 300, motion);
+        assertEquals("s0", input.pointer(false, "s0", 802, 301, .02f));
+        assertEquals(1, motion.scrollOffset());
+        input.pressRow("s0", 800, 300, motion); input.cancelPointer();
+        assertNull(input.pointer(false, "s0", 800, 300, .02f));
     }
     @Test void horizontalExcursionCancelsClickEvenIfPointerReturns() {
         var input = input(); var motion = carousel();
-        input.pressRow("s0", 800, 300);
-        input.pointer(true, "s0", 820, 300, motion);
-        assertNull(input.pointer(false, "s0", 800, 300, motion));
+        input.pressRow("s0", 800, 300, motion);
+        input.pointer(true, "s0", 820, 300, .02f);
+        assertNull(input.pointer(false, "s0", 800, 300, .02f));
         assertEquals(0, motion.scrollOffset());
     }
     @Test void directDragAndWheelRemainBoundedAtBothEnds() {

@@ -1,6 +1,6 @@
 package dev.osujava.ui;
 
-/** A row click commits on release over the pressed identity. Hover and dragging never select. */
+/** A row click commits on release over the pressed identity unless movement cancels it. */
 final class SongSelectPointer {
     // Independent local drag slop in logical UI units; not a recovered Stable threshold.
     private static final float DRAG_SLOP = 6;

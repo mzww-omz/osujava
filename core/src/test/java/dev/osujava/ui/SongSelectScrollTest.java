@@ -81,4 +81,69 @@ class SongSelectScrollTest {
         a.wheel(Float.MAX_VALUE); assertTrue(Double.isFinite(a.velocity()));
         a.wheel(-Float.MAX_VALUE); assertTrue(Double.isFinite(a.velocity()));
     }
+    @Test void dragSamplesAccelerationDecelerationAndReversalInReferenceUnitsPerMillisecond() {
+        var s = scroll(); s.jump(100); s.beginDrag(); s.drag(20, 20);
+        assertEquals(120, s.position());
+        assertEquals(.8784233454094307, s.velocity(), 1e-12);
+        assertEquals(.9937231853739372, s.decay(), 1e-12);
+        s.drag(4, 20); assertEquals(.44320521876258856, s.velocity(), 1e-12);
+        s.drag(-20, 20); assertEquals(-.8245399376151937, s.velocity(), 1e-12);
+        assertEquals(104, s.position());
+    }
+    @Test void holdingSuppressesFreeFlightAndRetainsPreviousVelocityUntilRelease() {
+        var s = scroll(); s.jump(100); s.wheel(1); s.beginDrag();
+        s.drag(0, 50); s.advance(50);
+        assertEquals(100, s.position()); assertEquals(.4, s.velocity());
+        s.releaseDrag(); s.advance(100);
+        assertEquals(130.05475999661664, s.position(), 1e-10);
+    }
+    @Test void pausedTimeParticipatesInTheNextNonzeroSample() {
+        var s = scroll(); s.beginDrag(); s.drag(20, 20);
+        s.drag(0, 80); s.drag(2, 20);
+        assertEquals(22, s.position()); assertEquals(.025082320499913397, s.velocity(), 1e-12);
+        s.releaseDrag(); assertEquals(.025082320499913397, s.velocity(), 1e-12);
+    }
+    @Test void releaseHasSixtySixMillisecondGraceAndThenAttenuatesVelocity() {
+        for (double pause : new double[]{0, 65, 66, 100}) {
+            var s = scroll(); s.beginDrag(); s.drag(20, 20); s.drag(0, pause);
+            s.releaseDrag();
+            assertEquals(pause <= 66 ? .8784233454094307 : .15357002292559258, s.velocity(), 1e-12);
+            double before = s.velocity(); s.releaseDrag(); assertEquals(before, s.velocity());
+            assertFalse(s.dragging());
+        }
+    }
+    @Test void verySlowDragUsesMinimumDecayAndZeroVelocityNeverDividesByZero() {
+        var s = scroll(); s.beginDrag(); s.drag(.0001, 20);
+        assertEquals(.5, s.decay());
+        s.releaseDrag(); s.advance(20); assertEquals(0, s.velocity());
+        s.beginDrag(); s.drag(0, 100); s.releaseDrag();
+        assertEquals(0, s.velocity()); assertTrue(Double.isFinite(s.remaining()));
+    }
+    @Test void dragClampsAtBoundsWithoutDeletingTheSampledSpeed() {
+        var s = scroll(); s.range(10); s.beginDrag(); s.drag(20, 20);
+        assertEquals(10, s.position()); assertEquals(.8784233454094307, s.velocity(), 1e-12);
+        s.drag(-20, 20); assertEquals(0, s.position()); assertTrue(s.velocity() < 0);
+        s.cancelDrag(); assertFalse(s.dragging()); assertEquals(0, s.velocity());
+        s.drag(5, 20); assertEquals(0, s.position());
+        s.wheel(1); s.advance(20); assertTrue(s.position() > 0);
+    }
+    @Test void zeroTimeGeometryDoesNotManufactureSpeedAndInvalidDistancesAreIgnored() {
+        var s = scroll(); s.beginDrag(); s.drag(20, 0);
+        assertEquals(20, s.position()); assertEquals(0, s.velocity());
+        for (double bad : new double[]{Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY})
+            s.drag(bad, 20);
+        assertEquals(20, s.position()); assertEquals(0, s.velocity());
+        s.releaseDrag(); s.advance(100); assertEquals(20, s.position());
+    }
+    @Test void constantSpeedDragAndReleaseComposeAcrossSamplingRatesBeforeStop() {
+        var reference = scroll(); reference.beginDrag(); reference.drag(100, 100);
+        reference.releaseDrag(); reference.advance(50);
+        for (int samples : new int[]{3, 6, 12}) {
+            var s = scroll(); s.beginDrag();
+            for (int i = 0; i < samples; i++) { s.drag(100.0 / samples, 100.0 / samples); s.advance(100.0 / samples); }
+            s.releaseDrag(); s.advance(50);
+            assertEquals(reference.position(), s.position(), 1e-10);
+            assertEquals(reference.velocity(), s.velocity(), 1e-12);
+        }
+    }
 }

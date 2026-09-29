@@ -196,6 +196,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 scenes.removeIf(scene -> !cases.contains(scene.name));
                 for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
                     scenes.add(new Scene(1024,768,1,scene.name));
+            } else if (phase.equals("drag-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String name : List.of("flick", "pause", "reverse", "cancel"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"drag-" + name));
             } else if (phase.equals("row-motion-contracts")) {
                 var cases = Set.of("greylooks-hover", "greylooks-fast-scroll", "greylooks-scroll-reverse",
                         "greylooks-expanded-many-first", "greylooks-expanded-many-last", "greylooks-collapse-many",
@@ -620,6 +625,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseGroupCards(screen, scene.name, pointer, clicked, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if (scene.name.startsWith("drag-")) {
+                exerciseDrag(screen, scene, processor[0], pointer, clicked, pressed, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
             if (scene.name.equals("repair-empty") || scene.name.equals("repair-single")) {
                 // Genuine empty/one-difficulty libraries, not a filtered seven-Set fixture.
                 if (carousel(screen).rows().size() != setCount) throw new AssertionError("Wrong small-library fixture");
@@ -924,6 +933,46 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         store.save(new dev.osujava.score.LocalScore(UUID.randomUUID(),dev.osujava.score.DifficultyIdentity.of(set.id(),set.difficulties().get(difficulty)),
                 1_790_467_200_000L,new dev.osujava.gameplay.ScoreState(123456,0,100,100,0,0,0,1)),dev.osujava.gameplay.GameplayRunMode.MANUAL);
     }
+    private void exerciseDrag(SongSelectScreen screen, Scene scene, InputProcessor input,
+            int[] pointer, boolean[] clicked, boolean[] pressed, UiLayout layout, FrameBuffer fb, String name) {
+        var model = carousel(screen);
+        var browser = (SongBrowserModel) screenField(screen, "browser");
+        String selection = browser.selectedKey();
+        var row = model.rows().stream().filter(r -> r.entry.key().equals(selection)).findFirst().orElseThrow();
+        pointerRow(screen, row.entry.setIndex(), row.entry.difficultyIndex(), pointer, layout, scene.height);
+        clicked[0] = true; pressed[0] = true; screen.render(.02f); clicked[0] = false;
+        float before = model.scrollOffset();
+        for (int frame = 0; frame < 3; frame++) {
+            int pixels = Math.round((scene.name.equals("drag-reverse") && frame == 2 ? -60 : 30) * layout.scale());
+            pointer[1] -= pixels;
+            float previous = model.scrollOffset();
+            screen.render(.02f); transitionFrames++;
+            float expected = Math.max(0, Math.min(model.maxScroll(), previous + pixels / layout.scale()));
+            if (Math.abs(model.scrollOffset() - expected) > .01f) throw new AssertionError("Drag integrated free flight: " + name);
+            assertRenderedBounds(screen, layout); capture(fb, name + "-held-" + frame);
+        }
+        if (model.scrollOffset() == before && !scene.name.equals("drag-reverse")) throw new AssertionError("Drag did not move: " + name);
+        float velocity = model.scrollVelocity(), position = model.scrollOffset();
+        if (scene.name.equals("drag-reverse") && velocity >= 0) throw new AssertionError("Reversal did not brake: " + name);
+        if (scene.name.equals("drag-pause")) {
+            for (int frame = 0; frame < 5; frame++) { screen.render(.02f); transitionFrames++; }
+            if (Math.abs(model.scrollOffset() - position) > .001 || model.scrollVelocity() != velocity)
+                throw new AssertionError("Stationary hold moved: " + name);
+        }
+        if (scene.name.equals("drag-cancel")) { input.keyDown(Input.Keys.F1); screen.render(0); }
+        pressed[0] = false; screen.render(0);
+        float expectedVelocity = scene.name.equals("drag-cancel") ? 0
+                : scene.name.equals("drag-pause") ? velocity * (float)Math.pow(.95, 34) : velocity;
+        if (Math.abs(model.scrollVelocity() - expectedVelocity) > .01f) throw new AssertionError("Release speed: " + name);
+        for (int frame = 0; frame < 60; frame++) {
+            screen.render(1f / 60); transitionFrames++; assertRenderedBounds(screen, layout);
+            if (frame == 0 || frame == 9 || frame == 59) capture(fb, name + "-released-" + frame);
+        }
+        if (!selection.equals(browser.selectedKey()) || pending(screen)) throw new AssertionError("Drag clicked a row: " + name);
+        if (scene.name.equals("drag-cancel") && Math.abs(model.scrollOffset() - position) > .001)
+            throw new AssertionError("Cancelled drag retained velocity: " + name);
+    }
+
     private void configureToolbox(SongSelectScreen screen, Scene scene, InputProcessor input,
             int[] pointer, boolean[] clicked, boolean[] pressed, UiLayout layout,
             dev.osujava.score.LocalScoreStore store, BeatmapLibrary library) {
