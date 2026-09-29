@@ -11,10 +11,20 @@ public final class CursorTrackingSession implements GameplaySession {
     private final GameplaySession session;
     private final GameClock clock;
     private final LegacyCursorVisual cursor;
+    private GameplayInput previousInput;
     public CursorTrackingSession(GameplaySession session, GameClock clock, LegacyCursorVisual cursor) {
         this.session = session; this.clock = clock; this.cursor = cursor;
     }
     private void observe(boolean press) { cursor.input(clock.nowMs(), session.pointerState(), press); }
+    @Override public long inputTimeMs() { return session.inputTimeMs(); }
+    @Override public void input(GameplayInput input) {
+        session.input(input);
+        boolean press = false;
+        for (GameInputAction action : GameInputAction.values())
+            press |= input.held(action) && (previousInput == null || !previousInput.held(action));
+        previousInput = input;
+        cursor.input(input.timeMs(), session.pointerState(), press);
+    }
     @Override public void click(double x, double y) { session.click(x, y); observe(true); }
     @Override public void press(GameInputAction action, double x, double y) { session.press(action, x, y); observe(true); }
     @Override public void release(GameInputAction action) { session.release(action); observe(false); }

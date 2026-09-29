@@ -10,6 +10,12 @@ public interface GameplaySession {
 
     GameplayState update();
 
+    /** Sample the GameClock once, then pass that time unchanged to input(). */
+    long inputTimeMs();
+
+    /** Chronological physical input, shared by manual input, Debug Auto, and local replay. */
+    void input(GameplayInput input);
+
     void click(double x, double y);
 
     default void press(GameInputAction action, double x, double y) {

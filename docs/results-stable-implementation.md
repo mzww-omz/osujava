@@ -11,3 +11,13 @@
 - 構文の根拠は[公式osu形式](https://osu.ppy.sh/wiki/en/Client/File_formats/osu_(file_format))。負のAudioLeadInはこのImporterでは不正値として扱う。
 
 検証: parser / library関連テストと`./gradlew --offline build`成功。全840テスト、失敗・error・skipは0。
+
+## P2: 入力と終了条件の基盤
+
+- `GameplayInput`は譜面時刻・sequence・座標・物理ボタン4種を保持。手動とDebug Autoを同じ`GameplaySession.input`へ接続した。判定中は採取済み時刻を使い、順序違反を状態変更前に拒否する。
+- 同じ論理actionをマウスとキーで保持しても、片方の解放ではreleaseせず、追加pressも発生させない。cursor描画へも同じ採取時刻を渡す。
+- MusicGameClockはAudioLeadIn中の負時刻、audio pause / resume、EOF後の単調進行を扱う。音源位置の後退を判定時計へ伝播しない。
+- GameplayScreenは全objectの処理完了と結果用deadlineで遷移し、EOFから`finish()`を呼んで未来objectを強制MISSにしない。既存の末尾＋2500msの待機は維持した。stable固有の終了演出時間として確定した値ではない。
+- 残り: slider scheduled判定と入力の時系列統合、fail / abort、replay記録。これだけでreplayのframe非依存性を達成したとは扱わない。
+
+検証: 捕捉後にclockが進んだ入力、同時刻の物理入力、順序違反、lead-in、pause、早いEOF、時計後退、終了gateの回帰テスト。関連テストと`./gradlew --offline build`成功（全847テスト）。

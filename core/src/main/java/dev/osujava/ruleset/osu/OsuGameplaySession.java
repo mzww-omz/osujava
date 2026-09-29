@@ -10,6 +10,7 @@ import dev.osujava.gameplay.FollowCircleAnimation;
 import dev.osujava.gameplay.GameplayAudioCue;
 import dev.osujava.gameplay.GameInputAction;
 import dev.osujava.gameplay.GameplaySession;
+import dev.osujava.gameplay.GameplayInput;
 import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.HitObjectVisual;
 import dev.osujava.gameplay.GameplayVisualTiming;
@@ -63,6 +64,32 @@ public final class OsuGameplaySession implements GameplaySession {
     private GameplayState state;
     private final Map<HitObject, Integer> beatmapIndices = new IdentityHashMap<>();
     private final List<Integer> visualOrder;
+    private Long inputTime;
+    private long lastInputSequence = -1;
+
+    @Override public long inputTimeMs() { return clock.nowMs(); }
+
+    private long nowMs() { return inputTime == null ? clock.nowMs() : inputTime; }
+
+    @Override
+    public void input(GameplayInput input) {
+        if (input.sequence() <= lastInputSequence || input.timeMs() < state.currentTimeMs())
+            throw new IllegalArgumentException("Gameplay input must precede updates and preserve sequence order");
+        lastInputSequence = input.sequence();
+        inputTime = input.timeMs();
+        try {
+            pointerMoved(input.x(), input.y());
+            for (GameInputAction action : GameInputAction.values()) {
+                if (!input.held(action) && pressedActions.contains(action)) release(action);
+            }
+            for (GameInputAction action : GameInputAction.values()) {
+                if (input.held(action) && !pressedActions.contains(action)) press(action, input.x(), input.y());
+            }
+            state = createState(input.timeMs());
+        } finally {
+            inputTime = null;
+        }
+    }
 
     public OsuGameplaySession(BeatmapDifficulty difficulty, GameClock clock, JudgementWindows windows) {
         for (int i = 0; i < difficulty.hitObjects().size(); i++)
@@ -115,14 +142,14 @@ public final class OsuGameplaySession implements GameplaySession {
 
     @Override
     public void click(double x, double y) {
-        // Legacy one-shot API used by tests and Debug Auto: each call is a fresh press.
+        // Compatibility one-shot API; physical adapters and Debug Auto use timestamped input().
         release(GameInputAction.LEFT);
         press(GameInputAction.LEFT, x, y);
     }
 
     @Override
     public void press(GameInputAction action, double x, double y) {
-        long now = clock.nowMs();
+        long now = nowMs();
         cursorX = x;
         cursorY = y;
         if (!pressedActions.add(action)) {
@@ -183,7 +210,7 @@ public final class OsuGameplaySession implements GameplaySession {
     public void pointerMoved(double x, double y) {
         cursorX = x;
         cursorY = y;
-        updateSpinnerRotation(clock.nowMs());
+        updateSpinnerRotation(nowMs());
     }
 
     @Override

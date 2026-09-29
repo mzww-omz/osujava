@@ -25,6 +25,7 @@ import dev.osujava.gameplay.GameplayRunMode;
 import dev.osujava.gameplay.GameplayState;
 import dev.osujava.gameplay.GameplayVisualConfig;
 import dev.osujava.gameplay.MusicGameClock;
+import dev.osujava.gameplay.GameplayCompletion;
 import dev.osujava.ruleset.osu.SliderPath;
 import dev.osujava.ruleset.osu.SliderTiming;
 import dev.osujava.ruleset.osu.DebugAutoPlayer;
@@ -39,6 +40,7 @@ public final class GameplayScreen extends ScreenAdapter {
     private final BeatmapSet set;
     private final BeatmapDifficulty difficulty;
     private final GameClock clock;
+    private final GameplayCompletion completion;
     private final GameplaySession session;
     private final GameplayRunMode runMode;
     private final UUID playId = UUID.randomUUID();
@@ -90,6 +92,8 @@ public final class GameplayScreen extends ScreenAdapter {
             }
         }
         long finishAt = lastObjectEnd + 2500;
+        this.completion = new GameplayCompletion(finishAt);
+        int leadIn = difficulty.playData().audioLeadInMs();
 
         Music loadedMusic = null;
         GameClock selectedClock;
@@ -99,7 +103,7 @@ public final class GameplayScreen extends ScreenAdapter {
             try {
                 loadedMusic = Gdx.audio.newMusic(Gdx.files.absolute(audioPath.toString()));
                 game.audioVolumes().musicGain(loadedMusic, 1);
-                MusicGameClock musicClock = new MusicGameClock(loadedMusic);
+                MusicGameClock musicClock = new MusicGameClock(loadedMusic, leadIn);
                 musicClock.start();
                 selectedClock = musicClock;
             } catch (GdxRuntimeException | IllegalArgumentException e) {
@@ -109,11 +113,11 @@ public final class GameplayScreen extends ScreenAdapter {
                     loadedMusic = null;
                 }
                 audioNotice = "Audio could not be opened; running with a local timer.";
-                selectedClock = new ElapsedGameClock(finishAt);
+                selectedClock = new ElapsedGameClock(finishAt, leadIn);
             }
         } else {
             audioNotice = "No audio file was found; running with a local timer.";
-            selectedClock = new ElapsedGameClock(finishAt);
+            selectedClock = new ElapsedGameClock(finishAt, leadIn);
         }
         this.music = loadedMusic;
         this.clock = selectedClock;
@@ -156,9 +160,8 @@ public final class GameplayScreen extends ScreenAdapter {
         GameplayState state = session.update();
         audioPlayer.play(session.drainAudioCues());
         if (autoPlayer != null) autoPlayer.afterSessionUpdate();
-        if (clock.finished() && !resultFinalized) {
+        if (completion.ready(state) && !resultFinalized) {
             resultFinalized = true;
-            session.finish();
             var identity = DifficultyIdentity.of(set.id(), difficulty);
             if (identity != null && runMode == GameplayRunMode.MANUAL)
                 game.localScores().save(new LocalScore(playId, identity,

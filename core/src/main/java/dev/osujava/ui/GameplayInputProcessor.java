@@ -5,7 +5,7 @@ import com.badlogic.gdx.Input;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.math.Vector2;
 import dev.osujava.gameplay.GameplaySession;
-import dev.osujava.gameplay.GameInputAction;
+import dev.osujava.gameplay.GameplayInput;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -17,6 +17,7 @@ public final class GameplayInputProcessor extends InputAdapter {
     private PlayfieldViewport viewport;
     private final Set<Integer> heldMouseButtons = new HashSet<>();
     private final Set<Integer> heldHitKeys = new HashSet<>();
+    private long sequence;
 
     public GameplayInputProcessor(GameplaySession session, Runnable onBack) {
         this(session, onBack, true);
@@ -36,7 +37,7 @@ public final class GameplayInputProcessor extends InputAdapter {
     public boolean touchDown(int screenX, int screenY, int pointer, int button) {
         if (!isHitButton(button)) return false;
         if (!manualGameplayInputEnabled) return true;
-        if (heldMouseButtons.add(button)) pressAt(screenX, screenY, actionForButton(button));
+        if (heldMouseButtons.add(button)) updatePointer(screenX, screenY);
         return true;
     }
 
@@ -45,7 +46,7 @@ public final class GameplayInputProcessor extends InputAdapter {
         if (!isHitButton(button)) return false;
         if (!manualGameplayInputEnabled) return true;
         heldMouseButtons.remove(button);
-        releaseIfIdle(actionForButton(button));
+        updatePointer(screenX, screenY);
         return true;
     }
 
@@ -66,13 +67,12 @@ public final class GameplayInputProcessor extends InputAdapter {
     private void updatePointer(int screenX, int screenY) {
         if (viewport == null) return;
         Vector2 osuPosition = toOsuPosition(screenX, screenY);
-        session.pointerMoved(osuPosition.x, osuPosition.y);
-    }
-
-    private void pressAt(int screenX, int screenY, GameInputAction action) {
-        if (viewport == null) return;
-        Vector2 osuPosition = toOsuPosition(screenX, screenY);
-        session.press(action, osuPosition.x, osuPosition.y);
+        int buttons = (heldMouseButtons.contains(Input.Buttons.LEFT) ? GameplayInput.MOUSE_LEFT : 0)
+                | (heldMouseButtons.contains(Input.Buttons.RIGHT) ? GameplayInput.MOUSE_RIGHT : 0)
+                | (heldHitKeys.contains(Input.Keys.Z) ? GameplayInput.KEY_LEFT : 0)
+                | (heldHitKeys.contains(Input.Keys.X) ? GameplayInput.KEY_RIGHT : 0);
+        long time = session.inputTimeMs();
+        session.input(new GameplayInput(time, sequence++, osuPosition.x, osuPosition.y, buttons));
     }
 
     private Vector2 toOsuPosition(int screenX, int screenY) {
@@ -90,7 +90,7 @@ public final class GameplayInputProcessor extends InputAdapter {
         }
         if (!manualGameplayInputEnabled) return isHitKey(keycode);
         if (isHitKey(keycode)) {
-            if (heldHitKeys.add(keycode)) pressAt(Gdx.input.getX(), Gdx.input.getY(), actionForKey(keycode));
+            if (heldHitKeys.add(keycode)) updatePointer(Gdx.input.getX(), Gdx.input.getY());
             return true;
         }
         return false;
@@ -101,26 +101,8 @@ public final class GameplayInputProcessor extends InputAdapter {
         if (!isHitKey(keycode)) return false;
         if (!manualGameplayInputEnabled) return true;
         heldHitKeys.remove(keycode);
-        releaseIfIdle(actionForKey(keycode));
+        updatePointer(Gdx.input.getX(), Gdx.input.getY());
         return true;
-    }
-
-    private void releaseIfIdle(GameInputAction action) {
-        if (!isActionHeld(action)) session.release(action);
-    }
-
-    private boolean isActionHeld(GameInputAction action) {
-        return action == GameInputAction.LEFT
-                ? heldMouseButtons.contains(Input.Buttons.LEFT) || heldHitKeys.contains(Input.Keys.Z)
-                : heldMouseButtons.contains(Input.Buttons.RIGHT) || heldHitKeys.contains(Input.Keys.X);
-    }
-
-    private GameInputAction actionForButton(int button) {
-        return button == Input.Buttons.LEFT ? GameInputAction.LEFT : GameInputAction.RIGHT;
-    }
-
-    private GameInputAction actionForKey(int keycode) {
-        return keycode == Input.Keys.Z ? GameInputAction.LEFT : GameInputAction.RIGHT;
     }
 
     private boolean isHitButton(int button) {

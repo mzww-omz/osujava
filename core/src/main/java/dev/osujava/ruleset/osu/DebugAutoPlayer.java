@@ -6,6 +6,7 @@ import dev.osujava.beatmap.HitObject;
 import dev.osujava.gameplay.ApproachTimeCalculator;
 import dev.osujava.gameplay.GameClock;
 import dev.osujava.gameplay.GameplaySession;
+import dev.osujava.gameplay.GameplayInput;
 import dev.osujava.gameplay.JudgementWindows;
 
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ public final class DebugAutoPlayer {
     private int targetIndex;
     private boolean targetStarted;
     private boolean primaryPressed;
+    private long sequence;
     private boolean releaseAfterUpdate;
     private double cursorX = 256;
     private double cursorY = 500;
@@ -78,8 +80,8 @@ public final class DebugAutoPlayer {
     /** Called after GameplaySession.update() so terminal Slider/Spinner input lasts through its final judgement. */
     public void afterSessionUpdate() {
         if (!releaseAfterUpdate) return;
-        session.pointerReleased();
         primaryPressed = false;
+        submit(clock.nowMs());
         releaseAfterUpdate = false;
         targetStarted = false;
         previousTargetEndMs = clock.nowMs();
@@ -109,8 +111,10 @@ public final class DebugAutoPlayer {
         moveTowards(position.x(), position.y(), object.timeMs(), now);
         if (now < object.timeMs()) return;
 
-        session.click(cursorX, cursorY);
-        session.pointerReleased();
+        primaryPressed = true;
+        submit(now);
+        primaryPressed = false;
+        submit(now);
         previousTargetEndMs = now;
         targetIndex++;
     }
@@ -122,15 +126,15 @@ public final class DebugAutoPlayer {
             BeatmapPoint position = stacking.position(object);
             moveTowards(position.x(), position.y(), object.timeMs(), now);
             if (now < object.timeMs()) return;
-            session.click(cursorX, cursorY);
             targetStarted = true;
             primaryPressed = true;
+            submit(now);
             return;
         }
 
         SliderTiming timing = target.sliderTiming();
         BeatmapPoint ball = target.sliderPath().positionAt(timing.progressAt(now));
-        moveCursor(ball.x(), ball.y());
+        moveCursor(ball.x(), ball.y(), now);
         if (now >= timing.endTimeMs()) releaseAfterUpdate = true;
     }
 
@@ -140,11 +144,11 @@ public final class DebugAutoPlayer {
         if (now < object.timeMs()) {
             moveTowards(spinnerX(object, object.timeMs()), spinnerY(object, object.timeMs()),
                     object.timeMs(), now);
-        } else moveCursor(spinnerX(object, now), spinnerY(object, now));
+        } else moveCursor(spinnerX(object, now), spinnerY(object, now), now);
         if (!targetStarted && now >= object.timeMs()) {
-            session.click(cursorX, cursorY);
             targetStarted = true;
             primaryPressed = true;
+            submit(now);
         }
         if (targetStarted && now >= object.endTimeMs()) releaseAfterUpdate = true;
     }
@@ -162,10 +166,15 @@ public final class DebugAutoPlayer {
         return elapsed * SPINNER_RPM * Math.PI * 2 / 60_000;
     }
 
-    private void moveCursor(double x, double y) {
+    private void moveCursor(double x, double y, long now) {
         cursorX = x;
         cursorY = y;
-        session.pointerMoved(x, y);
+        submit(now);
+    }
+
+    private void submit(long now) {
+        session.input(new GameplayInput(now, sequence++, cursorX, cursorY,
+                primaryPressed ? GameplayInput.MOUSE_LEFT : 0));
     }
 
     private void moveTowards(double targetX, double targetY, double targetTimeMs, long now) {
@@ -180,7 +189,7 @@ public final class DebugAutoPlayer {
                 : Math.max(0, Math.min(1, (now - movementStartMs) / (movementEndMs - movementStartMs)));
         double eased = 1 - (1 - p) * (1 - p);
         moveCursor(movementFromX + (targetX - movementFromX) * eased,
-                movementFromY + (targetY - movementFromY) * eased);
+                movementFromY + (targetY - movementFromY) * eased, now);
     }
 
     private record Target(HitObject object, SliderPath sliderPath, SliderTiming sliderTiming) {
