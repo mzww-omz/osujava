@@ -33,6 +33,7 @@ public final class CursorTrackingSession implements GameplaySession {
     @Override public PointerState pointerState() { return session.pointerState(); }
     @Override public GameplayState update() { return session.update(); }
     @Override public GameplayState state() { return session.state(); }
+    @Override public dev.osujava.score.ScoreDetails resultDetails() { return session.resultDetails(); }
     @Override public void finish() { session.finish(); }
     @Override public List<GameplayAudioCue> drainAudioCues() { return session.drainAudioCues(); }
 }

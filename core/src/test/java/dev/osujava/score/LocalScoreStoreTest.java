@@ -7,6 +7,35 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 class LocalScoreStoreTest {
     @TempDir Path root;
+    @Test void schemaTwoPreservesKnownFieldsAndDropsOnlyTransientStatistics() throws Exception {
+        var details = new ScoreDetails(ScoreDetails.SCORE_V1, "a".repeat(64), "b".repeat(32),
+                3, 2, 42, false, null, null, List.of(-10, 0, 10), null);
+        var original = score("set", "map.osu", 500, 1234, UUID.randomUUID());
+        var enriched = new LocalScore(original.playId(), original.difficulty(), original.playedAt(), original.result(), details);
+        var store = new LocalScoreStore(root);
+        assertTrue(store.save(enriched, GameplayRunMode.MANUAL));
+        var loaded = new LocalScoreStore(root).best(original.difficulty());
+        assertEquals(enriched.forStorage(), loaded);
+        assertNull(loaded.details().passed());
+        assertNull(loaded.details().health());
+        assertNull(loaded.details().hitErrors());
+        assertEquals(List.of(-10, 0, 10), details.hitErrors(), "Saving cannot clear the live result snapshot");
+        assertEquals(1234, ResultsSnapshot.saved(loaded).playedAt());
+        assertTrue(ResultsSnapshot.saved(loaded).savedScore());
+    }
+
+    @Test void schemaOneRemainsUnknownAndIsNeverRewrittenDuringRead() throws Exception {
+        var original = score("set", "map.osu", 500, 1234, UUID.randomUUID());
+        new LocalScoreStore(root).save(original, GameplayRunMode.MANUAL);
+        Path path = root.resolve(original.playId() + ".properties");
+        byte[] bytes = Files.readAllBytes(path);
+        var loaded = new LocalScoreStore(root).best(original.difficulty());
+        assertEquals(original, loaded);
+        assertNull(loaded.details().geki());
+        assertNull(loaded.details().perfect());
+        assertEquals("osujava-legacy-1", loaded.details().scoringVersion());
+        assertArrayEquals(bytes, Files.readAllBytes(path));
+    }
     static LocalScore score(String set, String path, long value, long time, UUID id) {
         return new LocalScore(id,new DifficultyIdentity(set,path),time,new ScoreState(value,0,123,91,9,0,0,.94));
     }

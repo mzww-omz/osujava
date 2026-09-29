@@ -1,6 +1,7 @@
 package dev.osujava.ui;
 
 import dev.osujava.score.LocalScore;
+import dev.osujava.score.ResultsSnapshot;
 import dev.osujava.score.DifficultyIdentity;
 import java.util.UUID;
 import java.time.Instant;
@@ -162,11 +163,12 @@ public final class GameplayScreen extends ScreenAdapter {
         if (autoPlayer != null) autoPlayer.afterSessionUpdate();
         if (completion.ready(state) && !resultFinalized) {
             resultFinalized = true;
+            var snapshot = new ResultsSnapshot(state.score(), session.resultDetails(), Instant.now().toEpochMilli(), runMode, false);
             var identity = DifficultyIdentity.of(set.id(), difficulty);
             if (identity != null && runMode == GameplayRunMode.MANUAL)
                 game.localScores().save(new LocalScore(playId, identity,
-                        Instant.now().toEpochMilli(), session.state().score()), runMode);
-            game.navigate(new ResultsScreen(game, set, difficulty, session.state().score(), runMode));
+                        snapshot.playedAt(), snapshot.score(), snapshot.details()), runMode);
+            game.navigate(new ResultsScreen(game, set, difficulty, snapshot));
             return;
         }
         renderer.render(set, difficulty, state, viewport, background, notice);

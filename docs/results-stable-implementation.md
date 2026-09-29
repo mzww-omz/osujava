@@ -21,3 +21,14 @@
 - 残り: slider scheduled判定と入力の時系列統合、fail / abort、replay記録。これだけでreplayのframe非依存性を達成したとは扱わない。
 
 検証: 捕捉後にclockが進んだ入力、同時刻の物理入力、順序違反、lead-in、pause、早いEOF、時計後退、終了gateの回帰テスト。関連テストと`./gradlew --offline build`成功（全847テスト）。
+
+## P3 / P5 / P7–P9: 判定と結果データの第一段階
+
+- NoModのScoreV1加算を独立クラスへ分離。combo加点は加算前combo、難易度倍率はHP / OD / CS / densityからSingle精度とties-to-evenで計算する。drain長は先頭startから末尾startまでの時間からbreakを引いた整数秒。根拠は`0600264d:10f3`、`06003c7a`、`06003c77`および[公開ScoreV1仕様](https://osu.ppy.sh/wiki/en/Gameplay/Score/ScoreV1/osu!)。
+- slider head / tick / repeat / tailを30 / 10 / 30 / 30点へ変更。headのtiming判定をaccuracyへ足さず、全nestedの取得率から実際の終端で1個の300 / 100 / 50 / MISSを確定する。tailの欠落は現在comboを切らない。終端はcomboを二重に増やさない。
+- combo-setのjudgement時の状態からGeki / Katuを数える。可能comboとPerfectを保存し、MISS数やgradeからPerfectを推定しない。成功したcircle / slider headだけから符号付きhit errorを採取する。URは母分散の平方根×10。
+- 結果遷移時に時刻・ScoreState・詳細をimmutable snapshotへ凍結。schema 2は譜面digest、scoringVersion、Geki / Katu / Perfect等を保存する。schema 1は読込可能で既存ファイルを書き換えない。未採取のHP / pass / RPMはnullのまま扱う。保存後の再閲覧用データからhit error / RPMを除き、判定合計から再構成しない。
+- 現段階のhealthは未採取。保存形式には上限付きinline health欄のみ追加した。圧縮sidecarとatomicな複数file更新はまだ導入していない。
+- 残り: spinnerのstable物理・点数、HP calibration / drain / fail、gradeのSingle境界、異なるscoringVersion間の順位分離、scheduled入力順。現在のversion文字列はこのローカル実装の識別子であり、stable全体の互換性保証ではない。
+
+検証: slider全取得・head欠落・tick欠落・tail欠落・headのみ・全欠落、終端時刻、combo-set重なり、UR採取除外、旧記録保持とschema 2 round-tripを追加。関連テストと`./gradlew --offline build`成功（全863テスト）。保存時に変更不要なimmutable recordは同一instanceを維持し、既存Song Selectの参照契約も維持した。

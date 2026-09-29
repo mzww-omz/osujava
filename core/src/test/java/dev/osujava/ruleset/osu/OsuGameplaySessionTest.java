@@ -160,8 +160,8 @@ class OsuGameplaySessionTest {
         session.pointerMoved(240, 100);
         GameplayState recovered = session.update();
         assertTrue(recovered.sliders().getFirst().tracking());
-        assertEquals(30, recovered.score().score());
-        assertEquals(1, recovered.score().misses());
+        assertEquals(10, recovered.score().score(), "ScoreV1 tick is 10 points");
+        assertEquals(0, recovered.score().misses(), "Head loss is not a top-level accuracy judgement");
     }
 
     @Test
@@ -178,9 +178,9 @@ class OsuGameplaySessionTest {
         session.click(100, 100);
         GameplayState state = session.state();
         assertTrue(state.sliders().getFirst().tracking());
-        assertTrue(state.score().score() > 50, "Passed ticks inside the expanded follow area are recovered");
-        assertEquals(1, state.score().count50());
-        assertEquals(1.0 / 6, state.score().accuracy(), 1e-6);
+        assertEquals(50, state.score().score(), "Head 30 plus two recovered 10-point ticks");
+        assertEquals(0, state.score().count50(), "Timing grade of the head does not enter ScoreV1 accuracy");
+        assertEquals(1, state.score().accuracy());
     }
 
     @Test
@@ -405,23 +405,27 @@ class OsuGameplaySessionTest {
 
         session.click(100, 100);
         assertTrue(session.state().sliders().getFirst().headHit());
-        assertEquals(1, session.state().score().count300());
+        assertEquals(0, session.state().score().count300());
 
         clock.set(1500);
         session.pointerMoved(240, 100);
-        assertEquals(330, session.update().score().score());
+        assertEquals(40, session.update().score().score());
         clock.set(2000);
         session.pointerMoved(380, 100);
-        assertEquals(360, session.update().score().score());
+        assertEquals(70, session.update().score().score());
         clock.set(2500);
         session.pointerMoved(240, 100);
-        assertEquals(390, session.update().score().score());
+        assertEquals(80, session.update().score().score());
         clock.set(2964);
         session.pointerMoved(110.08, 100);
+        GameplayState tail = session.update();
+        assertFalse(tail.completed(), "Tail leniency does not finalize the whole slider early");
+        assertEquals(110, tail.score().score());
+        clock.set(3000);
         GameplayState complete = session.update();
 
         assertTrue(complete.completed());
-        assertEquals(540, complete.score().score());
+        assertEquals(602, complete.score().score(), "110 nested + 300 final + (5-1)*12*4");
         assertEquals(1, complete.score().accuracy(), 1e-6);
         assertEquals(1, complete.score().count300());
         assertEquals(5, complete.score().combo());
@@ -439,7 +443,7 @@ class OsuGameplaySessionTest {
         clock.set(1500);
         GameplayState state = session.update();
 
-        assertEquals(1, state.score().count300());
+        assertEquals(0, state.score().count300(), "Slider accuracy is pending until its end");
         assertEquals(0, state.score().misses());
         assertEquals(0, state.score().combo());
         assertEquals(1, state.score().accuracy(), 1e-6);
@@ -490,7 +494,7 @@ class OsuGameplaySessionTest {
                 .filter(event -> event.type() == SliderEvent.Type.TICK && event.timeMs() <= clock.nowMs())
                 .count();
 
-        assertEquals(300 + 30 * ticksDueAtLeniencyStart, atLeniencyStart.score().score(),
+        assertEquals(30 + 10 * ticksDueAtLeniencyStart, atLeniencyStart.score().score(),
                 "The tail must wait while an earlier tick is still pending");
 
         clock.set((long) Math.ceil(timing.endTimeMs() - 17));
@@ -499,9 +503,12 @@ class OsuGameplaySessionTest {
         session.pointerMoved(ball.x(), ball.y());
         GameplayState afterLastTick = session.update();
 
-        assertEquals(300 + 30 * events.stream().filter(event -> event.type() == SliderEvent.Type.TICK).count() + 150,
+        assertEquals(30 + 10 * events.stream().filter(event -> event.type() == SliderEvent.Type.TICK).count() + 30,
                 afterLastTick.score().score());
-        assertTrue(afterLastTick.completed());
+        assertFalse(afterLastTick.completed());
+        clock.set((long) Math.ceil(timing.endTimeMs()));
+        assertTrue(session.update().completed());
+        assertEquals(1, session.state().score().count300());
     }
 
     @Test

@@ -73,7 +73,7 @@ class DebugAutoPlayerTest {
         assertFalse(auto.primaryPressed());
         assertTrue(result.completed());
         assertEquals(1, result.score().count300(), "Nested slider events do not count as circle judgements");
-        assertEquals(540, result.score().score());
+        assertEquals(602, result.score().score(), "ScoreV1: 110 nested + 300 final + 192 combo bonus");
         assertEquals(0, result.score().misses());
         assertEquals(1, result.score().accuracy(), 1e-6);
         assertFalse(result.sliders().getFirst().tracking());

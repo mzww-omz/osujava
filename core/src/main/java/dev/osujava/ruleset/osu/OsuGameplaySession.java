@@ -19,7 +19,7 @@ import dev.osujava.gameplay.Judgement;
 import dev.osujava.gameplay.JudgementVisual;
 import dev.osujava.gameplay.JudgementWindows;
 import dev.osujava.gameplay.OsuObjectGeometry;
-import dev.osujava.gameplay.ScoreTracker;
+import dev.osujava.score.ScoreDetails;
 import dev.osujava.gameplay.LegacyHudAnimation;
 import dev.osujava.gameplay.LegacySongProgress;
 import dev.osujava.gameplay.SliderNestedVisualTiming;
@@ -55,7 +55,11 @@ public final class OsuGameplaySession implements GameplaySession {
     private final JudgementWindows windows;
     private final LegacyHudAnimation hud = new LegacyHudAnimation();
     private final LegacySongProgress songProgress;
-    private final ScoreTracker score = new ScoreTracker();
+    private final OsuScoreV1 score;
+    private final OsuComboSets comboSets;
+    private final BeatmapDifficulty difficulty;
+    private final int possibleCombo;
+    private final List<Integer> hitErrors = new ArrayList<>();
     private final long preemptMs;
     private final double circleRadius;
     private double cursorX;
@@ -92,6 +96,9 @@ public final class OsuGameplaySession implements GameplaySession {
     }
 
     public OsuGameplaySession(BeatmapDifficulty difficulty, GameClock clock, JudgementWindows windows) {
+        this.difficulty = difficulty;
+        this.score = new OsuScoreV1(OsuScoreV1.difficultyMultiplier(difficulty));
+        this.comboSets = new OsuComboSets(difficulty.hitObjects());
         for (int i = 0; i < difficulty.hitObjects().size(); i++)
             beatmapIndices.put(difficulty.hitObjects().get(i), i);
         // HitObjectContainer.Compare: descending StartTime, then reverse child insertion ID.
@@ -120,6 +127,8 @@ public final class OsuGameplaySession implements GameplaySession {
                 .sorted(Comparator.comparingLong(HitObject::timeMs))
                 .map(object -> new SpinnerRuntime(object, difficulty.settings().overallDifficulty()))
                 .toList();
+        this.possibleCombo = circles.size() + spinners.size()
+                + sliders.stream().mapToInt(slider -> slider.events.size() + 1).sum();
         double first = difficulty.hitObjects().stream().filter(o -> o.type() != HitObject.Type.UNKNOWN)
                 .mapToDouble(HitObject::timeMs).min().orElse(Double.NaN);
         double last = Math.max(circles.stream().mapToDouble(HitObject::timeMs).max().orElse(first),
@@ -176,7 +185,8 @@ public final class OsuGameplaySession implements GameplaySession {
         if (circleCandidate != null && candidateObject == circles.get(circleCandidate.index())) {
             judgedCircles[circleCandidate.index()] = true;
             Judgement judgement = windows.judge(circleCandidate.offsetMs());
-            score.record(judgement);
+            recordObject(circles.get(circleCandidate.index()), judgement);
+            if (judgement != Judgement.MISS) hitErrors.add(Math.toIntExact(now - candidateObject.timeMs()));
             hud.changed(score.snapshot(), now);
             if (judgement != Judgement.MISS) emitHitSound(circles.get(circleCandidate.index()), now);
             recordVisualJudgement(circles.get(circleCandidate.index()), judgement, now);
@@ -190,7 +200,8 @@ public final class OsuGameplaySession implements GameplaySession {
                 slider.headAction = action;
                 slider.requiresHeadAction = pressedActions.contains(other(action));
             }
-            score.record(judgement);
+            score.nested(30, slider.headHit, true);
+            if (slider.headHit) hitErrors.add(Math.toIntExact(now - slider.object.timeMs()));
             hud.changed(score.snapshot(), now);
             if (slider.headHit) emitHitSound(slider.object, now);
             recordVisualJudgement(slider.object, judgement, now);
@@ -235,7 +246,7 @@ public final class OsuGameplaySession implements GameplaySession {
         for (int index = 0; index < circles.size(); index++) {
             if (!judgedCircles[index]) {
                 judgedCircles[index] = true;
-                score.record(Judgement.MISS);
+                recordObject(circles.get(index), Judgement.MISS);
                 hud.changed(score.snapshot(), now);
                 recordVisualJudgement(circles.get(index), Judgement.MISS, now);
             }
@@ -244,7 +255,7 @@ public final class OsuGameplaySession implements GameplaySession {
             if (!slider.headJudged) {
                 slider.headJudged = true;
                 slider.headJudgementTimeMs = now;
-                score.record(Judgement.MISS);
+                score.nested(30, false, true);
                 hud.changed(score.snapshot(), now);
                 recordVisualJudgement(slider.object, Judgement.MISS, now);
             }
@@ -252,10 +263,11 @@ public final class OsuGameplaySession implements GameplaySession {
                 if (!slider.eventJudged[index]) {
                     slider.eventJudged[index] = true;
                     OsuScoreEvent type = OsuScoreEvent.fromSliderEvent(slider.events.get(index).type());
-                    score.recordNestedHit(type.baseScore(), false, type.affectsCombo());
+                    score.nested(type.baseScore(), false, type.breaksComboOnMiss());
                     hud.changed(score.snapshot(), now);
                 }
             }
+            finishSlider(slider);
         }
         processSpinnerJudgements(now);
         state = createState(now);
@@ -264,6 +276,27 @@ public final class OsuGameplaySession implements GameplaySession {
     @Override
     public GameplayState state() {
         return state;
+    }
+
+    @Override public ScoreDetails resultDetails() {
+        return new ScoreDetails(ScoreDetails.SCORE_V1, difficulty.playData().sha256(), difficulty.playData().md5(),
+                comboSets.geki(), comboSets.katu(), possibleCombo, score.snapshot().maxCombo() >= possibleCombo,
+                null, null, hitErrors, null);
+    }
+
+    private void recordObject(HitObject object, Judgement judgement) {
+        comboSets.record(object, judgement);
+        score.record(judgement, object.type() != HitObject.Type.SLIDER);
+    }
+
+    private void finishSlider(SliderRuntime slider) {
+        if (slider.judgement != null) return;
+        int hits = slider.headHit ? 1 : 0;
+        for (boolean hit : slider.eventHit) if (hit) hits++;
+        int total = slider.events.size() + 1;
+        slider.judgement = hits == total ? Judgement.HIT300 : hits * 2 >= total ? Judgement.HIT100
+                : hits > 0 ? Judgement.HIT50 : Judgement.MISS;
+        recordObject(slider.object, slider.judgement);
     }
 
     @Override
@@ -307,7 +340,7 @@ public final class OsuGameplaySession implements GameplaySession {
         for (int index = 0; index < circles.size(); index++) {
             if (!judgedCircles[index] && now > circles.get(index).timeMs() + windows.hit50Ms()) {
                 judgedCircles[index] = true;
-                score.record(Judgement.MISS);
+                recordObject(circles.get(index), Judgement.MISS);
                 hud.changed(score.snapshot(), now);
                 recordVisualJudgement(circles.get(index), Judgement.MISS,
                         circles.get(index).timeMs() + windows.hit50Ms());
@@ -318,7 +351,7 @@ public final class OsuGameplaySession implements GameplaySession {
                 slider.headJudged = true;
                 slider.headHit = false;
                 slider.headJudgementTimeMs = Math.round(slider.object.timeMs() + windows.hit50Ms());
-                score.record(Judgement.MISS);
+                score.nested(30, false, true);
                 hud.changed(score.snapshot(), now);
                 recordVisualJudgement(slider.object, Judgement.MISS, slider.headJudgementTimeMs);
             }
@@ -337,6 +370,11 @@ public final class OsuGameplaySession implements GameplaySession {
                 if (now < dueAt) continue;
                 if (event.type() == SliderEvent.Type.TAIL && hasPendingEarlierEvent(slider, index)) continue;
                 judgeSliderEvent(slider, index, slider.tracking, now);
+            }
+            if (slider.judgement == null && now >= slider.timing.endTimeMs()
+                    && !hasPendingEarlierEvent(slider, slider.events.size())) {
+                finishSlider(slider);
+                hud.changed(score.snapshot(), now);
             }
         }
     }
@@ -385,7 +423,7 @@ public final class OsuGameplaySession implements GameplaySession {
                 ? slider.timing.endTimeMs() : now));
         Judgement judgement = hit ? Judgement.HIT300 : Judgement.MISS;
         OsuScoreEvent type = OsuScoreEvent.fromSliderEvent(event.type());
-        score.recordNestedHit(type.baseScore(), hit, type.affectsCombo());
+        score.nested(type.baseScore(), hit, type.breaksComboOnMiss());
         hud.changed(score.snapshot(), now);
         if (hit) {
             if (event.type() == SliderEvent.Type.TICK) emitAudioCue(now,
@@ -417,12 +455,12 @@ public final class OsuGameplaySession implements GameplaySession {
                         spinner.scoredSpins > spinner.requirements.spinsRequiredForBonus()
                                 && spinner.scoredSpins <= spinner.requirements.spinsRequiredForBonus() + spinner.requirements.maximumBonusSpins()));
                 if (spinner.scoredSpins <= spinner.requirements.spinsRequiredForBonus()) {
-                    score.recordBonusScore(OsuScoreEvent.SPINNER_SPIN.baseScore());
+                    score.bonus(OsuScoreEvent.SPINNER_SPIN.baseScore());
                     hud.changed(score.snapshot(), now);
                     emitAudioCue(now, OsuHitsoundSamples.spinnerSpin(timingAt(now), false), timingAt(now));
                 } else if (spinner.scoredSpins <= spinner.requirements.spinsRequiredForBonus()
                         + spinner.requirements.maximumBonusSpins()) {
-                    score.recordBonusScore(OsuScoreEvent.SPINNER_BONUS.baseScore());
+                    score.bonus(OsuScoreEvent.SPINNER_BONUS.baseScore());
                     hud.changed(score.snapshot(), now);
                     emitAudioCue(now, OsuHitsoundSamples.spinnerSpin(timingAt(now), true), timingAt(now));
                 }
@@ -438,7 +476,7 @@ public final class OsuGameplaySession implements GameplaySession {
                     : progress > 0.9 ? Judgement.HIT100
                     : progress > 0.75 ? Judgement.HIT50
                     : Judgement.MISS;
-            score.record(spinner.judgement);
+            recordObject(spinner.object, spinner.judgement);
             hud.changed(score.snapshot(), now);
             if (spinner.judgement != Judgement.MISS) emitHitSound(spinner.object, now);
             recordVisualJudgement(spinner.object, spinner.judgement, spinner.object.endTimeMs());
@@ -616,6 +654,7 @@ public final class OsuGameplaySession implements GameplaySession {
     private boolean allJudged() {
         for (boolean judged : judgedCircles) if (!judged) return false;
         for (SliderRuntime slider : sliders) {
+            if (slider.judgement == null) return false;
             if (!slider.headJudged) return false;
             for (boolean judged : slider.eventJudged) if (!judged) return false;
         }
@@ -652,7 +691,7 @@ public final class OsuGameplaySession implements GameplaySession {
             if (circle.timeMs() >= target.timeMs()) break;
             if (!judgedCircles[index]) {
                 judgedCircles[index] = true;
-                score.record(Judgement.MISS);
+                recordObject(circle, Judgement.MISS);
                 hud.changed(score.snapshot(), now);
                 recordVisualJudgement(circle, Judgement.MISS, now);
             }
@@ -662,7 +701,7 @@ public final class OsuGameplaySession implements GameplaySession {
             if (!slider.headJudged) {
                 slider.headJudged = true;
                 slider.headJudgementTimeMs = now;
-                score.record(Judgement.MISS);
+                score.nested(30, false, true);
                 hud.changed(score.snapshot(), now);
                 recordVisualJudgement(slider.object, Judgement.MISS, now);
             }
@@ -681,6 +720,7 @@ public final class OsuGameplaySession implements GameplaySession {
         private double ballRotationDegrees;
         private boolean headJudged;
         private boolean headHit;
+        private Judgement judgement;
         private boolean tracking;
         private GameInputAction headAction;
         private boolean requiresHeadAction;

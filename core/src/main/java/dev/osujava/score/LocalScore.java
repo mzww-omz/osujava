@@ -7,7 +7,10 @@ import java.util.Objects;
 import java.util.UUID;
 
 /** Immutable final gameplay snapshot. No invented player, mods, replay or fail fields. */
-public record LocalScore(UUID playId, DifficultyIdentity difficulty, long playedAt, ScoreState result) {
+public record LocalScore(UUID playId, DifficultyIdentity difficulty, long playedAt, ScoreState result, ScoreDetails details) {
+    public LocalScore(UUID playId, DifficultyIdentity difficulty, long playedAt, ScoreState result) {
+        this(playId, difficulty, playedAt, result, ScoreDetails.LEGACY);
+    }
     public static final Comparator<LocalScore> ORDER = Comparator
             .comparingLong((LocalScore s) -> s.result.score()).reversed()
             .thenComparing(Comparator.comparingDouble((LocalScore s) -> s.result.accuracy()).reversed())
@@ -15,6 +18,7 @@ public record LocalScore(UUID playId, DifficultyIdentity difficulty, long played
             .thenComparing(s -> s.playId.toString());
     public LocalScore {
         Objects.requireNonNull(playId); Objects.requireNonNull(difficulty); Objects.requireNonNull(result);
+        Objects.requireNonNull(details);
         if (playedAt < 0 || result.score() < 0 || result.combo() < 0 || result.maxCombo() < result.combo()
                 || result.count300() < 0 || result.count100() < 0 || result.count50() < 0 || result.misses() < 0
                 || !Double.isFinite(result.accuracy()) || result.accuracy() < 0 || result.accuracy() > 1)
@@ -22,5 +26,10 @@ public record LocalScore(UUID playId, DifficultyIdentity difficulty, long played
     }
     public OsuGrade grade() {
         return OsuGrade.calculate(result.count300(), result.count100(), result.count50(), result.misses());
+    }
+
+    public LocalScore forStorage() {
+        ScoreDetails stored = details.forStorage();
+        return stored == details ? this : new LocalScore(playId, difficulty, playedAt, result, stored);
     }
 }

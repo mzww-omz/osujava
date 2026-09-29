@@ -11,6 +11,8 @@ import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapSet;
 import dev.osujava.gameplay.ScoreState;
 import dev.osujava.gameplay.GameplayRunMode;
+import dev.osujava.score.ResultsSnapshot;
+import dev.osujava.score.ScoreDetails;
 import dev.osujava.ui.theme.BeatmapBackdrop;
 import dev.osujava.ui.theme.UiButton;
 import dev.osujava.ui.theme.UiLayout;
@@ -30,6 +32,7 @@ public final class ResultsScreen extends ScreenAdapter {
     private final BeatmapDifficulty difficulty;
     private final ScoreState score;
     private final GameplayRunMode runMode;
+    private final ResultsSnapshot snapshot;
     private final UiView view;
     private final UiTransition entrance = new UiTransition();
     private final UiNavigation outgoing = new UiNavigation();
@@ -43,7 +46,12 @@ public final class ResultsScreen extends ScreenAdapter {
 
     public ResultsScreen(OsuJavaGame game, BeatmapSet set, BeatmapDifficulty difficulty,
                          ScoreState score, GameplayRunMode runMode) {
-        this.game = game; this.set = set; this.difficulty = difficulty; this.score = score; this.runMode = runMode;
+        this(game, set, difficulty, new ResultsSnapshot(score, ScoreDetails.LEGACY, System.currentTimeMillis(), runMode, false));
+    }
+
+    public ResultsScreen(OsuJavaGame game, BeatmapSet set, BeatmapDifficulty difficulty, ResultsSnapshot snapshot) {
+        this.game = game; this.set = set; this.difficulty = difficulty; this.snapshot = snapshot;
+        this.score = snapshot.score(); this.runMode = snapshot.runMode();
         view = new UiView(game);
         scoreText = String.format(Locale.ROOT, "%,d", score.score());
         accuracyText = String.format(Locale.ROOT, "%.2f%%", score.accuracy() * 100);

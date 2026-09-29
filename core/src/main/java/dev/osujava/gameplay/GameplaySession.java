@@ -36,6 +36,8 @@ public interface GameplaySession {
 
     GameplayState state();
 
+    default dev.osujava.score.ScoreDetails resultDetails() { return dev.osujava.score.ScoreDetails.LEGACY; }
+
     default List<GameplayAudioCue> drainAudioCues() {
         return List.of();
     }
