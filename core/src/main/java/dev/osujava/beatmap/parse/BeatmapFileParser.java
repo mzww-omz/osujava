@@ -3,6 +3,8 @@ package dev.osujava.beatmap.parse;
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapFile;
 import dev.osujava.beatmap.BeatmapPoint;
+import dev.osujava.beatmap.BeatmapPlayData;
+import dev.osujava.beatmap.BreakPeriod;
 import dev.osujava.beatmap.DifficultySettings;
 import dev.osujava.beatmap.HitObject;
 import dev.osujava.beatmap.SliderData;
@@ -11,6 +13,7 @@ import dev.osujava.beatmap.TimingPoint;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -19,13 +22,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.HexFormat;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 public final class BeatmapFileParser {
     public BeatmapFile parse(Path path) throws IOException, BeatmapParseException {
-        return parse(Files.readString(path, StandardCharsets.UTF_8), path.getFileName().toString());
+        byte[] bytes = Files.readAllBytes(path);
+        return parse(StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString(),
+                path.getFileName().toString(), bytes);
     }
 
     public BeatmapFile parse(String source, String sourceName) throws BeatmapParseException {
+        return parse(source, sourceName, source.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private BeatmapFile parse(String source, String sourceName, byte[] bytes) throws BeatmapParseException {
         String text = source.startsWith("\uFEFF") ? source.substring(1) : source;
         int formatVersion = readFormatVersion(text, sourceName);
         Map<String, Map<String, String>> keyValues = new HashMap<>();
@@ -81,8 +93,17 @@ public final class BeatmapFileParser {
 
         List<TimingPoint> timingPoints = parseTimingPoints(timingLines);
         List<HitObject> hitObjects = parseHitObjects(objectLines);
+        BeatmapPlayData playData;
+        try {
+            int leadIn = Integer.parseInt(general.getOrDefault("audioleadin", "0").trim());
+            playData = new BeatmapPlayData(parseBreaks(eventLines), leadIn,
+                    digest(bytes, "SHA-256"), digest(bytes, "MD5"));
+        } catch (IllegalArgumentException e) {
+            throw new BeatmapParseException("Invalid break or AudioLeadIn in " + sourceName + ": " + e.getMessage(), e);
+        }
         BeatmapDifficulty difficulty = new BeatmapDifficulty(title, artist, creator, version, mode,
-                audioFilename, backgroundFilename, settings, timingPoints, hitObjects, null, null, null, integer(general.get("previewtime"), -1));
+                audioFilename, backgroundFilename, settings, timingPoints, hitObjects, null, null, null,
+                integer(general.get("previewtime"), -1), playData);
         return new BeatmapFile(formatVersion, title, titleUnicode, artist, artistUnicode, creator,
                 beatmapSetId, difficulty);
     }
@@ -230,6 +251,28 @@ public final class BeatmapFileParser {
             if (background) return fields.get(2).trim();
         }
         return "";
+    }
+
+    private List<BreakPeriod> parseBreaks(List<String> lines) {
+        List<BreakPeriod> breaks = new ArrayList<>();
+        for (String line : lines) {
+            List<String> fields = csv(line);
+            String type = fields.getFirst().trim();
+            if (!type.equals("2") && !type.equalsIgnoreCase("Break")) continue;
+            if (fields.size() != 3) throw new IllegalArgumentException("Break requires start and end time: " + line);
+            breaks.add(new BreakPeriod(Integer.parseInt(fields.get(1).trim()), Integer.parseInt(fields.get(2).trim())));
+        }
+        // Keep duplicate/overlapping intervals as source facts; don't silently merge or clip them here.
+        breaks.sort(Comparator.comparingInt(BreakPeriod::startTimeMs));
+        return breaks;
+    }
+
+    private static String digest(byte[] bytes, String algorithm) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance(algorithm).digest(bytes));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Required digest unavailable: " + algorithm, e);
+        }
     }
 
     private List<String> csv(String line) {

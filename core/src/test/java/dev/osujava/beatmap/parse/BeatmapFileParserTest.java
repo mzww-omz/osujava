@@ -1,18 +1,63 @@
 package dev.osujava.beatmap.parse;
 
 import dev.osujava.beatmap.BeatmapFile;
+import dev.osujava.beatmap.BreakPeriod;
 import dev.osujava.beatmap.HitObject;
 import dev.osujava.beatmap.SliderData;
 import dev.osujava.beatmap.SpinnerData;
 import dev.osujava.beatmap.TimingPoint;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import java.nio.file.Path;
+import java.nio.file.Files;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class BeatmapFileParserTest {
     private final BeatmapFileParser parser = new BeatmapFileParser();
+
+    @Test
+    void keepsBreaksLeadInAndOriginalByteDigestsAcrossAssetResolution(@TempDir Path dir) throws Exception {
+        String source = "\uFEFFosu file format v14\r\n[General]\r\nAudioLeadIn: 750\r\n[Events]\r\n"
+                + "2,3000,4000\r\nBreak,1000,2000\r\n";
+        Path path = dir.resolve("map.osu");
+        Files.writeString(path, source);
+        var difficulty = parser.parse(path).difficulty();
+        var data = difficulty.playData();
+        assertEquals(List.of(new BreakPeriod(1000, 2000), new BreakPeriod(3000, 4000)), data.breaks());
+        assertEquals(750, data.audioLeadInMs());
+        assertEquals("1862102c0dbefe2031383a7226556e88ffa7b8fc0e1cd4bec80d3c067778d865", data.sha256());
+        assertEquals("04f080035ff4c03cbba6eede5d103354", data.md5());
+        assertEquals(data, difficulty.withAssets(null, null).playData());
+        assertEquals(data, difficulty.withAssets(null, null, path).playData());
+        assertThrows(UnsupportedOperationException.class, () -> data.breaks().clear());
+        Files.writeString(path, source.replace("\r\n", "\n"));
+        assertNotEquals(data.sha256(), parser.parse(path).difficulty().playData().sha256());
+        assertNotEquals(data.md5(), parser.parse(path).difficulty().playData().md5());
+    }
+
+    @Test
+    void preservesOverlappingAndOutOfObjectRangeBreaksForRulesetInterpretation() throws Exception {
+        var data = parser.parse("osu file format v7\n[Events]\n2,20,100\nBreak,10,50\n2,20,100\n2,200,200",
+                "breaks.osu").difficulty().playData();
+        assertEquals(List.of(new BreakPeriod(10, 50), new BreakPeriod(20, 100),
+                new BreakPeriod(20, 100), new BreakPeriod(200, 200)), data.breaks());
+        assertEquals(0, data.audioLeadInMs());
+    }
+
+    @Test
+    void damagedNewFieldsProduceParseErrorsInsteadOfSilentlyChangingDrain() {
+        for (String event : List.of("2,20,10", "Break,0,NaN", "2,0,Infinity", "2,0", "2,0,2147483648")) {
+            assertThrows(BeatmapParseException.class, () -> parser.parse("osu file format v14\n[Events]\n" + event, "bad.osu"));
+        }
+        for (String value : List.of("invalid", "-1", "2147483648")) {
+            assertThrows(BeatmapParseException.class, () -> parser.parse("osu file format v14\n[General]\nAudioLeadIn:" + value, "bad.osu"));
+        }
+    }
 
     @Test
     void previewTimeSurvivesAssetResolutionAndDefaultsSafely() throws Exception {
