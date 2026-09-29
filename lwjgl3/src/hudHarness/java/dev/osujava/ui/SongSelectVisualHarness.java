@@ -162,7 +162,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}}) {
                 for (String fixture : List.of("all", "normal", "high", "missing", "malformed", "composite", "fallback", "bundled",
-                        "transparent", "asymmetric", "asymmetric-high", "oversized-hover", "mismatched-high", "tiny-chrome", "normal-bundled", "upper-chrome", "upper-chrome-high"))
+                        "transparent", "asymmetric", "asymmetric-high", "oversized-hover", "mismatched-high", "tiny-chrome", "normal-bundled", "v1-default-mods", "v1-custom-mods", "upper-chrome", "upper-chrome-high"))
                     scenes.add(new Scene(size[0],size[1],size[2],"phase5a-assets-" + fixture));
                 for (String state : toolboxStates()) {
                     scenes.add(new Scene(size[0],size[1],size[2],"phase5a-current-" + state));
@@ -189,6 +189,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 scenes.add(new Scene(Integer.getInteger("osujava.songSelectWidth", 1280),
                         Integer.getInteger("osujava.songSelectHeight", 720),
                         Integer.getInteger("osujava.songSelectDensity", 1), "configured"));
+            } else if (phase.equals("skin-contracts")) {
+                var cases = Set.of("phase5a-assets-normal", "phase5a-assets-normal-bundled",
+                        "phase5a-assets-v1-default-mods", "phase5a-assets-v1-custom-mods",
+                        "phase5a-assets-transparent", "phasechrome-bundled");
+                scenes.removeIf(scene -> !cases.contains(scene.name));
+                for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
+                    scenes.add(new Scene(1024,768,1,scene.name));
             } else if (phase.equals("selection-chrome")) {
                 scenes.removeIf(scene -> !scene.name.startsWith("phase5a-assets-upper-chrome")
                         && !scene.name.equals("phase5a-assets-composite") && !scene.name.equals("phase5a-current-mode-view"));
@@ -264,12 +271,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
 
     private void createToolboxFixtures() throws Exception {
         for (String name : List.of("all", "normal", "high", "missing", "malformed", "composite",
-                "transparent", "asymmetric", "asymmetric-high", "oversized-hover", "mismatched-high", "tiny-chrome", "normal-bundled", "upper-chrome", "upper-chrome-high")) {
+                "transparent", "asymmetric", "asymmetric-high", "oversized-hover", "mismatched-high", "tiny-chrome", "normal-bundled", "v1-default-mods", "v1-custom-mods", "upper-chrome", "upper-chrome-high")) {
             Path dir = Files.createDirectories(output.resolve("fixtures/toolbox-" + name));
-            Files.writeString(dir.resolve("skin.ini"),"[General]\nVersion: 2.5\n");
+            Files.writeString(dir.resolve("skin.ini"),"[General]\nVersion: " + (name.startsWith("v1-") ? "1" : "2.5") + "\n");
             if (name.equals("missing")) continue;
             for (var action : SongSelectSkinAssets.Selection.values()) for (var image : List.of(action.normal,action.hover)) {
                 if (name.startsWith("normal") && image == action.hover) continue;
+                if (name.equals("v1-default-mods") && action == SongSelectSkinAssets.Selection.MODS) continue;
                 int density = name.endsWith("high") ? 2 : 1;
                 Path file = dir.resolve(image.basename + (density == 2 ? "@2x" : "") + ".png");
                 if (name.equals("malformed")) { Files.writeString(file,"not a PNG"); continue; }
@@ -359,15 +367,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         }
         for (var image : List.of(SongSelectSkinAssets.Image.TOP, SongSelectSkinAssets.Image.BOTTOM)) {
             var asset = assets.get(image);
-            boolean missing = name.equals("phasechrome-missing") || name.equals("phasechrome-custom")
-                    && new SkinAssetResolver(customSkin).resolve(image.basename).isEmpty();
+            boolean missing = name.equals("phasechrome-missing");
             if (screen.renderedChromeProcedural(image) != missing || (asset == null) != missing)
                 throw new AssertionError("Chrome rendered the wrong branch: " + name + " " + image);
             if (name.equals("phasechrome-custom")) {
                 var local = new SkinAssetResolver(customSkin).resolve(image.basename);
                 if (local.isPresent() && (!asset.file().path().equals(local.get().path()) || asset.file().fallback()))
                     throw new AssertionError("Custom native chrome did not win: " + asset.file());
-                if (local.isEmpty() && asset != null) throw new AssertionError("Foreign custom chrome");
+                if (local.isEmpty() && (asset == null || !asset.file().fallback()))
+                    throw new AssertionError("Missing custom chrome did not resolve its fallback");
             }
             if (name.startsWith("phasechrome-current") && (asset.file().fallback() || asset.density() != 2
                     || !asset.file().path().equals(greylooks.resolve(image.basename + "@2x.png"))))
@@ -840,7 +848,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"),greylooks);
             case "bundled" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"),null);
             case "malformed" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/toolbox-malformed"),null);
-            case "normal-bundled" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/toolbox-normal-bundled"),null);
+            case "normal-bundled", "v1-default-mods", "v1-custom-mods" ->
+                    SkinAssetResolver.withBundledDefault(output.resolve("fixtures/toolbox-" + fixture),null);
             default -> new SkinAssetResolver(output.resolve("fixtures/toolbox-" + fixture));
         };
     }
@@ -950,17 +959,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
 
     private void assertToolbox(SongSelectScreen screen, SongSelectSkinAssets assets, String name, UiLayout layout) {
         var geometry = toolboxLayout(screen);
-        boolean authoredSurface = false;
-        for (var image : SongSelectSkinAssets.Image.values()) if (image == SongSelectSkinAssets.Image.TOP
-                || image == SongSelectSkinAssets.Image.BOTTOM || image == SongSelectSkinAssets.Image.BACK
-                || image == SongSelectSkinAssets.Image.MENU_BUTTON_BACKGROUND || SongSelectSkinAssets.Selection.of(image) != null)
-            authoredSurface |= assets.get(image) != null && assets.provider(image).equals("current");
         for (var image : List.of(SongSelectSkinAssets.Image.TOP,SongSelectSkinAssets.Image.BOTTOM)) {
-            if (authoredSurface && assets.get(image) != null && !assets.provider(image).equals("current"))
-                throw new AssertionError("Foreign chrome in authored Song Select: " + name + " " + image);
             if (screen.renderedChromeProcedural(image) != (assets.get(image) == null))
                 throw new AssertionError("Chrome rendering presence differs from provider resolution");
         }
+        if (assets.get(SongSelectSkinAssets.Image.TOP) != null
+                && !assets.topLayoutProvider().equals(assets.provider(SongSelectSkinAssets.Image.TOP)))
+            throw new AssertionError("Top layout used different artwork from rendering");
         System.out.println("CHROME OWNERSHIP " + name + " top-visual=" + assets.provider(SongSelectSkinAssets.Image.TOP)
                 + " top-layout=" + assets.topLayoutProvider() + " bottom-visual=" + assets.provider(SongSelectSkinAssets.Image.BOTTOM)
                 + " bottom-artwork=" + geometry.bottomImage + " bottom-reservation=" + geometry.chrome);
@@ -1019,7 +1024,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     art.x() + 125 * scale, art.y() + 45 * scale))
                 throw new AssertionError("Hover decoration expanded Mode input into Mods");
         }
-        boolean legacy = assets.configuration().legacyVersion() < 2;
+        boolean legacy = assets.legacySelectionAnchors();
+        if (name.equals("phase5a-assets-v1-default-mods") && (legacy || assets.configuration().legacyVersion() != 1))
+            throw new AssertionError("Built-in Mods did not select new anchors independently of Version 1");
+        if (name.equals("phase5a-assets-v1-custom-mods") && !legacy)
+            throw new AssertionError("Custom Mods did not retain Version 1 anchors");
         if (Math.abs(geometry.control(SongSelectSkinAssets.Selection.MODE).anchorX()
                 - (layout.width() > layout.height()*4/3 ? 224 : 192)*scale) > .01f)
             throw new AssertionError("Navigation origin depended on Back artwork");
@@ -1034,8 +1043,6 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     || control.interaction().width() > control.slot().width()+.01f || control.interaction().height() > control.slot().height()+.01f
                     || control.slot().x()+control.slot().width() > geometry.cookie.x()) throw new AssertionError("Toolbox geometry diverged");
             if (screen.renderedSelectionProcedural(action) != (assets.get(action.normal) == null)) throw new AssertionError("Current selection asset lost to procedural");
-            if (assets.provider(action.normal).equals("current") && assets.get(action.hover) != null
-                    && !assets.provider(action.hover).equals("current")) throw new AssertionError("Foreign hover in current visual family");
             for (var image : List.of(action.normal,action.hover)) {
                 var texture = assets.get(image);
                 var artwork = image == action.normal ? control.normal() : control.hover();
@@ -1059,8 +1066,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     if (local.isPresent() && (texture == null || texture.file().fallback() || !texture.file().path().equals(local.get().path())))
                         throw new AssertionError("Composite current asset replaced: " + image);
                 }
-                if ((name.equals("phase5a-assets-normal") || name.equals("phase5a-assets-normal-bundled"))
-                        && image == action.hover && texture != null) throw new AssertionError("Normal-only fixture supplied hover");
+                if (name.equals("phase5a-assets-normal") && image == action.hover && texture != null)
+                    throw new AssertionError("Normal-only fixture without fallback supplied hover");
+                if (name.equals("phase5a-assets-normal-bundled")
+                        && !assets.provider(image).equals(image == action.hover ? "bundled" : "current"))
+                    throw new AssertionError("Normal and hover did not resolve independently");
                 if (name.equals("phase5a-assets-high") && (texture == null || texture.density() != 2)) throw new AssertionError("Selection density lost");
                 String expected = name.equals("phase5a-assets-fallback") ? "fallback"
                         : name.equals("phase5a-assets-bundled") || name.equals("phase5a-assets-malformed") ? "bundled"
@@ -1270,6 +1280,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             report.append("\n");
         }
         report.append("skinVersion=").append(assets.configuration().legacyVersion()).append("\n");
+        report.append("legacySelectionAnchors=").append(assets.legacySelectionAnchors()).append("\n");
         for (var row : screen.rowGeometrySnapshot()) report.append(row).append("\n");
         try { Files.writeString(output.resolve(name + ".txt"), report); }
         catch (java.io.IOException e) { throw new RuntimeException(e); }

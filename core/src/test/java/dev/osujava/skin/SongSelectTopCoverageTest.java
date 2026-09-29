@@ -4,6 +4,18 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SongSelectTopCoverageTest {
+    @Test void extendedAreaUsesOnlyTheColumnThatIsActuallyDrawn() {
+        for (int density : new int[]{1, 2}) {
+            int width = 100 * density, height = 90 * density;
+            var transparentEdge = SongSelectTopCoverage.detect(width, height, density,
+                    (x,y) -> x == width - 2 && y == height - 1 ? 255 : 0);
+            assertEquals(90, transparentEdge.depth(90,100));
+            assertEquals(0, transparentEdge.depth(100,120));
+            var shortEdge = SongSelectTopCoverage.detect(width, height, density,
+                    (x,y) -> x == width - 2 || (x == width - 1 && y < 20 * density) ? 255 : 0);
+            assertEquals(20, shortEdge.depth(100,120));
+        }
+    }
     @Test void leftAndRightInsetsFollowVisiblePixelsRatherThanTransparentCanvas() {
         var coverage = SongSelectTopCoverage.detect(100,200,1,(x,y) -> y < (x < 50 ? 150 : 80) ? 200 : 0);
         assertEquals(150,coverage.depth(0,40));

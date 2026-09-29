@@ -11,6 +11,26 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class SkinAssetResolverTest {
     @TempDir Path directory;
+
+    @Test void providerRestrictedLookupKeepsIdentityWithoutCrossProviderFallback() throws IOException {
+        Path fallback = Files.createDirectory(directory.resolve("fallback"));
+        Files.createFile(directory.resolve("star.png"));
+        Files.createFile(fallback.resolve("star@2x.png"));
+        var resolver = SkinAssetResolver.withBundledDefault(directory, fallback);
+        for (var provider : SkinAssetResolver.Provider.values()) {
+            var file = resolver.resolveFromProvider("star", provider, candidate -> true).orElseThrow();
+            assertEquals(provider, file.provider());
+            assertEquals(provider != SkinAssetResolver.Provider.CUSTOM, file.fallback());
+            assertEquals(provider == SkinAssetResolver.Provider.BUNDLED, file.classpathResource() != null);
+            assertTrue(resolver.resolveFromProvider("star", provider, candidate -> false).isEmpty());
+        }
+        Files.delete(directory.resolve("star.png"));
+        assertTrue(resolver.resolveFromProvider("star", SkinAssetResolver.Provider.CUSTOM, f -> true).isEmpty());
+        assertEquals(SkinAssetResolver.Provider.FALLBACK, resolver.resolve("star").orElseThrow().provider());
+        assertThrows(IllegalArgumentException.class, () -> resolver.resolveFromProvider(
+                "../star", SkinAssetResolver.Provider.FALLBACK, f -> true));
+    }
+
     @Test void windowsNamesResolveIncludingNestedFontsSoundsAndExactNameCollisions() throws Exception {
         Path cursor = Files.createFile(directory.resolve("Cursor.PNG"));
         var resolver = new SkinAssetResolver(directory);

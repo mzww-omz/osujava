@@ -88,8 +88,13 @@ public final class SkinAssetResolver {
 
     /** Provider-local lookup for choosing a custom circle family before considering fallback skins. */
     Optional<AssetFile> resolveCustom(String name, Predicate<AssetFile> loadable) {
+        return resolveFromProvider(name, Provider.CUSTOM, loadable);
+    }
+
+    /** Restrict a dependent image to its owner's provider (stable cursor -> cursormiddle). */
+    Optional<AssetFile> resolveFromProvider(String name, Provider provider, Predicate<AssetFile> loadable) {
         validateName(name);
-        return resolveIn(Provider.CUSTOM, name, loadable);
+        return resolveIn(provider, name, loadable);
     }
 
     /** Skin samples use unindexed legacy names; indexed beatmap samples stay at the audio caller. */
@@ -119,11 +124,11 @@ public final class SkinAssetResolver {
             if (bundledRoot == null) return Optional.empty();
             String resource = bundledRoot + "/" + name;
             return SkinAssetResolver.class.getResource("/" + resource) == null ? Optional.empty()
-                    : Optional.of(new AssetFile(Path.of(resource), density, true, resource));
+                    : Optional.of(new AssetFile(Path.of(resource), density, Provider.BUNDLED, resource));
         }
         Path source = provider == Provider.CUSTOM ? directory : fallbackDirectory;
         Path file = SkinFiles.find(source, name);
-        return file == null ? Optional.empty() : Optional.of(new AssetFile(file, density, provider != Provider.CUSTOM));
+        return file == null ? Optional.empty() : Optional.of(new AssetFile(file, density, provider, null));
     }
 
     private static void validateName(String name) {
@@ -137,7 +142,8 @@ public final class SkinAssetResolver {
         return file.fallback();
     }
 
-    private enum Provider { CUSTOM, FALLBACK, BUNDLED }
+    /** Identity within this resolver; FALLBACK is an explicit local directory, not a beatmap skin. */
+    public enum Provider { CUSTOM, FALLBACK, BUNDLED }
 
     /** Legacy GetTextures("sliderb", animatable=true, separator=""). */
     public List<AssetFile> resolveSliderBall() {
@@ -258,9 +264,14 @@ public final class SkinAssetResolver {
                 });
     }
 
-    public record AssetFile(Path path, int density, boolean fallback, String classpathResource) {
+    public record AssetFile(Path path, int density, Provider provider, String classpathResource) {
+        public AssetFile(Path path, int density, boolean fallback, String classpathResource) {
+            this(path, density, classpathResource != null ? Provider.BUNDLED
+                    : fallback ? Provider.FALLBACK : Provider.CUSTOM, classpathResource);
+        }
         public AssetFile(Path path, int density, boolean fallback) { this(path, density, fallback, null); }
         public AssetFile(Path path, int density) { this(path, density, false); }
+        public boolean fallback() { return provider != Provider.CUSTOM; }
         public FileHandle handle() {
             return classpathResource == null ? Gdx.files.absolute(path.toAbsolutePath().toString())
                     : Gdx.files.classpath(classpathResource);

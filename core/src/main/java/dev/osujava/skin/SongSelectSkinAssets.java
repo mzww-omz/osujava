@@ -75,7 +75,6 @@ public final class SongSelectSkinAssets implements Disposable {
     private final Set<Image> generatedModes = java.util.EnumSet.noneOf(Image.class);
     private List<SkinTexture> backFrames = List.of();
     private SongSelectTopCoverage topCoverage;
-    private SkinTexture topLayoutFallback;
     private SongSelectBodyBounds rowBody = SongSelectBodyBounds.FULL;
     private SkinConfiguration configuration = SkinConfiguration.defaults();
     private final SkinAssetResolver resolver;
@@ -105,10 +104,8 @@ public final class SongSelectSkinAssets implements Disposable {
         this.resolver = resolver;
         try { configuration = resolver.readSelectedConfiguration(); }
         catch (IOException e) { log("Could not read skin.ini", e); }
-        var chromeLoaders = new EnumMap<Image, Predicate<SkinAssetResolver.AssetFile>>(Image.class);
         Predicate<SkinAssetResolver.AssetFile> backLoader = null;
         for (Image image : Image.values()) {
-            var pair = Selection.of(image);
             Predicate<SkinAssetResolver.AssetFile> load = file -> {
                 Texture texture = null;
                 try {
@@ -124,32 +121,6 @@ public final class SongSelectSkinAssets implements Disposable {
                                 + " provider=" + (file.classpathResource() != null ? "bundled" : file.fallback() ? "fallback" : "current")
                                 + " density=" + file.density() + " logical=" + file.logicalSize(texture.getWidth())
                                 + "x" + file.logicalSize(texture.getHeight()));
-                    if ((image == Image.MENU_BUTTON_BACKGROUND || image == Image.BACK
-                            || Selection.of(image) != null || image == Image.TOP) && Gdx.gl != null) {
-                        Pixmap pixels = null;
-                        try {
-                            pixels = new Pixmap(file.handle());
-                            Pixmap source = pixels;
-                            if (image == Image.TOP) {
-                                topCoverage = SongSelectTopCoverage.detect(pixels.getWidth(), pixels.getHeight(),
-                                        file.density(), (x,y) -> source.getPixel(x,y) & 255);
-                            } else if (image == Image.BACK) {
-                                selectionBounds.put(image, SelectionAssetBounds.detect(pixels.getWidth(), pixels.getHeight(),
-                                        file.density(), 224, 90, false, (x,y) -> source.getPixel(x,y) & 255));
-                            } else if (Selection.of(image) != null) {
-                                var action = Selection.of(image);
-                                boolean legacy = legacySelectionAnchors();
-                                selectionBounds.put(image, SelectionAssetBounds.detect(pixels.getWidth(), pixels.getHeight(),
-                                        file.density(), action.logicalWidth, legacy ? LEGACY_SELECTION_HEIGHT : 90, legacy,
-                                        (x, y) -> source.getPixel(x, y) & 255));
-                            } else {
-                                var body = SongSelectBodyBounds.detect(pixels.getWidth(), pixels.getHeight(),
-                                        (x, y) -> source.getPixel(x, y) & 255);
-                                rowBody = body;
-                            }
-                        } catch (GdxRuntimeException ignored) { /* Full-image bounds remain the safe default. */ }
-                        finally { if (pixels != null) pixels.dispose(); }
-                    }
                     return true;
                 } catch (GdxRuntimeException | IllegalArgumentException e) {
                     if (texture != null && !owned.contains(texture)) texture.dispose();
@@ -157,36 +128,20 @@ public final class SongSelectSkinAssets implements Disposable {
                     return false;
                 }
             };
-            if (image == Image.TOP || image == Image.BOTTOM) {
-                // Probe BOTH current chrome assets before deciding whether the surface needs a default.
-                // A valid transparent replacement is authored presence, just like other current art.
-                chromeLoaders.put(image, load);
-                resolver.resolveCustom(image.basename, load);
-            } else if (pair != null && image == pair.hover
-                    && get(pair.normal) != null && !get(pair.normal).file().fallback()) {
-                // An authored normal (including a transparent replacement) owns its hover family.
-                // Missing current hover retains normal artwork, rather than inventing foreign art/input.
-                resolver.resolveCustom(image.basename, load);
-            } else if (image == Image.BACK) {
+            if (image == Image.BACK) {
                 backLoader = load;
                 resolver.resolveAnimationFirstFrame(image.basename, load);
-
+            } else if (image == Image.CURSOR_MIDDLE) {
+                // Stable 06002ac0: middle follows the resolved cursor; trail resolves independently.
+                var cursor = get(Image.CURSOR);
+                if (cursor != null) resolver.resolveFromProvider(image.basename, cursor.file().provider(), load);
+            } else {
+                // Stable 0600136e resolves normal, hover, top and bottom independently.
+                resolver.resolve(image.basename, load);
             }
-            else resolver.resolve(image.basename, load);
         }
-        boolean authoredSurface = textures.entrySet().stream().anyMatch(entry ->
-                surfaceImage(entry.getKey()) && !entry.getValue().file().fallback());
-        // Decorative omissions in an authored browser surface use owned neutral UI underneath it.
-        // An empty/unloadable surface still uses the configured fallback and bundled default.
-        if (!authoredSurface) for (var image : new Image[]{Image.TOP, Image.BOTTOM})
-            if (!textures.containsKey(image)) resolver.resolve(image.basename, chromeLoaders.get(image));
-        if (authoredSurface && !textures.containsKey(Image.TOP)) {
-            // Preserve the established content reservation independently of decorative presence.
-            // Dropping fallback layout metrics would move rows/rankings into native composite art.
-            // This texture remains owned/disposed, but is never returned as rendering artwork.
-            resolver.resolve(Image.TOP.basename, chromeLoaders.get(Image.TOP));
-            topLayoutFallback = textures.remove(Image.TOP);
-        }
+        // Selection geometry depends on the resolved Mods provider, which may load after Mode.
+        for (var entry : textures.entrySet()) measureGeometry(entry.getKey(), entry.getValue());
         // Reserve all static interface images (including fallback chrome) before extra Back frames.
         var first = textures.get(Image.BACK);
         if (first != null) {
@@ -207,9 +162,32 @@ public final class SongSelectSkinAssets implements Disposable {
 
     }
 
-    private static boolean surfaceImage(Image image) {
-        return image == Image.TOP || image == Image.BOTTOM || image == Image.MENU_BUTTON_BACKGROUND
-                || image == Image.BACK || Selection.of(image) != null;
+    private void measureGeometry(Image image, SkinTexture asset) {
+        if (Gdx.gl == null || (image != Image.MENU_BUTTON_BACKGROUND && image != Image.BACK
+                && Selection.of(image) == null && image != Image.TOP)) return;
+        Pixmap pixels = null;
+        try {
+            pixels = new Pixmap(asset.file().handle());
+            Pixmap source = pixels;
+            if (image == Image.TOP) {
+                topCoverage = SongSelectTopCoverage.detect(pixels.getWidth(), pixels.getHeight(),
+                        asset.density(), (x,y) -> source.getPixel(x,y) & 255);
+            } else if (image == Image.BACK) {
+                selectionBounds.put(image, SelectionAssetBounds.detect(pixels.getWidth(), pixels.getHeight(),
+                        asset.density(), 224, 90, false, (x,y) -> source.getPixel(x,y) & 255));
+            } else if (Selection.of(image) != null) {
+                var action = Selection.of(image);
+                boolean legacy = legacySelectionAnchors();
+                selectionBounds.put(image, SelectionAssetBounds.detect(pixels.getWidth(), pixels.getHeight(),
+                        asset.density(), action.logicalWidth, legacy ? LEGACY_SELECTION_HEIGHT : 90, legacy,
+                        (x, y) -> source.getPixel(x, y) & 255));
+            } else {
+                var body = SongSelectBodyBounds.detect(pixels.getWidth(), pixels.getHeight(),
+                        (x, y) -> source.getPixel(x, y) & 255);
+                rowBody = body;
+            }
+        } catch (GdxRuntimeException ignored) { /* Full-image bounds remain the safe default. */ }
+        finally { if (pixels != null) pixels.dispose(); }
     }
 
     private static void log(String message, Exception error) {
@@ -229,20 +207,23 @@ public final class SongSelectSkinAssets implements Disposable {
         return asset == null ? "procedural" : asset.file().classpathResource() != null ? "bundled"
                 : asset.file().fallback() ? "fallback" : "current";
     }
-    /** Diagnostic provenance of content reservation; this does not imply visible chrome. */
+    /** Layout and rendering use the same resolved top artwork. */
     public String topLayoutProvider() {
-        var asset = get(Image.TOP) == null ? topLayoutFallback : get(Image.TOP);
+        var asset = get(Image.TOP);
         return asset == null ? "owned-minimum" : asset.file().classpathResource() != null ? "bundled"
                 : asset.file().fallback() ? "fallback" : "current";
     }
     public float topDepth(float start, float end) {
         var top = get(Image.TOP);
-        if (top == null) top = topLayoutFallback;
         return top == null ? 0 : topCoverage == null ? top.logicalHeight() : topCoverage.depth(start,end);
     }
     public SongSelectBodyBounds rowBody() { return rowBody; }
-    /** Stable's ordinary Version branch uses > 1.0, independently of the 2.2 thumbnail gate. */
-    public boolean legacySelectionAnchors() { return configuration.legacyVersion() <= 1; }
+    /** Stable 0600136e also uses new anchors when the resolved Mods normal is built-in. */
+    public boolean legacySelectionAnchors() {
+        var mods = get(Image.MODS);
+        return configuration.legacyVersion() <= 1
+                && (mods == null || mods.file().provider() != SkinAssetResolver.Provider.BUNDLED);
+    }
     public boolean thumbnailsEnabled() { return configuration.legacyVersion() >= 2.2; }
     public SkinConfiguration configuration() { return configuration; }
 
@@ -299,6 +280,5 @@ public final class SongSelectSkinAssets implements Disposable {
         fallbackStar = null;
         backFrames = List.of();
         topCoverage = null;
-        topLayoutFallback = null;
     }
 }
