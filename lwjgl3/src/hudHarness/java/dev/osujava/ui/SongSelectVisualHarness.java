@@ -87,7 +87,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
                 for (String name : List.of("phase2-idle", "phase2-long-english", "phase2-japanese", "phase2-chinese",
                         "phase2-korean", "phase2-symbols", "phase2-long-mapper", "phase2-long-difficulty",
-                        "phase2-no-rating", "phase2-low-rating", "phase2-five-stars", "phase2-fractional",
+                        "phase2-no-rating", "phase2-low-rating", "phase2-tenth-star", "phase2-five-stars", "phase2-fractional",
                         "phase2-high-rating", "phase2-hover", "phase2-missing-thumbnail", "phase2-portrait",
                         "phase2-wide", "phase2-missing-star", "phase2-broken-star", "phase2-high-star",
                         "phase2-v22", "phase2-thumbnail-fade", "phase2-default-fallback", "phase2-broken-thumbnail", "phase2-single", "phase2-many", "phase2-long-set"))
@@ -189,6 +189,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 scenes.add(new Scene(Integer.getInteger("osujava.songSelectWidth", 1280),
                         Integer.getInteger("osujava.songSelectHeight", 720),
                         Integer.getInteger("osujava.songSelectDensity", 1), "configured"));
+            } else if (phase.equals("star-contracts")) {
+                var cases = Set.of("phase2-no-rating", "phase2-low-rating", "phase2-tenth-star", "phase2-high-rating");
+                scenes.removeIf(scene -> !cases.contains(scene.name));
+                for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
+                    scenes.add(new Scene(1024,768,1,scene.name));
             } else if (phase.equals("skin-contracts")) {
                 var cases = Set.of("phase5a-assets-normal", "phase5a-assets-normal-bundled",
                         "phase5a-assets-v1-default-mods", "phase5a-assets-v1-custom-mods",
@@ -500,6 +505,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 diffs.add(diff);
                 double rating = switch (scene.name) {
                     case "phase2-low-rating" -> .65;
+                    case "phase2-tenth-star" -> 9.25;
                     case "phase2-five-stars", "phase25-rating-5" -> 5.42;
                     case "phase25-rating-3" -> 3.35;
                     case "phase25-rating-7" -> 7.65;
@@ -1222,7 +1228,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for (Object item : ((Map<?, ?>)field.get(screen)).values()) {
                 var content = (SongSelectRowPresentation.Content)item;
                 if (scene.equals("phase2-no-rating") && content.stars().present()) throw new AssertionError("Invented rating");
-                if (content.stars().count() > 9) throw new AssertionError("Unbounded stars");
+                if (content.stars().count() > 10) throw new AssertionError("Unbounded stars");
+                if (content.stars().present() && content.stars().slots() != 10)
+                    throw new AssertionError("Star background does not have ten slots");
+                if (scene.equals("phase2-tenth-star") && content.stars().present()
+                        && Math.abs(content.stars().fill(9) - .25f) > .0001f)
+                    throw new AssertionError("The tenth star lost its fractional foreground");
             }
             if (assets.starTexture() == null) throw new AssertionError("Missing procedural star fallback");
             if (scene.equals("phase2-v22")) {

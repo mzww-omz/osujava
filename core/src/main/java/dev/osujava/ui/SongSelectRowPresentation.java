@@ -51,29 +51,30 @@ final class SongSelectRowPresentation {
                 height - 16, height - 31, height - 48, height - 66);
     }
 
-    /** A bounded nine-slot star band; extreme ratings retain saturated icons and an honest label. */
+    /** Stable 06000fd2 creates ten background/foreground pairs; 06000fbd caps fill at ten. */
     record Stars(int count, float lastFill, String label) {
+        private static final int SLOT_COUNT = 10;
         static Stars of(OptionalDouble value) {
             if (value == null || value.isEmpty() || !Double.isFinite(value.getAsDouble()) || value.getAsDouble() < 0)
                 return new Stars(0, 0, "");
             double rating = value.getAsDouble();
-            int count = Math.max(1, (int) Math.ceil(Math.min(9, rating)));
-            float last = rating >= 9 ? 1 : (float) (rating - (count - 1));
+            int count = Math.max(1, (int) Math.ceil(Math.min(SLOT_COUNT, rating)));
+            float last = rating >= SLOT_COUNT ? 1 : (float) (rating - (count - 1));
             String label = rating >= 100 ? String.format(Locale.ROOT, "%.2g", rating)
                     : String.format(Locale.ROOT, "%.2f", rating);
             return new Stars(count, last, label);
         }
         boolean present() { return count > 0; }
-        float fill(int index) { return index >= count ? 0 : index == count - 1 ? lastFill : 1; }
-        int slots() { return count; }
+        float fill(int index) { return index < 0 || index >= count ? 0 : index == count - 1 ? lastFill : 1; }
+        int slots() { return present() ? SLOT_COUNT : 0; }
         float numericWidth() { return label.length() > 5 ? 64 : 42; }
         float width() { return present() ? slots() * 18 + numericWidth() : 0; }
         StarLayout layout(float available) {
             float width = Float.isFinite(available) ? Math.max(0, available) : 0;
             float numberWidth = Math.min(width, numericWidth());
-            float step = count == 0 ? 0 : Math.min(18, (width - numberWidth) / count);
+            float step = slots() == 0 ? 0 : Math.min(18, (width - numberWidth) / slots());
             // Preserve the numerical rating when there is no room for readable icons.
-            int icons = step >= 6 ? count : 0;
+            int icons = step >= 6 ? slots() : 0;
             return new StarLayout(icons, icons == 0 ? 0 : step, numberWidth);
         }
     }
