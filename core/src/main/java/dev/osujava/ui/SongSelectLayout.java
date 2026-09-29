@@ -17,7 +17,7 @@ final class SongSelectLayout {
     }
     record RowGeometry(int logicalIndex, boolean selected, boolean hovered,
                        float targetX, float targetY, Rect body, Rect thumbnail,
-                       Rect title, Rect metadata, Rect clip, Rect hit, float alpha, int zOrder,
+                       Rect title, Rect metadata, Rect inputClip, Rect hit, float alpha, int zOrder,
                        SongSelectRowPresentation.Geometry text) { }
     record Snapshot(SongSelectChrome.Content chrome, SongSelectToolboxLayout toolbox,
                     Rect viewport, Rect metadata, Rect search, ScoreBrowserBounds scores) { }
@@ -49,6 +49,6 @@ final class SongSelectLayout {
                 new Rect(row.x() + text.textX(), row.y() + text.titleY(), text.textWidth(), 16),
                 new Rect(row.x() + text.textX(), row.y() + text.starsY(), text.textWidth(), text.bylineY() - text.starsY() + 16),
                 clip, row.interactive() && row.revealAmount() >= .05f ? clip : new Rect(0, 0, 0, 0),
-                row.revealAmount(), row.selected() ? Integer.MAX_VALUE : index, text);
+                row.revealAmount(), index, text);
     }
 }

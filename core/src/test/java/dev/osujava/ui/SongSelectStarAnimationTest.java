@@ -122,18 +122,6 @@ class SongSelectStarAnimationTest {
         animation.advance(1600); assertEquals(.25f,animation.snapshot().backgroundOpacity(),.00001);
         animation.advance(1900); assertEquals(0,animation.snapshot().backgroundOpacity());
     }
-    @Test void retirementPreservesScaleMotionWhileFadingBothLayersForThreeHundredMilliseconds() {
-        var animation = new SongSelectStarAnimation(false,40);
-        animation.update(rating(1),false,1000,0);
-        animation.advance(1300);
-        float before=scale(animation,0);
-        animation.retire(1300,0); animation.advance(1450);
-        assertEquals(.5f,animation.snapshot().foregroundOpacity(),.00001);
-        assertEquals(.25f,animation.snapshot().backgroundOpacity(),.00001);
-        assertNotEquals(before,scale(animation,0));
-        animation.advance(1600); assertEquals(0,animation.snapshot().foregroundOpacity());
-        assertFalse(animation.finished(1600)); assertTrue(animation.finished(1601));
-    }
     @ParameterizedTest @ValueSource(ints={30,60,144})
     void absoluteTimeCurveSurvivesDifferentFrameRatesAndSnapshotsAreImmutable(int fps) {
         var animation = new SongSelectStarAnimation(false,40);

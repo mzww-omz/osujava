@@ -14,10 +14,8 @@ final class SongSelectStarAnimation {
     private final boolean cropped;
     private final int width;
     private final Scalar[] stars = new Scalar[10];
-    private final Scalar background = new Scalar(0), foreground = new Scalar(1);
+    private final Scalar background = new Scalar(0);
     private double rating = -1;
-    private boolean retired;
-    private long retirementEnd;
 
     SongSelectStarAnimation(boolean cropped, int logicalWidth) {
         this.cropped = cropped;
@@ -30,7 +28,7 @@ final class SongSelectStarAnimation {
 
     void update(SongSelectRowPresentation.Stars value, boolean instant, long now, int frameMs) {
         double next = value.present() ? Math.min(10, value.rating()) : -1;
-        if (!retired && next != rating) {
+        if (next != rating) {
             double previous = rating;
             rating = next;
             background.move(next < 0 ? 0 : 1, now - frameMs, now + (instant ? 0 : cropped ? 1000 : 600), 0, instant);
@@ -50,18 +48,8 @@ final class SongSelectStarAnimation {
         advance(now);
     }
 
-    /** Removed pairs keep their existing scale/crop transform while their opacity fades out. */
-    void retire(long now, int frameMs) {
-        retired = true;
-        retirementEnd = now + 300;
-        background.move(0, now - frameMs, retirementEnd, 0, false);
-        foreground.move(0, now - frameMs, retirementEnd, 0, false);
-    }
-
-    boolean finished(long now) { return retired && now > retirementEnd; }
-
     void advance(long now) {
-        background.advance(now); foreground.advance(now);
+        background.advance(now);
         for (var star : stars) {
             star.advance(now);
             // Sprite width is an integer; scale remains float (060040b0).
@@ -73,7 +61,7 @@ final class SongSelectStarAnimation {
         var glyphs = new ArrayList<Glyph>(10);
         for (var star : stars) glyphs.add(cropped
                 ? new Glyph(1, Math.max(0, Math.min(1, star.current / width))) : new Glyph(star.current, 1));
-        return new Snapshot(cropped, background.current, foreground.current, glyphs);
+        return new Snapshot(cropped, background.current, 1, glyphs);
     }
 
     /** Native easing IDs 0=linear, 7=out cubic, 30=out back (06002b54). */

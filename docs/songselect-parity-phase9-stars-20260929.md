@@ -1,5 +1,7 @@
 # Song Select parity: phase 9 — 星の生成・遷移・破棄
 
+> 更新: 本報告の「削除後も300ms fadeを描画する」という寿命の解釈は、後続の[composition調査](songselect-parity-phase9-composition-20260929.md)で訂正した。fade設定自体は存在するが、毎frame managerをclearして現在のrow listだけを再登録するため、削除された星は次のdrawには残らない。Javaのretiring-star保持・描画経路も削除済み。以下はこの訂正前の実装記録である。
+
 2026-09-29。[背景色animation](songselect-parity-phase9-colour-animation-20260929.md)に続き、
 foregroundのうち星20 spriteの寿命と時間変化を対応した。
 8bの追加実装は行っていない。phase 9全体の完了ではなく、文字・thumbnail・mode/gradeは残る。

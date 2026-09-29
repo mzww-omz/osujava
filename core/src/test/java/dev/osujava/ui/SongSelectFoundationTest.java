@@ -172,10 +172,10 @@ class SongSelectFoundationTest {
                 600, 80, 1, 1);
         var geometry = SongSelectLayout.row(row, 4, 700, 200, ui.width(), layout.chrome().bottom(), layout.chrome().carouselTop(), true, false);
         assertEquals(4, geometry.logicalIndex());
-        assertEquals(Integer.MAX_VALUE, geometry.zOrder());
-        assertEquals(geometry.clip(), geometry.hit());
-        assertEquals(300, geometry.clip().width(), .001);
-        assertEquals(60, geometry.clip().height(), .001);
+        assertEquals(4, geometry.zOrder());
+        assertEquals(geometry.inputClip(), geometry.hit());
+        assertEquals(300, geometry.inputClip().width(), .001);
+        assertEquals(60, geometry.inputClip().height(), .001);
         assertEquals(80f * 5.2f / 48, geometry.thumbnail().x() - row.x(), .001);
         assertEquals(80f * 85.5f / 76.8f, geometry.thumbnail().height(), .001);
         assertEquals(80f * 114 / 76.8f, geometry.thumbnail().width(), .001);

@@ -54,7 +54,6 @@ final class SongSelectRenderer {
         List<BeatmapSet> sets,
         List<SongSelectRow> visibleRows,
         List<SongSelectRowRenderer.Presentation> rowPresentations,
-        List<SongSelectRowRenderer.RetiringStars> retiringStars,
         Texture rowFill,
         SongSelectDetails details,
         SongSelectToolboxLayout bottomLayout,
@@ -100,6 +99,10 @@ final class SongSelectRenderer {
         view.background(frame.background, .72f * frame.backgroundFade);
         view.beginShapes();
         view.box(0, 0, layout.width(), layout.height(), 0, DIM);
+        view.endShapes();
+        SongSelectDecorations.draw(view,batch,frame.skin,layout,frame.seconds,frame.previewSeconds,frame.selectedDifficulty);
+        drawRows(layout);
+        view.beginShapes();
         renderedTopProcedural = SongSelectChrome.procedural(frame.skin, Image.TOP);
         renderedBottomProcedural = SongSelectChrome.procedural(frame.skin, Image.BOTTOM);
         if (renderedTopProcedural) view.box(0, layout.height() - 112, layout.width() * .52f, 112, 0, TOP);
@@ -107,8 +110,6 @@ final class SongSelectRenderer {
 
         if (renderedBottomProcedural) view.box(0, 0, layout.width(), frame.bottom, 0, BOTTOM);
         view.endShapes();
-        SongSelectDecorations.draw(view,batch,frame.skin,layout,frame.seconds,frame.previewSeconds,frame.selectedDifficulty);
-        drawRows(layout);
         var thumb = SongSelectScrollbar.thumb(layout.width(),frame.bottom,frame.top,frame.scrollOffset,frame.scrollRange);
         if (thumb.height() > 0) {
             view.beginShapes();
@@ -285,8 +286,8 @@ final class SongSelectRenderer {
     }
 
     private void drawRows(UiLayout layout) {
-        rowRenderer.draw(frame.rowPresentations, frame.retiringStars, new SongSelectRowRenderer.Style(frame.contentWidth, frame.skin, frame.rowFill,
-                frame.activeText, frame.inactiveText, frame.showThumbnails), layout, frame.bottom, frame.top);
+        rowRenderer.draw(frame.rowPresentations, new SongSelectRowRenderer.Style(frame.contentWidth, frame.skin, frame.rowFill,
+                frame.activeText, frame.inactiveText, frame.showThumbnails));
         if (frame.visibleRows.isEmpty()) {
             view.beginShapes();
             view.box(layout.width() * .59f, frame.bottom + 155, layout.width() * .38f, 66, 0, LEFT);

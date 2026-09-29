@@ -1,5 +1,7 @@
 # Song Select parity: phase 9 — foregroundの遷移・配置・thumbnail
 
+> 更新: 本報告で残したdepth／blend／clipとhidden・非resident消去は、後続の[composition調査・実装](songselect-parity-phase9-composition-20260929.md)で対応した。hidden行に追加の200／300ms残像は描画されず、既存の即時除外が正しい。以下の残課題欄は本報告時点の記録である。
+
 2026-09-29。[星の対応](songselect-parity-phase9-stars-20260929.md)に続き、
 文字・mode／grade・thumbnailを同じ変更単位で対応した。
 専用worktree `/home/coder/worktrees/osujava-songselect-phase8b`、branch `codex/songselect-phase8b`。

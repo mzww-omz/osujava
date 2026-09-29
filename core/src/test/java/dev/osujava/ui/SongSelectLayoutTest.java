@@ -50,7 +50,7 @@ class SongSelectLayoutTest {
             assertTrue(row.contains(layout.width() - 1, 330));
         }
     }
-    @Test void hitPriorityMatchesSelectedLastCompositingAndClipping() {
+    @Test void existingBodyHitApproximationKeepsSelectedPriorityAndContentBounds() {
         var selected = row(0, true, 1);
         var last = row(1, false, 1);
         assertSame(selected, SongSelectRow.hit(List.of(selected, last), 600, 110, 84, 600));
@@ -66,7 +66,7 @@ class SongSelectLayoutTest {
         assertSame(group, SongSelectRow.hit(List.of(group), 600, 110, 84, 600));
         assertNull(SongSelectRow.hit(List.of(group), 600, 82, 84, 600));
         var geometry = SongSelectLayout.row(group, 0, 500, 80, 1280, 84, 600, false, false);
-        assertEquals(geometry.clip(), geometry.hit());
+        assertEquals(geometry.inputClip(), geometry.hit());
         assertEquals(84, geometry.hit().y());
     }
     private SongSelectRow row(int set, boolean selected, float reveal) {

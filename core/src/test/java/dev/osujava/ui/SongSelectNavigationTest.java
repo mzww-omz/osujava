@@ -67,7 +67,42 @@ class SongSelectNavigationTest {
                 .filter(p -> p.row().key().equals(key)).findFirst().orElseThrow();
     }
 
-    @Test void selectedDifficultyChangesKeepExistingStarSpritesAndCollapseRetiresThemAtTheirLastPosition() throws Exception {
+    @Test void residentBufferRowsRemainInDrawListEvenOutsideTheInputReservation() throws Exception {
+        for (int i = 0; i < 25; i++) {
+            String title = "Z%02d".formatted(i);
+            var diff = new BeatmapDifficulty(title,"Artist","Creator","Easy",0,"","",DifficultySettings.defaults(),
+                    List.of(),List.of(),null,null);
+            library.add(new BeatmapSet(title,title,"Artist","Creator",null,null,List.of(diff),List.of()));
+        }
+        open("Z10",0); screen.resize(1280,720); settle(); updatePointer(1280,720,.016f);
+        var model = (SongSelectCarousel)field("carousel");
+        var drawn = ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast).toList();
+        assertEquals(model.rows().stream().filter(model::presents).map(r -> r.entry.key()).toList(),
+                drawn.stream().map(p -> p.row().key()).toList(), "Publish the complete resident draw list in browser order");
+        float bottom = (float)field("bottom"), top = (float)field("top");
+        var outside = drawn.stream().filter(p -> p.row().y() > top || p.row().y()+p.row().height() < bottom).toList();
+        assertFalse(outside.isEmpty(), "Fixture must include a row beyond the input reservation");
+        for (var p : outside) {
+            assertEquals(0, p.geometry().hit().height());
+            assertEquals(p.row().logicalIndex(), p.geometry().zOrder());
+        }
+    }
+
+    @Test void searchDropsHiddenSpritesFromTheVeryNextDrawSnapshot() throws Exception {
+        testRating = java.util.OptionalDouble.of(4);
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,.016f);
+        String original = ((SongBrowserModel)field("browser")).selectedKey();
+        assertFalse(presentation(original).stars().glyphs().isEmpty());
+        processor.keyTyped('G'); updatePointer(1280,720,0);
+        var drawn = ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast).toList();
+        assertFalse(drawn.isEmpty());
+        assertTrue(drawn.stream().allMatch(p -> p.row().setIndex() == 2));
+        for (String field : List.of("rowColours", "rowStars", "rowForeground"))
+            assertTrue(((java.util.Map<?,?>)field(field)).keySet().stream().map(SongSelectCarousel.Row.class::cast)
+                    .noneMatch(r -> r.entry.key().equals(original)), field);
+    }
+
+    @Test void selectionPreservesStarsButCollapseRemovesThemBeforeTheNextDraw() throws Exception {
         testRating = java.util.OptionalDouble.of(3.25);
         open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,.016f);
         var model = (SongBrowserModel)field("browser");
@@ -76,19 +111,15 @@ class SongSelectNavigationTest {
         assertEquals(.6f,first.glyphs().getFirst().scale(),.000001);
         key(Input.Keys.DOWN); updatePointer(1280,720,0);
         assertEquals(first,presentation(original).stars(),"Selection tint changes do not recreate stars");
-        var before = presentation(original);
         key(Input.Keys.RIGHT); updatePointer(1280,720,0);
-        var retired = ((List<?>)field("retiringStarPresentations")).stream()
-                .map(SongSelectRowRenderer.RetiringStars.class::cast).filter(p -> p.row().key().equals(original)).findFirst().orElseThrow();
-        assertEquals(before.row().x(),retired.row().x()); assertEquals(before.row().y(),retired.row().y());
-        assertEquals(1,retired.stars().foregroundOpacity());
+        assertEquals(SongSelectStarAnimation.Snapshot.EMPTY, presentation(original).stars());
+        assertEquals(1, presentation(original).foreground().detailOpacity(), .00001);
         updatePointer(1280,720,.15f);
-        retired = ((List<?>)field("retiringStarPresentations")).stream().map(SongSelectRowRenderer.RetiringStars.class::cast)
-                .filter(p -> p.row().key().equals(original)).findFirst().orElseThrow();
-        assertEquals(.5f,retired.stars().foregroundOpacity(),.00001);
-        assertEquals(before.row().x(),retired.row().x()); assertEquals(before.row().y(),retired.row().y());
+        assertEquals(SongSelectStarAnimation.Snapshot.EMPTY, presentation(original).stars());
+        assertEquals(.5f, presentation(original).foreground().detailOpacity(), .00001);
         updatePointer(1280,720,.152f);
-        assertTrue(((List<?>)field("retiringStarPresentations")).isEmpty());
+        assertEquals(SongSelectStarAnimation.Snapshot.EMPTY, presentation(original).stars());
+        assertEquals(0, presentation(original).foreground().detailOpacity());
     }
 
     @Test void expandingResidentSetAnimatesItsRepresentativeAndSearchRecreationResetsStars() throws Exception {

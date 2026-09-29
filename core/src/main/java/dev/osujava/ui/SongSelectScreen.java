@@ -46,12 +46,8 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final Color rowBaseColour = new Color();
     private double rowColourTimeMs;
     private static final class RowStars { SongSelectStarAnimation animation; }
-    private record RetiringStars(SongSelectStarAnimation animation, SongSelectRow row,
-                                 SongSelectLayout.RowGeometry geometry, int tintRgba) { }
     private final Map<SongSelectCarousel.Row, RowStars> rowStars = new IdentityHashMap<>();
     private final Map<SongSelectCarousel.Row, SongSelectForegroundAnimation> rowForeground = new IdentityHashMap<>();
-    private final List<RetiringStars> retiringStars = new ArrayList<>();
-    private List<SongSelectRowRenderer.RetiringStars> retiringStarPresentations = List.of();
     private String geometryViewport;
     private SongSelectSkinAssets skin;
     private SongSelectCursor cursor;
@@ -278,7 +274,6 @@ public final class SongSelectScreen extends ScreenAdapter {
                 sets,
                 visibleRows,
                 rowPresentations,
-                retiringStarPresentations,
                 rowFill,
                 details,
                 bottomLayout,
@@ -542,7 +537,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         for (SongSelectCarousel.Row entry : carousel.rows()) {
             if (!carousel.presents(entry)) continue;
             float y = carousel.renderY(entry, top);
-            if (y + carousel.rowHeight() < bottom || y > top) continue;
+            // Resident buffer rows may have artwork extending beyond their body into the viewport.
             int setIndex = entry.entry.setIndex(), diffIndex = entry.entry.difficultyIndex();
             boolean selected = setIndex == selectedSetIndex && diffIndex == selectedDifficultyIndex;
             var target = carousel.targetPosition(entry.logicalIndex, layout.width(), top);
@@ -660,25 +655,13 @@ public final class SongSelectScreen extends ScreenAdapter {
             if (model.state.ordinal() >= SongBrowserModel.RowState.SINGLETON.ordinal()) {
                 if (state.animation == null) state.animation = new SongSelectStarAnimation(cropped, width);
                 state.animation.update(rowContent.get(model.difficulty).stars(), created && row.instantSprites, now, frameMs);
-            } else if (state.animation != null) {
-                var previous = rowPresentations.stream().filter(p -> p.row().key().equals(row.entry.key())).findFirst().orElse(null);
-                if (previous != null) {
-                    state.animation.retire(now, frameMs);
-                    Color tint = previous.row().selected() ? activeText : inactiveText;
-                    retiringStars.add(new RetiringStars(state.animation, previous.row(), previous.geometry(),
-                            Color.rgba8888(tint == null ? UiTheme.TEXT : tint)));
-                }
+            } else {
+                // 06003267 clears the manager each frame; 06000fd2 removes these pairs
+                // before resubmission. Its fade transforms do not create visible afterimages.
                 state.animation = null;
             }
         }
         rowStars.keySet().retainAll(residents);
-        retiringStars.removeIf(stars -> stars.animation().finished(now));
-        var snapshots = new ArrayList<SongSelectRowRenderer.RetiringStars>();
-        for (var stars : retiringStars) {
-            stars.animation().advance(now);
-            snapshots.add(new SongSelectRowRenderer.RetiringStars(stars.row(), stars.geometry(), stars.animation().snapshot(), stars.tintRgba()));
-        }
-        retiringStarPresentations = List.copyOf(snapshots);
     }
 
     private boolean croppedStars() {
