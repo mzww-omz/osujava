@@ -1,5 +1,10 @@
 # Song Select architecture decision
 
+> Historical decision. The user's 1:1 parity objective now permits necessary large
+> changes. [The 2026-09-29 reinvestigation](songselect-parity-reinvestigation-20260929.md)
+> supersedes the requirements to retain the spring, existing row model and schema.
+> Responsibility separation remains required; implementation structure is not fixed.
+
 Phase C, before implementation. Follow the stable specification and confidence
 ledger; do not relabel inherited constants as newly measured stable behavior.
 

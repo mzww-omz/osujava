@@ -1,5 +1,10 @@
 # Song Select redevelopment: reference audit
 
+> The [2026-09-29 reinvestigation](songselect-parity-reinvestigation-20260929.md)
+> supersedes the recommendations below to retain deliberate behavioral differences.
+> It also corrects the row-state interpretation and identifies structural changes
+> required for the user's 1:1 parity objective. Earlier observations remain historical evidence.
+
 Audit date: 2026-09-28. This is a provenance record, not a claim of exact stable parity. Read together with [architecture](architecture.md), [browser](songselect-browser.md), [carousel](songselect-carousel.md), [skin compatibility](songselect-skin-compatibility.md), [placement](songselect-placement.md), and [toolbox](songselect-toolbox.md). Earlier phase documents describe historical states: notably Mode/Mods controls, local scores and played colours now exist, although some earlier documents call them deferred.
 
 ## Supplied stable reference and investigation boundary
@@ -147,7 +152,7 @@ The display scale getter `0x06001dcb` divides the display-height field `0x040013
 
 Keyboard handler `0x06003247` maps Page Up/Down to **−10/+10 eligible entries**, Up/Down to **−1/+1**, and ordinary Left/Right to a separate group/Set candidate policy. The Page keys therefore do not derive their travel from viewport height. The broad public-wiki description “page scroll” does not specify this build's actual step count.
 
-Shared traversal `0x06003276` walks the row list cyclically, counts eligible candidates, skips excluded/collapsed candidates and stops traversal if it returns to the starting index. On that full-loop exit it still passes the starting index to the destination handler: it neither stops at the preceding entry nor returns early without dispatch. Thus fewer than ten eligible entries can make Page return to the starting entry after one circuit, with focus/selection handler effects still possible. Page and arrow navigation share the same row-eligibility flags. Predicate `0x06000fc5` rejects rows with nonpositive layout extent; this is evidence that invisible collapsed child entries do not count as ordinary step destinations. Further subtype and exclusion flags also participate.
+Shared traversal `0x06003276` walks the row list cyclically, counts eligible candidates, skips excluded/collapsed candidates and stops traversal if it returns to the starting index. On that full-loop exit it still passes the starting index to the destination handler: it neither stops at the preceding entry nor returns early without dispatch. Thus fewer than ten eligible entries can make Page return to the starting entry after one circuit, with focus/selection handler effects still possible. Page and arrow navigation share the same row-eligibility flags. Predicate `0x06000fc5` tests whether the row's state enum is nonpositive; it does not test a layout extent. Further subtype and exclusion flags also participate. This interpretation was corrected by tracing the field signature and state setter in the [2026-09-29 reinvestigation](songselect-parity-reinvestigation-20260929.md).
 
 Destination handler `0x06003277` immediately uses the selection path for a candidate within the selected Set; for a different Set it stores a **keyboard focus index** `0x04001f6b` and emphasizes that row. Enter in `0x06003247` checks that focus and activates it before the ordinary play callback. Selection and focus must therefore not be described as interchangeable. The exact subsequent dwell/auto-activation conditions are not established by this trace; osujava may retain immediate selection deliberately, but must document that difference.
 
