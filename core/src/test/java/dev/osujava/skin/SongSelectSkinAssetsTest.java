@@ -14,6 +14,15 @@ import static org.junit.jupiter.api.Assertions.*;
 class SongSelectSkinAssetsTest {
     @TempDir Path directory;
 
+    @ParameterizedTest @ValueSource(doubles = {1, 1.1, 1.5, 2, 2.2, 2.7})
+    void selectionAnchorVersionGateIsIndependentOfThumbnails(double version) throws Exception {
+        Files.writeString(directory.resolve("skin.ini"), "[General]\nVersion: " + version);
+        var assets = new SongSelectSkinAssets(new SkinAssetResolver(directory), file -> new TestTexture(1, 1));
+        assertEquals(version <= 1, assets.legacySelectionAnchors());
+        assertEquals(version >= 2.2, assets.thumbnailsEnabled());
+        assets.dispose();
+    }
+
     @Test void animationCannotStarveLaterCursorAndInterfaceAssets() throws Exception {
         for (String name : new String[]{"menu-back-0", "menu-back-1", "cursor", "selection-mode"})
             Files.createFile(directory.resolve(name + ".png"));

@@ -30,7 +30,7 @@ final class SongSelectToolboxLayout {
             if (skin.get(image) != null) images.put(image, skin.get(image));
             if (skin.selectionBounds(image) != null) metrics.put(image, skin.selectionBounds(image));
         }
-        return new SongSelectToolboxLayout(width, height, skin != null && skin.configuration().legacyVersion() < 2,
+        return new SongSelectToolboxLayout(width, height, skin != null && skin.legacySelectionAnchors(),
                 images, metrics);
     }
 

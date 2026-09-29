@@ -136,7 +136,7 @@ public final class SongSelectSkinAssets implements Disposable {
                                         file.density(), 224, 90, false, (x,y) -> source.getPixel(x,y) & 255));
                             } else if (Selection.of(image) != null) {
                                 var action = Selection.of(image);
-                                boolean legacy = configuration.legacyVersion() < 2;
+                                boolean legacy = legacySelectionAnchors();
                                 selectionBounds.put(image, SelectionAssetBounds.detect(pixels.getWidth(), pixels.getHeight(),
                                         file.density(), action.logicalWidth, legacy ? 87 : 90, legacy,
                                         (x, y) -> source.getPixel(x, y) & 255));
@@ -238,6 +238,8 @@ public final class SongSelectSkinAssets implements Disposable {
         return top == null ? 0 : topCoverage == null ? top.logicalHeight() : topCoverage.depth(start,end);
     }
     public SongSelectBodyBounds rowBody() { return rowBody; }
+    /** Stable's ordinary Version branch uses > 1.0, independently of the 2.2 thumbnail gate. */
+    public boolean legacySelectionAnchors() { return configuration.legacyVersion() <= 1; }
     public boolean thumbnailsEnabled() { return configuration.legacyVersion() >= 2.2; }
     public SkinConfiguration configuration() { return configuration; }
 
