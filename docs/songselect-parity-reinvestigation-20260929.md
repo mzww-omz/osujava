@@ -2,6 +2,7 @@
 
 Skinは追加依頼により[独立調査](skin-stable-independent-audit-20260929.md)へ分離した。
 provider、ini、anchor、cursor family等の詳細とSkin改修順はそちらを参照。
+調査後の着手内容と未実装範囲は[互換改修 第1段階](songselect-parity-phase1-20260929.md)に記録した。
 
 ## 結論と今回の範囲
 
