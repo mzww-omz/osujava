@@ -260,6 +260,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 viewState.pointerX,
                 viewState.pointerY,
                 viewState.pointerPressed,
+                viewState.hover.appearance(),
                 entrance.opacity(),
                 outgoing.opacity(),
                 outgoing.pending(),
@@ -351,6 +352,8 @@ public final class SongSelectScreen extends ScreenAdapter {
             audio.hover(target, cue);
         }
         backgroundFade = Math.min(1, backgroundFade + Math.max(0, delta) / .22f);
+        viewState.hover.advance(delta, toolbox.open() || importing || outgoing.pending() ? null
+                : SongSelectAction.bottom(px,py,bottomLayout));
         return true;
     }
 

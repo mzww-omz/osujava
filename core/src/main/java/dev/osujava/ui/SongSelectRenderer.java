@@ -76,6 +76,7 @@ final class SongSelectRenderer {
         float pointerX,
         float pointerY,
         boolean pointerPressed,
+        SongSelectHover.Appearance hoverAppearance,
         float entranceOpacity,
         float outgoingOpacity,
         boolean outgoingPending,
@@ -157,16 +158,25 @@ final class SongSelectRenderer {
                     !frame.toolbox.open() && frame.pointerPressed);
         }
         view.beginText();
-        float backBrightness = backPressed ? .78f : backHover ? 1 : .94f;
         Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
         chromeClip(layout, new SongSelectChrome.Bounds(0, 0, layout.width(), layout.height()));
         var backFrame = frame.skin == null ? null : frame.skin.backFrame(frame.seconds);
         if (backFrame != null) {
             float scale = layout.height() / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
-            batch.setColor(backBrightness, backBrightness, backBrightness, 1);
+            batch.setColor(Color.WHITE);
             batch.draw(backFrame.texture(), 0, frame.bottomLayout.baseline,
                     backFrame.logicalWidth() * scale, backFrame.logicalHeight() * scale);
-            batch.setColor(Color.WHITE);
+            int src = batch.getBlendSrcFunc(), dst = batch.getBlendDstFunc();
+            int srcAlpha = batch.getBlendSrcFuncAlpha(), dstAlpha = batch.getBlendDstFuncAlpha();
+            try {
+                batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
+                batch.setColor(1,1,1,frame.hoverAppearance.back());
+                batch.draw(backFrame.texture(), 0, frame.bottomLayout.baseline,
+                        backFrame.logicalWidth()*scale, backFrame.logicalHeight()*scale);
+            } finally {
+                batch.setBlendFunctionSeparate(src,dst,srcAlpha,dstAlpha);
+                batch.setColor(Color.WHITE);
+            }
         }
         batch.flush();
         Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
@@ -261,13 +271,12 @@ final class SongSelectRenderer {
 
     private void drawSelection(Selection action, float px, float py) {
         var geometry = frame.bottomLayout.control(action);
-        boolean hover = !frame.toolbox.open() && geometry.interaction().contains(px,py);
         boolean enabled = selectionEnabled(action);
-        boolean pressed = hover && enabled && frame.pointerPressed;
-        float brightness = !enabled ? .54f : pressed ? .78f : hover && !has(action.hover) ? 1 : .94f;
+        float brightness = enabled ? 1 : .54f;
         actionTint.set(brightness,brightness,brightness,1);
         skinImage(action.normal,geometry.normal().image(),actionTint);
-        if (hover) skinImage(action.hover,geometry.hover().image(),actionTint);
+        actionTint.a = frame.hoverAppearance.alpha(action);
+        skinImage(action.hover,geometry.hover().image(),actionTint);
     }
 
     private void drawRows(UiLayout layout) {

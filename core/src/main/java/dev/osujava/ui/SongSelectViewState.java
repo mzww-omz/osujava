@@ -5,6 +5,7 @@ import dev.osujava.ui.theme.UiLayout;
 /** Sampled display input; never persisted in Library and never sampled by the renderer. */
 final class SongSelectViewState {
     final SongSelectCarousel carousel = new SongSelectCarousel();
+    final SongSelectHover hover = new SongSelectHover();
     final dev.osujava.ui.theme.UiTransition entrance = new dev.osujava.ui.theme.UiTransition();
     float elapsed;
     float pointerX, pointerY;
