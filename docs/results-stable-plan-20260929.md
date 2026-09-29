@@ -9,6 +9,7 @@
 
 追加監査に基づく[不足データ・機能の実装計画](results-missing-data-plan-20260929.md)で、生成元・保存形式・依存順・テストをP0–P11に分解した。
 本書の段階1はsnapshot追加だけでは完了しない。break保持、時刻付き入力、ScoreV1、slider / spinner判定、combo set、HP / failまでが実プレイ一致の前提になる。
+[追加解析](results-stable-followup-20260929.md)でHP係数・graphの分母・UR採取対象・spinner判定と統計・最大可能comboを特定し、詳細計画のP4–P7、P9–P10へ反映した。
 
 ## 段階0: 観測条件と未確定分岐を閉じる
 
@@ -90,6 +91,7 @@ Enter / Spaceの画面handlerとglobal shortcutの関係を観測で確定し、
 ## 段階4: Graph・詳細統計・保存スコア閲覧
 
 HP graphは収集されたHP列から作り、thinning、境界色、累積長による4000msの描画を再現する。
+点の値は`min(1, 実際のHP / object別の全成功基準HP)`。Ruleset側で採取した値を渡し、Rendererで固定200による再正規化をしない。
 URは負側/非負側平均、母標準偏差、譜面時刻基準を守る。graphの画像・線・tooltip hitboxを分ける。
 URの表示は統計の有無とentry contextの両方で判断する。単なる保存結果閲覧で表示せず、直後またはreplayによって採取できた場合の条件を再現する。
 

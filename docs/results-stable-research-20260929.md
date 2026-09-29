@@ -72,7 +72,7 @@ flowchart LR
 | `060012f0` | 表示スコアの取得。`04000a62`があれば委譲し、なければ`04000a59`。全modeで単一fieldの直接表示と仮定しない |
 | `04000a43 / a51 / a44` | 日時 / プレイヤー名 / mods。headerのToLocalTime、mod enumとのAND、osr順で照合 |
 | `04000a50` | Perfect用boolean。結果画面はこの値だけで画像の生成を分岐 |
-| `04000a47` | HP graphの時刻・値の組。`06001c18`のX正規化と`1−Y`変換で確認 |
+| `04000a47` | HP graphの時刻・値の組。値はobject別基準HPに対する比。`06001c18`のX正規化と`1−Y`変換で確認 |
 | `04000a55 / a56` | hit error / spinner統計用整数列。表示側`06001a26`、追加側`060021f9/21fa`を追跡 |
 
 公開osr仕様も、6判定、最大コンボ、Perfect、mods、HP graphを別の値として保存する。[公式osr形式](https://osu.ppy.sh/wiki/en/Client/File_formats/osr_(file_format))
@@ -90,7 +90,7 @@ Geki / Katuはcombo set終端の判定variantであり、独立した精度判�
 `06002648:002b–0049`では、集計側のcombo値`0400189e`と最大コンボを比較して同fieldを設定する。
 追加確認では式は`!(0400189e − maxCombo > 0)`。単純なaccuracy比較でも、IL上の等値比較でもない。
 公開osr仕様上も、Perfectはmiss・slider break・取り逃したslider終端がないことを表す。**100% accuracyと同値にしてはいけない。**
-`0400189e`の全更新経路・特殊譜面の挙動までは本調査で閉じていない。
+追加解析でstandardの生成元`06003a90`を特定した。circle / spinnerは各1、sliderはnested列長＋1を加える。[最大可能comboの根拠](results-stable-followup-20260929.md#82-最大可能comboの生成元)を参照。特殊譜面の実機挙動は未確認。
 
 Gradeの`060012ec`はpass field `04000a4c`がfalseならF、通常の比率条件に加えてHD / FLのbitを見てXH / SHへ分岐する。
 enum `0200024d`はXH, SH, X, S, A, B, C, D, F, Nを0–9に対応させる。
@@ -204,7 +204,8 @@ easing ID 1/2の曲線、全時計の更新順、乱数seed、実フレーム上
 
 `06002202:0013–001b`は判定集計`0600264d`を呼んだ後、引数のbitmask `520095494`とのANDが正、かつ分母field `04001126`が正の場合にHP列へ追加する。
 同`:0045–008a`では時刻field `040014b1`と、`min(1, 060027dcの戻り値 / 04001126)`をSingleの点へ変換して追加する。
-`060027dc`はfield `0400197b`のgetter。maskの各判定への対応、呼出元の全条件、HP生成元・分母の設定は未確定。固定周期で毎frame採取する根拠にはしない。
+`060027dc`は実際のHP field `0400197b`のgetter。追加解析で、分母は`06003a90`の全成功シミュレーションがobjectごとに保存するHPと確認した。固定の最大HP=200ではない。
+maskに入るstandard判定codeとHP生成式は[追加解析](results-stable-followup-20260929.md#2-hpには3種類の量が必要)に記録した。nested失敗・overlap時の参照objectは確認を残す。毎frame採取ではない。
 
 `06001300`は保存用文字列のcacheがあれば返し、なければHP列を走査する。
 `:004a–006a`は**直前に保存した点から時刻差が2000を超える点、先頭、末尾**を選び、`:007e–00b4`はX / Yを小数第2位へ`Math.Round`してformatへ渡す。
@@ -228,8 +229,8 @@ easing ID 1/2の曲線、全時計の更新順、乱数seed、実フレーム上
 
 `06001a26:0a13–0aa5`がhit error列について平均の両側・標準偏差×10等をtooltipへ渡す。
 `060021f9`の追加側は明示された誤差、またはプレイ時計−object時刻を保存する。
-全hit object型からの呼出条件、slider head / miss等を含める条件は今回未確定。
-spinner列は別に集計し、平均・最大・標準偏差×2を追加する経路がある。spinner列の単位とサンプリング条件の全追跡は未了。
+追加解析でstandard通常クリックの採取対象は成功circleと成功slider headと確認した。MISS・空打ち・notelock拒否は入らない。[採取経路と残る条件](results-stable-followup-20260929.md#5-urに入る入力)を参照。
+spinner列は別に集計し、平均・最大・標準偏差×2を追加する。単位はupdate中の平滑化RPMを整数化したもの。[平滑化式と更新順](results-stable-followup-20260929.md#6-spinner結果統計は平滑化したrpm標本)を特定したが、実機での正確なupdate頻度の照合は残る。
 
 公開仕様でもURは誤差の標準偏差×10で、直前プレイ・spectate・replayに限り表示される。
 stableでは速度modを含む譜面時刻基準であり、近年のlazerの実時間基準とは違う。[公式Unstable rate](https://osu.ppy.sh/wiki/en/Gameplay/Unstable_rate)
@@ -284,11 +285,12 @@ HP / passだけでなくScoreV1・replayにも影響する。ファイル別の�
 - 最終画素: font・spacing・桁数・小数点のlocale、拡大縮小の丸め、clip、SD/HD、背景、video / storyboard、cursor、加算合成。
 - exact format文字列や音名は暗号化されているため未復元。公開資料と実機で埋める。復号実行や保護回避で補わない。
 - generic easing、乱数sequence、全画面click dispatch、hover、wheel、キーrepeat、ボタン重なりの優先順位。
-- Perfectの集計値の全更新元、Geki / Katu加算の全経路、HP採取maskと生成アルゴリズム、UR採取対象、spinner統計単位。
+- HPの開始時充填・frame内順序・特殊譜面での係数探索、nested失敗時のgraph参照object、Geki / Katuのoverlap時の順序、特殊Mod／replayの入力dispatchとspinner標本頻度。
 - 保存結果の閲覧flag、replay未所持 / ローカル所持 / Auto再生、offline guest入力、拡張パネルの全状態分岐。
 - 公式built-in assetを抽出しない条件では、Javaに現在同梱された別skinとの画素一致は保証できない。同じ利用許諾済みcustom skinで比較する。
 
 これらを推測で実装済み扱いにせず、[計画の観測ゲート](results-stable-plan-20260929.md#段階0-観測条件と未確定分岐を閉じる)にする。
+HP係数の主要分岐、standardの最大可能combo、通常入力のUR採取対象、spinnerのRPM・判定・旧replay条件は[追加解析](results-stable-followup-20260929.md)で更新した。静的な式の確定と実機一致の認定は分ける。
 
 ## 10. 再調査の手順と成果物
 
