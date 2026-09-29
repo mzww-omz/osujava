@@ -15,7 +15,7 @@ final class MainMenuFrame {
     record Info(int beatmaps, long uptimeSeconds, String clock, String version,
                 boolean playing, boolean paused, boolean canSkip) { }
     record Layout(float width, float height, float unit, float topHeight, float bottomHeight,
-                  float pad, float leftWidth, float centerX, float centerWidth, float trackX, float trackWidth) { }
+                  float pad, float leftWidth, float centerX, float centerWidth, float trackX, float trackWidth, boolean compact) { }
     private static final String VERSION = readVersion();
 
     static String version() { return VERSION; }
@@ -29,13 +29,19 @@ final class MainMenuFrame {
     static Layout layout(UiLayout ui) {
         // Retain legible physical heights in narrow windows, then scale up at desktop/Retina sizes.
         float unit = Math.max(.95f, ui.scale()) / ui.scale();
-        float pad = 12 * unit, gap = 24 * unit;
-        float available = ui.width() - 2 * pad - 2 * gap;
-        float left = available * .29f, center = available * .32f;
-        float centerX = pad + left + gap, trackX = centerX + center + gap;
-        return new Layout(ui.width(), ui.height(), unit, 76 * unit, 22 * unit,
-                pad, left, centerX, center, trackX, ui.width() - pad - trackX);
+        // b20230727.9 uses a 480-high HUD canvas: information x=210, edge bands h=54.
+        // Convert those observed anchors to our existing 720-high UI; retain a compact narrow fallback.
+        boolean compact = ui.width() / unit < 1000;
+        float pad = 5 * unit, gap = 10 * unit;
+        float centerX = compact ? ui.width() * .31f : 315 * unit;
+        float trackWidth = Math.min(360 * unit, ui.width() * .35f);
+        float trackX = ui.width() - pad - trackWidth;
+        float centerWidth = trackX - gap - centerX;
+        return new Layout(ui.width(), ui.height(), unit, 81 * unit, 81 * unit,
+                pad, centerX - pad - gap, centerX, centerWidth, trackX, trackWidth, compact);
     }
+    static float informationScale(Layout m) { return (m.compact() ? .66f : .94f) * m.unit(); }
+    static float avatarSize(Layout m) { return (m.compact() ? 44 : 70) * m.unit(); }
     static String uptime(long seconds) {
         seconds = Math.max(0, seconds);
         return String.format(Locale.ROOT, "%02d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60);
@@ -45,78 +51,88 @@ final class MainMenuFrame {
                 && Double.isFinite(point.beatLength()) && point.beatLength() > 0);
         return valid ? Math.round(60000 / MenuBeatTiming.at(timing, positionMs, true).lengthMs()) + " BPM" : "";
     }
-    static float controlX(Layout m, int control) { return m.width() - m.pad() - (72 - control * 24) * m.unit(); }
-    static float controlY(Layout m) { return m.height() - 72 * m.unit(); }
+    static float controlX(Layout m, int control) { return m.width() - m.pad() - (90 - control * 30) * m.unit(); }
+    static float controlY(Layout m) { return m.height() - 57 * m.unit(); }
     static boolean controlsVisible(Info info) { return info.playing() || info.paused() || info.canSkip(); }
     static boolean controlEnabled(Info info, int control) {
         return control == 1 ? info.playing() || info.paused() : info.canSkip();
     }
     static int controlAt(Layout m, float x, float y, Info info, boolean pending) {
-        if (pending || !controlsVisible(info) || y < controlY(m) || y > controlY(m) + 22 * m.unit()) return -1;
+        if (pending || !controlsVisible(info) || y < controlY(m) || y > controlY(m) + 26 * m.unit()) return -1;
         for (int control = 0; control < 3; control++)
-            if (controlEnabled(info,control) && x >= controlX(m,control) && x <= controlX(m,control) + 22 * m.unit()) return control;
+            if (controlEnabled(info,control) && x >= controlX(m,control) && x <= controlX(m,control) + 26 * m.unit()) return control;
         return -1;
     }
     void shapes(UiView view, Layout m, float emphasis, Info info, int hovered, boolean pending) {
-        Color topShade = new Color(.018f, .035f, .065f, .60f + emphasis * .07f);
-        Color lowerShade = new Color(.018f, .035f, .065f, .44f + emphasis * .07f);
-        view.gradient(0, m.height() - m.topHeight(), m.width(), m.topHeight(),
-                lowerShade, lowerShade, topShade, topShade);
-        view.box(0, 0, m.width(), m.bottomHeight(), 0,
-                new Color(.018f, .03f, .055f, .46f + emphasis * .06f));
-        Color edge = new Color(.65f, .73f, .84f, .075f + emphasis * .025f);
+        // Stable's chrome is a neutral black scrim, not a blue application navbar.
+        Color shade = new Color(0, 0, 0, .38f + emphasis * .04f);
+        view.box(0, m.height() - m.topHeight(), m.width(), m.topHeight(), 0, shade);
+        view.box(0, 0, m.width(), m.bottomHeight(), 0, shade);
+        Color edge = new Color(1, 1, 1, .035f + emphasis * .015f);
         view.box(0, m.height() - m.topHeight(), m.width(), m.unit(), 0, edge);
         view.box(0, m.bottomHeight() - m.unit(), m.width(), m.unit(), 0, edge);
-        // A small local monogram, not an online avatar or profile.
-        view.box(m.pad(), m.height() - 61 * m.unit(), 44 * m.unit(), 44 * m.unit(), 0,
-                new Color(.65f, .29f, .43f, .30f));
+        float size = avatarSize(m);
+        // Original procedural local emblem: no extracted stable avatar or skin asset.
+        view.gradient(m.pad(), m.height() - m.pad() - size, size, size,
+                new Color(.39f,.12f,.22f,.80f), new Color(.39f,.12f,.22f,.80f),
+                new Color(.66f,.25f,.37f,.80f), new Color(.66f,.25f,.37f,.80f));
         if (!controlsVisible(info)) return;
         for (int control = 0; control < 3; control++) {
             float x = controlX(m,control), y = controlY(m), u = m.unit();
             boolean enabled = !pending && controlEnabled(info,control);
-            view.box(x,y,22 * u,22 * u,0,new Color(.6f,.7f,.85f,enabled && hovered == control ? .18f : 0));
+            view.box(x,y,26 * u,26 * u,0,new Color(.6f,.7f,.85f,enabled && hovered == control ? .18f : 0));
             Color glyph = new Color(.94f,.96f,1,enabled ? .85f : .22f);
             if (control == 1 && !info.paused()) {
-                view.box(x + 7 * u,y + 6 * u,3 * u,10 * u,0,glyph);
-                view.box(x + 13 * u,y + 6 * u,3 * u,10 * u,0,glyph);
+                view.box(x + 9 * u,y + 7 * u,3 * u,12 * u,0,glyph);
+                view.box(x + 15 * u,y + 7 * u,3 * u,12 * u,0,glyph);
             } else {
-                float a = x + (control == 0 ? 15 : 7) * u, b = x + (control == 0 ? 7 : 15) * u;
-                view.quad(a,y + 6 * u,b,y + 11 * u,a,y + 16 * u,a,y + 16 * u,glyph);
-                if (control != 1) view.box(x + (control == 0 ? 5 : 16) * u,y + 6 * u,2 * u,10 * u,0,glyph);
+                float a = x + (control == 0 ? 18 : 8) * u, b = x + (control == 0 ? 8 : 18) * u;
+                view.quad(a,y + 7 * u,b,y + 13 * u,a,y + 19 * u,a,y + 19 * u,glyph);
+                if (control != 1) view.box(x + (control == 0 ? 6 : 19) * u,y + 7 * u,2 * u,12 * u,0,glyph);
             }
         }
     }
     void text(UiView view, Layout m, MainMenuModel model, Info info, String title, String bpm) {
         float u = m.unit(), top = m.height();
-        Color primary = new Color(.96f, .97f, 1, .86f + model.frameEmphasis() * .06f);
-        Color secondary = new Color(.74f, .8f, .89f, .69f + model.frameEmphasis() * .07f);
-        Color muted = new Color(.68f, .73f, .81f, .60f + model.frameEmphasis() * .07f);
-        float playerX = m.pad() + 54 * u, playerWidth = m.leftWidth() - 54 * u;
-        view.textSmooth("j!", m.pad(), top - 48 * u, 44 * u, 1.35f * u, primary, Align.center);
-        view.textSmooth("LOCAL PLAYER", playerX, top - 20 * u, playerWidth, .58f * u, muted);
-        view.textSmooth("osu!java", playerX, top - 40 * u, playerWidth, 1.02f * u, primary);
-        view.textSmooth(info.beatmaps() + " imported beatmaps", playerX, top - 57 * u,
-                playerWidth, .64f * u, secondary);
+        float alpha = .94f + model.frameEmphasis() * .06f;
+        Color primary = new Color(1, 1, 1, alpha);
+        Color secondary = new Color(.92f, .92f, .94f, alpha * .91f);
+        Color muted = new Color(.80f, .80f, .83f, alpha * .83f);
+        float avatar = avatarSize(m), playerX = m.pad() + avatar + 5 * u;
+        float playerWidth = m.pad() + m.leftWidth() - playerX;
+        view.textSmooth("java!", m.pad(), top - m.pad() - avatar * .61f, avatar,
+                (m.compact() ? .88f : 1.3f) * u, primary, Align.center);
+        view.textSmooth("osu!java", playerX, top - 18 * u, playerWidth, .98f * u, primary);
+        view.textSmooth("LOCAL PLAYER", playerX, top - 34 * u, playerWidth, .60f * u, secondary);
+        view.textSmooth("Imported beatmaps", playerX, top - 49 * u, playerWidth, .61f * u, muted);
+        // The prominent number is the real local difficulty count, never a fabricated score/PP/level.
+        view.textSmooth(Integer.toString(info.beatmaps()), playerX, top - 73 * u,
+                playerWidth, 1.35f * u, secondary, Align.right);
 
-        view.textSmooth(info.beatmaps() + " beatmaps available", m.centerX(), top - 24 * u,
-                m.centerWidth(), .68f * u, secondary);
-        view.textSmooth("Session runtime  " + uptime(info.uptimeSeconds()), m.centerX(), top - 41 * u,
-                m.centerWidth(), .64f * u, muted);
-        view.textSmooth("Local time  " + info.clock(), m.centerX(), top - 58 * u,
-                m.centerWidth(), .64f * u, muted);
+        float infoScale = informationScale(m);
+        view.textSmooth(info.beatmaps() + " beatmaps available", m.centerX(), top - 18 * u,
+                m.centerWidth(), infoScale, primary);
+        view.textSmooth("Session runtime  " + uptime(info.uptimeSeconds()), m.centerX(), top - 39 * u,
+                m.centerWidth(), infoScale, secondary);
+        view.textSmooth("Local time  " + info.clock(), m.centerX(), top - 60 * u,
+                m.centerWidth(), infoScale, secondary);
 
-        String trackLabel = title.isBlank() ? "LOCAL MUSIC" : info.paused() ? "PAUSED"
-                : info.playing() ? "NOW PLAYING" : "SELECTED TRACK";
-        view.textSmooth(trackLabel, m.trackX(), top - 17 * u, m.trackWidth(), .56f * u, muted, Align.right);
-        // UiView's smooth font fits to this column using a Unicode-safe ellipsis.
-        view.textSmooth(title.isBlank() ? "No local track selected" : title,
-                m.trackX(), top - 37 * u, m.trackWidth(), .82f * u, primary, Align.right);
-        view.textSmooth(bpm, m.trackX(), top - 65 * u,
-                m.trackWidth() - (controlsVisible(info) ? 84 * u : 0), .60f * u, secondary, Align.right);
+        // Compact two-line label beside the title, then a separate right-anchored transport row.
+        float labelWidth = 52 * u, titleX = m.trackX() + labelWidth;
+        String label = title.isBlank() ? "Local" : info.paused() ? "Paused" : info.playing() ? "Now" : "Local";
+        view.textSmooth(label, m.trackX(), top - 11 * u, labelWidth, .62f * u, muted);
+        view.textSmooth(info.playing() ? "Playing" : "Music", m.trackX(), top - 23 * u,
+                labelWidth, .62f * u, muted);
+        view.textSmooth(title.isBlank() ? "No track selected" : title,
+                titleX, top - 19 * u, m.trackWidth() - labelWidth,
+                (m.compact() ? .76f : 1.0f) * u, primary, Align.right);
+        view.textSmooth(bpm, m.trackX(), top - 72 * u, m.trackWidth() - 4 * u,
+                .64f * u, muted, Align.right);
 
-        String branding = "osu!java" + (info.version().isBlank() ? "" : "  " + info.version());
-        view.textSmooth(branding, m.pad(), 7 * u, m.leftWidth(), .57f * u, muted);
-        // No permanent banner: the centre is reserved for future real local notifications.
-        view.textSmooth("LOCAL", m.trackX(), 7 * u, m.trackWidth(), .54f * u, muted, Align.right);
+        // Bottom chrome retains space, but no invented banner, service buttons or progress bar.
+        view.textSmooth("osu!java", m.pad(), 13 * u, 104 * u, 1.05f * u, secondary);
+        view.textSmooth(info.version(), m.pad() + 105 * u, 14 * u,
+                Math.max(0, m.leftWidth() - 105 * u), .59f * u, muted);
+        view.textSmooth("LOCAL", m.trackX(), 10 * u, m.trackWidth() - 4 * u, .62f * u, muted, Align.right);
     }
 }

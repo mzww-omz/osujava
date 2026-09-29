@@ -103,8 +103,8 @@ class MainMenuMusicTest {
                 assertEquals(control == 1 ? -1 : control,MainMenuFrame.controlAt(m,x,y,unavailable,false));
                 assertEquals(control == 1 ? 1 : -1,MainMenuFrame.controlAt(m,x,y,single,false));
                 assertEquals(-1,MainMenuFrame.controlAt(m,x,y - 27 * m.unit(),active,false));
-                // The 2-unit gap must not activate either neighbouring transport control.
-                assertEquals(-1,MainMenuFrame.controlAt(m,MainMenuFrame.controlX(m,control) + 23 * m.unit(),y,active,false));
+                // The 4-unit gap must not activate either neighbouring transport control.
+                assertEquals(-1,MainMenuFrame.controlAt(m,MainMenuFrame.controlX(m,control) + 28 * m.unit(),y,active,false));
             }
         }
     }

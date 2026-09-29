@@ -35,7 +35,7 @@ class MainMenuTest {
             var frame = MainMenuFrame.layout(ui); var menu = MainMenuLayout.from(ui);
             assertTrue(frame.topHeight() * ui.scale() >= 52);
             assertTrue(frame.bottomHeight() * ui.scale() >= 20);
-            assertEquals(76 * Math.max(.95f,ui.scale()),frame.topHeight() * ui.scale(),.001);
+            assertEquals(81 * Math.max(.95f,ui.scale()),frame.topHeight() * ui.scale(),.001);
             assertTrue(frame.trackWidth() * ui.scale() > 185);
             assertTrue(frame.centerX() > frame.pad() + frame.leftWidth());
             assertTrue(frame.trackX() > frame.centerX() + frame.centerWidth());
@@ -52,12 +52,25 @@ class MainMenuTest {
         assertEquals("99:59:59",MainMenuFrame.uptime(359999));
         assertFalse(MainMenuFrame.version().isBlank());
     }
+    @Test void desktopChromeRetainsObservedStableAnchorsAcrossResolutions() {
+        for (int[] size : new int[][]{{1280,720},{1366,768},{1920,1080},{2560,1440}}) {
+            var ui = UiLayout.fromPixels(size[0],size[1]);
+            var frame = MainMenuFrame.layout(ui);
+            assertFalse(frame.compact());
+            // Stable's 480-high canvas: general information at x=210; both bands 54 high.
+            assertEquals(size[1] * 210f / 480, frame.centerX() * ui.scale(), .01);
+            assertEquals(size[1] * 54f / 480, frame.topHeight() * ui.scale(), .01);
+            assertEquals(frame.topHeight(), frame.bottomHeight());
+            assertTrue(MainMenuFrame.avatarSize(frame) + 2 * frame.pad() < frame.topHeight());
+        }
+    }
+
     @Test void centerInformationFitsLargeLibraryAndLongSessionWithoutTruncation() {
         var metrics = new java.awt.font.FontRenderContext(null, true, true);
         for (int[] size : new int[][]{{1280,720},{1366,768},{1920,1080},{2560,1440},{600,800}}) {
             var frame = MainMenuFrame.layout(UiLayout.fromPixels(size[0], size[1]));
             // Match the smooth font's oversampled measurement, including its raster padding.
-            var font = new java.awt.Font("SansSerif", java.awt.Font.PLAIN, Math.round(17 * .68f * frame.unit() * 2));
+            var font = new java.awt.Font("SansSerif", java.awt.Font.PLAIN, Math.round(17 * MainMenuFrame.informationScale(frame) * 2));
             for (String line : List.of("12345 beatmaps available", "Session runtime  99:59:59", "Local time  23:59"))
                 assertTrue(font.getStringBounds(line, metrics).getWidth() + 4 < frame.centerWidth() * 2,
                         () -> "Information would be truncated at " + size[0] + ": " + line);
