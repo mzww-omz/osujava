@@ -17,7 +17,16 @@ import java.util.List;
 final class SongSelectRowRenderer {
     record Presentation(SongSelectRow row, SongSelectRowPresentation.Content content, boolean played,
                         OsuGrade grade, Texture thumbnail, float thumbnailOpacity, SongSelectLayout.RowGeometry geometry,
-                        boolean groupContainsSelection, int backgroundRgba) { }
+                        boolean groupContainsSelection, int backgroundRgba, SongSelectStarAnimation.Snapshot stars) {
+        Presentation(SongSelectRow row, SongSelectRowPresentation.Content content, boolean played,
+                     OsuGrade grade, Texture thumbnail, float thumbnailOpacity, SongSelectLayout.RowGeometry geometry,
+                     boolean groupContainsSelection, int backgroundRgba) {
+            this(row, content, played, grade, thumbnail, thumbnailOpacity, geometry, groupContainsSelection,
+                    backgroundRgba, SongSelectStarAnimation.Snapshot.EMPTY);
+        }
+    }
+    record RetiringStars(SongSelectRow row, SongSelectLayout.RowGeometry geometry,
+                         SongSelectStarAnimation.Snapshot stars, int tintRgba) { }
     record Style(float width, SongSelectSkinAssets skin, Texture fill, Color activeText,
                  Color inactiveText, boolean thumbnails) { }
     private final SpriteBatch batch;
@@ -30,6 +39,10 @@ final class SongSelectRowRenderer {
     SongSelectRowRenderer(SpriteBatch batch, UiView view) { this.batch = batch; this.view = view; }
 
     void draw(List<Presentation> rows, Style style, UiLayout layout, float bottom, float top) {
+        draw(rows, List.of(), style, layout, bottom, top);
+    }
+
+    void draw(List<Presentation> rows, List<RetiringStars> retiring, Style style, UiLayout layout, float bottom, float top) {
         this.style = style;
         float scaleX = Gdx.graphics.getBackBufferWidth() / layout.width();
         float scaleY = Gdx.graphics.getBackBufferHeight() / layout.height();
@@ -39,6 +52,16 @@ final class SongSelectRowRenderer {
         try {
             for (var row : rows) if (!row.row().selected()) drawClipped(row, layout, bottom, top, scaleX, scaleY);
             for (var row : rows) if (row.row().selected()) drawClipped(row, layout, bottom, top, scaleX, scaleY);
+            for (var item : retiring) {
+                var clip = item.geometry().clip();
+                Gdx.gl.glScissor(Math.round(clip.x() * scaleX), Math.round(clip.y() * scaleY),
+                        Math.max(0, Math.round(clip.width() * scaleX)), Math.max(0, Math.round(clip.height() * scaleY)));
+                Color.rgba8888ToColor(detailTint, item.tintRgba());
+                detailTint.a *= item.row().revealAmount();
+                view.beginText();
+                drawStars(item.stars(), item.row(), item.row().x() + item.geometry().text().textX(), detailTint);
+                view.endText();
+            }
         } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
     }
 
@@ -143,30 +166,33 @@ final class SongSelectRowRenderer {
                 .87f, primary);
         view.textSmooth(content.byline(), x, row.y() + (child ? geometry.bylineY() : row.height() / 2 - 12), width, .65f, secondary);
         if (child) view.textSmoothBold(content.detail(), x, row.y() + geometry.detailY(), width, .90f, detail);
-        var stars = content.stars();
-        if (stars.present() && width > 0) drawStars(stars, x,
-                row.y() + geometry.starsY(), detail, row.selected(), width);
+        if (width > 0) drawStars(item.stars(), row, x, detail);
     }
 
-    private void drawStars(SongSelectRowPresentation.Stars stars, float x, float y, Color tint, boolean selected, float availableWidth) {
+    /** Native star dimensions are texture-based; clipping never compresses the ten sprite positions. */
+    private void drawStars(SongSelectStarAnimation.Snapshot stars, SongSelectRow row, float x, Color tint) {
         var texture = style.skin() == null ? null : style.skin().starTexture();
-        var band = stars.layout(availableWidth);
-        float scale = texture == null ? 0 : Math.min(band.size() / texture.getWidth(), band.size() / texture.getHeight());
-        float w = texture == null ? 0 : texture.getWidth() * scale, h = texture == null ? 0 : texture.getHeight() * scale;
-        for (int i = 0; texture != null && i < band.icons(); i++) {
-            float sx = x + i * band.step() + (band.size() - w) / 2, sy = y + (15 - h) / 2;
-            batch.setColor(starTint.set(tint.r, tint.g, tint.b, tint.a * .24f));
-            batch.draw(texture, sx, sy, w, h);
-            float fill = stars.fill(i);
-            batch.setColor(starTint.set(tint.r, tint.g, tint.b, tint.a * (selected ? 1 : .88f)));
-            if (fill > 0) {
-                if (style.skin().configuration().legacyVersion() >= 2.2)
-                    batch.draw(texture, sx + w * (1 - fill) / 2, sy + h * (1 - fill) / 2, w * fill, h * fill);
-                else batch.draw(texture, sx, sy, w * fill, h, 0, 1, fill, 0);
-            }
+        if (texture == null) return;
+        var asset = style.skin().get(Image.STAR);
+        float density = asset == null ? 1 : asset.density();
+        float unit = .6f * row.height() / (48 * 1.6f);
+        float w = (int) (texture.getWidth() / density) * unit, h = (int) (texture.getHeight() / density) * unit;
+        float cy = row.y() + row.height() / 2 - (stars.cropped() ? 15 : 18) * row.height() / 48;
+        for (int i = 0; i < stars.glyphs().size(); i++) {
+            float cx = x + (i + .5f) * w;
+            float backgroundScale = stars.cropped() ? 1 : .35f;
+            batch.setColor(starTint.set(1, 1, 1, 30 / 255f * stars.backgroundOpacity() * row.revealAmount()));
+            batch.draw(texture, cx - w * backgroundScale / 2, cy - h * backgroundScale / 2,
+                    w * backgroundScale, h * backgroundScale);
+            var glyph = stars.glyphs().get(i);
+            batch.setColor(starTint.set(tint.r, tint.g, tint.b, tint.a * stars.foregroundOpacity()));
+            if (stars.cropped()) {
+                if (glyph.crop() > 0) batch.draw(texture, cx - w / 2, cy - h / 2, w * glyph.crop(), h,
+                        0, 1, glyph.crop(), 0);
+            } else if (glyph.scale() != 0) batch.draw(texture, cx - w * glyph.scale() / 2, cy - h * glyph.scale() / 2,
+                    w * glyph.scale(), h * glyph.scale());
         }
         batch.setColor(Color.WHITE);
-        view.textSmooth(stars.label(), x + band.numberX(), y + 3, band.numberWidth(), .62f, tint);
     }
 
     void drawGrade(OsuGrade grade, float x, float y, float w, float h, Color tint, Color textTint) {

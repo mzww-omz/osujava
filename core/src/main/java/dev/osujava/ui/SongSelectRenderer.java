@@ -54,6 +54,7 @@ final class SongSelectRenderer {
         List<BeatmapSet> sets,
         List<SongSelectRow> visibleRows,
         List<SongSelectRowRenderer.Presentation> rowPresentations,
+        List<SongSelectRowRenderer.RetiringStars> retiringStars,
         Texture rowFill,
         SongSelectDetails details,
         SongSelectToolboxLayout bottomLayout,
@@ -284,7 +285,7 @@ final class SongSelectRenderer {
     }
 
     private void drawRows(UiLayout layout) {
-        rowRenderer.draw(frame.rowPresentations, new SongSelectRowRenderer.Style(frame.contentWidth, frame.skin, frame.rowFill,
+        rowRenderer.draw(frame.rowPresentations, frame.retiringStars, new SongSelectRowRenderer.Style(frame.contentWidth, frame.skin, frame.rowFill,
                 frame.activeText, frame.inactiveText, frame.showThumbnails), layout, frame.bottom, frame.top);
         if (frame.visibleRows.isEmpty()) {
             view.beginShapes();

@@ -52,34 +52,20 @@ final class SongSelectRowPresentation {
     }
 
     /** Stable 06000fd2 creates ten background/foreground pairs; 06000fbd caps fill at ten. */
-    record Stars(int count, float lastFill, String label) {
+    record Stars(int count, float lastFill, String label, double rating) {
         private static final int SLOT_COUNT = 10;
         static Stars of(OptionalDouble value) {
             if (value == null || value.isEmpty() || !Double.isFinite(value.getAsDouble()) || value.getAsDouble() < 0)
-                return new Stars(0, 0, "");
+                return new Stars(0, 0, "", -1);
             double rating = value.getAsDouble();
             int count = Math.max(1, (int) Math.ceil(Math.min(SLOT_COUNT, rating)));
             float last = rating >= SLOT_COUNT ? 1 : (float) (rating - (count - 1));
             String label = rating >= 100 ? String.format(Locale.ROOT, "%.2g", rating)
                     : String.format(Locale.ROOT, "%.2f", rating);
-            return new Stars(count, last, label);
+            return new Stars(count, last, label, rating);
         }
         boolean present() { return count > 0; }
         float fill(int index) { return index < 0 || index >= count ? 0 : index == count - 1 ? lastFill : 1; }
         int slots() { return present() ? SLOT_COUNT : 0; }
-        float numericWidth() { return label.length() > 5 ? 64 : 42; }
-        float width() { return present() ? slots() * 18 + numericWidth() : 0; }
-        StarLayout layout(float available) {
-            float width = Float.isFinite(available) ? Math.max(0, available) : 0;
-            float numberWidth = Math.min(width, numericWidth());
-            float step = slots() == 0 ? 0 : Math.min(18, (width - numberWidth) / slots());
-            // Preserve the numerical rating when there is no room for readable icons.
-            int icons = step >= 6 ? slots() : 0;
-            return new StarLayout(icons, icons == 0 ? 0 : step, numberWidth);
-        }
-    }
-    record StarLayout(int icons, float step, float numberWidth) {
-        float numberX() { return icons * step; }
-        float size() { return step * 15 / 18; }
     }
 }

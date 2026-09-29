@@ -20,6 +20,7 @@ class SongSelectNavigationTest {
     private int importRequests;
     private boolean shift, control, alt, pointerPressed, pointerClicked, rightPressed, rightClicked, middlePressed;
     private int pointerX, pointerY;
+    private java.util.OptionalDouble testRating = java.util.OptionalDouble.empty();
     private final java.util.Set<Integer> heldKeys = new java.util.HashSet<>();
 
     @BeforeEach void setup() {
@@ -47,7 +48,7 @@ class SongSelectNavigationTest {
             @Override public BeatmapLibrary library() { return library; }
             @Override public OsuRuleset osuRuleset() { return new OsuRuleset(); }
         };
-        screen = new SongSelectScreen(game,set,difficulty); screen.show();
+        screen = new SongSelectScreen(game,set,difficulty,null,ignored -> testRating); screen.show();
     }
     private Object field(String name) throws Exception {
         var field = SongSelectScreen.class.getDeclaredField(name); field.setAccessible(true); return field.get(screen);
@@ -64,6 +65,49 @@ class SongSelectNavigationTest {
     private SongSelectRowRenderer.Presentation presentation(String key) throws Exception {
         return ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
                 .filter(p -> p.row().key().equals(key)).findFirst().orElseThrow();
+    }
+
+    @Test void selectedDifficultyChangesKeepExistingStarSpritesAndCollapseRetiresThemAtTheirLastPosition() throws Exception {
+        testRating = java.util.OptionalDouble.of(3.25);
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,.016f);
+        var model = (SongBrowserModel)field("browser");
+        String original = model.selectedKey();
+        var first = presentation(original).stars();
+        assertEquals(.6f,first.glyphs().getFirst().scale(),.000001);
+        key(Input.Keys.DOWN); updatePointer(1280,720,0);
+        assertEquals(first,presentation(original).stars(),"Selection tint changes do not recreate stars");
+        var before = presentation(original);
+        key(Input.Keys.RIGHT); updatePointer(1280,720,0);
+        var retired = ((List<?>)field("retiringStarPresentations")).stream()
+                .map(SongSelectRowRenderer.RetiringStars.class::cast).filter(p -> p.row().key().equals(original)).findFirst().orElseThrow();
+        assertEquals(before.row().x(),retired.row().x()); assertEquals(before.row().y(),retired.row().y());
+        assertEquals(1,retired.stars().foregroundOpacity());
+        updatePointer(1280,720,.15f);
+        retired = ((List<?>)field("retiringStarPresentations")).stream().map(SongSelectRowRenderer.RetiringStars.class::cast)
+                .filter(p -> p.row().key().equals(original)).findFirst().orElseThrow();
+        assertEquals(.5f,retired.stars().foregroundOpacity(),.00001);
+        assertEquals(before.row().x(),retired.row().x()); assertEquals(before.row().y(),retired.row().y());
+        updatePointer(1280,720,.152f);
+        assertTrue(((List<?>)field("retiringStarPresentations")).isEmpty());
+    }
+
+    @Test void expandingResidentSetAnimatesItsRepresentativeAndSearchRecreationResetsStars() throws Exception {
+        testRating = java.util.OptionalDouble.of(2);
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,.016f);
+        String next = ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> p.row().setIndex()==2).findFirst().orElseThrow().row().key();
+        assertTrue(presentation(next).stars().glyphs().isEmpty());
+        key(Input.Keys.RIGHT); updatePointer(1280,720,0);
+        assertEquals(0,presentation(next).stars().glyphs().getFirst().scale());
+        updatePointer(1280,720,.15f);
+        assertTrue(presentation(next).stars().glyphs().getFirst().scale()>0);
+        processor.keyTyped('B'); updatePointer(1280,720,.016f);
+        assertTrue(((java.util.Map<?,?>)field("rowStars")).keySet().stream().map(SongSelectCarousel.Row.class::cast)
+                .noneMatch(r -> r.entry.key().equals(next)));
+        screen.browserSearch("",false); screen.previewSelection(2,0); settle(); updatePointer(1280,720,.016f);
+        assertEquals(.6f,presentation(next).stars().glyphs().getFirst().scale(),.000001);
+        var live = (java.util.Map<?,?>)field("rowStars");
+        assertTrue(live.keySet().stream().map(SongSelectCarousel.Row.class::cast).allMatch(r -> r.resident && r.entry.visible()));
     }
 
     @Test void screenPublishesColourAnimationOncePerFrameAcrossSelectionAndResize() throws Exception {

@@ -31,22 +31,8 @@ class SongSelectRowPresentationTest {
         var set = set(1);
         var content = SongSelectRowPresentation.content(set, set.difficulties().getFirst(), OptionalDouble.empty());
         assertFalse(content.stars().present());
-        assertEquals(0, content.stars().width());
+        assertEquals(0, content.stars().slots());
         assertEquals("", content.stars().label());
-    }
-    @Test void acquiringGradeNeverRemovesRatingAndNarrowRowsKeepNumericValue() {
-        var stars = SongSelectRowPresentation.Stars.of(OptionalDouble.of(3.5));
-        for (float grade : new float[]{0,52}) {
-            var geometry = SongSelectRowPresentation.geometry(700,72,380,true,grade);
-            var band = stars.layout(geometry.textWidth());
-            assertEquals(10,band.icons());
-            assertEquals(stars.numericWidth(),band.numberWidth());
-            assertTrue(band.numberX()+band.numberWidth() <= geometry.textWidth());
-        }
-        var narrow = stars.layout(45);
-        assertEquals(0,narrow.icons()); assertEquals(42,narrow.numberWidth());
-        assertEquals(10,SongSelectRowPresentation.Stars.of(OptionalDouble.of(.5)).slots());
-        assertEquals(0,stars.layout(0).numberWidth());
     }
     @ParameterizedTest @ValueSource(doubles = {Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, -1})
     void invalidRatingsAreAbsent(double value) {
@@ -63,16 +49,15 @@ class SongSelectRowPresentationTest {
         assertEquals(1, low.count()); assertEquals(.65f, low.fill(0), .0001f);
     }
     @ParameterizedTest @ValueSource(doubles = {7.01, 10, 12.84, 1000, Double.MAX_VALUE})
-    void highRatingsHaveBoundedWidthAndCount(double value) {
+    void highRatingsHaveBoundedCountAndMetadataLabel(double value) {
         var stars = SongSelectRowPresentation.Stars.of(OptionalDouble.of(value));
         assertTrue(stars.count() <= 10); assertEquals(1, stars.fill(0));
-        assertTrue(stars.width() <= 244); assertTrue(stars.label().length() <= 8);
+        assertEquals(10,stars.slots()); assertTrue(stars.label().length() <= 8);
     }
     @ParameterizedTest @ValueSource(doubles = {0, .65, 5, 9, 9.25, 10, 12.84})
     void knownRatingsHaveTenBackgroundSlotsAndForegroundSaturatesAtTen(double rating) {
         var stars = SongSelectRowPresentation.Stars.of(OptionalDouble.of(rating));
         assertEquals(10, stars.slots());
-        assertEquals(10, stars.layout(400).icons());
         double foreground = 0;
         for (int i = 0; i < 10; i++) foreground += stars.fill(i);
         assertEquals(Math.min(10, rating), foreground, .0001);

@@ -40,6 +40,8 @@ class SongSelectRowLifecycleTest {
         }
         assertEquals(nextY, nextGroup.motionY); assertEquals(nextX, nextGroup.motionX);
         c.advance(0, null);
+        assertFalse(children.getFirst().instantSprites, "Group-seeded sprites animate even after layout advances");
+        assertFalse(children.get(1).instantSprites);
         assertFalse(children.get(2).resident); assertFalse(children.get(4).resident);
         float y = children.get(1).motionY;
         content(c, grouped(false));
@@ -93,6 +95,7 @@ class SongSelectRowLifecycleTest {
         assertEquals(688, returning.motionY, "Logical delta 48 is added to the neighbour's current Y");
         assertEquals(-140, returning.motionX, "Base X -340 plus the 200-unit cap");
         assertTrue(returning.resident); assertFalse(c.rows().get(11).resident);
+        assertTrue(returning.instantSprites, "Normal viewport reentry restores sprites without a new entrance animation");
     }
     @Test void topReentryUsesLogicalDeltaAndRemovesNeighbourHoverIndent() {
         var c = model(20); c.dragBy(480); c.advance(0, null);

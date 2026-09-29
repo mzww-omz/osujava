@@ -75,6 +75,18 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             whiteRow.setColor(Color.WHITE); whiteRow.fill();
             PixmapIO.writePNG(Gdx.files.absolute(rowColours.resolve("menu-button-background.png").toString()),whiteRow);
             whiteRow.dispose();
+            for (String mode : List.of("scale", "crop", "old-default-background")) {
+                Path dir = Files.createDirectories(output.resolve("fixtures/star-animation-" + mode));
+                Files.writeString(dir.resolve("skin.ini"), "[General]\nVersion: " + (mode.equals("scale") ? "2.2" : "1") + "\n");
+                int density = mode.equals("crop") ? 1 : 2;
+                int pixels = 40*density + (mode.equals("old-default-background") ? 1 : 0);
+                var square = new Pixmap(pixels,pixels,Pixmap.Format.RGBA8888);
+                square.setColor(Color.WHITE); square.fill();
+                PixmapIO.writePNG(Gdx.files.absolute(dir.resolve("star"+(density==2 ? "@2x" : "")+".png").toString()),square);
+                square.dispose();
+                if (!mode.equals("old-default-background")) Files.copy(rowColours.resolve("menu-button-background.png"),
+                        dir.resolve("menu-button-background.png"),java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
             Path starOnly = Files.createDirectories(output.resolve("fixtures/star-high"));
             Files.writeString(starOnly.resolve("skin.ini"), "[General]\nVersion: 2.2\n");
             starPng(starOnly.resolve("star@2x.png"));
@@ -202,6 +214,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 scenes.removeIf(scene -> !cases.contains(scene.name));
                 for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
                     scenes.add(new Scene(1024,768,1,scene.name));
+            } else if (phase.equals("star-animation")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String mode : List.of("scale", "crop", "old-default-background"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"star-animation-" + mode));
             } else if (phase.equals("lifecycle-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
@@ -632,6 +649,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     : new SkinAssetResolver(output.resolve("fixtures").resolve(scene.name));
         };
         if (scene.name.startsWith("phase5a")) resolver = toolboxResolver(scene.name,greylooks);
+        if (scene.name.equals("star-animation-old-default-background"))
+            resolver = SkinAssetResolver.withBundledDefault(output.resolve("fixtures/"+scene.name),null);
         var assets = scene.name.startsWith("phasechrome-current") || scene.name.equals("phasechrome-custom") ? null : new SongSelectSkinAssets(resolver);
         String preferredSet = scene.name.equals("greylooks-first-item") || scene.name.startsWith("keyboard-") ? "set0"
                 : scene.name.equals("greylooks-last-item") ? "set6"
@@ -666,6 +685,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseGroupCards(screen, scene.name, pointer, clicked, pressed, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if (scene.name.startsWith("star-animation-")) {
+                exerciseStarAnimation(screen, scene, assets, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
             if (scene.name.startsWith("row-colours-")) {
                 if (System.getProperty("osujava.songSelectPhase", "").equals("row-colour-animation"))
                     exerciseRowColourAnimation(screen, assets, layout, fb, name);
@@ -1082,6 +1105,80 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         }
         capture(fb, name + "-enter-held");
         held.remove(Input.Keys.ENTER); input.keyUp(Input.Keys.ENTER);
+    }
+
+    private void exerciseStarAnimation(SongSelectScreen screen, Scene scene, SongSelectSkinAssets assets,
+            UiLayout layout, FrameBuffer fb, String name) {
+        boolean cropped = scene.name.endsWith("-crop");
+        var actual = ((List<?>)screenField(screen,"rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> !p.stars().glyphs().isEmpty()).findFirst().orElseThrow();
+        if (actual.stars().cropped()!=cropped) throw new AssertionError("Screen star mode/provider: " + name);
+        if ((int)assets.get(SongSelectSkinAssets.Image.STAR).logicalWidth()!=40) throw new AssertionError("Star density: " + name);
+        var animation = new SongSelectStarAnimation(cropped,40);
+        var rating = SongSelectRowPresentation.Stars.of(OptionalDouble.of(2.5));
+        animation.update(rating,false,1000,0);
+        var row = new SongSelectRow(0,0,null,false,false,100,300,600,72,0,1);
+        var geometry = SongSelectLayout.row(row,0,row.x(),row.y(),layout.width(),0,layout.height(),false,false);
+        var content = new SongSelectRowPresentation.Content("","","",null,
+                SongSelectRowPresentation.Stars.of(OptionalDouble.empty()),-1);
+        int[] times = {0,130,250,380,500,630,1000,1150};
+        int checks=0;
+        for (int stage=0;stage<times.length;stage++) {
+            if (stage==times.length-1) animation.retire(2000,0);
+            animation.advance(1000+times[stage]);
+            var snapshot=animation.snapshot();
+            var drawnRow = stage==times.length-1 ? new SongSelectRow(0,0,null,false,false,100,300,160,72,0,1) : row;
+            var drawnGeometry = SongSelectLayout.row(drawnRow,0,100,300,layout.width(),0,layout.height(),false,false);
+            var item = new SongSelectRowRenderer.Presentation(drawnRow,content,false,null,null,0,drawnGeometry,false,0,snapshot);
+            Gdx.gl.glClearColor(0,0,0,1); Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+            ((SongSelectRowRenderer)screenField(screen,"rowRenderer")).draw(List.of(item),
+                    new SongSelectRowRenderer.Style(layout.width(),assets,(Texture)screenField(screen,"rowFill"),Color.WHITE,Color.WHITE,false),
+                    layout,0,layout.height());
+            // A white 40-logical-pixel texture at row height 72 gives a 22.5-unit pitch.
+            // Compare the entire band away from raster boundaries, not only the sprite centres.
+            float left=100+geometry.text().textX(), cy=cropped ? 313.5f : 309f;
+            float sx=fb.getWidth()/layout.width(), sy=fb.getHeight()/layout.height();
+            var pixels=Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
+            try {
+                for (int py=(int)((cy-15)*sy);py<(cy+15)*sy;py++) for (int px=(int)((left-3)*sx);px<(left+228)*sx;px++) {
+                    float x=(px+.5f)/sx, y=(py+.5f)/sy;
+                    double alpha=0;
+                    boolean edge=false;
+                    for (int i=0;i<10;i++) {
+                        float cx=left+(i+.5f)*22.5f;
+                        float bg=cropped ? 22.5f : 7.875f;
+                        var glyph=snapshot.glyphs().get(i);
+                        float fw=cropped ? 22.5f*glyph.crop() : 22.5f*Math.abs(glyph.scale());
+                        float fh=cropped ? 22.5f : fw;
+                        float fx=cropped ? cx-11.25f : cx-fw/2;
+                        var background=new SongSelectLayout.Rect(cx-bg/2,cy-bg/2,bg,bg);
+                        var foreground=new SongSelectLayout.Rect(fx,cy-fh/2,fw,fh);
+                        for (var bounds : List.of(background,foreground)) {
+                            if (bounds.width()<=0 || bounds.height()<=0) continue;
+                            if (x>=bounds.x()-1/sx && x<=bounds.x()+bounds.width()+1/sx
+                                    && y>=bounds.y()-1/sy && y<=bounds.y()+bounds.height()+1/sy
+                                    && (Math.abs(x-bounds.x())<1/sx || Math.abs(x-bounds.x()-bounds.width())<1/sx
+                                    || Math.abs(y-bounds.y())<1/sy || Math.abs(y-bounds.y()-bounds.height())<1/sy)) edge=true;
+                        }
+                        if (background.contains(x,y)) alpha=30/255.0*snapshot.backgroundOpacity();
+                        if (fw>0 && foreground.contains(x,y)) alpha=snapshot.foregroundOpacity()+alpha*(1-snapshot.foregroundOpacity());
+                    }
+                    if (stage==times.length-1) {
+                        if (Math.abs(x-260)<1/sx) edge=true;
+                        if (x>=260) alpha=0;
+                    }
+                    if (edge) continue;
+                    int pixel=pixels.getPixel(px,py);
+                    for (int channel=0;channel<3;channel++) if (Math.abs((pixel >>> (24-channel*8) & 255)-alpha*255)>3)
+                        throw new AssertionError("Star pixel: " + name + " t=" + times[stage] + " at=" + x + "," + y
+                                + " expected=" + alpha*255 + " actual=" + (pixel >>> (24-channel*8) & 255));
+                    checks++;
+                }
+            } finally { pixels.dispose(); }
+            capture(fb,name+"-"+(stage==times.length-1 ? "retire-150" : times[stage])+"ms");
+            transitionFrames++;
+        }
+        System.out.println("STAR PIXELS PASS " + name + " samples=" + checks);
     }
 
     private void exerciseRowColourAnimation(SongSelectScreen screen, SongSelectSkinAssets assets,
