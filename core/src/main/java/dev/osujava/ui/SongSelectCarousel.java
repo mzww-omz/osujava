@@ -203,7 +203,11 @@ final class SongSelectCarousel {
         scroll.jump(scroll.position() + distance / referenceScale);
     }
 
-    void beginDrag() { keyboardTracking = false; scroll.beginDrag(); }
+    void beginDrag(String key) {
+        keyboardTracking = false;
+        hoverKey = key; hoverAbsence = 0;
+        scroll.beginDrag();
+    }
     void drag(float distance, float delta) {
         if (referenceScale <= 0) return;
         float dt = Float.isFinite(delta) ? Math.max(0, Math.min(2, delta)) : 0;
@@ -212,11 +216,25 @@ final class SongSelectCarousel {
     void releaseDrag() { scroll.releaseDrag(); }
     void cancelDrag() { scroll.cancelDrag(); }
 
+    /** 06003253/324f: right-button position in the 70..400 reference-Y interval. */
+    void rightScroll(float referenceX, float referenceY) {
+        if (!Float.isFinite(referenceX) || !Float.isFinite(referenceY)
+                || referenceX < 200 || keyboardTracking || scroll.dragging()) return;
+        float fraction = Math.max(0, Math.min(1, (referenceY - 70) / 330));
+        scroll.seek(fraction * maxScroll / referenceScale, SongSelectScroll.TRACK_DECAY);
+    }
+
     /** Retain the existing hover gap policy; row displacement is independent of scroll speed. */
     void advance(float delta, String hitKey) {
+        advance(delta, hitKey, false);
+    }
+    void advance(float delta, String hitKey, boolean rightScrolling) {
         float dt = Float.isFinite(delta) ? Math.max(0, Math.min(2, delta)) : 0;
-        if (hitKey != null && byKey.containsKey(hitKey) && byKey.get(hitKey).entry.visible()) { hoverKey = hitKey; hoverAbsence = 0; }
-        else if ((hoverAbsence += dt) >= .075f) hoverKey = null;
+        // 06003256/3267 preserve the hover identity throughout either scroll gesture.
+        if (!scroll.dragging() && !rightScrolling) {
+            if (hitKey != null && byKey.containsKey(hitKey) && byKey.get(hitKey).entry.visible()) { hoverKey = hitKey; hoverAbsence = 0; }
+            else if ((hoverAbsence += dt) >= .075f) hoverKey = null;
+        }
         if (dt > 0) {
             Row tracking = byKey.get(keyboardTracking && focusKey != null ? focusKey : selectionTrackingKey);
             if (!scroll.dragging() && (keyboardTracking || pointerTracking) && tracking != null && tracking.entry.visible())

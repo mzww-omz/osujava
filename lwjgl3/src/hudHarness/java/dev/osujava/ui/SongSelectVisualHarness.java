@@ -201,6 +201,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
                     for (String name : List.of("group", "reentry"))
                         scenes.add(new Scene(size[0],size[1],size[2],"lifecycle-" + name));
+            } else if (phase.equals("pointer-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String name : List.of("threshold", "right"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"pointer-" + name));
             } else if (phase.equals("drag-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
@@ -472,6 +477,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         InputProcessor[] processor = {null};
         boolean[] clicked = {false};
         boolean[] pressed = {false};
+        boolean[] rightClicked = {false}, rightPressed = {false};
         UiLayout layout = UiLayout.fromPixels(scene.width,scene.height);
         int[] pointer = {40,scene.height / 2};
         if (scene.name.equals("greylooks-random-hover") || scene.name.equals("phasechrome-current-hover")) { pointer[0] = Math.round(344 * layout.scale()); pointer[1] = scene.height - Math.round(19 * layout.scale()); }
@@ -479,8 +485,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "setInputProcessor" -> { processor[0] = (InputProcessor)a[0]; yield null; }
             case "getInputProcessor" -> processor[0];
             case "getX" -> pointer[0]; case "getY" -> pointer[1];
-            case "isButtonJustPressed" -> clicked[0];
-            case "isButtonPressed" -> pressed[0];
+            case "isButtonJustPressed" -> (int)a[0] == Input.Buttons.LEFT ? clicked[0] : (int)a[0] == Input.Buttons.RIGHT && rightClicked[0];
+            case "isButtonPressed" -> (int)a[0] == Input.Buttons.LEFT ? pressed[0] : (int)a[0] == Input.Buttons.RIGHT && rightPressed[0];
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
         var library = new BeatmapLibrary();
@@ -636,6 +642,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             if (scene.name.startsWith("drag-")) {
                 exerciseDrag(screen, scene, processor[0], pointer, clicked, pressed, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
+            if (scene.name.startsWith("pointer-")) {
+                exercisePointer(screen, scene, pointer, clicked, pressed, rightClicked, rightPressed, layout, fb, name);
                 fb.end(); advanceScene(); return;
             }
             if (scene.name.equals("repair-empty") || scene.name.equals("repair-single")) {
@@ -986,6 +996,52 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         if (!selection.equals(browser.selection()) || pending(screen)) throw new AssertionError("Lifecycle changed playable selection");
     }
 
+    private void exercisePointer(SongSelectScreen screen, Scene scene, int[] pointer,
+            boolean[] clicked, boolean[] pressed, boolean[] rightClicked, boolean[] rightPressed,
+            UiLayout layout, FrameBuffer fb, String name) {
+        var model = carousel(screen);
+        var browser = (SongBrowserModel) screenField(screen, "browser");
+        String selection = browser.selectedKey();
+        var row = model.rows().stream().filter(r -> r.entry.key().equals(selection)).findFirst().orElseThrow();
+        if (scene.name.equals("pointer-threshold")) {
+            for (int distance : new int[]{81, 80}) {
+                pointerRow(screen, row.entry.setIndex(), row.entry.difficultyIndex(), pointer, layout, scene.height);
+                int startX = pointer[0];
+                clicked[0] = true; pressed[0] = true; screen.render(.02f); transitionFrames++; clicked[0] = false;
+                pointer[0] += distance; screen.render(.02f); transitionFrames++;
+                pointer[0] = startX; screen.render(.02f); transitionFrames++;
+                capture(fb, name + "-held-" + distance);
+                pressed[0] = false; screen.render(0); transitionFrames++;
+                if (pending(screen) != (distance == 80)) throw new AssertionError("Window-pixel click threshold: " + name);
+                assertRenderedBounds(screen, layout); capture(fb, name + "-released-" + distance);
+            }
+        } else {
+            pointerRow(screen, row.entry.setIndex(), row.entry.difficultyIndex(), pointer, layout, scene.height);
+            rightClicked[0] = true; rightPressed[0] = true; screen.render(0); rightClicked[0] = false;
+            if (((SongSelectInputController) screenField(screen, "input")).rightScrolling())
+                throw new AssertionError("Right press on row started scrolling");
+            rightPressed[0] = false; screen.render(0);
+            pointer[0] = Math.round(250f * scene.height / 480); pointer[1] = Math.round(235f * scene.height / 480);
+            rightClicked[0] = true; rightPressed[0] = true; screen.render(0); rightClicked[0] = false;
+            for (int stage = 0; stage < 3; stage++) {
+                pointer[1] = Math.round((stage == 0 ? 235 : stage == 1 ? 410 : 60) * scene.height / 480f);
+                double fraction = Math.max(0, Math.min(1, (pointer[1] * 480.0 / scene.height - 70) / 330));
+                for (int frame = 0; frame < 30; frame++) {
+                    float before = model.scrollOffset();
+                    float dt = frame % 3 == 0 ? 1f / 30 : frame % 3 == 1 ? 1f / 60 : 1f / 144;
+                    screen.render(dt); transitionFrames++;
+                    double expected = fraction * model.maxScroll() + (before - fraction * model.maxScroll()) * Math.pow(.992, dt * 1000);
+                    if (Math.abs(model.scrollOffset() - expected) > .01) throw new AssertionError("Right-position interpolation: " + name);
+                    assertRenderedBounds(screen, layout);
+                    if (frame == 0 || frame == 29) capture(fb, name + "-stage-" + stage + "-frame-" + frame);
+                }
+            }
+            rightPressed[0] = false; screen.render(0);
+            if (pending(screen)) throw new AssertionError("Right scroll played a row");
+        }
+        if (!selection.equals(browser.selectedKey())) throw new AssertionError("Pointer gesture changed playable selection");
+    }
+
     private void exerciseDrag(SongSelectScreen screen, Scene scene, InputProcessor input,
             int[] pointer, boolean[] clicked, boolean[] pressed, UiLayout layout, FrameBuffer fb, String name) {
         var model = carousel(screen);
@@ -996,7 +1052,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         clicked[0] = true; pressed[0] = true; screen.render(.02f); clicked[0] = false;
         float before = model.scrollOffset();
         for (int frame = 0; frame < 3; frame++) {
-            int pixels = Math.round((scene.name.equals("drag-reverse") && frame == 2 ? -60 : 30) * layout.scale());
+            int pixels = Math.round((scene.name.equals("drag-reverse") ? (frame == 2 ? -100 : 50) : 30) * layout.scale());
             pointer[1] -= pixels;
             float previous = model.scrollOffset();
             screen.render(.02f); transitionFrames++;

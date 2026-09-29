@@ -329,7 +329,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             carousel.pointerPressed();
-            input.cancelPointer();
+            input.cancelLeftPointer();
             var oldSort = browser.sort(); var oldGroup = browser.group();
             var previousMenu = controls.menu();
             if (toolbox.open()) SongSelectToolboxOverlay.click(toolbox,layout,px,py);
@@ -353,16 +353,25 @@ public final class SongSelectScreen extends ScreenAdapter {
                 if (slot >= 0) scores.select(scores.first() + slot);
                 else {
                     var row = hitRow(px, py);
-                    input.pressRow(row == null ? null : row.key(), px, py, carousel);
+                    input.pressRow(row == null ? null : row.key(), Gdx.input.getX(), Gdx.input.getY(), carousel);
                 }
             }
         }
 
-        if (toolbox.open() || importing || outgoing.pending()) input.cancelPointer();
-        var releasedRow = hitRow(px, py);
+        boolean blocked = toolbox.open() || importing || outgoing.pending();
+        if (!blocked && !controls.open() && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
+            carousel.pointerPressed();
+            input.pressRight(hitRow(px, py) != null);
+        }
+        if (blocked) input.cancelPointer();
+        var pressedRow = visibleRows.stream().filter(row -> row.key().equals(input.pressedKey())).findFirst().orElse(null);
         if (input.pointer(Gdx.input.isButtonPressed(Input.Buttons.LEFT),
-                releasedRow == null ? null : releasedRow.key(), px, py, delta) != null)
-            handleRowClick(px, py);
+                pressedRow != null && pressedRow.boundsContain(px, py),
+                Gdx.input.getX(), Gdx.input.getY(), layout.scale(), delta) != null)
+            handleRowClick(pressedRow);
+        float referenceScale = SongSelectMetrics.carouselScale(layout.height());
+        input.rightPointer(Gdx.input.isButtonPressed(Input.Buttons.RIGHT), Gdx.input.isButtonPressed(Input.Buttons.LEFT),
+                px / referenceScale, (layout.height() - py) / referenceScale, carousel);
         // Sample input before integrating free flight, then publish drawing and hit geometry together.
         visibleRows = layoutRows(layout, delta);
         prepareRowPresentations();
@@ -505,7 +514,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         carousel.focus(browser.focusKey());
         carousel.selectionTrackingTarget(browser.selectionTrackingKey());
         carousel.emphasize(browser.selectedKey());
-        if (advance) carousel.advance(delta, hit == null ? null : hit.key());
+        if (advance) carousel.advance(delta, hit == null ? null : hit.key(), input != null && input.rightScrolling());
         List<SongSelectRow> result = new ArrayList<>();
         for (SongSelectCarousel.Row entry : carousel.rows()) {
             if (!carousel.presents(entry)) continue;
@@ -625,8 +634,10 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private void handleRowClick(float x, float y) {
+        handleRowClick(hitRow(x, y));
+    }
+    private void handleRowClick(SongSelectRow row) {
         var identity = browser.selection();
-        SongSelectRow row = hitRow(x, y);
         if (row == null) return;
         if (row.group()) {
             browser.toggleGroup(row.key());

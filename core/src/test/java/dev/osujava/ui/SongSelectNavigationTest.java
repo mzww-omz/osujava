@@ -18,7 +18,7 @@ class SongSelectNavigationTest {
     private final BeatmapLibrary library = new BeatmapLibrary();
     private SongSelectScreen screen;
     private int importRequests;
-    private boolean shift, control, alt, pointerPressed, pointerClicked;
+    private boolean shift, control, alt, pointerPressed, pointerClicked, rightPressed, rightClicked;
     private int pointerX, pointerY;
 
     @BeforeEach void setup() {
@@ -28,8 +28,8 @@ class SongSelectNavigationTest {
             case "getInputProcessor" -> processor;
             case "getX" -> pointerX;
             case "getY" -> pointerY;
-            case "isButtonPressed" -> pointerPressed;
-            case "isButtonJustPressed" -> pointerClicked;
+            case "isButtonPressed" -> (int)a[0] == Input.Buttons.LEFT ? pointerPressed : (int)a[0] == Input.Buttons.RIGHT && rightPressed;
+            case "isButtonJustPressed" -> (int)a[0] == Input.Buttons.LEFT ? pointerClicked : (int)a[0] == Input.Buttons.RIGHT && rightClicked;
             case "isKeyPressed" -> control && (int)a[0] == Input.Keys.CONTROL_LEFT || alt && (int)a[0] == Input.Keys.ALT_LEFT || shift && ((int)a[0] == Input.Keys.SHIFT_LEFT || (int)a[0] == Input.Keys.SHIFT_RIGHT);
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
@@ -477,6 +477,70 @@ class SongSelectNavigationTest {
         assertFalse(((UiNavigation) field("outgoing")).pending());
     }
 
+    private void updatePointer(int width, int height, float delta) throws Exception {
+        var update = SongSelectScreen.class.getDeclaredMethod("update", dev.osujava.ui.theme.UiLayout.class, float.class);
+        update.setAccessible(true);
+        update.invoke(screen, dev.osujava.ui.theme.UiLayout.fromPixels(width, height), delta);
+    }
+    @Test void productionReleaseSelectsThePressedRowEvenWhenSelectedRowNowOverlapsIt() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle();
+        var pressed = carousel().rows().stream().filter(r -> r.entry.setIndex() == 2).findFirst().orElseThrow();
+        pointerX = Math.round(carousel().renderX(pressed, 1280) + 120);
+        pointerY = 720 - Math.round(carousel().renderY(pressed, 636) + carousel().rowHeight() / 2);
+        pointerClicked = true; pointerPressed = true; updatePointer(1280, 720, 0);
+        var overlapping = carousel().rows().stream().filter(r -> r.entry.setIndex() == 1 && r.entry.difficultyIndex() == 0).findFirst().orElseThrow();
+        overlapping.motionX = pressed.motionX; overlapping.motionY = pressed.motionY;
+        pointerClicked = false; pointerPressed = false; updatePointer(1280, 720, 0);
+        selected(2, 0, "Gamma-easy.png");
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionShortDragStillClicksInsideTheMovedPressedRow() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle();
+        var row = ((List<?>) field("visibleRows")).stream().map(SongSelectRow.class::cast).filter(SongSelectRow::selected).findFirst().orElseThrow();
+        pointerX = Math.round(row.x() + 120); pointerY = 720 - Math.round(row.y() + row.height() / 2);
+        pointerClicked = true; pointerPressed = true; updatePointer(1280, 720, 0);
+        pointerClicked = false; pointerY -= 30; updatePointer(1280, 720, .02f);
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        pointerPressed = false; updatePointer(1280, 720, 0);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+        selected(1, 0, "Beta-easy.png");
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"1280,720", "1920,1080", "1024,768"})
+    void productionRightScrollUsesFullWindowReferenceCoordinatesAndContinuesAfterRelease(int width, int height) throws Exception {
+        open("Beta", 0); screen.resize(width, height);
+        pointerX = Math.round(250f * height / 480); pointerY = Math.round(235f * height / 480);
+        rightClicked = true; rightPressed = true; updatePointer(width, height, 0);
+        float fraction = (pointerY * 480f / height - 70) / 330;
+        assertEquals(carousel().maxScroll() * fraction, carousel().scrollTarget(), .001);
+        float before = carousel().scrollOffset(), target = carousel().scrollTarget();
+        rightClicked = false; updatePointer(width, height, .1f);
+        assertEquals(target + (before - target) * Math.pow(.992, 100), carousel().scrollOffset(), .001);
+        float velocity = carousel().scrollVelocity();
+        rightPressed = false; pointerY = height; updatePointer(width, height, 0);
+        assertEquals(velocity, carousel().scrollVelocity());
+        assertFalse(((SongSelectInputController) processor).rightScrolling());
+        selected(1, 0, "Beta-easy.png");
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionRightPressOverRowDoesNotScrollOrPlayAndOverlayCancelsRightScroll() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle();
+        var row = ((List<?>) field("visibleRows")).stream().map(SongSelectRow.class::cast).filter(SongSelectRow::selected).findFirst().orElseThrow();
+        pointerX = Math.round(row.x() + 120); pointerY = 720 - Math.round(row.y() + row.height() / 2);
+        float target = carousel().scrollTarget();
+        rightClicked = true; rightPressed = true; updatePointer(1280, 720, 0);
+        assertFalse(((SongSelectInputController) processor).rightScrolling());
+        assertEquals(target, carousel().scrollTarget());
+        rightClicked = false; rightPressed = false; updatePointer(1280, 720, 0);
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        pointerX = 500; rightClicked = true; rightPressed = true; updatePointer(1280, 720, 0);
+        assertTrue(((SongSelectInputController) processor).rightScrolling());
+        rightClicked = false; key(Input.Keys.F1); updatePointer(1280, 720, 0);
+        assertFalse(((SongSelectInputController) processor).rightScrolling());
+        key(Input.Keys.ESCAPE); updatePointer(1280, 720, 0);
+        assertFalse(((SongSelectInputController) processor).rightScrolling());
+    }
+
     @Test void modifiedTextNeverEntersSearchAndOrdinaryUnicodeStillDoes() throws Exception {
         open("Beta", 0);
         control = true; processor.keyTyped('c'); control = false;
@@ -493,7 +557,7 @@ class SongSelectNavigationTest {
         assertEquals(1, importRequests);
     }
 
-    @Test void productionDragPublishesReleaseGeometryWithoutChangingSelection() throws Exception {
+    @Test void productionDragIgnoresReleaseMovementAndPublishesTheHeldPosition() throws Exception {
         open("Beta", 0); screen.resize(1280, 720); settle();
         var row = ((List<?>) field("visibleRows")).stream().map(SongSelectRow.class::cast)
                 .filter(r -> r.selected()).findFirst().orElseThrow();
@@ -503,10 +567,10 @@ class SongSelectNavigationTest {
         var layout = dev.osujava.ui.theme.UiLayout.fromPixels(1280, 720);
         float before = carousel().scrollOffset();
         pointerClicked = true; pointerPressed = true; update.invoke(screen, layout, 0f);
-        pointerClicked = false; pointerY -= 40; update.invoke(screen, layout, 0f);
-        assertEquals(before + 40, carousel().scrollOffset(), .001);
+        pointerClicked = false; pointerY -= 90; update.invoke(screen, layout, .02f);
+        assertEquals(before + 90, carousel().scrollOffset(), .001);
         pointerPressed = false; pointerY -= 20; update.invoke(screen, layout, 0f);
-        assertEquals(before + 60, carousel().scrollOffset(), .001);
+        assertEquals(before + 90, carousel().scrollOffset(), .001);
         selected(1, 0, "Beta-easy.png");
         assertFalse(((UiNavigation) field("outgoing")).pending());
         for (var geometry : screen.rowGeometrySnapshot()) {
@@ -524,15 +588,15 @@ class SongSelectNavigationTest {
         var layout = dev.osujava.ui.theme.UiLayout.fromPixels(1280, 720);
         float before = carousel().scrollOffset();
         pointerClicked = true; pointerPressed = true; update.invoke(screen, layout, .02f);
-        pointerClicked = false; pointerY -= 30; update.invoke(screen, layout, .02f);
-        assertEquals(before + 30, carousel().scrollOffset(), .001);
-        assertEquals(.8784233454094307 * 1500, carousel().scrollVelocity(), .01);
+        pointerClicked = false; pointerY -= 90; update.invoke(screen, layout, .02f);
+        assertEquals(before + 90, carousel().scrollOffset(), .001);
+        assertEquals(3 * .8784233454094307 * 1500, carousel().scrollVelocity(), .01);
         update.invoke(screen, layout, .1f);
-        assertEquals(before + 30, carousel().scrollOffset(), .001);
+        assertEquals(before + 90, carousel().scrollOffset(), .001);
         pointerPressed = false; update.invoke(screen, layout, 0f);
-        assertEquals(.15357002292559258 * 1500, carousel().scrollVelocity(), .01);
+        assertEquals(3 * .15357002292559258 * 1500, carousel().scrollVelocity(), .01);
         update.invoke(screen, layout, .02f);
-        assertTrue(carousel().scrollOffset() > before + 30);
+        assertTrue(carousel().scrollOffset() > before + 90);
         selected(1, 0, "Beta-easy.png");
         assertFalse(((UiNavigation) field("outgoing")).pending());
         for (var geometry : screen.rowGeometrySnapshot()) {

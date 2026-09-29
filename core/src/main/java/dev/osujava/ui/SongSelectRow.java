@@ -26,7 +26,11 @@ record SongSelectRow(int setIndex, int difficultyIndex, String header, boolean s
                 hoverAmount, revealAmount, -1, x, y);
     }
     boolean contains(float px, float py) {
-        return interactive() && revealAmount >= .05f && px >= x && px <= x + width && py >= y && py <= y + height;
+        return interactive() && revealAmount >= .05f && boundsContain(px, py);
+    }
+    boolean boundsContain(float px, float py) {
+        // Native top-left rectangle includes left/top and excludes right/bottom; Java Y is up.
+        return px >= x && px < x + width && py > y && py <= y + height;
     }
 
     static SongSelectRow hit(List<SongSelectRow> rows, float x, float y, float bottom, float top) {

@@ -76,4 +76,23 @@ class SongSelectTrackingTest {
         assertEquals(curve - (curve - before) * .95 * .95 * .95 * .95 * .95 * .95,
                 c.renderX(row, 1280), .001);
     }
+    @Test void rightPointerClampsTheSeventyToFourHundredReferenceYRangeAndUsesTrackDecay() {
+        for (float y : new float[]{0, 70, 235, 400, 480}) {
+            var c = model(); c.rightScroll(200, y);
+            double expected = y <= 70 ? 0 : y >= 400 ? c.maxScroll() : c.maxScroll() / 2;
+            assertEquals(expected, c.scrollTarget(), .0001);
+            c.advance(.1f, null);
+            assertEquals(expected * (1 - Math.pow(.992, 100)), c.scrollOffset(), .0001);
+        }
+    }
+    @Test void leftAreaAndKeyboardTrackingTakePriorityOverRightPositioning() {
+        var c = model(); c.rightScroll(199, 400);
+        assertEquals(0, c.scrollTarget());
+        c.keyboardNavigation(); c.rightScroll(200, 400);
+        assertEquals(0, c.scrollTarget());
+        c.pointerPressed(); c.rightScroll(200, 400);
+        assertEquals(c.maxScroll(), c.scrollTarget());
+        c.pointerTracking(199, false, true); c.advance(.1f, null);
+        assertEquals(0, c.scrollTarget());
+    }
 }
