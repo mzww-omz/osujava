@@ -28,26 +28,21 @@ class SongSelectCarouselMotionTest {
     }
     private void settle(SongSelectCarousel model) { for (int i = 0; i < 180; i++) model.advance(1f / 60, null); }
 
-    @Test void wheelImpulseIsBoundedDecaysAndReleasesOnReversal() {
-        var model = model();
-        model.scrollBy(Float.MAX_VALUE);
-        assertEquals(model.rowHeight() * 36, model.scrollVelocity());
-        assertEquals(model.maxScroll(), model.scrollTarget());
+    @Test void wheelVelocityDecaysAndOppositeNotchBrakesBeforeReversing() {
+        var model = model(); model.wheel(2);
+        assertEquals(.88 * 620f / 480 * 1000, model.scrollVelocity(), .001);
         float velocity = model.scrollVelocity();
         model.advance(.1f, null);
         assertTrue(model.scrollVelocity() > 0 && model.scrollVelocity() < velocity);
-        assertTrue(model.velocityInfluence() > 0 && model.velocityInfluence() <= 1);
-        model.scrollBy(-.25f);
-        assertTrue(model.scrollVelocity() < 0, "Reversal must not retain the previous positive impulse");
-        settle(model);
-        assertEquals(0, model.scrollVelocity(), .01);
-        assertEquals(0, model.velocityInfluence(), .001);
+        model.wheel(-1);
+        assertTrue(model.scrollVelocity() < 0, "The decayed speed is now small enough to reverse");
+        settle(model); assertEquals(0, model.scrollVelocity());
     }
 
-    @Test void springHasSoftStartAndSettlesWithoutOvershootForAnIsolatedInput() {
+    @Test void selectionDecayStartsImmediatelyAndStopsWithTheNativeResidual() {
         var model = model(); model.scrollBy(76);
         model.advance(1f / 120, null);
-        assertTrue(model.scrollOffset() > 0 && model.scrollOffset() < 2);
+        assertEquals(76 * (1 - Math.pow(.99, 1000.0 / 120)), model.scrollOffset(), .001);
         float previous = model.scrollOffset();
         for (int i = 0; i < 180; i++) {
             model.advance(1f / 60, null);
@@ -55,7 +50,9 @@ class SongSelectCarouselMotionTest {
             assertTrue(model.scrollOffset() <= 76);
             previous = model.scrollOffset();
         }
-        assertEquals(76, model.scrollOffset(), .001);
+        assertTrue(model.scrollOffset() < 76);
+        assertTrue(76 - model.scrollOffset() < .01 / -Math.log(.99) * 620 / 480);
+        assertEquals(0, model.scrollVelocity());
     }
 
     @Test void repeatedWheelTimelineAndVisualResponseAgreeAtThirtySixtyAndOneTwentyHz() {
@@ -63,7 +60,7 @@ class SongSelectCarouselMotionTest {
         for (int fps : new int[]{30, 60, 120}) {
             var model = model();
             for (int frame = 0; frame < fps; frame++) {
-                if (frame % (fps / 5) == 0) model.scrollBy(frame < fps / 2 ? 140 : -40);
+                if (frame % (fps / 5) == 0) model.wheel(frame < fps / 2 ? 2 : -1);
                 model.advance(1f / fps, null);
             }
             models.add(model);
@@ -71,30 +68,29 @@ class SongSelectCarouselMotionTest {
         for (var model : models) {
             assertEquals(models.getFirst().scrollOffset(), model.scrollOffset(), .02);
             assertEquals(models.getFirst().scrollVelocity(), model.scrollVelocity(), .02);
-            assertEquals(models.getFirst().velocityInfluence(), model.velocityInfluence(), .003);
         }
     }
 
-    @Test void tinyDeltasRemainContinuousAndBoundariesDoNotBuildPhantomVelocity() {
+    @Test void previewDistanceCommandsKeepTinyDeltasAndClampedDestinations() {
         var model = model(); model.scrollBy(-76);
         assertEquals(0, model.scrollVelocity());
         model.scrollBy(.001f); assertEquals(.001f, model.scrollTarget());
         assertTrue(model.scrollVelocity() > 0);
         model.scrollBy(.001f); assertEquals(.002f, model.scrollTarget());
         model.scrollBy(Float.MAX_VALUE); settle(model);
-        model.scrollBy(76); assertEquals(0, model.scrollVelocity(), .01);
+        model.scrollBy(76); assertEquals(model.maxScroll(), model.scrollTarget(), .001);
     }
 
     @Test void wheelBrowsingIsNotRecenteredByRepeatedSelectionOrResize() {
         var model = model(); model.select("s4#-1"); settle(model);
-        model.scrollBy(200); float target = model.scrollTarget();
+        model.wheel(2); float target = model.scrollTarget();
         model.select("s4#-1"); assertEquals(target, model.scrollTarget());
         model.content(collapsed(30), 420, 90, 93, "s4#-1");
         assertEquals(target * 420 / 620, model.scrollTarget(), .001);
         model.select("s5#-1"); assertEquals(5 * 93 - 20 * 420f / 480, model.scrollTarget(), .001);
     }
 
-    @Test void selectionAndHoverEaseIndependentlyWhileWheelOnlyChangesViewport() {
+    @Test void selectionAndHoverEaseIndependentlyWhileDistanceCommandsOnlyChangeViewport() {
         var model = model(); model.select("s3#-1");
         assertEquals(0, row(model, "s3#-1").selectedAmount);
         model.advance(.05f, "s2#-1");
@@ -104,7 +100,8 @@ class SongSelectCarouselMotionTest {
         assertTrue(row(model, "s2#-1").hoverAmount > 0);
         model.scrollBy(100); settle(model);
         assertEquals(1, row(model, "s3#-1").selectedAmount, .001);
-        assertEquals(3 * 72 + 100 - 20 * 620f / 480, model.scrollTarget(), .001);
+        double stopResidual = .01 / -Math.log(.99) * 620 / 480;
+        assertEquals(3 * 72 + 100 - 20 * 620f / 480, model.scrollTarget(), stopResidual);
     }
 
     @Test void scrollSpeedDoesNotWeakenHoverOrChangeSelection() {
@@ -125,7 +122,7 @@ class SongSelectCarouselMotionTest {
             var row = row(model, "s20#-1");
             float before = model.renderX(row, 1280);
             model.advance(1f / 60, null);
-            float down = row.logicalY - model.scrollOffset();
+            float down = row.logicalY - model.scrollOffset() + model.predictedTravel();
             float target = SongSelectMetrics.curveX(down, 1280, 620);
             assertEquals(target - (target - before) * .95, model.renderX(row, 1280), .001);
         }
@@ -137,7 +134,7 @@ class SongSelectCarouselMotionTest {
 
     @Test void expansionAndCollapsePreserveEverySurvivingRowIncludingInterruptedMotion() {
         for (int count : new int[]{1, 4, 16}) for (int selected : new int[]{0, count - 1}) {
-            var model = model(); model.select("s4#-1"); settle(model);
+            var model = model(); model.keyboardNavigation(); model.select("s4#-1"); settle(model);
             model.advance(.1f, "s5#-1");
             float aboveY = model.renderY(row(model, "s3#-1"), 658);
             float belowY = model.renderY(row(model, "s5#-1"), 658);
@@ -161,7 +158,7 @@ class SongSelectCarouselMotionTest {
 
     @Test void expandingFirstOrLastSetRespectsFirstRowBoundaryAndTracksOtherDifficulties() {
         for (int set : new int[]{0, 29}) for (int difficulty : new int[]{0, 15}) {
-            var model = model(); model.select("s" + set + "#-1"); settle(model);
+            var model = model(); model.keyboardNavigation(); model.select("s" + set + "#-1"); settle(model);
             float y = model.renderY(row(model, "s" + set + "#-1"), 658);
             model.content(expanded(30, set, 16), 620, 76, 72, "s" + set + "#" + difficulty);
             var row = row(model, "s" + set + "#" + difficulty);
@@ -185,7 +182,7 @@ class SongSelectCarouselMotionTest {
             assertTrue(Float.isFinite(model.renderY(row, 658)));
         }
         model.content(List.of(), 620, 76, 72, null);
-        assertEquals(0, model.scrollVelocity()); assertEquals(0, model.velocityInfluence());
+        assertEquals(0, model.scrollVelocity());
     }
 
     @Test void thousandSetScrollingRetainsContentIdentitiesAndSettlesAllTransientMotion() {
@@ -197,11 +194,11 @@ class SongSelectCarouselMotionTest {
         }
         settle(model);
         assertEquals(model.scrollTarget(), model.scrollOffset(), .01);
-        assertEquals(0, model.velocityInfluence(), .001);
+        assertEquals(0, model.scrollVelocity());
     }
     @Test void expandedRowYConvergesAtTheConfirmedRateWhileViewportMoves() {
         for (int difficulty : new int[]{0, 15}) {
-            var model = model(); model.select("s3#-1"); settle(model);
+            var model = model(); model.keyboardNavigation(); model.select("s3#-1"); settle(model);
             model.content(expanded(30,4,16),620,76,72,"s4#" + difficulty);
             var selected = row(model,"s4#" + difficulty);
             for (int frame = 0; frame < 180; frame++) {

@@ -786,6 +786,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (int frame=0;frame<90;frame++)screen.render(1f/60);
             }
             assertRenderedBounds(screen,layout);
+            // Captures above keep their original timestamps. Native wheel inertia can exceed one second.
+            for (int frame = 0; frame < 180 && Math.abs(carousel(screen).scrollTarget() - carousel(screen).scrollOffset()) > 1; frame++) {
+                screen.render(1f / 60); assertRenderedBounds(screen, layout);
+            }
             assertScrollSettled(screen,name);
             if (setCount > 7) {
                 if (scene.name.equals("phase3-large-library")) profileBrowser(screen,name);
@@ -1402,7 +1406,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                                 UiLayout layout, int height) {
         // Position the viewport, then use the production press/release and shared hit geometry.
         carousel(screen).select(key);
-        pointer[0] = 40;
+        // On the left, native tracking returns to the playable selection instead of this test target.
+        pointer[0] = Math.round((layout.width() - 100) * layout.scale());
         for (int i = 0; i < 90; i++) screen.render(1f / 60);
         var snapshots = (List<?>) screenField(screen, "visibleRows");
         var row = snapshots.stream().map(SongSelectRow.class::cast)

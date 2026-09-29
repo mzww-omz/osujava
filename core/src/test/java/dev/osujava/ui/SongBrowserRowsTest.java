@@ -49,15 +49,18 @@ class SongBrowserRowsTest {
         var a = group(m, "A"); var b = group(m, "B");
         assertSame(a, selected.parent);
         assertTrue(a.expanded); assertFalse(b.expanded);
+        assertEquals(selected.key, m.selectionTrackingKey());
         assertEquals(2, a.matchingChildren); assertEquals(1, b.matchingChildren);
         m.toggleGroup(b.key);
         assertFalse(a.expanded); assertTrue(b.expanded);
         assertEquals(selection, m.selection()); assertNotNull(m.selectedDifficulty());
         assertEquals(SongBrowserModel.RowState.HIDDEN, selected.state);
         assertEquals(b.key, m.groupTargetKey());
+        assertEquals(b.key, m.selectionTrackingKey());
         assertTrue(m.entries().stream().noneMatch(e -> e.set() != null && e.set().id().equals("a")));
         m.toggleGroup(b.key);
         assertEquals(2, m.entries().size()); // Only the two closed Group cards.
+        assertEquals(b.key, m.selectionTrackingKey());
         assertEquals(selection, m.selection());
     }
     @Test void explicitSelectionReopensParentEvenIfDifficultyDidNotChange() {

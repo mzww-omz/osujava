@@ -17,7 +17,7 @@ class SongSelectCarouselTest {
     private void settle(SongSelectCarousel model) { for (int i = 0; i < 120; i++) model.advance(1f / 60, null); }
 
     @Test void selectionChangesTargetWithoutMovingLogicalRowsOrTeleportingViewport() {
-        var model = model(20);
+        var model = model(20); model.keyboardNavigation();
         var rows = model.rows();
         float y = rows.get(12).logicalY;
         model.select("set#12");
@@ -31,7 +31,7 @@ class SongSelectCarouselTest {
         assertEquals(373.83333, model.renderY(rows.get(12), 658) + model.rowHeight() / 2, .01);
     }
     @Test void selectionTracksY220ExceptFirstRowClampedAtY200() {
-        var model = model(25);
+        var model = model(25); model.keyboardNavigation();
         model.select("set#24"); settle(model);
         assertEquals(model.maxScroll() - 20 * 620f / 480, model.scrollOffset(), .01);
         assertEquals(284.16667, model.rows().get(24).logicalY - model.scrollOffset(), .01);
@@ -164,7 +164,7 @@ class SongSelectCarouselTest {
         m.focus(null); m.advance(.05f, null); assertEquals(0, m.rows().get(1).focusAmount, .0001f);
     }
     @Test void focusingAndScrollingToAnotherRowDoesNotGiveItSelectedEmphasis() {
-        var m = model(6);
+        var m = model(6); m.keyboardNavigation();
         m.select("set#4"); m.focus("set#4"); m.emphasize("set#0");
         settle(m);
         assertEquals(1, m.rows().get(4).focusAmount, .0001f);

@@ -101,6 +101,13 @@ final class SongBrowserModel {
     String scrollTargetKey() {
         return focusKey != null ? focusKey : groupTargetKey != null ? groupTargetKey : selectedKey();
     }
+    /** 06003250: when the selected beatmap's parent is closed, track the current Group. */
+    String selectionTrackingKey() {
+        Row selected = rowsByKey.get(selectedKey());
+        if (selected != null && selected.parent != null && !selected.parent.expanded)
+            return openGroupKey != null ? openGroupKey : groupTargetKey;
+        return selectedKey();
+    }
     String selectedKey() { return selectedSet() == null ? null : rowKey(selection.setId(), selection.difficultyId()); }
     static String rowKey(String setId, String difficultyId) {
         return "beatmap:" + identityField(setId) + identityField(difficultyId);

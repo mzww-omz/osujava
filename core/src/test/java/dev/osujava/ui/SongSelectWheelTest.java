@@ -219,7 +219,7 @@ class SongSelectWheelTest {
             pointer(.8f,.5f); var model = carousel(screen);
             float target = model.scrollTarget();
             assertTrue(processor.scrolled(0,.0001f));
-            assertEquals(target + .0001f * model.rowHeight(),model.scrollTarget(),.001);
+            assertEquals(target + .0001f * .4 / -Math.log(.994) * 1.5,model.scrollTarget(),.00001);
             assertTrue(processor.scrolled(0,Float.MAX_VALUE));
             assertEquals(model.maxScroll(),model.scrollTarget());
             assertTrue(Float.isFinite(model.scrollVelocity()));

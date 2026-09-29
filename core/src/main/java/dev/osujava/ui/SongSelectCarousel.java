@@ -30,22 +30,22 @@ final class SongSelectCarousel {
     private List<Row> rows = List.of(), allRows = List.of();
     private List<Entry> contentEntries = List.of();
     private final Map<String, Row> byKey = new HashMap<>();
-    private String selectedKey, hoverKey, focusKey, emphasisKey;
-    private float hoverAbsence, viewportHeight, rowHeight = 76, scrollOffset, scrollTarget, maxScroll;
+    private String selectedKey, hoverKey, focusKey, emphasisKey, selectionTrackingKey;
+    private float hoverAbsence, viewportHeight, rowHeight = 76, maxScroll;
+    private final SongSelectScroll scroll = new SongSelectScroll();
+    private boolean keyboardTracking, pointerTracking;
     private boolean initialized;
     private float selectionAnchor, screenHeight, viewportTop, referenceScale;
-    private float scrollVelocity, velocityInfluence, viewportVelocity, rowStep = 72;
-    private static final float SPRING_RATE = 18;
-    private static final float VELOCITY_DECAY = 5;
-    private static final float VELOCITY_LIMIT_ROWS = 36;
+    private float rowStep = 72;
 
-    float scrollVelocity() { return scrollVelocity; }
-    float velocityInfluence() { return velocityInfluence; }
+    /** Diagnostic velocity in logical UI units per second. */
+    float scrollVelocity() { return (float) (scroll.velocity() * referenceScale * 1000); }
+    float predictedTravel() { return (float) (scroll.remaining() * referenceScale); }
 
     List<Row> rows() { return rows; }
     List<Row> allRows() { return allRows; }
-    float scrollOffset() { return scrollOffset; }
-    float scrollTarget() { return scrollTarget; }
+    float scrollOffset() { return (float) (scroll.position() * referenceScale); }
+    float scrollTarget() { return (float) (scroll.destination() * referenceScale); }
     float maxScroll() { return maxScroll; }
     float rowHeight() { return rowHeight; }
 
@@ -73,11 +73,7 @@ final class SongSelectCarousel {
         rowHeight = validSize(size, 76);
         rowStep = validSize(pitch, 72);
         float ratio = oldScale > 0 ? referenceScale / oldScale : 1;
-        // 0600325a preserves absolute content travel, not the selected row's screen anchor.
-        scrollOffset *= ratio; scrollTarget *= ratio;
-        viewportVelocity *= ratio;
-        scrollVelocity = Math.max(-rowHeight * VELOCITY_LIMIT_ROWS,
-                Math.min(rowHeight * VELOCITY_LIMIT_ROWS, scrollVelocity * ratio));
+        // Reference-space scroll and velocity survive scale changes without an anchor correction.
         for (Row row : allRows) {
             row.motionY = viewportTop - screenHeight + (row.motionY - oldOrigin) * ratio;
             row.motionX *= ratio;
@@ -114,10 +110,10 @@ final class SongSelectCarousel {
         }
         allRows = List.copyOf(next); rows = List.copyOf(visible); contentEntries = List.copyOf(entries);
         maxScroll = rows.isEmpty() ? 0 : rows.getLast().logicalY - rows.getFirst().logicalY;
-        scrollOffset = clamp(scrollOffset); scrollTarget = clamp(scrollTarget);
+        scroll.range(maxScroll / (double) referenceScale);
         if (!java.util.Objects.equals(selection, selectedKey) || !initialized) select(selection);
         if (!initialized) {
-            scrollOffset = scrollTarget;
+            scroll.jump(scroll.destination());
             for (Row row : allRows) {
                 row.motionX = horizontalTarget(row.entry, row.motionY, false);
                 row.groupAmount = row.entry.header() || row.entry.expanded() ? 1 : 0;
@@ -125,7 +121,6 @@ final class SongSelectCarousel {
             }
             initialized = true;
         }
-        if (rows.isEmpty()) { scrollVelocity = 0; velocityInfluence = 0; viewportVelocity = 0; }
         Row hover = byKey.get(hoverKey);
         if (hover == null || !hover.entry.visible()) { hoverKey = null; hoverAbsence = 0; }
     }
@@ -133,41 +128,48 @@ final class SongSelectCarousel {
     /** Visual keyboard focus is separate from both scrolling and the playable selection. */
     void focus(String key) { focusKey = key; }
     void emphasize(String key) { emphasisKey = key; }
+    void selectionTrackingTarget(String key) { selectionTrackingKey = key; }
     void select(String key) {
         emphasisKey = key;
         if (initialized && java.util.Objects.equals(selectedKey, key)) return;
         selectedKey = key;
+        selectionTrackingKey = key;
         Row selected = byKey.get(key);
-        scrollTarget = clamp(selected == null ? scrollOffset : selected.logicalY - selectionAnchor);
+        scroll.seek(selected == null ? scroll.position() : (selected.logicalY - selectionAnchor) / referenceScale,
+                SongSelectScroll.SELECT_DECAY);
     }
 
     /** Reordering has no spatial correspondence: discard row travel and center selection. */
     void reordered() {
         for (Row row : allRows) row.motionY = row.logicalY;
         Row selected = byKey.get(selectedKey);
-        scrollTarget = clamp(selected == null ? 0 : selected.logicalY - selectionAnchor);
-        scrollVelocity = 0;
+        scroll.seek(selected == null ? 0 : (selected.logicalY - selectionAnchor) / referenceScale,
+                SongSelectScroll.SELECT_DECAY);
     }
 
-    /** Wheel browsing moves the viewport independently of selection and Set expansion. */
+    /** Keyboard row traversal continues tracking until a pointer press or wheel event. */
+    void keyboardNavigation() { keyboardTracking = true; }
+    void pointerPressed() { keyboardTracking = false; }
+    void pointerTracking(float referenceX, boolean held, boolean enabled) {
+        pointerTracking = enabled && !held && referenceX < 200;
+        if (held || !enabled) keyboardTracking = false;
+    }
+    void wheel(float amount) {
+        if (!Float.isFinite(amount) || amount == 0) return;
+        keyboardTracking = false;
+        scroll.wheel(amount);
+    }
+    /** Local preview/debug distance command; physical wheel events use wheel(). */
     void scrollBy(float distance) {
-        if (!Float.isFinite(distance) || distance == 0) return;
-        float target = clamp(scrollTarget + distance);
-        float travel = target - scrollTarget;
-        scrollTarget = target;
-        if (travel == 0) return;
-        // Input impulses are distinct from viewport error. Reversal releases the previous impulse.
-        if (Math.signum(travel) != Math.signum(scrollVelocity)) scrollVelocity = 0;
-        float limit = rowHeight * VELOCITY_LIMIT_ROWS;
-        scrollVelocity = Math.max(-limit, Math.min(limit, scrollVelocity + travel * 9));
+        if (!Float.isFinite(distance) || distance == 0 || referenceScale <= 0) return;
+        keyboardTracking = false;
+        scroll.seek(scroll.destination() + distance / referenceScale, SongSelectScroll.SELECT_DECAY);
     }
-
-    /** Direct manipulation cancels selection tracking and stale wheel momentum. */
+    /** Direct manipulation; native drag velocity sampling remains a separate input-timing task. */
     void dragBy(float distance) {
-        if (!Float.isFinite(distance)) return;
-        scrollOffset = clamp(scrollOffset + distance);
-        scrollTarget = scrollOffset;
-        viewportVelocity = scrollVelocity = velocityInfluence = 0;
+        if (!Float.isFinite(distance) || referenceScale <= 0) return;
+        keyboardTracking = false;
+        scroll.jump(scroll.position() + distance / referenceScale);
     }
 
     /** Retain the existing hover gap policy; row displacement is independent of scroll speed. */
@@ -175,27 +177,13 @@ final class SongSelectCarousel {
         float dt = Float.isFinite(delta) ? Math.max(0, Math.min(2, delta)) : 0;
         if (hitKey != null && byKey.containsKey(hitKey) && byKey.get(hitKey).entry.visible()) { hoverKey = hitKey; hoverAbsence = 0; }
         else if ((hoverAbsence += dt) >= .075f) hoverKey = null;
-        // Small bounded integration steps keep visual response consistent for 30/60/120 Hz.
-        float remaining = dt;
-        while (remaining > 0) {
-            float step = Math.min(remaining, 1f / 120);
-            scrollVelocity *= 1 - ease(step, VELOCITY_DECAY);
-            float speed = Math.abs(scrollVelocity) / (rowHeight * VELOCITY_LIMIT_ROWS);
-            float influence = Math.max(0, (speed - .055f) / .945f);
-            velocityInfluence += (influence - velocityInfluence) * ease(step, 16);
-            remaining -= step;
+        if (dt > 0) {
+            Row tracking = byKey.get(keyboardTracking && focusKey != null ? focusKey : selectionTrackingKey);
+            if ((keyboardTracking || pointerTracking) && tracking != null && tracking.entry.visible())
+                scroll.seek((tracking.logicalY - selectionAnchor) / referenceScale, SongSelectScroll.TRACK_DECAY);
+            scroll.advance(dt * 1000);
         }
         float hoverEase = ease(dt, 19), releaseEase = ease(dt, 13);
-        float springDecay = (float) Math.exp(-SPRING_RATE * dt);
-        if (dt > 0) {
-            // Exact critically damped spring: soft starts, preserved momentum, no frame-rate tuning.
-            float error = scrollOffset - scrollTarget;
-            float momentum = viewportVelocity + SPRING_RATE * error;
-            float nextOffset = scrollTarget + (error + momentum * dt) * springDecay;
-            viewportVelocity = (viewportVelocity - SPRING_RATE * momentum * dt) * springDecay;
-            scrollOffset = clamp(nextOffset);
-            if (scrollOffset != nextOffset) viewportVelocity = 0;
-        }
         Row hovered = byKey.get(hoverKey), selected = byKey.get(emphasisKey);
         float selectionEase = ease(dt, 10);
         for (Row row : rows) {
@@ -222,12 +210,12 @@ final class SongSelectCarousel {
         return (float) (target - (target - current) * Math.pow(decay, seconds * 60));
     }
     private float horizontalTarget(Entry entry, float y, boolean hovered) {
-        float screenDown = screenHeight - viewportTop + y - scrollOffset;
+        float screenDown = screenHeight - viewportTop + y - scrollOffset() + predictedTravel();
         return SongSelectMetrics.curveX(screenDown, 0, screenHeight)
                 - ((entry.header() || entry.expanded()) ? SongSelectMetrics.OPEN_INDENT * referenceScale : 0)
                 - (hovered ? SongSelectMetrics.HOVER_INDENT * referenceScale : 0);
     }
-    private float visualDown(Row row) { return row.motionY - scrollOffset; }
+    private float visualDown(Row row) { return row.motionY - scrollOffset(); }
     float renderY(Row row, float top) { return top - visualDown(row) - rowHeight / 2; }
     float renderX(Row row, float width) { return width + row.motionX; }
 
@@ -246,7 +234,7 @@ final class SongSelectCarousel {
     float[] targetPosition(int index, float width, float top) {
         if (index < 0) return new float[]{0, 0};
         var row = allRows.get(index);
-        float down = row.logicalY - scrollTarget;
+        float down = row.logicalY - scrollTarget();
         float x = SongSelectMetrics.curveX(screenHeight - viewportTop + down, width, screenHeight)
                 - ((row.entry.header() || row.entry.expanded()) ? SongSelectMetrics.OPEN_INDENT * referenceScale : 0);
         return new float[]{x, top - down - rowHeight / 2};
@@ -255,6 +243,5 @@ final class SongSelectCarousel {
     private static float validSize(float value, float fallback) {
         return Float.isFinite(value) && value > 0 ? Math.min(value, 10000) : fallback;
     }
-    private float clamp(float value) { return Math.max(0, Math.min(maxScroll, value)); }
     private static float ease(float dt, float rate) { return (float) -Math.expm1(-dt * rate); }
 }

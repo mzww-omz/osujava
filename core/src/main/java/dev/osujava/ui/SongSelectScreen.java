@@ -193,11 +193,13 @@ public final class SongSelectScreen extends ScreenAdapter {
                 if (importing || outgoing.pending()) return;
                 var identity = browser.selection();
                 var previous = browser.selectedSet();
+                carousel.keyboardNavigation();
                 browser.movePage(direction); syncBrowser(previous != browser.selectedSet());
                 selectionSound(identity);
             }
             @Override public boolean scroll(float amount) { return scrollAtPointer(amount); }
             @Override public void cursor(int x, int y, int button, boolean down) {
+                if (button == Input.Buttons.LEFT && down) carousel.pointerPressed();
                 if (cursor != null) cursor.event(Gdx.input.getCurrentEventTime(), x, y, button, down);
             }
         });
@@ -218,7 +220,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
             var bounds = scoreBounds(layout);
             if (bounds.contains(layout.pointerX(Gdx.input.getX()), layout.pointerY(Gdx.input.getY()))) scores.scroll(amount);
-            else carousel.scrollBy(Math.max(-10000, Math.min(10000, amount)) * carousel.rowHeight());
+            else carousel.wheel(amount);
         }
         return true;
     }
@@ -325,6 +327,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         visibleRows = layoutRows(layout, delta);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+            carousel.pointerPressed();
             input.cancelPointer();
             var oldSort = browser.sort(); var oldGroup = browser.group();
             var previousMenu = controls.menu();
@@ -495,7 +498,10 @@ public final class SongSelectScreen extends ScreenAdapter {
         updateContent(layout);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         SongSelectRow hit = toolbox.open() ? null : hitRow(px, py);
+        carousel.pointerTracking(px / SongSelectMetrics.carouselScale(layout.height()),
+                Gdx.input.isButtonPressed(Input.Buttons.LEFT), !toolbox.open() && !importing && !outgoing.pending());
         carousel.focus(browser.focusKey());
+        carousel.selectionTrackingTarget(browser.selectionTrackingKey());
         carousel.emphasize(browser.selectedKey());
         carousel.advance(delta, hit == null ? null : hit.key());
         List<SongSelectRow> result = new ArrayList<>();
@@ -651,6 +657,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (importing || outgoing.pending()) return;
         var identity = browser.selection();
         var previous = browser.selectedSet();
+        carousel.keyboardNavigation();
         browser.moveDifficulty(direction); syncBrowser(previous != browser.selectedSet()); selectionSound(identity);
     }
     private void advanceSet(int direction) {

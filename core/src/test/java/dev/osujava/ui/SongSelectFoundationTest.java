@@ -31,7 +31,7 @@ class SongSelectFoundationTest {
         }
     }
 
-    @Test void directDragCancelsSelectionSpringAndDoesNotClickOnReturn() {
+    @Test void directDragCancelsSelectionVelocityAndDoesNotClickOnReturn() {
         var input = input(); var motion = carousel();
         motion.scrollBy(300); motion.advance(.05f, null);
         float start = motion.scrollOffset();
@@ -70,10 +70,10 @@ class SongSelectFoundationTest {
         assertTrue(motion.scrollOffset() < motion.maxScroll());
     }
     @ParameterizedTest @ValueSource(ints = {30, 60, 144})
-    void scrollTracksElapsedTimeAcrossFrameRates(int fps) {
-        var reference = carousel(); reference.scrollBy(350); reference.advance(1, null);
+    void preStopIntegrationTracksElapsedTimeAcrossFrameRates(int fps) {
+        var reference = carousel(); reference.scrollBy(350); reference.advance(.4f, null);
         var motion = carousel(); motion.scrollBy(350);
-        for (int i = 0; i < fps; i++) motion.advance(1f / fps, null);
+        for (int i = 0; i < fps; i++) motion.advance(.4f / fps, null);
         assertEquals(reference.scrollOffset(), motion.scrollOffset(), .002);
     }
     @ParameterizedTest @CsvSource({"1280,720", "1920,1080", "1024,768", "2560,1440"})

@@ -411,6 +411,7 @@ class SongSelectNavigationTest {
         settle();
         var browser = (SongBrowserModel) field("browser");
         var selection = browser.selection();
+        pointerX = 1100; pointerY = 400; screen.resize(1280,720);
         carousel().scrollBy(-carousel().maxScroll()); settle();
         click(-1, -2);
         assertEquals(selection, browser.selection());
