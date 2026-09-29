@@ -107,8 +107,7 @@ final class SongSelectRenderer {
 
         if (renderedBottomProcedural) view.box(0, 0, layout.width(), frame.bottom, 0, BOTTOM);
         view.endShapes();
-        // Native-sized artwork can exceed the content reservation. Clip only the chrome
-        // pass, flushing before changing scissor state so deferred sprites cannot escape it.
+        // Artwork can exceed the content reservation; retain the authored canvas inside the viewport.
         Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
         try {
             chromeClip(layout, SongSelectChrome.topClip(layout.width(), layout.height()));
@@ -339,8 +338,12 @@ final class SongSelectRenderer {
             float y = bounds.rowY(slot), x = bounds.x();
             boolean selected = row.score().playId().equals(frame.scores.selected());
             boolean hovered = !frame.toolbox.open() && bounds.slot(frame.pointerX,frame.pointerY) == slot;
-            skinImage(Image.MENU_BUTTON_BACKGROUND,x,y,bounds.width(),ScoreBrowserBounds.HEIGHT,
-                    actionTint.set(selected ? SIBLING : hovered ? SIBLING_HOVER : OTHER));
+            if (has(Image.MENU_BUTTON_BACKGROUND)) {
+                var body = frame.skin.rowBody();
+                float imageWidth = bounds.width() / body.width(), imageHeight = ScoreBrowserBounds.HEIGHT / body.height();
+                skinImage(Image.MENU_BUTTON_BACKGROUND, x - body.left() * imageWidth, y - body.bottom() * imageHeight,
+                        imageWidth, imageHeight, actionTint.set(selected ? SIBLING : hovered ? SIBLING_HOVER : OTHER));
+            }
             view.textSmooth(Integer.toString(frame.scores.first()+slot+1),x+5,y+28,24,.65f,UiTheme.TEXT);
             rowRenderer.drawGrade(row.score().grade(), x + 30, y + 13, 44, 38, UiTheme.TEXT, UiTheme.TEXT);
             float textX = x + 82, width = bounds.width() - 92;

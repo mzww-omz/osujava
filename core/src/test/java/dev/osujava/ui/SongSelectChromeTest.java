@@ -42,15 +42,15 @@ class SongSelectChromeTest {
         assertEquals(636,transparent.carouselTop());
         assertEquals(84,transparent.bottom());
     }
-    @Test void chromeDrawClipsLeaveTheReservedBrowserRegionUncovered() {
+    @Test void artworkUsesFullViewportIndependentOfContentReservation() {
         for (float height : new float[]{720, 1080, 1440}) {
             var content = SongSelectChrome.content(height, 4096, 4096, 4096);
             var top = SongSelectChrome.topClip(1280, height);
             var bottom = SongSelectChrome.bottomClip(1280, height);
             assertEquals(height, top.y() + top.height(), .001);
-            assertEquals(content.carouselTop(), top.y(), .001);
-            assertEquals(content.bottom(), bottom.height(), .001);
-            assertTrue(bottom.y() + bottom.height() < top.y());
+            assertEquals(0, top.y(), .001);
+            assertEquals(height, bottom.height(), .001);
+            assertTrue(content.carouselTop() > content.bottom());
         }
     }
     @Test void oversizedAndInvalidChromeCannotConsumeTheBrowserViewport() {

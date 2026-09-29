@@ -32,10 +32,10 @@ final class SongSelectChrome {
         return Math.min(maximum, Math.max(minimum, Float.isFinite(depth) ? depth : minimum));
     }
     static Bounds topClip(float width, float height) {
-        return new Bounds(0, height * (1 - MAX_TOP_FRACTION), width, height * MAX_TOP_FRACTION);
+        return new Bounds(0, 0, width, height);
     }
     static Bounds bottomClip(float width, float height) {
-        return new Bounds(0, 0, width, height * MAX_BOTTOM_FRACTION);
+        return new Bounds(0, 0, width, height);
     }
     static float bottomHeight(float height) { return height * (84f / 720); }
     static float cookieRadius(float height) { return height * .135f; }

@@ -104,6 +104,7 @@ public final class SongSelectSkinAssets implements Disposable {
         try { configuration = resolver.readSelectedConfiguration(); }
         catch (IOException e) { log("Could not read skin.ini", e); }
         var chromeLoaders = new EnumMap<Image, Predicate<SkinAssetResolver.AssetFile>>(Image.class);
+        Predicate<SkinAssetResolver.AssetFile> backLoader = null;
         for (Image image : Image.values()) {
             var pair = Selection.of(image);
             Predicate<SkinAssetResolver.AssetFile> load = file -> {
@@ -165,17 +166,9 @@ public final class SongSelectSkinAssets implements Disposable {
                 // Missing current hover retains normal artwork, rather than inventing foreign art/input.
                 resolver.resolveCustom(image.basename, load);
             } else if (image == Image.BACK) {
-                List<SkinTexture> frames = new ArrayList<>();
-                resolver.resolveAnimation(image.basename, 512, file -> {
-                    // Keep frame-zero geometry; changing frames must not move the hit target.
-                    var firstBounds = selectionBounds.get(Image.BACK);
-                    if (!load.test(file)) return false;
-                    frames.add(textures.get(Image.BACK));
-                    if (frames.size() > 1 && firstBounds != null) selectionBounds.put(Image.BACK, firstBounds);
-                    return true;
-                });
-                backFrames = List.copyOf(frames);
-                if (!backFrames.isEmpty()) textures.put(Image.BACK, backFrames.getFirst());
+                backLoader = load;
+                resolver.resolveAnimationFirstFrame(image.basename, load);
+
             }
             else resolver.resolve(image.basename, load);
         }
@@ -192,6 +185,24 @@ public final class SongSelectSkinAssets implements Disposable {
             resolver.resolve(Image.TOP.basename, chromeLoaders.get(Image.TOP));
             topLayoutFallback = textures.remove(Image.TOP);
         }
+        // Reserve all static interface images (including fallback chrome) before extra Back frames.
+        var first = textures.get(Image.BACK);
+        if (first != null) {
+            var firstBounds = selectionBounds.get(Image.BACK);
+            var frames = new ArrayList<SkinTexture>();
+            var load = backLoader;
+            resolver.resolveAnimation(Image.BACK.basename, 512, file -> {
+                if (file.equals(first.file())) { frames.add(first); return true; }
+                if (frames.isEmpty()) return false;
+                if (!load.test(file)) return false;
+                frames.add(textures.get(Image.BACK));
+                return true;
+            });
+            backFrames = List.copyOf(frames);
+            textures.put(Image.BACK, first);
+            if (firstBounds != null) selectionBounds.put(Image.BACK, firstBounds);
+        }
+
     }
 
     private static boolean surfaceImage(Image image) {

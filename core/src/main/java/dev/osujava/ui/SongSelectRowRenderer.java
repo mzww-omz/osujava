@@ -44,24 +44,31 @@ final class SongSelectRowRenderer {
         Gdx.gl.glScissor(0, Math.round(bottom * scaleY), Math.round(layout.width() * scaleX),
                 Math.max(0, Math.round((top - bottom) * scaleY)));
         try {
-            for (var row : rows) if (!row.row().selected()) drawClipped(row, scaleX, scaleY);
-            for (var row : rows) if (row.row().selected()) drawClipped(row, scaleX, scaleY);
+            for (var row : rows) if (!row.row().selected()) drawClipped(row, layout, bottom, top, scaleX, scaleY);
+            for (var row : rows) if (row.row().selected()) drawClipped(row, layout, bottom, top, scaleX, scaleY);
         } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
     }
 
-    private void drawClipped(Presentation row, float scaleX, float scaleY) {
+    private void drawClipped(Presentation row, UiLayout layout, float bottom, float top, float scaleX, float scaleY) {
         var clip = row.geometry().clip();
         if (clip.width() <= 0 || clip.height() <= 0) return;
+        Gdx.gl.glScissor(0, Math.round(bottom * scaleY), Math.round(layout.width() * scaleX),
+                Math.max(0, Math.round((top - bottom) * scaleY)));
+        drawRow(row, scaleX, scaleY);
+    }
+
+    private void clipContent(Presentation item, float scaleX, float scaleY) {
+        var clip = item.geometry().clip();
         Gdx.gl.glScissor(Math.round(clip.x() * scaleX), Math.round(clip.y() * scaleY),
                 Math.max(0, Math.round(clip.width() * scaleX)), Math.max(0, Math.round(clip.height() * scaleY)));
-        drawRow(row);
     }
 
     private boolean has(Image image) { return style.skin() != null && style.skin().get(image) != null; }
-    private void drawRow(Presentation item) {
+    private void drawRow(Presentation item, float scaleX, float scaleY) {
         var row = item.row();
         if (row.revealAmount() < .01f) return;
         if (row.setIndex() < 0) {
+            clipContent(item, scaleX, scaleY);
             // Compact divider at the row center; no beatmap body, thumbnail, hover or play target.
             view.beginShapes();
             view.box(row.x() + 12, row.y() + row.height() / 2 - 13, row.width(), 26, 0, TOP);
@@ -92,6 +99,9 @@ final class SongSelectRowRenderer {
             view.endShapes();
             view.beginText();
         }
+        // Preserve shadows/padding outside the substantial-alpha body, then clip text and thumbnails.
+        batch.flush();
+        clipContent(item, scaleX, scaleY);
         // The bundled default is dark artwork. Keep an authored text colour, but provide
         // a light selected surface when that text is dark. Never wash custom skin artwork.
         var background = has(Image.MENU_BUTTON_BACKGROUND) ? style.skin().get(Image.MENU_BUTTON_BACKGROUND) : null;

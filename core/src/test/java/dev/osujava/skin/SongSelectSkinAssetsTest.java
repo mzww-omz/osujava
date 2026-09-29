@@ -14,6 +14,23 @@ import static org.junit.jupiter.api.Assertions.*;
 class SongSelectSkinAssetsTest {
     @TempDir Path directory;
 
+    @Test void animationCannotStarveLaterCursorAndInterfaceAssets() throws Exception {
+        for (String name : new String[]{"menu-back-0", "menu-back-1", "cursor", "selection-mode"})
+            Files.createFile(directory.resolve(name + ".png"));
+        var order = new ArrayList<String>();
+        var assets = new SongSelectSkinAssets(new SkinAssetResolver(directory), file -> {
+            String name = file.path().getFileName().toString();
+            order.add(name);
+            if (name.equals("menu-back-1.png")) throw new GdxRuntimeException("budget reached");
+            return new TestTexture(100, 90);
+        });
+        assertNotNull(assets.get(Image.CURSOR)); assertNotNull(assets.get(Image.MODE));
+        assertEquals(1, assets.backFrameCount());
+        assertTrue(order.indexOf("cursor.png") < order.indexOf("menu-back-1.png"));
+        assertEquals(1, Collections.frequency(order, "menu-back-0.png"));
+        assets.dispose();
+    }
+
     @Test void newInterfaceFamiliesPreserveDensityTransparentPresenceAndDispose() throws Exception {
         for (var image : new Image[]{Image.TAB,Image.MODE_OSU_SMALL,Image.MODE_MANIA_MED,Image.MOD_HD,Image.PARTICLE})
             Files.createFile(directory.resolve(image.basename + "@2x.png"));
