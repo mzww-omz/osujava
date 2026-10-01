@@ -29,7 +29,7 @@ class SongSelectCarouselMotionTest {
     private void settle(SongSelectCarousel model) { for (int i = 0; i < 180; i++) model.advance(1f / 60, null); }
 
     @Test void wheelVelocityDecaysAndOppositeNotchBrakesBeforeReversing() {
-        var model = model(); model.wheel(2);
+        var model = model(); model.wheel(1); model.wheel(1);
         assertEquals(.88 * 620f / 480 * 1000, model.scrollVelocity(), .001);
         float velocity = model.scrollVelocity();
         model.advance(.1f, null);

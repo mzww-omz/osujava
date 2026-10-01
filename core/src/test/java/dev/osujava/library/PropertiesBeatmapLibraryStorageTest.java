@@ -30,6 +30,14 @@ class PropertiesBeatmapLibraryStorageTest {
         BeatmapSet restored = storage.load().getFirst();
         assertEquals(12345, restored.difficulties().getFirst().previewTimeMs());
 
+        for (int i = 0; i < imported.difficulties().size(); i++) {
+            var original = imported.difficulties().get(i);
+            var loaded = restored.difficulties().get(i);
+            assertEquals(original.playData(), loaded.playData());
+            assertEquals(original.metadata(), loaded.metadata());
+            assertEquals(original.timingStatistics(), loaded.timingStatistics());
+        }
+
         assertEquals(imported.id(), restored.id());
         assertEquals("Stored song", restored.title());
         assertEquals("Performer", restored.artist());

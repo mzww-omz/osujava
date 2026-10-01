@@ -79,7 +79,7 @@ class SongBrowserModelTest {
         assertEquals(List.of("Under 2 minutes","2–<4 minutes","10+ minutes","Unknown length"),headers(model));
     }
     private List<String> headers(SongBrowserModel m) { return m.entries().stream().filter(e -> e.kind() == SongBrowserModel.Kind.GROUP_HEADER).map(SongBrowserModel.Entry::label).toList(); }
-    @ParameterizedTest @ValueSource(strings={"Zulu", "alpha extra", "ALPHA EXTRA", "Beta Zulu 星", "  Beta\u3000Zulu  ", "", " \t "})
+    @ParameterizedTest @ValueSource(strings={"Zulu", "alpha extra", "ALPHA EXTRA", "Beta Zulu 星", "  Beta Zulu  ", "", "   "})
     void metadataTokensMatchAcrossFields(String query) {
         var model = new SongBrowserModel(fixture()); model.search(query); assertFalse(model.visibleSets().isEmpty());
     }
@@ -92,6 +92,14 @@ class SongBrowserModelTest {
     @Test void searchNormalizesCanonicalUnicode() {
         var model = new SongBrowserModel(List.of(set("a","Café 夜空","星の旅人","Mapper",120,60000)));
         model.search("CAFE\u0301 夜空 星の旅人"); assertEquals(1,model.visibleSets().size());
+    }
+
+    @Test void literalTabSearchPreservesTheSelectionToRestoreOnClear() {
+        var model = new SongBrowserModel(List.of(set("a","Alpha","Artist","Mapper",120,1000),
+                set("b","Tab\tTitle","Artist","Mapper",120,1000)));
+        model.select("a",0); var original=model.selection();
+        model.search("\t"); assertEquals("b",model.selectedSet().id());
+        model.search(""); assertEquals(original,model.selection());
     }
     @Test void noResultsExposeNoPlayableSelectionAndNoEmptyHeaders() {
         var model = new SongBrowserModel(fixture()); model.group(SongBrowserModel.Group.ARTIST); model.search("not present");

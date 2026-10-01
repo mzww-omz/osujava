@@ -69,6 +69,48 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 }
             }
             Files.createDirectories(output.resolve("fixtures/empty"));
+            for (String mode : List.of("scale", "crop")) {
+                Path dir = Files.createDirectories(output.resolve("fixtures/foreground-" + mode));
+                Files.writeString(dir.resolve("skin.ini"), "[General]\nVersion: " + (mode.equals("scale") ? "2.2" : "1") + "\n");
+                int density = mode.equals("scale") ? 2 : 1;
+                for (var image : List.of(SongSelectSkinAssets.Image.MODE_TAIKO_SMALL, SongSelectSkinAssets.Image.GRADE_A)) {
+                    int w = image == SongSelectSkinAssets.Image.GRADE_A ? 24 : 20;
+                    int h = image == SongSelectSkinAssets.Image.GRADE_A ? 16 : 12;
+                    var square = new Pixmap(w*density+(density==2 ? 1 : 0),h*density+(density==2 ? 1 : 0),Pixmap.Format.RGBA8888);
+                    square.setColor(Color.WHITE); square.fill();
+                    PixmapIO.writePNG(Gdx.files.absolute(dir.resolve(image.basename+(density==2 ? "@2x" : "")+".png").toString()),square);
+                    square.dispose();
+                }
+            }
+            Path rowColours = Files.createDirectories(output.resolve("fixtures/row-colours-sprite"));
+            Files.createDirectories(output.resolve("fixtures/row-colours-procedural"));
+            var whiteRow = new Pixmap(800,64,Pixmap.Format.RGBA8888);
+            whiteRow.setColor(Color.WHITE); whiteRow.fill();
+            PixmapIO.writePNG(Gdx.files.absolute(rowColours.resolve("menu-button-background.png").toString()),whiteRow);
+            whiteRow.dispose();
+            for (String mode : List.of("scale", "crop")) Files.copy(rowColours.resolve("menu-button-background.png"),
+                    output.resolve("fixtures/foreground-"+mode+"/menu-button-background.png"),java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            for (String mode : List.of("scale", "crop", "old-default-background")) {
+                Path dir = Files.createDirectories(output.resolve("fixtures/star-animation-" + mode));
+                Files.writeString(dir.resolve("skin.ini"), "[General]\nVersion: " + (mode.equals("scale") ? "2.2" : "1") + "\n");
+                int density = mode.equals("crop") ? 1 : 2;
+                int pixels = 40*density + (mode.equals("old-default-background") ? 1 : 0);
+                var square = new Pixmap(pixels,pixels,Pixmap.Format.RGBA8888);
+                square.setColor(Color.WHITE); square.fill();
+                PixmapIO.writePNG(Gdx.files.absolute(dir.resolve("star"+(density==2 ? "@2x" : "")+".png").toString()),square);
+                square.dispose();
+                if (!mode.equals("old-default-background")) Files.copy(rowColours.resolve("menu-button-background.png"),
+                        dir.resolve("menu-button-background.png"),java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
+            for (String mode : List.of("scale", "crop")) {
+                Path dir = Files.createDirectories(output.resolve("fixtures/composition-" + mode));
+                Files.writeString(dir.resolve("skin.ini"), "[General]\nVersion: " + (mode.equals("scale") ? "2.2" : "1") + "\n");
+                int density = mode.equals("scale") ? 2 : 1;
+                compositionImage(dir, "menu-button-background", 800, 160, density, Color.WHITE);
+                compositionImage(dir, "mode-taiko-small", 320, 240, density, Color.BLUE);
+                compositionImage(dir, "ranking-A-small", 320, 240, density, new Color(0,1,0,128/255f));
+                compositionImage(dir, "star", 40, 120, density, new Color(1,0,0,128/255f));
+            }
             Path starOnly = Files.createDirectories(output.resolve("fixtures/star-high"));
             Files.writeString(starOnly.resolve("skin.ini"), "[General]\nVersion: 2.2\n");
             starPng(starOnly.resolve("star@2x.png"));
@@ -196,16 +238,56 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 scenes.removeIf(scene -> !cases.contains(scene.name));
                 for (var scene : List.copyOf(scenes)) if (scene.width == 1280 && scene.density == 1)
                     scenes.add(new Scene(1024,768,1,scene.name));
+            } else if (phase.equals("star-animation")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String mode : List.of("scale", "crop", "old-default-background"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"star-animation-" + mode));
+            } else if (phase.equals("search-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String mode : List.of("plain", "group"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"search-" + mode));
+            } else if (phase.equals("composition-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String mode : List.of("scale", "crop"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"composition-" + mode));
+            } else if (phase.equals("foreground-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String mode : List.of("scale", "crop"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"foreground-" + mode));
             } else if (phase.equals("lifecycle-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
                     for (String name : List.of("group", "reentry"))
                         scenes.add(new Scene(size[0],size[1],size[2],"lifecycle-" + name));
+            } else if (phase.equals("row-colour-contracts") || phase.equals("row-colour-animation")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String mode : List.of("sprite", "procedural"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"row-colours-" + mode));
+            } else if (phase.equals("wheel-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (int fps : new int[]{30, 60, 144})
+                        scenes.add(new Scene(size[0],size[1],size[2],"wheel-" + fps));
+            } else if (phase.equals("keyboard-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (int fps : new int[]{30, 60, 144})
+                        scenes.add(new Scene(size[0],size[1],size[2],"keyboard-" + fps));
             } else if (phase.equals("pointer-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
-                    for (String name : List.of("threshold", "right"))
+                    for (String name : List.of("threshold", "right", "context", "chord"))
                         scenes.add(new Scene(size[0],size[1],size[2],"pointer-" + name));
+            } else if (phase.equals("activation-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
+                    for (String name : List.of("left", "right", "middle"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"activation-" + name));
             } else if (phase.equals("drag-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
@@ -478,6 +560,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         boolean[] clicked = {false};
         boolean[] pressed = {false};
         boolean[] rightClicked = {false}, rightPressed = {false};
+        boolean[] middlePressed = {false};
+        Set<Integer> heldKeys = new HashSet<>();
         UiLayout layout = UiLayout.fromPixels(scene.width,scene.height);
         int[] pointer = {40,scene.height / 2};
         if (scene.name.equals("greylooks-random-hover") || scene.name.equals("phasechrome-current-hover")) { pointer[0] = Math.round(344 * layout.scale()); pointer[1] = scene.height - Math.round(19 * layout.scale()); }
@@ -485,13 +569,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "setInputProcessor" -> { processor[0] = (InputProcessor)a[0]; yield null; }
             case "getInputProcessor" -> processor[0];
             case "getX" -> pointer[0]; case "getY" -> pointer[1];
+            case "isKeyPressed" -> heldKeys.contains((int)a[0]);
             case "isButtonJustPressed" -> (int)a[0] == Input.Buttons.LEFT ? clicked[0] : (int)a[0] == Input.Buttons.RIGHT && rightClicked[0];
-            case "isButtonPressed" -> (int)a[0] == Input.Buttons.LEFT ? pressed[0] : (int)a[0] == Input.Buttons.RIGHT && rightPressed[0];
+            case "isButtonPressed" -> (int)a[0] == Input.Buttons.LEFT ? pressed[0]
+                    : (int)a[0] == Input.Buttons.RIGHT ? rightPressed[0] : (int)a[0] == Input.Buttons.MIDDLE && middlePressed[0];
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
         var library = new BeatmapLibrary();
         int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern") || scene.name.equals("phase3-large-library") || scene.name.startsWith("phase4-large") || scene.name.startsWith("phase5a-state-large")) ? 1000 : 7;
-        if (scene.name.equals("phase3-focus-page") || scene.name.startsWith("lifecycle-")) setCount = 24;
+        if (scene.name.equals("phase3-focus-page") || scene.name.startsWith("lifecycle-") || scene.name.startsWith("keyboard-")) setCount = 24;
         if (scene.name.equals("repair-empty")) setCount = 0;
         if (scene.name.equals("repair-single")) setCount = 1;
         boolean phase2 = scene.name.startsWith("phase2");
@@ -502,7 +588,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 title = "Local song 2 — A Very Long English Title with Unicode 星の旅人 that extends beyond the row";
             String mapper = "Harness", version = "Difficulty ";
             String artist = "Local artist";
-            boolean browserScene = scene.name.startsWith("phase3") || scene.name.startsWith("phase4") || scene.name.startsWith("lifecycle-");
+            boolean browserScene = scene.name.startsWith("phase3") || scene.name.startsWith("phase4") || scene.name.startsWith("lifecycle-") || scene.name.startsWith("search-");
             if (scene.name.equals("phase4-long") && i == 3) title = "A Very Long Song Title Beyond the Carousel — 夜空の星と夢の続き";
             if (scene.name.equals("phase4-unicode") && i == 3) title = "夜空の星と夢の続き 별빛 创作者";
             if (browserScene) {
@@ -601,9 +687,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             default -> scene.name.startsWith("greylooks") || phase2 || scene.name.startsWith("phase3") || scene.name.startsWith("phase4") ? SkinAssetResolver.withBundledDefault(null,null)
                     : new SkinAssetResolver(output.resolve("fixtures").resolve(scene.name));
         };
+        if (scene.name.startsWith("search-")) resolver = SkinAssetResolver.withBundledDefault(null,null);
         if (scene.name.startsWith("phase5a")) resolver = toolboxResolver(scene.name,greylooks);
+        if (scene.name.equals("star-animation-old-default-background"))
+            resolver = SkinAssetResolver.withBundledDefault(output.resolve("fixtures/"+scene.name),null);
         var assets = scene.name.startsWith("phasechrome-current") || scene.name.equals("phasechrome-custom") ? null : new SongSelectSkinAssets(resolver);
-        String preferredSet = scene.name.equals("greylooks-first-item") ? "set0"
+        String preferredSet = scene.name.equals("greylooks-first-item") || scene.name.startsWith("keyboard-") ? "set0"
                 : scene.name.equals("greylooks-last-item") ? "set6"
                 : scene.name.startsWith("greylooks-expanded") ? "set2" : "set3";
         int preferredDifficulty = scene.name.equals("greylooks-first-item") ? 0
@@ -617,7 +706,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     assets = (SongSelectSkinAssets)field.get(screen); }
                 catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
             }
-            screen.legacyThumbnailPreview(scene.name.equals("phase25-legacy-b"));
+            screen.legacyThumbnailPreview(scene.name.equals("phase25-legacy-b") || scene.name.startsWith("foreground-"));
             screen.resize(scene.width,scene.height);
             fb.begin();
             if (scene.name.equals("configured")) {
@@ -633,11 +722,33 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if (scene.name.startsWith("phase3-focus-"))
                 exerciseKeyboardFocus(screen, scene.name, processor[0], layout);
             if (scene.name.equals("phase3-group-toggle") || scene.name.equals("phase3-group-close"))
-                exerciseGroupCards(screen, scene.name, pointer, clicked, layout, scene.height);
+                exerciseGroupCards(screen, scene.name, pointer, clicked, pressed, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if (scene.name.startsWith("search-")) {
+                exerciseSearch(screen, scene, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
+            if (scene.name.startsWith("composition-")) {
+                exerciseComposition(screen, scene, assets, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
+            if (scene.name.startsWith("foreground-")) {
+                exerciseForeground(screen, scene, assets, processor[0], layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
+            if (scene.name.startsWith("star-animation-")) {
+                exerciseStarAnimation(screen, scene, assets, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
+            if (scene.name.startsWith("row-colours-")) {
+                if (System.getProperty("osujava.songSelectPhase", "").equals("row-colour-animation"))
+                    exerciseRowColourAnimation(screen, assets, layout, fb, name);
+                else exerciseRowColours(screen, assets, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
             if (scene.name.startsWith("lifecycle-")) {
-                exerciseLifecycle(screen, scene, processor[0], pointer, clicked, layout, fb, name);
+                exerciseLifecycle(screen, scene, processor[0], pointer, clicked, pressed, layout, fb, name);
                 fb.end(); advanceScene(); return;
             }
             if (scene.name.startsWith("drag-")) {
@@ -648,11 +759,23 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exercisePointer(screen, scene, pointer, clicked, pressed, rightClicked, rightPressed, layout, fb, name);
                 fb.end(); advanceScene(); return;
             }
+            if (scene.name.startsWith("activation-")) {
+                exerciseActivation(screen, scene, pointer, clicked, pressed, rightPressed, middlePressed, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
+            if (scene.name.startsWith("wheel-")) {
+                exerciseWheel(screen, scene, processor[0], pointer, heldKeys, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
+            if (scene.name.startsWith("keyboard-")) {
+                exerciseHeldKeyboard(screen, scene, processor[0], heldKeys, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
             if (scene.name.equals("repair-empty") || scene.name.equals("repair-single")) {
                 // Genuine empty/one-difficulty libraries, not a filtered seven-Set fixture.
                 if (carousel(screen).rows().size() != setCount) throw new AssertionError("Wrong small-library fixture");
                 for (int key : new int[]{Input.Keys.UP, Input.Keys.DOWN, Input.Keys.PAGE_UP, Input.Keys.PAGE_DOWN, Input.Keys.F2})
-                    processor[0].keyDown(key);
+                    tapKey(processor[0], key);
                 pointer[0] = Math.round((layout.width() - 100) * layout.scale());
                 pointer[1] = scene.height / 2;
                 processor[0].scrolled(0, 4);
@@ -660,13 +783,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 assertRenderedBounds(screen, layout);
                 assertScrollSettled(screen, name);
                 capture(fb, name);
-                processor[0].keyDown(Input.Keys.ESCAPE);
+                tapKey(processor[0], Input.Keys.ESCAPE);
                 screen.render(.3f);
                 if (destination[0] == null) throw new AssertionError("Back did not leave small Library");
                 fb.end(); advanceScene(); return;
             }
             if (scene.name.equals("repair-low-fps")) {
-                processor[0].keyDown(Input.Keys.DOWN);
+                tapKey(processor[0], Input.Keys.DOWN);
                 for (int frame = 0; frame < 20; frame++) {
                     screen.render(.1f); assertRenderedBounds(screen, layout); transitionFrames++;
                     if (frame == 0 || frame == 2 || frame == 19) capture(fb, name + "-frame-" + frame);
@@ -678,7 +801,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 assertToolbox(screen,assets,scene.name,layout);
                 capture(fb,name);
                 if (scene.name.contains("large")) profileToolbox(screen,processor[0],name,scene.name);
-                if (toolboxState(screen).open()) processor[0].keyDown(Input.Keys.ESCAPE);
+                if (toolboxState(screen).open()) tapKey(processor[0], Input.Keys.ESCAPE);
                 pressed[0] = false; pointer[0] = 40;
                 fb.end();
                 advanceScene();
@@ -689,6 +812,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 try {
                     var field = SongSelectScreen.class.getDeclaredField("thumbnails"); field.setAccessible(true);
                     ((BeatmapThumbnails)field.get(screen)).close();
+                    ((Map<?,?>)screenField(screen,"rowForeground")).clear();
                 } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
                 screen.render(0);
                 capture(fb, name + "-frame-00");
@@ -703,15 +827,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             switch (scene.name) {
                 case "greylooks-set-selected" -> {
                     pointerRow(screen,2,-1,pointer,layout,scene.height);
-                    clicked[0] = true; screen.render(1f/60); clicked[0] = false;
-                    // A second click after expansion must not trigger Play.
-                    pointerRow(screen,2,0,pointer,layout,scene.height);
-                    clicked[0] = true; screen.render(1f/60); clicked[0] = false;
-                    if (pending(screen)) throw new AssertionError("Set double click played: " + name);
+                    tapPointer(screen, clicked, pressed);
+                    if (pending(screen) || !browser(screen).selectedSet().id().equals("set2"))
+                        throw new AssertionError("Set click did not select without playing: " + name);
                 }
                 case "greylooks-difficulty-selected" -> {
                     pointerRow(screen,3,2,pointer,layout,scene.height);
-                    clicked[0] = true; screen.render(1f/60); clicked[0] = false;
+                    tapPointer(screen, clicked, pressed);
                     if (pending(screen)) throw new AssertionError("Unselected difficulty played: " + name);
                 }
                 case "greylooks-hover" -> pointerRow(screen,3,2,pointer,layout,scene.height);
@@ -721,16 +843,16 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     if (!processor[0].scrolled(0,1)) throw new AssertionError("Wheel lost: " + name);
                     if (carousel(screen).rows() != before) throw new AssertionError("Wheel rebuilt selection: " + name);
                 }
-                case "greylooks-random" -> processor[0].keyDown(Input.Keys.F2);
+                case "greylooks-random" -> tapKey(processor[0], Input.Keys.F2);
                 case "greylooks-expanded-many-first", "greylooks-expanded-many-last", "greylooks-expanded-single" -> {
                     pointerRow(screen,3,-1,pointer,layout,scene.height);
-                    clicked[0] = true; screen.render(0); clicked[0] = false;
-                    if (scene.name.endsWith("last")) for (int i = 0; i < 15; i++) processor[0].keyDown(Input.Keys.DOWN);
+                    tapPointer(screen, clicked, pressed);
+                    if (scene.name.endsWith("last")) for (int i = 0; i < 15; i++) tapKey(processor[0], Input.Keys.DOWN);
                     long children = carousel(screen).rows().stream().filter(r -> r.entry.setIndex() == 3 && r.entry.difficultyIndex() >= 0).count();
                     if (children != (scene.name.endsWith("single") ? 1 : 16)) throw new AssertionError("Expansion input missed: " + name);
                     pointer[0] = 40;
                 }
-                case "greylooks-collapse-many" -> { processor[0].keyDown(Input.Keys.RIGHT); pointer[0] = 40; }
+                case "greylooks-collapse-many" -> { tapKey(processor[0], Input.Keys.RIGHT); pointer[0] = 40; }
                 case "greylooks-slow-scroll", "greylooks-fast-scroll", "greylooks-scroll-reverse", "greylooks-large-library" ->
                     pointerRow(screen,3,1,pointer,layout,scene.height);
             }
@@ -764,7 +886,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             if (scene.name.equals("phase4-transitions")) {
                 for (int stage=0;stage<4;stage++) {
-                    processor[0].keyDown(stage % 2 == 0 ? Input.Keys.DOWN : Input.Keys.UP);
+                    tapKey(processor[0], stage % 2 == 0 ? Input.Keys.DOWN : Input.Keys.UP);
                     assertScoreTarget(screen);
                     for (int frame=0;frame<=24;frame++) {
                         screen.render(1f/60); assertRenderedBounds(screen,layout);
@@ -827,7 +949,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             // Wheel scenes intentionally leave selection behind. A real difficulty change restores it.
             if (scene.name.contains("scroll") || setCount > 7) {
-                processor[0].keyDown(Input.Keys.DOWN); pointer[0] = 40;
+                tapKey(processor[0], Input.Keys.DOWN); pointer[0] = 40;
                 for (int frame = 0; frame < 90; frame++) screen.render(1f/60);
             }
             // Position the pointer on the current selected row for the existing input smoke checks.
@@ -837,15 +959,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             // Navigation and search still work even with malformed/missing visual assets.
             if (!processor[0].scrolled(0,1)) throw new AssertionError("Wheel lost: " + name);
             for (int key : new int[]{Input.Keys.UP,Input.Keys.DOWN,Input.Keys.PAGE_UP,Input.Keys.PAGE_DOWN,Input.Keys.LEFT,Input.Keys.RIGHT,Input.Keys.F2})
-                if (!processor[0].keyDown(key)) throw new AssertionError("Key lost: " + name + " / " + key);
+                if (!tapKey(processor[0], key)) throw new AssertionError("Key lost: " + name + " / " + key);
             screen.render(.05f);
             pointer[0] = Math.round((layout.width() - 100) * layout.scale());
             pointer[1] = Math.round(45 * layout.scale());
             clicked[0] = true; screen.render(0); clicked[0] = false;
             for (char c : (setCount > 7 ? "Local song 002" : "Local song 2").toCharArray()) if (!processor[0].keyTyped(c)) throw new AssertionError("Search lost: " + name);
-            processor[0].keyDown(Input.Keys.ENTER);
+            tapKey(processor[0], Input.Keys.ENTER);
             var randomBounds = toolboxLayout(screen).control(SongSelectSkinAssets.Selection.RANDOM).interaction();
-            if (randomBounds.empty()) processor[0].keyDown(Input.Keys.F2);
+            if (randomBounds.empty()) tapKey(processor[0], Input.Keys.F2);
             else {
                 point(randomBounds,pointer,layout,scene.height);
                 clicked[0] = true; screen.render(0); clicked[0] = false;
@@ -868,10 +990,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             selectedRow = model.rows().stream().max(Comparator.comparingDouble(r -> r.selectedAmount)).orElseThrow();
             if ((scene.name.equals("phase3-chrome-cookie") || scene.name.equals("phase4-sibling"))) {
                 screen.browserMode(SongBrowserModel.Sort.LENGTH,SongBrowserModel.Group.BPM);
-                processor[0].keyDown(Input.Keys.DOWN);
+                tapKey(processor[0], Input.Keys.DOWN);
                 pointer[0] = Math.round((layout.width()-20)*layout.scale()); pointer[1] = scene.height-Math.round(30*layout.scale());
             } else pointerRow(screen,selectedRow.entry.setIndex(),selectedRow.entry.difficultyIndex(),pointer,layout,scene.height);
-            clicked[0] = true; screen.render(0); clicked[0] = false;
+            tapPointer(screen, clicked, pressed);
             if (!pending(screen)) throw new AssertionError("Selected re-click did not play: " + name);
             if ((scene.name.equals("phase3-chrome-cookie") || scene.name.equals("phase4-sibling"))) {
                 try {
@@ -953,7 +1075,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 1_790_467_200_000L,new dev.osujava.gameplay.ScoreState(123456,0,100,100,0,0,0,1)),dev.osujava.gameplay.GameplayRunMode.MANUAL);
     }
     private void exerciseLifecycle(SongSelectScreen screen, Scene scene, InputProcessor input,
-            int[] pointer, boolean[] clicked, UiLayout layout, FrameBuffer fb, String name) {
+            int[] pointer, boolean[] clicked, boolean[] pressed, UiLayout layout, FrameBuffer fb, String name) {
         pointer[0] = Math.round((layout.width() - 30) * layout.scale()); pointer[1] = scene.height / 2;
         var model = carousel(screen); var browser = browser(screen); var selection = browser.selection();
         if (scene.name.equals("lifecycle-group")) {
@@ -961,7 +1083,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for (int frame = 0; frame < 60; frame++) screen.render(1f / 60);
             var groups = browser.rows().stream().filter(r -> r.group() && !r.expanded).toList();
             for (int stage = 0; stage < groups.size(); stage++) {
-                var group = groups.get(stage); clickGroupCard(screen, group.key, pointer, clicked, layout, scene.height);
+                var group = groups.get(stage); clickGroupCard(screen, group.key, pointer, clicked, pressed, layout, scene.height);
                 var parent = model.rows().stream().filter(r -> r.entry.key().equals(group.key)).findFirst().orElseThrow();
                 var child = model.rows().stream().filter(r -> browser.row(r.entry.key()).parent == group).findFirst().orElseThrow();
                 if (Math.abs(parent.motionY - child.motionY) > .001 || Math.abs(parent.motionX - child.motionX) > .001)
@@ -996,6 +1118,482 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         if (!selection.equals(browser.selection()) || pending(screen)) throw new AssertionError("Lifecycle changed playable selection");
     }
 
+    private void exerciseHeldKeyboard(SongSelectScreen screen, Scene scene, InputProcessor input,
+            Set<Integer> held, UiLayout layout, FrameBuffer fb, String name) {
+        int fps = Integer.parseInt(scene.name.substring("keyboard-".length()));
+        var browser = browser(screen);
+        var visible = browser.rows().stream().filter(SongBrowserModel.Row::visible).map(r -> r.key).toList();
+        int start = visible.indexOf(browser.selectedKey());
+        Set<Integer> pulses = switch (fps) {
+            case 30 -> Set.of(7,10,13,16,19,22,25,28);
+            case 60 -> Set.of(14,20,26,32,38,44,50,56);
+            case 144 -> Set.of(32,47,61,75,90,104,119,133);
+            default -> throw new AssertionError("Unknown frame-rate fixture");
+        };
+        held.add(Input.Keys.DOWN); input.keyDown(Input.Keys.DOWN); screen.render(0);
+        int moves = 1;
+        for (int frame = 0; frame < fps; frame++) {
+            if (pulses.contains(frame)) moves++;
+            screen.render(1f / fps); transitionFrames++;
+            String active = browser.focusKey() == null ? browser.selectedKey() : browser.focusKey();
+            if (!visible.get(start + moves).equals(active)) throw new AssertionError("Repeat state/timing: " + name + " frame " + frame);
+            if (pending(screen)) throw new AssertionError("Held Down played a row");
+            assertRenderedBounds(screen, layout);
+            if (frame == 0 || frame == pulses.stream().mapToInt(Integer::intValue).min().orElseThrow()
+                    || frame == fps / 2 || frame == fps - 1) capture(fb, name + "-frame-" + frame);
+        }
+        String focus = browser.focusKey();
+        if (focus == null) throw new AssertionError("Fixture did not reach a collapsed Set");
+        held.remove(Input.Keys.DOWN); input.keyUp(Input.Keys.DOWN);
+        for (int frame = 0; frame < 10; frame++) {
+            screen.render(.05f); transitionFrames++;
+            if (!focus.equals(browser.focusKey())) throw new AssertionError("Released key still repeats");
+        }
+        held.add(Input.Keys.ENTER); input.keyDown(Input.Keys.ENTER); screen.render(0);
+        var selection = browser.selection();
+        capture(fb, name + "-confirmed");
+        for (int frame = 0; frame < 30; frame++) {
+            screen.render(1f / 30); transitionFrames++; assertRenderedBounds(screen, layout);
+            if (pending(screen) || !selection.equals(browser.selection())) throw new AssertionError("Held Enter repeated confirmation/play");
+        }
+        capture(fb, name + "-enter-held");
+        held.remove(Input.Keys.ENTER); input.keyUp(Input.Keys.ENTER);
+    }
+
+    private void exerciseForeground(SongSelectScreen screen, Scene scene, SongSelectSkinAssets assets,
+            InputProcessor input, UiLayout layout, FrameBuffer fb, String name) {
+        boolean cropped = scene.name.endsWith("crop");
+        var animation = new SongSelectForegroundAnimation();
+        animation.update(3,false,1000,0);
+        var pixels = new Pixmap(64,48,Pixmap.Format.RGBA8888);
+        pixels.setColor(Color.WHITE); pixels.fill();
+        var image = new Texture(pixels); pixels.dispose();
+        int[] times = {0,100,200,300,500,1000,1150,1300};
+        try {
+            for (int time : times) {
+                if (time==1150) animation.update(1,false,2000,0);
+                animation.update(time>1000 ? 1 : 3,false,1000+time,0);
+                var row = new SongSelectRow(0,time>1000 ? -1 : 0,null,false,true,100,300,600,72,0,1);
+                var content = new SongSelectRowPresentation.Content("","","",null,
+                        SongSelectRowPresentation.Stars.of(OptionalDouble.empty()),1);
+                var geometry = SongSelectLayout.row(row,0,100,300,layout.width(),0,layout.height(),true,true,true,cropped);
+                var snapshot = animation.snapshot();
+                var item = new SongSelectRowRenderer.Presentation(row,content,true,dev.osujava.ruleset.osu.OsuGrade.A,
+                        image,geometry,false,0,SongSelectStarAnimation.Snapshot.EMPTY,snapshot);
+                var labelRow = new SongSelectRow(1,0,null,false,false,600,300,300,72,0,1);
+                var labelContent = new SongSelectRowPresentation.Content("MMMM","MMMM","MMMM",null,
+                        SongSelectRowPresentation.Stars.of(OptionalDouble.empty()),-1);
+                var labels = new SongSelectRowRenderer.Presentation(labelRow,labelContent,false,null,null,
+                        SongSelectLayout.row(labelRow,1,600,300,layout.width(),0,layout.height(),false,false,false,cropped),
+                        false,0,SongSelectStarAnimation.Snapshot.EMPTY,snapshot);
+                Gdx.gl.glClearColor(0,0,0,1); Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+                ((SongSelectRowRenderer)screenField(screen,"rowRenderer")).draw(List.of(item),
+                        new SongSelectRowRenderer.Style(layout.width(),assets,(Texture)screenField(screen,"rowFill"),Color.GREEN,Color.GREEN,true));
+                ((SongSelectRowRenderer)screenField(screen,"rowRenderer")).draw(List.of(labels),
+                        new SongSelectRowRenderer.Style(layout.width(),assets,(Texture)screenField(screen,"rowFill"),Color.GREEN,Color.GREEN,false));
+                // Independent reference coordinates for H=72: offsets * 1.5, image dimensions * .9375.
+                float cy = cropped ? 340.5f : 336, inset = cropped ? 15 : 5;
+                float detailAlpha = time<=1000 ? Math.min(1,time/300f) : 1-(time-1000)/300f;
+                int brightness = time<=1000 ? (int)(50+205*Math.min(1,time/300f)) : (int)(255-205*(time-1000)/300f);
+                float thumbnailAlpha = Math.min(1,time/1000f);
+                var captured=Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
+                try {
+                    assertForegroundRectangle(captured,layout,new SongSelectLayout.Rect(107.8f,295.546875f,106.875f,80.15625f),
+                            new float[]{brightness*thumbnailAlpha,brightness*thumbnailAlpha,brightness*thumbnailAlpha},name+" thumbnail t="+time);
+                    assertForegroundRectangle(captured,layout,new SongSelectLayout.Rect(100+(75+inset+1)*1.5f,cy+19.5f-4.5f,15,9),
+                            new float[]{0,255*detailAlpha,0},name+" mode t="+time);
+                    assertForegroundRectangle(captured,layout,new SongSelectLayout.Rect(100+(75+inset-1)*1.5f,cy-21-7.5f,22.5f,15),
+                            new float[]{255*detailAlpha,255*detailAlpha,255*detailAlpha},name+" grade t="+time);
+                    for (int label=0;label<3;label++) {
+                        float centre=cy+new float[]{24,6,-10.5f}[label];
+                        float alpha=label==2 ? detailAlpha : Math.min(1,time/200f);
+                        float sx=captured.getWidth()/layout.width(), sy=captured.getHeight()/layout.height();
+                        int maximum=0;
+                        for (int y=(int)((centre-4)*sy);y<(centre+4)*sy;y++)
+                            for (int x=(int)(615*sx);x<715*sx;x++) maximum=Math.max(maximum,captured.getPixel(x,y) >>> 16 & 255);
+                        if (Math.abs(maximum-255*alpha)>3) throw new AssertionError(name+" label="+label+" t="+time
+                                +" expected="+255*alpha+" actual="+maximum);
+                    }
+                } finally { captured.dispose(); }
+                capture(fb,name+"-sprites-"+time+"ms"); transitionFrames++;
+            }
+        } finally { image.dispose(); }
+
+        // Actual Screen: shared artwork must still produce different row brightness and per-row load fades.
+        screen.previewSelection(3,0);
+        for (int frame=0;frame<90;frame++) { screen.render(1f/60); transitionFrames++; }
+        String selected=browser(screen).selectedKey();
+        var before=foregroundPresentation(screen,selected);
+        float expectedTitleY=before.row().height()/2+(cropped ? 19 : 16)*before.row().height()/48;
+        if (Math.abs(before.geometry().text().titleY()-expectedTitleY)>.0001f)
+            throw new AssertionError("Screen foreground style/provider: " + name);
+        if (before.thumbnail()==null || before.foreground().thumbnailBrightness()!=255 || before.foreground().thumbnailOpacity()!=1)
+            throw new AssertionError("Selected thumbnail did not finish loading: " + name);
+        var collapsed=((List<?>)screenField(screen,"rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> p.row().difficultyIndex()<0 && p.thumbnail()!=null).findFirst().orElseThrow();
+        if (collapsed.thumbnail()!=before.thumbnail() || collapsed.foreground().thumbnailBrightness()!=50)
+            throw new AssertionError("Shared artwork lost row-owned colour: " + name);
+        tapKey(input,Input.Keys.RIGHT); screen.render(0);
+        capture(fb,name+"-screen-collapse-0ms");
+        for (int frame=1;frame<=60;frame++) {
+            screen.render(1f/60); transitionFrames++;
+            assertRenderedBounds(screen,layout);
+            if (Set.of(6,18,30,60).contains(frame)) capture(fb,name+"-screen-collapse-"+frame+"f");
+        }
+        var after=foregroundPresentation(screen,selected);
+        if (after.foreground().detailOpacity()!=0 || after.foreground().thumbnailBrightness()!=50
+                || !after.content().detail().equals(before.content().detail()))
+            throw new AssertionError("Collapsed representative lost its sprites: " + name);
+        System.out.println("FOREGROUND PASS " + name);
+    }
+
+    private SongSelectRowRenderer.Presentation foregroundPresentation(SongSelectScreen screen, String key) {
+        return ((List<?>)screenField(screen,"rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> p.row().key().equals(key)).findFirst().orElseThrow();
+    }
+
+    private static void assertForegroundRectangle(Pixmap pixels, UiLayout layout, SongSelectLayout.Rect rect, float[] rgb, String context) {
+        float sx=pixels.getWidth()/layout.width(), sy=pixels.getHeight()/layout.height();
+        for (int iy=1;iy<=3;iy++) for (int ix=1;ix<=3;ix++) {
+            int actual=pixels.getPixel((int)((rect.x()+rect.width()*ix/4)*sx),(int)((rect.y()+rect.height()*iy/4)*sy));
+            for (int channel=0;channel<3;channel++) if (Math.abs((actual >>> (24-8*channel) & 255)-rgb[channel])>3)
+                throw new AssertionError(context+" channel="+channel+" expected="+rgb[channel]+" actual="+(actual >>> (24-8*channel) & 255));
+        }
+    }
+
+    private void exerciseSearch(SongSelectScreen screen, Scene scene, UiLayout layout, FrameBuffer fb, String name) {
+        screen.browserMode(SongBrowserModel.Sort.TITLE,scene.name.endsWith("group") ? SongBrowserModel.Group.ARTIST : SongBrowserModel.Group.NONE);
+        String[] queries={"difficulty=\"difficulty 2\"", "difficulty!=\"difficulty 1\" artist=aether", "ar>=5 cs=5",
+                "bpm>=190 bpm<300 length>=271 drain<=450 mode=osu",
+                "bpm=135 length=181 drain=180 mode=o difficulty=\"difficulty 2\"", "mode=mania", "difficulty=absent", ""};
+        int[] expected={7,6,28,8,1,0,0,28};
+        var browser=(SongBrowserModel)screenField(screen,"browser");
+        for (int stage=0;stage<queries.length;stage++) {
+            screen.browserSearch(queries[stage],true);
+            for (int frame=0;frame<45;frame++) {
+                screen.render(1f/60); transitionFrames++; assertRenderedBounds(screen,layout);
+                var matched=browser.rows().stream().filter(r -> !r.group() && !r.excluded).toList();
+                if (matched.size()!=expected[stage]) throw new AssertionError(name+" search count at "+stage+": "+matched.size());
+                for (var item : ((List<?>)screenField(screen,"rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast).toList()) {
+                    var row=browser.row(item.row().key());
+                    if (row.excluded) throw new AssertionError("Excluded search row was drawn");
+                    if ((stage==0 || stage==4) && !row.group() && (item.row().difficultyIndex()!=1 || !item.content().detail().equals("Difficulty 2")))
+                        throw new AssertionError("Search singleton lost its original difficulty index or label");
+                }
+                if (scene.name.endsWith("group") && browser.rows().stream().filter(r -> r.group()).mapToInt(r -> r.matchingChildren).sum()!=expected[stage])
+                    throw new AssertionError("Group includes excluded difficulties");
+                if (expected[stage]==0 && browser.selectedDifficulty()!=null) throw new AssertionError("Empty search exposed gameplay selection");
+                if (frame==0 || frame==8 || frame==44) capture(fb,name+"-query-"+stage+"-frame-"+frame);
+            }
+        }
+        System.out.println("SEARCH PASS "+name);
+    }
+
+    private static void compositionImage(Path dir, String name, int w, int h, int density, Color colour) {
+        var pixels = new Pixmap(w*density,h*density,Pixmap.Format.RGBA8888);
+        pixels.setBlending(Pixmap.Blending.None); pixels.setColor(colour); pixels.fill();
+        PixmapIO.writePNG(Gdx.files.absolute(dir.resolve(name+(density==2 ? "@2x" : "")+".png").toString()),pixels);
+        pixels.dispose();
+    }
+
+    private void exerciseComposition(SongSelectScreen screen, Scene scene, SongSelectSkinAssets assets,
+            UiLayout layout, FrameBuffer fb, String name) {
+        boolean cropped = scene.name.endsWith("crop");
+        var renderer = (SongSelectRowRenderer)screenField(screen,"rowRenderer");
+        var style = new SongSelectRowRenderer.Style(layout.width(),assets,(Texture)screenField(screen,"rowFill"),Color.WHITE,Color.WHITE,false);
+        var empty = new SongSelectRowPresentation.Content("","","",null,SongSelectRowPresentation.Stars.of(OptionalDouble.empty()),-1);
+        var selected = new SongSelectRow(0,0,null,true,false,100,300,600,72,0,1);
+        var later = new SongSelectRow(1,0,null,false,false,100,300,600,72,0,1);
+        var group = new SongSelectRow(-1,-2,"",false,false,100,300,600,72,0,1,2,100,300,"group:test",false);
+        // The viewport reservation deliberately excludes both the sample and the row body.
+        var firstGeometry = SongSelectLayout.row(selected,0,100,300,layout.width(),450,500,false,false);
+        var first = new SongSelectRowRenderer.Presentation(selected,empty,false,null,null,0,firstGeometry,false,0xff000080);
+        for (var lastRow : List.of(later,group)) {
+            var last = new SongSelectRowRenderer.Presentation(lastRow,lastRow.group() ? null : empty,false,null,null,0,
+                    SongSelectLayout.row(lastRow,1,100,300,layout.width(),450,500,false,false),false,0x0000ff80);
+            // Also prove the pass restores the caller's blend function after using ordinary alpha.
+            batch.setBlendFunction(GL20.GL_SRC_ALPHA,GL20.GL_ONE);
+            Gdx.gl.glClearColor(0,0,0,1); Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+            renderer.draw(List.of(first,last),style);
+            if (batch.getBlendDstFunc()!=GL20.GL_ONE) throw new AssertionError("Row blend state leaked");
+            batch.setBlendFunction(GL20.GL_SRC_ALPHA,GL20.GL_ONE_MINUS_SRC_ALPHA);
+            var pixels = Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
+            try {
+                float a=128/255f;
+                assertForegroundRectangle(pixels,layout,new SongSelectLayout.Rect(500,290,50,90),
+                        new float[]{255*a*(1-a),0,255*a},name+" browser order / unclipped background");
+            } finally { pixels.dispose(); }
+            capture(fb,name+(lastRow.group() ? "-group-over-selected" : "-row-over-selected")); transitionFrames++;
+        }
+        var content = new SongSelectRowPresentation.Content("MMMMMMMM","MMMMMMMM","MMMMMMMM",null,empty.stars(),1);
+        var narrow = new SongSelectRow(0,0,null,false,false,100,300,120,72,0,1);
+        var geometry = SongSelectLayout.row(narrow,0,100,300,layout.width(),450,500,false,true,true,cropped);
+        var stars = new SongSelectStarAnimation(cropped,40);
+        stars.update(SongSelectRowPresentation.Stars.of(OptionalDouble.of(3.25)),true,0,16); stars.advance(1);
+        for (boolean withStars : List.of(false,true)) {
+            var item = new SongSelectRowRenderer.Presentation(narrow,content,false,dev.osujava.ruleset.osu.OsuGrade.A,
+                    null,0,geometry,false,0,withStars ? stars.snapshot() : SongSelectStarAnimation.Snapshot.EMPTY);
+            Gdx.gl.glClearColor(0,0,0,1); Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+            renderer.draw(List.of(item),style);
+            var pixels = Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
+            try {
+                float a=128/255f;
+                // Huge badges overlap the text, extend beyond row height/width, and use source alpha.
+                assertForegroundRectangle(pixels,layout,new SongSelectLayout.Rect(240,390,80,20),
+                        new float[]{0,255*a,255*(1-a)},name+" grade over mode outside body");
+                if (!withStars) {
+                    // Scan all three text bands, including glyph interiors, rather than sparse sample points.
+                    float sx=fb.getWidth()/layout.width(), sy=fb.getHeight()/layout.height();
+                    float[] expected={0,255*a,255*(1-a)};
+                    for (int py=(int)(320*sy);py<370*sy;py++) for (int px=(int)(145*sx);px<220*sx;px++) {
+                        int pixel=pixels.getPixel(px,py);
+                        for (int channel=0;channel<3;channel++) if (Math.abs((pixel >>> (24-channel*8) & 255)-expected[channel])>3)
+                            throw new AssertionError(name+" text escaped mode/grade occlusion at "+px+","+py);
+                    }
+                }
+                assertForegroundRectangle(pixels,layout,new SongSelectLayout.Rect(240,220,80,10),
+                        new float[]{0,255*a,0},name+" grade below body");
+                if (withStars) {
+                    // Background star pass then foreground pass, both after the grade.
+                    float red = a+(30/255f*a)*(1-a);
+                    float cx = (cropped ? 160 : 145)+11.25f, cy = cropped ? 313.5f : 309;
+                    assertForegroundRectangle(pixels,layout,new SongSelectLayout.Rect(cx-2,cy-2,4,4),
+                            new float[]{255*red,255*a*(1-red),255*(1-a)*(1-red)},name+" stars over badges");
+                }
+            } finally { pixels.dispose(); }
+            capture(fb,name+(withStars ? "-stars-over-badges" : "-badges-over-text")); transitionFrames++;
+        }
+        System.out.println("COMPOSITION PIXELS PASS " + name);
+    }
+
+    private void exerciseStarAnimation(SongSelectScreen screen, Scene scene, SongSelectSkinAssets assets,
+            UiLayout layout, FrameBuffer fb, String name) {
+        boolean cropped = scene.name.endsWith("-crop");
+        var actual = ((List<?>)screenField(screen,"rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> !p.stars().glyphs().isEmpty()).findFirst().orElseThrow();
+        if (actual.stars().cropped()!=cropped) throw new AssertionError("Screen star mode/provider: " + name);
+        if ((int)assets.get(SongSelectSkinAssets.Image.STAR).logicalWidth()!=40) throw new AssertionError("Star density: " + name);
+        var animation = new SongSelectStarAnimation(cropped,40);
+        var rating = SongSelectRowPresentation.Stars.of(OptionalDouble.of(2.5));
+        animation.update(rating,false,1000,0);
+        var row = new SongSelectRow(0,0,null,false,false,100,300,600,72,0,1);
+        var geometry = SongSelectLayout.row(row,0,row.x(),row.y(),layout.width(),0,layout.height(),false,false);
+        var content = new SongSelectRowPresentation.Content("","","",null,
+                SongSelectRowPresentation.Stars.of(OptionalDouble.empty()),-1);
+        int[] times = {0,130,250,380,500,630,1000,1150};
+        int checks=0;
+        for (int stage=0;stage<times.length;stage++) {
+            animation.advance(1000+times[stage]);
+            var snapshot=animation.snapshot();
+            var drawnRow = stage==times.length-1 ? new SongSelectRow(0,0,null,false,false,100,300,160,72,0,1) : row;
+            var drawnGeometry = SongSelectLayout.row(drawnRow,0,100,300,layout.width(),0,layout.height(),false,false);
+            var item = new SongSelectRowRenderer.Presentation(drawnRow,content,false,null,null,0,drawnGeometry,false,0,snapshot);
+            Gdx.gl.glClearColor(0,0,0,1); Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+            ((SongSelectRowRenderer)screenField(screen,"rowRenderer")).draw(List.of(item),
+                    new SongSelectRowRenderer.Style(layout.width(),assets,(Texture)screenField(screen,"rowFill"),Color.WHITE,Color.WHITE,false));
+            // A white 40-logical-pixel texture at row height 72 gives a 22.5-unit pitch.
+            // Compare the entire band away from raster boundaries, not only the sprite centres.
+            float left=100+geometry.text().textX(), cy=cropped ? 313.5f : 309f;
+            float sx=fb.getWidth()/layout.width(), sy=fb.getHeight()/layout.height();
+            var pixels=Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
+            try {
+                for (int py=(int)((cy-15)*sy);py<(cy+15)*sy;py++) for (int px=(int)((left-3)*sx);px<(left+228)*sx;px++) {
+                    float x=(px+.5f)/sx, y=(py+.5f)/sy;
+                    double alpha=0;
+                    boolean edge=false;
+                    for (int i=0;i<10;i++) {
+                        float cx=left+(i+.5f)*22.5f;
+                        float bg=cropped ? 22.5f : 7.875f;
+                        var glyph=snapshot.glyphs().get(i);
+                        float fw=cropped ? 22.5f*glyph.crop() : 22.5f*Math.abs(glyph.scale());
+                        float fh=cropped ? 22.5f : fw;
+                        float fx=cropped ? cx-11.25f : cx-fw/2;
+                        var background=new SongSelectLayout.Rect(cx-bg/2,cy-bg/2,bg,bg);
+                        var foreground=new SongSelectLayout.Rect(fx,cy-fh/2,fw,fh);
+                        for (var bounds : List.of(background,foreground)) {
+                            if (bounds.width()<=0 || bounds.height()<=0) continue;
+                            if (x>=bounds.x()-1/sx && x<=bounds.x()+bounds.width()+1/sx
+                                    && y>=bounds.y()-1/sy && y<=bounds.y()+bounds.height()+1/sy
+                                    && (Math.abs(x-bounds.x())<1/sx || Math.abs(x-bounds.x()-bounds.width())<1/sx
+                                    || Math.abs(y-bounds.y())<1/sy || Math.abs(y-bounds.y()-bounds.height())<1/sy)) edge=true;
+                        }
+                        if (background.contains(x,y)) alpha=30/255.0*snapshot.backgroundOpacity();
+                        if (fw>0 && foreground.contains(x,y)) alpha=snapshot.foregroundOpacity()+alpha*(1-snapshot.foregroundOpacity());
+                    }
+                    if (edge) continue;
+                    int pixel=pixels.getPixel(px,py);
+                    for (int channel=0;channel<3;channel++) if (Math.abs((pixel >>> (24-channel*8) & 255)-alpha*255)>3)
+                        throw new AssertionError("Star pixel: " + name + " t=" + times[stage] + " at=" + x + "," + y
+                                + " expected=" + alpha*255 + " actual=" + (pixel >>> (24-channel*8) & 255));
+                    checks++;
+                }
+            } finally { pixels.dispose(); }
+            capture(fb,name+"-"+(stage==times.length-1 ? "narrow-unclipped-1150" : times[stage])+"ms");
+            transitionFrames++;
+        }
+        System.out.println("STAR PIXELS PASS " + name + " samples=" + checks);
+    }
+
+    private void exerciseRowColourAnimation(SongSelectScreen screen, SongSelectSkinAssets assets,
+            UiLayout layout, FrameBuffer fb, String name) {
+        String[] labels = {"State 300ms", "Hover 1000ms", "Focus 50ms", "Blocked hover", "Flash interrupted by focus"};
+        int[] times = {0,25,50,150,300,500,1000,1001};
+        int[][] expected = {
+                {0xffffffdc,0x26c7fff0,0x0096ecf0,0xffffffdc,0x26c7fff0},
+                {0xe9f6fddd,0x25c5fef0,0x00b4f5f0,0xe9f6fddd,0x25c5fef0},
+                {0xd4edfbdf,0x24c4fef0,0x00d2fff0,0xd4edfbdf,0x24c4fef0},
+                {0x7fcaf5e6,0x20bffcf0,0x00d2fff0,0x7fcaf5e6,0x24c4fef0},
+                {0x0096ecf0,0x1ab8f9f0,0x00d2fff0,0x0096ecf0,0x00d2fff0},
+                {0x0096ecf0,0x13aef5f0,0x00d2fff0,0x0096ecf0,0x00d2fff0},
+                {0x0096ecf0,0x0096ecf0,0x00d2fff0,0x0096ecf0,0x00d2fff0},
+                {0x0096ecf0,0x0096ecf0,0x00d2fff0,0x0096ecf0,0x00d2fff0}
+        };
+        var animations = new SongSelectRowColourAnimation[labels.length];
+        for (int i=0;i<animations.length;i++) {
+            animations[i]=new SongSelectRowColourAnimation();
+            animations[i].update(i==0 || i==3 ? 4 : 3,i==0 || i==3 ? 0xffffffdc : 0x0096ecf0,false,false,0,0);
+        }
+        for (int stage=0;stage<times.length;stage++) {
+            var presentations = new ArrayList<SongSelectRowRenderer.Presentation>();
+            for (int i=0;i<labels.length;i++) {
+                animations[i].update(3,0x0096ecf0,i==2 || i==4 && times[stage]>=150,i==1 || i==3 || i==4,1000+times[stage],0);
+                if (animations[i].rgba()!=expected[stage][i]) throw new AssertionError("Animation RGBA: " + name + " " + labels[i] + " at " + times[stage]);
+                var row = new SongSelectRow(i,0,null,false,true,80,80+110*i,layout.width()-160,72,0,1);
+                var content = new SongSelectRowPresentation.Content(labels[i],times[stage]+" ms","",null,
+                        SongSelectRowPresentation.Stars.of(OptionalDouble.empty()),-1);
+                presentations.add(new SongSelectRowRenderer.Presentation(row,content,false,null,null,0,
+                        SongSelectLayout.row(row,i,row.x(),row.y(),layout.width(),0,layout.height(),false,false),false,animations[i].rgba()));
+            }
+            Gdx.gl.glClearColor(0,0,0,1); Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+            ((SongSelectRowRenderer)screenField(screen,"rowRenderer")).draw(presentations,
+                    new SongSelectRowRenderer.Style(layout.width(),assets,(Texture)screenField(screen,"rowFill"),Color.BLACK,Color.WHITE,false));
+            var pixels = Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
+            try {
+                for (int i=0;i<labels.length;i++) {
+                    int pixel=pixels.getPixel(Math.round(700*fb.getWidth()/layout.width()),
+                            Math.round((80+110*i+36)*fb.getHeight()/layout.height()));
+                    for (int channel=0;channel<3;channel++) {
+                        int actual=pixel >>> (24-channel*8) & 255;
+                        double wanted=(expected[stage][i] >>> (24-channel*8) & 255)*(expected[stage][i] & 255)/255.0;
+                        if (Math.abs(actual-wanted)>2) throw new AssertionError("Animated colour pixel: " + name + " " + labels[i]
+                                + " at " + times[stage] + " channel=" + channel + " expected=" + wanted + " actual=" + actual);
+                    }
+                }
+            } finally { pixels.dispose(); }
+            transitionFrames++;
+            capture(fb,name+"-animation-"+times[stage]+"ms");
+        }
+    }
+
+    private void exerciseRowColours(SongSelectScreen screen, SongSelectSkinAssets assets,
+            UiLayout layout, FrameBuffer fb, String name) {
+        String[] labels = {"Selected", "Sibling", "Played", "Unplayed", "Group closed", "Group contains selection", "Group open"};
+        int[][][] palette = {
+                {{255,255,255,220},{0,150,236,240},{233,104,0,240},{235,73,153,240},{35,50,143,255},{35,90,193,255},{163,240,44,255}},
+                {{255,255,255,220},{38,199,255,240},{255,150,38,240},{255,116,202,240},{75,92,191,255},{75,135,245,255},{213,255,85,255}},
+                {{255,255,255,220},{0,210,255,240},{255,145,0,240},{255,102,214,240},{49,70,200,255},{49,126,255,255},{228,255,61,255}}
+        };
+        for (int stage=0;stage<3;stage++) {
+            var presentations = new ArrayList<SongSelectRowRenderer.Presentation>();
+            for (int i=0;i<labels.length;i++) {
+                boolean group=i>=4;
+                var row = new SongSelectRow(group ? -1 : i,group ? -2 : 0,group ? labels[i] : null,i==0,i==1,
+                        80,35+90*i,layout.width()-160,72,stage==1 ? 1 : 0,1,i,80,35+90*i,"colour-"+i,i==6,stage==2 ? 1 : 0);
+                var content = new SongSelectRowPresentation.Content(labels[i],"Artist // Mapper","Difficulty",null,
+                        SongSelectRowPresentation.Stars.of(OptionalDouble.empty()),-1);
+                presentations.add(new SongSelectRowRenderer.Presentation(row,content,i==2,null,null,0,
+                        SongSelectLayout.row(row,i,row.x(),row.y(),layout.width(),0,layout.height(),false,false),i==5,
+                        Color.rgba8888(SongSelectRowColours.background(new Color(),row,i==2,i==5))));
+            }
+            Gdx.gl.glClearColor(0,0,0,1); Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+            ((SongSelectRowRenderer)screenField(screen,"rowRenderer")).draw(presentations,
+                    new SongSelectRowRenderer.Style(layout.width(),assets,(Texture)screenField(screen,"rowFill"),Color.BLACK,Color.WHITE,false));
+            var pixels = Pixmap.createFromFrameBuffer(0,0,fb.getWidth(),fb.getHeight());
+            try {
+                for (int i=0;i<labels.length;i++) {
+                    int pixel=pixels.getPixel(Math.round(700*fb.getWidth()/layout.width()),
+                            Math.round((35+90*i+36)*fb.getHeight()/layout.height()));
+                    for (int channel=0;channel<3;channel++) {
+                        int actual=(pixel >>> (24-channel*8)) & 255;
+                        double expected=palette[stage][i][channel]*palette[stage][i][3]/255.0;
+                        if (Math.abs(actual-expected)>2)
+                            throw new AssertionError("Row colour pixel: " + name + " " + labels[i] + " stage=" + stage
+                                    + " channel=" + channel + " expected=" + expected + " actual=" + actual);
+                    }
+                }
+            } finally { pixels.dispose(); }
+            capture(fb,name+"-"+new String[]{"base","hover-target","focus-target"}[stage]);
+        }
+    }
+
+    private void exerciseWheel(SongSelectScreen screen, Scene scene, InputProcessor input,
+            int[] pointer, Set<Integer> held, UiLayout layout, FrameBuffer fb, String name) {
+        int fps = Integer.parseInt(scene.name.substring("wheel-".length()));
+        pointer[0] = Math.round(scene.width * .8f); pointer[1] = scene.height / 2;
+        var model = carousel(screen); var selection = browser(screen).selection();
+        float initial = model.scrollVelocity();
+        input.scrolled(0, 20); input.scrolled(0, -20); screen.render(0); transitionFrames++;
+        if (model.scrollVelocity() != initial) throw new AssertionError("Cancelled batch changed velocity: " + name);
+        capture(fb, name + "-cancelled");
+        double scale = SongSelectMetrics.carouselScale(layout.height()) * 1000;
+        double velocity = initial / scale;
+        float delta = 1f / fps;
+        for (int frame = 0; frame < fps / 2; frame++) {
+            int direction = frame < fps / 4 ? 1 : -1;
+            // Twenty callbacks still yield one impulse; the negative half first brakes inertia.
+            for (int event = 0; event < 20; event++) input.scrolled(0, direction * 3);
+            velocity += direction * .4 * (1 + Math.min(Math.abs(velocity) / 2, 5));
+            velocity *= Math.pow(.994, delta * 1000.0);
+            if (Math.abs(velocity) < .01) velocity = 0;
+            screen.render(delta); transitionFrames++; assertRenderedBounds(screen, layout);
+            if (Math.abs(model.scrollVelocity() - velocity * scale) > .02)
+                throw new AssertionError("Wheel aggregation/integration: " + name + " frame " + frame);
+            if (!selection.equals(browser(screen).selection()) || pending(screen))
+                throw new AssertionError("Wheel changed selection: " + name);
+            if (frame == 0 || frame == fps / 4 || frame == fps / 2 - 1) capture(fb, name + "-frame-" + frame);
+        }
+        held.add(Input.Keys.DOWN); input.keyDown(Input.Keys.DOWN);
+        screen.render(0); screen.render(.25f); transitionFrames += 2;
+        input.scrolled(0, 1); screen.render(0); transitionFrames++;
+        if (model.pointerCancellationEnabled(300)) throw new AssertionError("Wheel ran after key repeat: " + name);
+        assertRenderedBounds(screen, layout); capture(fb, name + "-key-repeat");
+        held.remove(Input.Keys.DOWN); input.keyUp(Input.Keys.DOWN);
+    }
+
+    private void tapPointer(SongSelectScreen screen, boolean[] clicked, boolean[] pressed) {
+        clicked[0] = true; pressed[0] = true; screen.render(0); transitionFrames++;
+        clicked[0] = false; pressed[0] = false; screen.render(0); transitionFrames++;
+    }
+
+    private void exerciseActivation(SongSelectScreen screen, Scene scene, int[] pointer,
+            boolean[] clicked, boolean[] pressed, boolean[] right, boolean[] middle,
+            UiLayout layout, FrameBuffer fb, String name) {
+        boolean middleCase = scene.name.endsWith("middle"), rightCase = scene.name.endsWith("right");
+        pointerRow(screen, 2, -1, pointer, layout, scene.height);
+        clicked[0] = pressed[0] = !middleCase && !rightCase;
+        middle[0] = middleCase; right[0] = rightCase;
+        screen.render(0); transitionFrames++;
+        clicked[0] = pressed[0] = middle[0] = right[0] = false;
+        screen.render(0); transitionFrames++;
+        if (pending(screen) || !browser(screen).selectedSet().id().equals("set2"))
+            throw new AssertionError("First release must expand the Set without playing");
+        capture(fb, name + "-expanded");
+        var selected = carousel(screen).rows().stream().filter(r -> r.entry.key().equals(browser(screen).selectedKey())).findFirst().orElseThrow();
+        pointerRow(screen, selected.entry.setIndex(), selected.entry.difficultyIndex(), pointer, layout, scene.height);
+        if (middleCase) {
+            middle[0] = true; screen.render(0); transitionFrames++;
+            if (((SongSelectInputController) screenField(screen, "input")).pressedKey() != null)
+                throw new AssertionError("Middle double-click recaptured a row");
+            middle[0] = false; screen.render(0); transitionFrames++;
+            if (pending(screen)) throw new AssertionError("Middle double-click started play");
+            capture(fb, name + "-second-release");
+            middle[0] = true; screen.render(0); transitionFrames++;
+            middle[0] = false; screen.render(0); transitionFrames++;
+        } else tapPointer(screen, clicked, pressed);
+        if (!pending(screen)) throw new AssertionError("Valid selected release was blocked after Set expansion");
+        assertRenderedBounds(screen, layout); capture(fb, name + "-play-requested");
+    }
+
     private void exercisePointer(SongSelectScreen screen, Scene scene, int[] pointer,
             boolean[] clicked, boolean[] pressed, boolean[] rightClicked, boolean[] rightPressed,
             UiLayout layout, FrameBuffer fb, String name) {
@@ -1015,6 +1613,35 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 if (pending(screen) != (distance == 80)) throw new AssertionError("Window-pixel click threshold: " + name);
                 assertRenderedBounds(screen, layout); capture(fb, name + "-released-" + distance);
             }
+        } else if (scene.name.equals("pointer-context")) {
+            var other = model.rows().stream().filter(r -> r.entry.setIndex() == row.entry.setIndex()
+                    && r.entry.difficultyIndex() >= 0 && !r.entry.key().equals(selection)).findFirst().orElseThrow();
+            pointerRow(screen, other.entry.setIndex(), other.entry.difficultyIndex(), pointer, layout, scene.height);
+            rightPressed[0] = true; screen.render(0); transitionFrames++;
+            if (!selection.equals(browser.selectedKey())) throw new AssertionError("Right down selected before release");
+            capture(fb, name + "-pressed");
+            rightPressed[0] = false; screen.render(0); transitionFrames++;
+            if (!other.entry.key().equals(browser.selectedKey()) || pending(screen)
+                    || !"Beatmap Options unavailable in this version.".equals(screenField(screen, "toast")))
+                throw new AssertionError("Right release did not select and request Options");
+            assertRenderedBounds(screen, layout); capture(fb, name + "-released");
+            return;
+        } else if (scene.name.equals("pointer-chord")) {
+            pointerRow(screen, row.entry.setIndex(), row.entry.difficultyIndex(), pointer, layout, scene.height);
+            clicked[0] = true; pressed[0] = true; rightPressed[0] = true;
+            screen.render(.02f); transitionFrames++; clicked[0] = false;
+            rightPressed[0] = false; screen.render(.02f); transitionFrames++;
+            if (pending(screen) || !"Beatmap Options unavailable in this version.".equals(screenField(screen, "toast")))
+                throw new AssertionError("Mixed-button release played instead of requesting Options");
+            capture(fb, name + "-right-released");
+            float before = model.scrollOffset();
+            pointer[1] -= 30; screen.render(.02f); transitionFrames++;
+            if (Math.abs(model.scrollOffset() - before - 30 / layout.scale()) > .01)
+                throw new AssertionError("Right release stopped left drag");
+            assertRenderedBounds(screen, layout); capture(fb, name + "-left-held");
+            pressed[0] = false; screen.render(0); transitionFrames++;
+            if (pending(screen)) throw new AssertionError("Candidate committed twice");
+            capture(fb, name + "-left-released");
         } else {
             pointerRow(screen, row.entry.setIndex(), row.entry.difficultyIndex(), pointer, layout, scene.height);
             rightClicked[0] = true; rightPressed[0] = true; screen.render(0); rightClicked[0] = false;
@@ -1068,7 +1695,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if (Math.abs(model.scrollOffset() - position) > .001 || model.scrollVelocity() != velocity)
                 throw new AssertionError("Stationary hold moved: " + name);
         }
-        if (scene.name.equals("drag-cancel")) { input.keyDown(Input.Keys.F1); screen.render(0); }
+        if (scene.name.equals("drag-cancel")) { tapKey(input, Input.Keys.F1); screen.render(0); }
         pressed[0] = false; screen.render(0);
         float expectedVelocity = scene.name.equals("drag-cancel") ? 0
                 : scene.name.equals("drag-pause") ? velocity * (float)Math.pow(.95, 34) : velocity;
@@ -1108,7 +1735,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if (state.equals("mods-view")) {
                 point(geometry.control(SongSelectSkinAssets.Selection.MODS).interaction(),pointer,layout,scene.height);
                 clicked[0] = true; screen.render(0); clicked[0] = false;
-            } else input.keyDown(Input.Keys.F1);
+            } else tapKey(input, Input.Keys.F1);
             if (toolboxState(screen).overlay() != SongSelectToolboxState.Overlay.MODS || !toolboxState(screen).active().isEmpty())
                 throw new AssertionError("Mods selector invented gameplay capabilities");
         }
@@ -1119,7 +1746,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     new SongSelectToolboxLayout.Bounds(800,590,70,40),new SongSelectToolboxLayout.Bounds(30,560,70,30))) {
                 point(b,pointer,layout,scene.height); clicked[0] = true; screen.render(0); clicked[0] = false;
             }
-            for (int key : new int[]{Input.Keys.F2,Input.Keys.F3,Input.Keys.I,Input.Keys.ENTER,Input.Keys.F6,Input.Keys.DOWN}) input.keyDown(key);
+            for (int key : new int[]{Input.Keys.F2,Input.Keys.F3,Input.Keys.I,Input.Keys.ENTER,Input.Keys.F6,Input.Keys.DOWN}) tapKey(input, key);
             input.keyTyped('x'); input.scrolled(0,3);
             if (browser(screen).selectedDifficulty() != selected || !screenField(screen,"search").equals(search)
                     || pending(screen) || scores.first() != first || !Objects.equals(scores.selected(),selectedScore))
@@ -1147,7 +1774,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 @Override public void navigate(Screen next) { next.dispose(); }
             };
             var gameplay = new GameplayScreen(game,browser(screen).selectedSet(),browser(screen).selectedDifficulty());
-            gameplay.show(); Gdx.input.getInputProcessor().keyDown(Input.Keys.ESCAPE); gameplay.dispose(); Gdx.input.setInputProcessor(input);
+            gameplay.show(); tapKey(Gdx.input.getInputProcessor(), Input.Keys.ESCAPE); gameplay.dispose(); Gdx.input.setInputProcessor(input);
             if (store.revision() != revision) throw new AssertionError("Aborted gameplay marked played");
         }
         if (state.equals("large-hover")) point(geometry.control(SongSelectSkinAssets.Selection.RANDOM).interaction(),pointer,layout,scene.height);
@@ -1302,11 +1929,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
 
     private void toolboxTransitions(SongSelectScreen screen, InputProcessor input, FrameBuffer fb, String name, UiLayout layout) {
         for (int stage = 0; stage < 5; stage++) {
-            if (stage == 0) input.keyDown(Input.Keys.F1);
-            if (stage == 1) input.keyDown(Input.Keys.ESCAPE);
+            if (stage == 0) tapKey(input, Input.Keys.F1);
+            if (stage == 1) tapKey(input, Input.Keys.ESCAPE);
             if (stage == 2) screen.browserMode(SongBrowserModel.Sort.ARTIST,SongBrowserModel.Group.ARTIST);
             if (stage == 3) screen.browserSearch("Local song 2",false);
-            if (stage == 4) { screen.browserSearch("",false); input.keyDown(Input.Keys.F2); }
+            if (stage == 4) { screen.browserSearch("",false); tapKey(input, Input.Keys.F2); }
             for (int frame = 0; frame < 25; frame++) {
                 screen.render(1f/60); assertRenderedBounds(screen,layout); transitionFrames++;
                 if (frame == 0 || frame == 8 || frame == 24) capture(fb,name+"-stage-"+stage+"-frame-"+frame);
@@ -1323,9 +1950,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         Arrays.sort(samples);
         System.out.printf(Locale.ROOT,"Toolbox CPU submission %s: mean %.3f ms, p95 %.3f ms, max %.3f ms (180 samples)%n",name,
                 Arrays.stream(samples).average().orElseThrow()/1e6,samples[170]/1e6,samples[179]/1e6);
-        if (toolboxState(screen).open()) input.keyDown(Input.Keys.ESCAPE);
+        if (toolboxState(screen).open()) tapKey(input, Input.Keys.ESCAPE);
         long[] switches = new long[100];
-        for (int i=0;i<140;i++) { long start=System.nanoTime(); input.keyDown(i%2==0 ? Input.Keys.DOWN : Input.Keys.UP);
+        for (int i=0;i<140;i++) { long start=System.nanoTime(); tapKey(input, i%2==0 ? Input.Keys.DOWN : Input.Keys.UP);
             if(i>=40)switches[i-40]=System.nanoTime()-start; }
         Arrays.sort(switches);
         System.out.printf(Locale.ROOT,"Toolbox difficulty switch %s: mean %.3f ms, p95 %.3f ms, max %.3f ms%n",name,
@@ -1377,19 +2004,19 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         var scores=scoreBrowser(screen); var bounds=screen.scoreBounds(layout);
         pointer[0]=Math.round(100*layout.scale()); pointer[1]=height-Math.round((bounds.top()-32)*layout.scale());
         float carouselTarget=carousel(screen).scrollTarget();
-        int before=scores.first(); input.scrolled(0,1);
+        int before=scores.first(); input.scrolled(0,1); ((SongSelectWheelInput) input).dispatch();
         if(carousel(screen).scrollTarget()!=carouselTarget) throw new AssertionError("Left wheel moved carousel");
         scores.scroll(-1);
         if(scores.first()!=before) throw new AssertionError("Score scroll did not reverse");
         pointer[0]=Math.round(layout.width()*.9f*layout.scale()); pointer[1]=height/2;
-        input.scrolled(0,1);
+        input.scrolled(0,1); ((SongSelectWheelInput) input).dispatch();
         if(scores.first()!=before) throw new AssertionError("Right wheel moved score browser");
-        input.scrolled(0,-1);
+        input.scrolled(0,-1); ((SongSelectWheelInput) input).dispatch();
         pointer[0]=Math.round(100*layout.scale()); pointer[1]=height-Math.round((bounds.top()-32)*layout.scale());
         if(name.equals("phase4-scroll-middle")) scores.scroll(6);
         if(name.equals("phase4-scroll-bottom") || name.equals("phase4-numbers-bottom")) scores.scroll(10000);
         if(name.equals("phase4-selected")) { clicked[0]=true; screen.render(0); clicked[0]=false; if(scores.selected()==null)throw new AssertionError("Score click lost"); }
-        if(name.equals("phase4-no-score")) input.keyDown(Input.Keys.UP);
+        if(name.equals("phase4-no-score")) tapKey(input, Input.Keys.UP);
         if(name.equals("phase4-group")) screen.browserMode(SongBrowserModel.Sort.ARTIST,SongBrowserModel.Group.ARTIST);
         if(name.equals("phase4-search")) screen.browserSearch("Local song",true);
         assertScoreTarget(screen);
@@ -1406,7 +2033,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     case "sort" -> { var copy=new ArrayList<>(store.query(target)); copy.sort(dev.osujava.score.LocalScore.ORDER); }
                     case "scroll" -> scores.scroll(i%2==0 ? 1 : -1);
                     case "difficulty" -> { scores.target(null); scores.target(target); }
-                    case "input-switch" -> Gdx.input.getInputProcessor().keyDown(i%2==0 ? Input.Keys.DOWN : Input.Keys.UP);
+                    case "input-switch" -> tapKey(Gdx.input.getInputProcessor(), i%2==0 ? Input.Keys.DOWN : Input.Keys.UP);
                     case "cold-format" -> new ScoreBrowserModel(store).target(target);
                 }
                 if(i>=40)samples[i-40]=System.nanoTime()-start;
@@ -1465,7 +2092,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             default -> throw new IllegalArgumentException("Unknown capture action");
         };
         if (key == -2) toolboxState(screen).open(SongSelectToolboxState.Overlay.MODE);
-        else if (key >= 0) input.keyDown(key);
+        else if (key >= 0) tapKey(input, key);
         String[] hover = System.getProperty("osujava.songSelectHover", "40,360").split(",");
         pointer[0] = Math.round(Float.parseFloat(hover[0]) * layout.scale());
         pointer[1] = scene.height - Math.round(Float.parseFloat(hover[1]) * layout.scale());
@@ -1503,12 +2130,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     }
     private void exerciseKeyboardFocus(SongSelectScreen screen, String name, InputProcessor processor, UiLayout layout) {
         var browser = (SongBrowserModel) screenField(screen, "browser");
-        if (name.endsWith("page")) processor.keyDown(Input.Keys.PAGE_DOWN);
+        if (name.endsWith("page")) tapKey(processor, Input.Keys.PAGE_DOWN);
         else if (name.contains("group")) {
             for (int i = 0; i < 20 && (browser.focusKey() == null || !browser.row(browser.focusKey()).group()); i++)
-                processor.keyDown(Input.Keys.UP);
+                tapKey(processor, Input.Keys.UP);
         } else {
-            for (int i = 0; i < 20 && browser.focusKey() == null; i++) processor.keyDown(Input.Keys.DOWN);
+            for (int i = 0; i < 20 && browser.focusKey() == null; i++) tapKey(processor, Input.Keys.DOWN);
         }
         if (browser.focusKey() == null) throw new AssertionError("Keyboard did not reach focus: " + name);
         var focused = browser.row(browser.focusKey());
@@ -1521,12 +2148,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             throw new AssertionError("Focus and selected emphasis were conflated");
         if (pending(screen)) throw new AssertionError("Focus navigation started gameplay");
         if (name.endsWith("confirm")) {
-            processor.keyDown(Input.Keys.ENTER);
+            tapKey(processor, Input.Keys.ENTER);
             if (browser.focusKey() != null || !browser.selectedSet().id().equals(focused.set.id()) || pending(screen))
                 throw new AssertionError("Enter must confirm the focused Set before starting gameplay");
         } else if (name.endsWith("toggle")) {
             boolean expanded = focused.expanded;
-            processor.keyDown(Input.Keys.ENTER);
+            tapKey(processor, Input.Keys.ENTER);
             if (focused.expanded == expanded || !selected.equals(browser.selection()) || pending(screen))
                 throw new AssertionError("Enter on focused Group must only toggle that Group");
         }
@@ -1536,28 +2163,28 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     }
 
     private void exerciseGroupCards(SongSelectScreen screen, String name,
-                                    int[] pointer, boolean[] clicked, UiLayout layout, int height) {
+                                    int[] pointer, boolean[] clicked, boolean[] pressed, UiLayout layout, int height) {
         var browser = (SongBrowserModel) screenField(screen, "browser");
         var selection = browser.selection();
         var parent = browser.row(browser.selectedKey()).parent;
-        clickGroupCard(screen, parent.key, pointer, clicked, layout, height);
+        clickGroupCard(screen, parent.key, pointer, clicked, pressed, layout, height);
         if (parent.expanded || !selection.equals(browser.selection()) || pending(screen))
             throw new AssertionError("Closing Group lost selection or started gameplay");
         if (browser.entries().stream().anyMatch(e -> e.kind() != SongBrowserModel.Kind.GROUP_HEADER))
             throw new AssertionError("Closed Groups still expose children");
-        clickGroupCard(screen, parent.key, pointer, clicked, layout, height);
+        clickGroupCard(screen, parent.key, pointer, clicked, pressed, layout, height);
         if (!parent.expanded || pending(screen)) throw new AssertionError("Group re-click did not reopen Group");
         var next = browser.rows().stream().filter(r -> r.group() && r != parent).findFirst().orElseThrow();
-        clickGroupCard(screen, next.key, pointer, clicked, layout, height);
+        clickGroupCard(screen, next.key, pointer, clicked, pressed, layout, height);
         if (parent.expanded || !next.expanded || !selection.equals(browser.selection()) || pending(screen))
             throw new AssertionError("Opening another Group changed playable selection");
-        if (name.endsWith("close")) clickGroupCard(screen, next.key, pointer, clicked, layout, height);
+        if (name.endsWith("close")) clickGroupCard(screen, next.key, pointer, clicked, pressed, layout, height);
         pointer[0] = 40;
         for (int i = 0; i < 90; i++) screen.render(1f / 60);
         assertRenderedBounds(screen, layout);
     }
 
-    private void clickGroupCard(SongSelectScreen screen, String key, int[] pointer, boolean[] clicked,
+    private void clickGroupCard(SongSelectScreen screen, String key, int[] pointer, boolean[] clicked, boolean[] pressed,
                                 UiLayout layout, int height) {
         // Position the viewport, then use the production press/release and shared hit geometry.
         carousel(screen).select(key);
@@ -1567,8 +2194,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         var snapshots = (List<?>) screenField(screen, "visibleRows");
         var row = snapshots.stream().map(SongSelectRow.class::cast)
                 .filter(r -> key.equals(r.key())).findFirst().orElseThrow();
-        clickBrowser(screen, Math.min(layout.width() - 30, row.x() + 120), row.y() + row.height() / 2,
-                pointer, clicked, layout, height);
+        pointer[0] = Math.round(Math.min(layout.width() - 30, row.x() + 120) * layout.scale());
+        pointer[1] = height - Math.round((row.y() + row.height() / 2) * layout.scale());
+        tapPointer(screen, clicked, pressed);
     }
 
     private void configureBrowserScene(SongSelectScreen screen, String name, InputProcessor processor, int[] pointer, boolean[] clicked, UiLayout layout, int height) {
@@ -1607,8 +2235,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "phase3-search-long" -> screen.browserSearch("Local song Camellia Harness Difficulty Local song Camellia Harness Difficulty",true);
             case "phase3-search-unicode" -> screen.browserSearch("夜空",true);
             case "phase3-search-none" -> screen.browserSearch("no matching beatmap",true);
-            case "phase3-group-first" -> { for(int i=0;i<12;i++)processor.keyDown(Input.Keys.LEFT); }
-            case "phase3-group-last" -> { for(int i=0;i<12;i++)processor.keyDown(Input.Keys.RIGHT); }
+            case "phase3-group-first" -> { for(int i=0;i<12;i++)tapKey(processor, Input.Keys.LEFT); }
+            case "phase3-group-last" -> { for(int i=0;i<12;i++)tapKey(processor, Input.Keys.RIGHT); }
             case "phase3-menu-group", "phase3-menu-sort" -> {
                 var bounds = name.endsWith("group") ? SongBrowserControls.groupBounds(layout.width(),layout.height()) : SongBrowserControls.sortBounds(layout.width(),layout.height());
                 pointer[0] = Math.round((bounds.x()+20)*layout.scale()); pointer[1] = height - Math.round((bounds.y()+10)*layout.scale());
@@ -1659,6 +2287,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             return (SongSelectCarousel) field.get(screen);
         } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
     }
+    private static boolean tapKey(InputProcessor input, int key) {
+        boolean handled = input.keyDown(key);
+        input.keyUp(key);
+        return handled;
+    }
+
     private boolean pending(SongSelectScreen screen) {
         try {
             var field = SongSelectScreen.class.getDeclaredField("outgoing"); field.setAccessible(true);

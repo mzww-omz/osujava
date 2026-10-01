@@ -32,6 +32,17 @@ public final class SmoothUiFont implements AutoCloseable {
 
     public void draw(SpriteBatch batch, String text, float x, float baseline, float maxWidth,
                      float scale, Color color, int align, boolean bold) {
+        draw(batch, text, x, baseline, maxWidth, scale, color, align, bold, false);
+    }
+
+    /** Centre-left sprite origin, independent of a particular font's ascent/descent. */
+    public void drawCenteredVertically(SpriteBatch batch, String text, float x, float centreY, float maxWidth,
+                                       float scale, Color color, boolean bold) {
+        draw(batch, text, x, centreY, maxWidth, scale, color, Align.left, bold, true);
+    }
+
+    private void draw(SpriteBatch batch, String text, float x, float y, float maxWidth,
+                      float scale, Color color, int align, boolean bold, boolean centeredVertically) {
         if (text == null || text.isEmpty() || maxWidth <= 0) return;
         int size = Math.max(10, Math.round(17 * scale * OVERSAMPLE));
         Font font = fonts.computeIfAbsent(size * 2 + (bold ? 1 : 0), key -> new Font("SansSerif", bold ? Font.BOLD : Font.PLAIN, size));
@@ -43,7 +54,7 @@ public final class SmoothUiFont implements AutoCloseable {
         float drawX = align == Align.center ? x + (maxWidth - label.width()) / 2
                 : align == Align.right ? x + maxWidth - label.width() : x;
         batch.setColor(color);
-        batch.draw(label.texture(), drawX, baseline - label.descent(), label.width(), label.height());
+        batch.draw(label.texture(), drawX, y - (centeredVertically ? label.height() / 2 : label.descent()), label.width(), label.height());
         batch.setColor(Color.WHITE);
         if (labels.size() > LIMIT) {
             Map.Entry<String, Label> eldest = labels.entrySet().iterator().next();

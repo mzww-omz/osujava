@@ -41,22 +41,14 @@ final class SongBrowserModel {
     // Last directly activated Group anchors scrolling without replacing the playable selection.
     private String groupTargetKey, focusKey;
     private boolean revealSelection = true;
-    private record Indexed(BeatmapSet set, List<String> fields, double bpm, double length) { }
+    private record Indexed(BeatmapSet set, List<String> fields, double bpm, double length,
+                           List<SongBrowserQuery.Document> difficulties) { }
     private record Bucket(int order, String label) { }
-    /** Token processing is separate from metadata indexing, allowing future field predicates. */
-    private record Query(List<String> tokens) {
-        static Query parse(String raw) {
-            String normalized = normalize(raw).strip();
-            return new Query(normalized.isEmpty() ? List.of() : List.of(normalized.split("(?U)\\s+")));
-        }
-        boolean matches(Indexed item) {
-            return tokens.stream().allMatch(token -> item.fields.stream().anyMatch(field -> field.contains(token)));
-        }
-    }
     static final int HISTORY_LIMIT = 64;
     private List<Indexed> library = List.of();
     private List<BeatmapSet> visible = List.of();
     private Map<String, BeatmapSet> visibleById = Map.of();
+    private Map<String, List<BeatmapDifficulty>> matchingDifficulties = Map.of();
     private List<BeatmapSet> snapshot = List.of();
     private List<Entry> entries = List.of();
     private Selection selection, beforeSearch;
@@ -70,17 +62,14 @@ final class SongBrowserModel {
     SongBrowserModel(List<BeatmapSet> sets, RandomGenerator random) { this.random = random; library(sets); }
     void library(List<BeatmapSet> sets) {
         library = sets.stream().map(set -> {
-            List<String> fields = new ArrayList<>(List.of(normalize(set.title()), normalize(set.artist()), normalize(set.creator())));
-            for (var d : set.difficulties()) {
-                fields.add(normalize(d.title())); fields.add(normalize(d.artist()));
-                fields.add(normalize(d.creator())); fields.add(normalize(d.version()));
-            }
+            List<String> fields = List.of(normalize(set.title()), normalize(set.artist()), normalize(set.creator()));
             double bpm = set.difficulties().stream().flatMap(d -> d.timingPoints().stream())
                     .filter(p -> p.uninherited() && p.beatLength() > 0 && Double.isFinite(p.beatLength()))
                     .mapToDouble(p -> 60000 / p.beatLength()).filter(Double::isFinite).max().orElse(Double.NaN);
             double length = set.difficulties().stream().filter(d -> !d.hitObjects().isEmpty())
                     .mapToDouble(SongBrowserModel::objectSpan).filter(Double::isFinite).max().orElse(Double.NaN);
-            return new Indexed(set, List.copyOf(fields), bpm, length);
+            return new Indexed(set, fields, bpm, length,
+                    set.difficulties().stream().map(SongBrowserQuery.Document::of).toList());
         }).toList();
         snapshot = sets.stream().sorted(Comparator.comparing((BeatmapSet s) -> normalize(s.title()))
                 .thenComparing(s -> normalize(s.artist())).thenComparing(s -> normalize(s.creator())).thenComparing(BeatmapSet::id)).toList();
@@ -131,11 +120,12 @@ final class SongBrowserModel {
     }
     void sort(Sort next) { if (sort != next) { sort = Objects.requireNonNull(next); rebuild(); } }
     void group(Group next) { if (group != next) { group = Objects.requireNonNull(next); revealSelection = true; groupTargetKey = null; focusKey = null; rebuild(); } }
+    private static boolean emptySearch(String value) { return value.chars().allMatch(c -> c == ' '); }
     void search(String next) {
         next = Objects.requireNonNullElse(next, "");
         if (search.equals(next)) return;
-        if (search.isBlank() && !next.isBlank()) beforeSearch = selection;
-        boolean clearing = !search.isBlank() && next.isBlank();
+        if (emptySearch(search) && !emptySearch(next)) beforeSearch = selection;
+        boolean clearing = !emptySearch(search) && emptySearch(next);
         search = next;
         revealSelection = true; groupTargetKey = null; focusKey = null;
         if (clearing && beforeSearch != null) selection = beforeSearch;
@@ -146,12 +136,19 @@ final class SongBrowserModel {
         BeatmapSet set = visible.stream().filter(s -> s.id().equals(setId)).findFirst().orElse(null);
         if (set == null) return;
         var difficulty = set.difficulties().get(Math.max(0, Math.min(difficultyIndex, set.difficulties().size() - 1)));
+        if (!matches(set, difficulty)) return;
         Selection next = new Selection(set.id(), difficultyId(difficulty));
         if (next.equals(selection) && groupTargetKey == null && focusKey == null) return;
         selection = next;
-        if (!search.isBlank()) beforeSearch = next;
+        if (!emptySearch(search)) beforeSearch = next;
         revealSelection = true; groupTargetKey = null; focusKey = null;
         expand();
+    }
+
+    void selectSet(String setId) {
+        var set = visibleById.get(setId);
+        if (set == null) return;
+        select(setId, set.difficulties().indexOf(matchingDifficulties.get(setId).getFirst()));
     }
     /** 06003247: Up/Down and Page use the same traversal and only differ in distance. */
     void moveDifficulty(int direction) { moveRows(Integer.signum(direction), true, false); }
@@ -246,7 +243,7 @@ final class SongBrowserModel {
         if (candidates.isEmpty()) return;
         if (selection != null && !selection.equals(history.peekLast())) history.addLast(selection);
         while (history.size() > HISTORY_LIMIT) history.removeFirst();
-        select(candidates.get(random.nextInt(candidates.size())).id(), 0);
+        selectSet(candidates.get(random.nextInt(candidates.size())).id());
     }
     void previousRandom() {
         if (visible.isEmpty()) return;
@@ -259,18 +256,28 @@ final class SongBrowserModel {
             if (set == null) continue;
             var difficulty = set.difficulties().stream().filter(d -> difficultyId(d).equals(previous.difficultyId()))
                     .findFirst().orElse(set.difficulties().getFirst());
+            if (!matches(set, difficulty)) continue;
             iterator.remove(); selection = new Selection(set.id(), difficultyId(difficulty));
-            if (!search.isBlank()) beforeSearch = selection;
+            if (!emptySearch(search)) beforeSearch = selection;
             revealSelection = true; groupTargetKey = null; focusKey = null;
             expand(); return;
         }
     }
     int historySize() { return history.size(); }
+    private boolean matches(BeatmapSet set, BeatmapDifficulty difficulty) {
+        return matchingDifficulties.getOrDefault(set.id(), List.of()).contains(difficulty);
+    }
     private BeatmapSet find(Selection selected) {
         return selected == null ? null : visibleById.get(selected.setId());
     }
     private void rebuild() {
-        Query query = Query.parse(search);
+        var query = new SongBrowserQuery(search);
+        Map<String, List<BeatmapDifficulty>> matching = new HashMap<>();
+        for (var item : library) {
+            var matches = item.difficulties().stream().filter(query::matches).map(SongBrowserQuery.Document::difficulty).toList();
+            if (!matches.isEmpty()) matching.put(item.set().id(), matches);
+        }
+        matchingDifficulties = Map.copyOf(matching);
         Comparator<Indexed> secondary = Comparator.comparing((Indexed i) -> i.fields.get(0))
                 .thenComparing(i -> i.fields.get(1)).thenComparing(i -> i.fields.get(2)).thenComparing(i -> i.set.id());
         Comparator<Indexed> primary = switch (sort) {
@@ -283,16 +290,16 @@ final class SongBrowserModel {
         Comparator<Indexed> ordering = primary.thenComparing(secondary);
         if (group != Group.NONE) ordering = Comparator.comparing((Indexed i) -> bucket(i).order())
                 .thenComparing(i -> bucket(i).label()).thenComparing(ordering);
-        visible = library.stream().filter(query::matches).sorted(ordering).map(Indexed::set).toList();
+        visible = library.stream().filter(i -> matchingDifficulties.containsKey(i.set.id())).sorted(ordering).map(Indexed::set).toList();
         Map<String, BeatmapSet> nextById = new HashMap<>();
         for (var item : visible) nextById.put(item.id(), item);
         visibleById = Map.copyOf(nextById);
         var set = find(selection);
         if (set == null && !visible.isEmpty()) {
             revealSelection = true; groupTargetKey = null; focusKey = null;
-            set = visible.getFirst(); selection = new Selection(set.id(), difficultyId(set.difficulties().getFirst()));
-        } else if (set != null && set.difficulties().stream().noneMatch(d -> difficultyId(d).equals(selection.difficultyId()))) {
-            selection = new Selection(set.id(), difficultyId(set.difficulties().getFirst()));
+            set = visible.getFirst(); selection = new Selection(set.id(), difficultyId(matchingDifficulties.get(set.id()).getFirst()));
+        } else if (set != null && matchingDifficulties.get(set.id()).stream().noneMatch(d -> difficultyId(d).equals(selection.difficultyId()))) {
+            selection = new Selection(set.id(), difficultyId(matchingDifficulties.get(set.id()).getFirst()));
         }
         // Retain identity through zero results, but expose no playable selection.
         expand();
@@ -307,7 +314,7 @@ final class SongBrowserModel {
         List<BeatmapSet> ordered = new ArrayList<>(visible);
         for (var item : library) if (!visibleById.containsKey(item.set.id())) ordered.add(item.set);
         for (var set : ordered) {
-            boolean excluded = !visibleById.containsKey(set.id());
+            var matching = matchingDifficulties.getOrDefault(set.id(), List.of());
             Row parent = null;
             if (group != Group.NONE) {
                 Bucket bucket = bucket(indexed.get(set.id()));
@@ -320,16 +327,16 @@ final class SongBrowserModel {
                     retained.put(key, parent);
                     children.put(key, new ArrayList<>());
                 }
-                if (!excluded) parent.matchingChildren += set.difficulties().size();
+                parent.matchingChildren += matching.size();
             }
             Row representative = null;
             for (var difficulty : set.difficulties()) {
                 String key = rowKey(set.id(), difficultyId(difficulty));
                 Row row = rowsByKey.computeIfAbsent(key, Row::new);
                 row.set = set; row.difficulty = difficulty; row.parent = parent;
-                row.excluded = excluded;
-                if (representative == null) representative = row;
-                row.representative = excluded ? null : representative;
+                row.excluded = !matching.contains(difficulty);
+                if (representative == null && !row.excluded) representative = row;
+                row.representative = row.excluded ? null : representative;
                 retained.put(key, row);
                 if (parent != null) children.get(parent.key).add(row);
             }
@@ -355,7 +362,7 @@ final class SongBrowserModel {
                 boolean sameSet = selected != null && row.set.id().equals(selected.set.id());
                 row.state = row.excluded || row.parent != null && !row.parent.expanded ? RowState.HIDDEN
                         : row == selected ? RowState.SELECTED : sameSet ? RowState.EXPANDED
-                        : row.set.difficulties().size() == 1 ? RowState.SINGLETON
+                        : matchingDifficulties.getOrDefault(row.set.id(), List.of()).size() == 1 ? RowState.SINGLETON
                         : row == row.representative ? RowState.COLLAPSED : RowState.HIDDEN;
             }
             if (!row.visible()) continue;

@@ -1,6 +1,7 @@
 package dev.osujava.library;
 
 import dev.osujava.beatmap.BeatmapDifficulty;
+import dev.osujava.beatmap.BeatmapMetadata;
 import dev.osujava.beatmap.BeatmapFile;
 import dev.osujava.beatmap.BeatmapSet;
 import dev.osujava.beatmap.parse.BeatmapFileParser;
@@ -23,7 +24,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStorage {
-    private static final int SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
     private static final int MAX_DIFFICULTIES = 512;
     private static final int MAX_ASSETS = 100_000;
     private static final String LEGACY_MIGRATION_MARKER = ".legacy-recovery-complete";
@@ -200,6 +201,13 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
             properties.setProperty(prefix + "artist", difficulty.artist());
             properties.setProperty(prefix + "creator", difficulty.creator());
             properties.setProperty(prefix + "version", difficulty.version());
+            var metadata = difficulty.metadata();
+            properties.setProperty(prefix + "titleUnicode", metadata.titleUnicode());
+            properties.setProperty(prefix + "artistUnicode", metadata.artistUnicode());
+            properties.setProperty(prefix + "source", metadata.source());
+            properties.setProperty(prefix + "tags", metadata.tags());
+            properties.setProperty(prefix + "beatmapId", Integer.toString(metadata.beatmapId()));
+            properties.setProperty(prefix + "beatmapSetId", Integer.toString(metadata.beatmapSetId()));
             properties.setProperty(prefix + "mode", Integer.toString(difficulty.mode()));
             properties.setProperty(prefix + "audioFilename", difficulty.audioFilename());
             properties.setProperty(prefix + "backgroundFilename", difficulty.backgroundFilename());
@@ -225,7 +233,8 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
             properties.load(input);
         }
 
-        if (integer(properties, "schemaVersion", -1) != SCHEMA_VERSION) {
+        int schema = integer(properties, "schemaVersion", -1);
+        if (schema < 1 || schema > SCHEMA_VERSION) {
             throw new IOException("Unsupported or missing index schema version");
         }
         String id = required(properties, "id");
@@ -273,6 +282,9 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
             throw new IOException("Could not parse stored .osu file: " + safeMessage(e), e);
         }
         BeatmapDifficulty chart = parsed.difficulty();
+        // Version 1 indexes already retain the .osu file. Read its metadata without reimporting
+        // or writing during load; the next normal save publishes the version 2 fields atomically.
+        var metadata = chart.metadata();
         return new BeatmapDifficulty(
                 required(properties, prefix + "title"),
                 required(properties, prefix + "artist"),
@@ -284,7 +296,13 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
                 chart.settings(), chart.timingPoints(), chart.hitObjects(),
                 resolveStoredPath(properties.getProperty(prefix + "audioPath")),
                 resolveStoredPath(properties.getProperty(prefix + "backgroundPath")),
-                beatmapPath, chart.previewTimeMs());
+                beatmapPath, chart.previewTimeMs(), new BeatmapMetadata(
+                        properties.getProperty(prefix + "titleUnicode", metadata.titleUnicode()),
+                        properties.getProperty(prefix + "artistUnicode", metadata.artistUnicode()),
+                        properties.getProperty(prefix + "source", metadata.source()),
+                        properties.getProperty(prefix + "tags", metadata.tags()),
+                        integer(properties, prefix + "beatmapId", metadata.beatmapId()),
+                        integer(properties, prefix + "beatmapSetId", metadata.beatmapSetId())), chart.timingStatistics(), chart.playData());
     }
 
     private Path firstPath(List<BeatmapDifficulty> difficulties, boolean audio) {

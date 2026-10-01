@@ -5,13 +5,13 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SongSelectDetailsTest {
-    @Test void selectedMetadataUsesActualObjectSpanAndNeverInventsStars() {
+    @Test void selectedMetadataUsesLibraryEndTimeAndNeverInventsStars() {
         var set = SongBrowserModelTest.set("a", "夜の星", "Artist", "Mapper", 180, 65000);
         var absent = SongSelectRowPresentation.Stars.of(OptionalDouble.empty());
         var details = SongSelectDetails.of(set, set.difficulties().getFirst(), absent);
         assertEquals("Artist - 夜の星 [Extra 星]", details.title());
         assertTrue(details.mapper().contains("Mapped by Mapper"));
-        assertEquals("Length 1:05    BPM 180    Objects 2", details.summary());
+        assertEquals("Length 1:06    BPM 180    Objects 2", details.summary());
         assertTrue(details.stats().contains("Circles 2"));
         assertEquals("Local beatmap", details.status());
     }
@@ -21,5 +21,21 @@ class SongSelectDetailsTest {
         var details = SongSelectDetails.of(set, set.difficulties().getFirst(), rating);
         assertEquals("Length 0:00    BPM —    Objects 0", details.summary());
         assertEquals("Local beatmap    Stars 3.50", details.status());
+    }
+
+    @Test void displayedTempoRangeIncludesCommonTempoAndIgnoresChangesAfterTheLastObject() throws Exception {
+        var diff = new dev.osujava.beatmap.parse.BeatmapFileParser().parse("""
+                osu file format v14
+                [TimingPoints]
+                0,500,4,0,0,100,1,0
+                50000,250,4,0,0,100,1,0
+                90000,100,4,0,0,100,1,0
+                [HitObjects]
+                256,192,10000,1,0
+                256,192,66999,1,0
+                """, "tempo.osu").difficulty();
+        var set = new dev.osujava.beatmap.BeatmapSet("tempo","Title","Artist","Mapper",null,null,java.util.List.of(diff),java.util.List.of());
+        var details = SongSelectDetails.of(set,diff,SongSelectRowPresentation.Stars.of(OptionalDouble.empty()));
+        assertEquals("Length 1:06    BPM 120–240 (120)    Objects 2",details.summary());
     }
 }

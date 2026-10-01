@@ -18,8 +18,10 @@ class SongSelectNavigationTest {
     private final BeatmapLibrary library = new BeatmapLibrary();
     private SongSelectScreen screen;
     private int importRequests;
-    private boolean shift, control, alt, pointerPressed, pointerClicked, rightPressed, rightClicked;
+    private boolean shift, control, alt, pointerPressed, pointerClicked, rightPressed, rightClicked, middlePressed;
     private int pointerX, pointerY;
+    private java.util.OptionalDouble testRating = java.util.OptionalDouble.empty();
+    private final java.util.Set<Integer> heldKeys = new java.util.HashSet<>();
 
     @BeforeEach void setup() {
         oldInput = Gdx.input;
@@ -28,9 +30,10 @@ class SongSelectNavigationTest {
             case "getInputProcessor" -> processor;
             case "getX" -> pointerX;
             case "getY" -> pointerY;
-            case "isButtonPressed" -> (int)a[0] == Input.Buttons.LEFT ? pointerPressed : (int)a[0] == Input.Buttons.RIGHT && rightPressed;
+            case "isButtonPressed" -> (int)a[0] == Input.Buttons.LEFT ? pointerPressed
+                    : (int)a[0] == Input.Buttons.RIGHT ? rightPressed : (int)a[0] == Input.Buttons.MIDDLE && middlePressed;
             case "isButtonJustPressed" -> (int)a[0] == Input.Buttons.LEFT ? pointerClicked : (int)a[0] == Input.Buttons.RIGHT && rightClicked;
-            case "isKeyPressed" -> control && (int)a[0] == Input.Keys.CONTROL_LEFT || alt && (int)a[0] == Input.Keys.ALT_LEFT || shift && ((int)a[0] == Input.Keys.SHIFT_LEFT || (int)a[0] == Input.Keys.SHIFT_RIGHT);
+            case "isKeyPressed" -> heldKeys.contains((int)a[0]) || control && (int)a[0] == Input.Keys.CONTROL_LEFT || alt && (int)a[0] == Input.Keys.ALT_LEFT || shift && ((int)a[0] == Input.Keys.SHIFT_LEFT || (int)a[0] == Input.Keys.SHIFT_RIGHT);
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
         for (String title : List.of("Alpha", "Beta", "Gamma")) {
@@ -45,7 +48,7 @@ class SongSelectNavigationTest {
             @Override public BeatmapLibrary library() { return library; }
             @Override public OsuRuleset osuRuleset() { return new OsuRuleset(); }
         };
-        screen = new SongSelectScreen(game,set,difficulty); screen.show();
+        screen = new SongSelectScreen(game,set,difficulty,null,ignored -> testRating); screen.show();
     }
     private Object field(String name) throws Exception {
         var field = SongSelectScreen.class.getDeclaredField(name); field.setAccessible(true); return field.get(screen);
@@ -57,7 +60,181 @@ class SongSelectNavigationTest {
         assertEquals(set, field("selectedSetIndex")); assertEquals(difficulty, field("selectedDifficultyIndex"));
         assertEquals(Path.of(background),field("backgroundPath"));
     }
-    private void key(int key) { assertTrue(processor.keyDown(key)); }
+    private void key(int key) { assertTrue(processor.keyDown(key)); processor.keyUp(key); }
+
+    private SongSelectRowRenderer.Presentation presentation(String key) throws Exception {
+        return ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> p.row().key().equals(key)).findFirst().orElseThrow();
+    }
+
+    @Test void clickingSearchResultSelectsTheOriginalDifficultyIndexWhenFirstDifficultyIsExcluded() throws Exception {
+        open("Beta",0); screen.resize(1280,720);
+        screen.browserSearch("difficulty=hard",false); settle(); updatePointer(1280,720,.016f);
+        selected(1,1,"Beta-hard.png");
+        var presented = ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast).toList();
+        assertEquals(3,presented.size());
+        assertTrue(presented.stream().allMatch(p -> p.row().difficultyIndex() == 1 && p.content().detail().equals("Hard")));
+        click(2,1);
+        selected(2,1,"Gamma-hard.png");
+        screen.browserSearch("",false); settle();
+        selected(2,1,"Gamma-hard.png");
+    }
+
+    @Test void residentBufferRowsRemainInDrawListEvenOutsideTheInputReservation() throws Exception {
+        for (int i = 0; i < 25; i++) {
+            String title = "Z%02d".formatted(i);
+            var diff = new BeatmapDifficulty(title,"Artist","Creator","Easy",0,"","",DifficultySettings.defaults(),
+                    List.of(),List.of(),null,null);
+            library.add(new BeatmapSet(title,title,"Artist","Creator",null,null,List.of(diff),List.of()));
+        }
+        open("Z10",0); screen.resize(1280,720); settle(); updatePointer(1280,720,.016f);
+        var model = (SongSelectCarousel)field("carousel");
+        var drawn = ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast).toList();
+        assertEquals(model.rows().stream().filter(model::presents).map(r -> r.entry.key()).toList(),
+                drawn.stream().map(p -> p.row().key()).toList(), "Publish the complete resident draw list in browser order");
+        float bottom = (float)field("bottom"), top = (float)field("top");
+        var outside = drawn.stream().filter(p -> p.row().y() > top || p.row().y()+p.row().height() < bottom).toList();
+        assertFalse(outside.isEmpty(), "Fixture must include a row beyond the input reservation");
+        for (var p : outside) {
+            assertEquals(0, p.geometry().hit().height());
+            assertEquals(p.row().logicalIndex(), p.geometry().zOrder());
+        }
+    }
+
+    @Test void searchDropsHiddenSpritesFromTheVeryNextDrawSnapshot() throws Exception {
+        testRating = java.util.OptionalDouble.of(4);
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,.016f);
+        String original = ((SongBrowserModel)field("browser")).selectedKey();
+        assertFalse(presentation(original).stars().glyphs().isEmpty());
+        processor.keyTyped('G'); updatePointer(1280,720,0);
+        var drawn = ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast).toList();
+        assertFalse(drawn.isEmpty());
+        assertTrue(drawn.stream().allMatch(p -> p.row().setIndex() == 2));
+        for (String field : List.of("rowColours", "rowStars", "rowForeground"))
+            assertTrue(((java.util.Map<?,?>)field(field)).keySet().stream().map(SongSelectCarousel.Row.class::cast)
+                    .noneMatch(r -> r.entry.key().equals(original)), field);
+    }
+
+    @Test void selectionPreservesStarsButCollapseRemovesThemBeforeTheNextDraw() throws Exception {
+        testRating = java.util.OptionalDouble.of(3.25);
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,.016f);
+        var model = (SongBrowserModel)field("browser");
+        String original = model.selectedKey();
+        var first = presentation(original).stars();
+        assertEquals(.6f,first.glyphs().getFirst().scale(),.000001);
+        key(Input.Keys.DOWN); updatePointer(1280,720,0);
+        assertEquals(first,presentation(original).stars(),"Selection tint changes do not recreate stars");
+        key(Input.Keys.RIGHT); updatePointer(1280,720,0);
+        assertEquals(SongSelectStarAnimation.Snapshot.EMPTY, presentation(original).stars());
+        assertEquals(1, presentation(original).foreground().detailOpacity(), .00001);
+        updatePointer(1280,720,.15f);
+        assertEquals(SongSelectStarAnimation.Snapshot.EMPTY, presentation(original).stars());
+        assertEquals(.5f, presentation(original).foreground().detailOpacity(), .00001);
+        updatePointer(1280,720,.152f);
+        assertEquals(SongSelectStarAnimation.Snapshot.EMPTY, presentation(original).stars());
+        assertEquals(0, presentation(original).foreground().detailOpacity());
+    }
+
+    @Test void expandingResidentSetAnimatesItsRepresentativeAndSearchRecreationResetsStars() throws Exception {
+        testRating = java.util.OptionalDouble.of(2);
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,.016f);
+        String next = ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> p.row().setIndex()==2).findFirst().orElseThrow().row().key();
+        assertTrue(presentation(next).stars().glyphs().isEmpty());
+        key(Input.Keys.RIGHT); updatePointer(1280,720,0);
+        assertEquals(0,presentation(next).stars().glyphs().getFirst().scale());
+        updatePointer(1280,720,.15f);
+        assertTrue(presentation(next).stars().glyphs().getFirst().scale()>0);
+        processor.keyTyped('B'); updatePointer(1280,720,.016f);
+        assertTrue(((java.util.Map<?,?>)field("rowStars")).keySet().stream().map(SongSelectCarousel.Row.class::cast)
+                .noneMatch(r -> r.entry.key().equals(next)));
+        screen.browserSearch("",false); screen.previewSelection(2,0); settle(); updatePointer(1280,720,.016f);
+        assertEquals(.6f,presentation(next).stars().glyphs().getFirst().scale(),.000001);
+        var live = (java.util.Map<?,?>)field("rowStars");
+        assertTrue(live.keySet().stream().map(SongSelectCarousel.Row.class::cast).allMatch(r -> r.resident && r.entry.visible()));
+    }
+
+    @Test void screenPublishesColourAnimationOncePerFrameAcrossSelectionAndResize() throws Exception {
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,0);
+        String old = ((SongBrowserModel)field("browser")).selectedKey();
+        assertEquals(0xffffffdc,presentation(old).backgroundRgba());
+        key(Input.Keys.DOWN); updatePointer(1280,720,0);
+        assertFalse(presentation(old).row().selected());
+        assertEquals(0xffffffdc,presentation(old).backgroundRgba());
+        updatePointer(1280,720,.15f);
+        assertEquals(0x7fcaf5e6,presentation(old).backgroundRgba());
+        screen.resize(1920,1080); updatePointer(1920,1080,0);
+        assertEquals(0x7fcaf5e6,presentation(old).backgroundRgba(),"Resize must not restart or advance colour time");
+        updatePointer(1920,1080,.16f);
+        assertEquals(0x0096ecf0,presentation(old).backgroundRgba());
+    }
+
+    @Test void residentRepresentativeKeepsItsDetailContentWhileFadingOutAndBackIn() throws Exception {
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,.016f);
+        String original = ((SongBrowserModel)field("browser")).selectedKey();
+        var before = presentation(original);
+        assertEquals(1, before.foreground().detailOpacity());
+        assertEquals(255, before.foreground().thumbnailBrightness());
+        key(Input.Keys.RIGHT); updatePointer(1280,720,0);
+        assertEquals(-1, presentation(original).row().difficultyIndex());
+        assertEquals(before.content().detail(), presentation(original).content().detail());
+        assertEquals(1, presentation(original).foreground().detailOpacity());
+        updatePointer(1280,720,.15f);
+        assertEquals(.5f, presentation(original).foreground().detailOpacity(), .00001);
+        assertEquals(152, presentation(original).foreground().thumbnailBrightness());
+        key(Input.Keys.LEFT); updatePointer(1280,720,0);
+        assertEquals(.5f, presentation(original).foreground().detailOpacity(), .00001);
+        updatePointer(1280,720,.15f);
+        assertEquals(.75f, presentation(original).foreground().detailOpacity(), .00001);
+        assertEquals(1, presentation(original).foreground().baseOpacity());
+    }
+
+    @Test void foregroundSnapshotsSurviveResizeAndDiscardNonResidentRows() throws Exception {
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,.016f);
+        String original = ((SongBrowserModel)field("browser")).selectedKey();
+        key(Input.Keys.RIGHT); updatePointer(1280,720,0); updatePointer(1280,720,.15f);
+        var snapshot = presentation(original).foreground();
+        screen.resize(1920,1080); updatePointer(1920,1080,0);
+        assertEquals(snapshot, presentation(original).foreground());
+        processor.keyTyped('G'); updatePointer(1920,1080,.016f);
+        var live = (java.util.Map<?,?>)field("rowForeground");
+        assertTrue(live.keySet().stream().map(SongSelectCarousel.Row.class::cast)
+                .allMatch(row -> row.resident && row.entry.visible() && row.entry.setIndex() == 2));
+    }
+
+    @Test void screenHoverFadesWhileHeldAndRetiresHiddenRowAnimations() throws Exception {
+        open("Beta",0); screen.resize(1280,720); settle(); updatePointer(1280,720,0);
+        var sibling = ((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> p.row().sibling()).findFirst().orElseThrow().row();
+        pointerX=Math.round(sibling.x()+200); pointerY=720-Math.round(sibling.y()+sibling.height()/2);
+        updatePointer(1280,720,0);
+        assertEquals(0x26c7fff0,presentation(sibling.key()).backgroundRgba());
+        for (int i=0;i<80;i++) updatePointer(1280,720,1f/60);
+        assertEquals(sibling.key(),carousel().hoverKey());
+        assertEquals(0x0096ecf0,presentation(sibling.key()).backgroundRgba());
+        pointerX=0; pointerY=0;
+        processor.keyTyped('G'); updatePointer(1280,720,0);
+        var animations = (java.util.Map<?,?>)field("rowColours");
+        assertFalse(animations.isEmpty());
+        assertTrue(animations.keySet().stream().map(SongSelectCarousel.Row.class::cast)
+                .allMatch(row -> row.resident && row.entry.visible() && row.entry.setIndex() == 2));
+    }
+
+    @Test void closedGroupPresentationKnowsWhetherItContainsTheSelection() throws Exception {
+        var diff=new BeatmapDifficulty("Other","Other artist","Creator","Easy",0,"","",
+                DifficultySettings.defaults(),List.of(),List.of(),null,null);
+        library.add(new BeatmapSet("Other","Other","Other artist","Creator",null,null,List.of(diff),List.of()));
+        open("Beta",0); screen.resize(1280,720);
+        screen.browserMode(SongBrowserModel.Sort.TITLE,SongBrowserModel.Group.ARTIST);
+        shift=true; key(Input.Keys.ENTER); shift=false;
+        settle();
+        updatePointer(1280,720,0);
+        var groups=((List<?>)field("rowPresentations")).stream().map(SongSelectRowRenderer.Presentation.class::cast)
+                .filter(p -> p.row().group()).toList();
+        assertEquals(2,groups.size());
+        assertEquals(1,groups.stream().filter(SongSelectRowRenderer.Presentation::groupContainsSelection).count());
+        assertTrue(groups.stream().noneMatch(p -> p.row().groupExpanded()));
+    }
 
     @Test void supplementarySearchCommitsOnlyCompleteCodePointsAndHonoursLimit() throws Exception {
         open("Alpha", 0);
@@ -188,7 +365,7 @@ class SongSelectNavigationTest {
 
     @Test void importKeyTypedDoesNotFilterOrChangeSelection() throws Exception {
         open("Beta", 1);
-        key(Input.Keys.I);
+        assertTrue(processor.keyDown(Input.Keys.I));
         assertTrue(processor.keyTyped('i'));
         processor.keyUp(Input.Keys.I);
         assertEquals(1, importRequests);
@@ -204,8 +381,9 @@ class SongSelectNavigationTest {
 
     @Test void printablePlayShortcutDoesNotStartSearch() throws Exception {
         open("Beta", 1);
-        key(Input.Keys.SPACE);
+        assertTrue(processor.keyDown(Input.Keys.SPACE));
         processor.keyTyped(' ');
+        processor.keyUp(Input.Keys.SPACE);
         assertEquals("", field("search"));
         assertEquals(false, field("searchActive"));
     }
@@ -222,8 +400,9 @@ class SongSelectNavigationTest {
         for (var mod : SongSelectToolboxState.Mod.values()) { assertFalse(mod.available()); assertFalse(toolbox.toggle(mod)); }
         key(Input.Keys.NUM_1); assertTrue(toolbox.active().isEmpty());
         key(Input.Keys.ESCAPE); assertFalse(toolbox.open());
-        key(Input.Keys.F1); key(Input.Keys.NUM_2); assertFalse(toolbox.open());
+        key(Input.Keys.F1); assertTrue(processor.keyDown(Input.Keys.NUM_2)); assertFalse(toolbox.open());
         assertTrue(processor.keyTyped('2')); assertEquals("",field("search"));
+        processor.keyUp(Input.Keys.NUM_2);
         screen.browserMode(SongBrowserModel.Sort.BPM,SongBrowserModel.Group.ARTIST);
         key(Input.Keys.F1); key(Input.Keys.F1); assertFalse(toolbox.open());
         key(Input.Keys.UP); selected(1,0,"Beta-easy.png");
@@ -310,13 +489,12 @@ class SongSelectNavigationTest {
         assertFalse(((UiNavigation)field("outgoing")).pending());
     }
 
-    @Test void setDoubleClickCannotPlayTheDifficultyReplacingItsRow() throws Exception {
+    @Test void selectedDifficultyCanPlayImmediatelyAfterSetExpansion() throws Exception {
         open("Beta",0); screen.resize(1280,720);
-        click(2,-1); screen.resize(1280,720); click(2,0);
+        click(2,-1); screen.resize(1280,720);
         selected(2,0,"Gamma-easy.png");
         assertFalse(((UiNavigation)field("outgoing")).pending());
-        assertTrue((float)field("setClickGuard") > 0);
-        setField("setClickGuard",0f); settle(); click(2,0);
+        click(2,0);
         assertTrue(((UiNavigation)field("outgoing")).pending());
     }
 
@@ -482,6 +660,200 @@ class SongSelectNavigationTest {
         update.setAccessible(true);
         update.invoke(screen, dev.osujava.ui.theme.UiLayout.fromPixels(width, height), delta);
     }
+    private void pointAtRow(int set, int difficulty) throws Exception {
+        var row = ((List<?>) field("visibleRows")).stream().map(SongSelectRow.class::cast)
+                .filter(r -> r.setIndex() == set && r.difficultyIndex() == difficulty).findFirst().orElseThrow();
+        float low = Math.max(row.y(), (float) field("bottom")), high = Math.min(row.y() + row.height(), (float) field("top"));
+        assertTrue(high > low, "Fixture row must intersect the viewport");
+        pointerX = Math.round(row.x() + 120); pointerY = 720 - Math.round((low + high) / 2);
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"1,0,Beta-easy.png", "1,1,Beta-hard.png", "2,-1,Gamma-easy.png"})
+    void productionRightReleaseSelectsBeforeRequestingOptionsWithoutPlaying(int set, int difficulty, String background) throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(set, difficulty);
+        rightPressed = true; updatePointer(1280, 720, 0);
+        selected(1, 0, "Beta-easy.png"); assertEquals("", field("toast"));
+        rightPressed = false; updatePointer(1280, 720, 0);
+        selected(set, Math.max(0, difficulty), background);
+        assertEquals("Beatmap Options unavailable in this version.", field("toast"));
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionRightReleaseWhileLeftHeldRequestsOptionsOnceAndKeepsDragging() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 0);
+        pointerClicked = true; pointerPressed = true; rightPressed = true; updatePointer(1280, 720, .02f);
+        pointerClicked = false; rightPressed = false; updatePointer(1280, 720, .02f);
+        assertEquals("Beatmap Options unavailable in this version.", field("toast"));
+        setField("toast", ""); float before = carousel().scrollOffset();
+        pointerY -= 30; updatePointer(1280, 720, .02f);
+        assertEquals(before + 30, carousel().scrollOffset(), .001);
+        pointerPressed = false; updatePointer(1280, 720, 0);
+        assertEquals("", field("toast")); assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionExchangingRightForLeftUsesPreviousRightStateForContext() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 0);
+        rightPressed = true; updatePointer(1280, 720, 0);
+        rightPressed = false; pointerPressed = true; pointerClicked = true; updatePointer(1280, 720, 0);
+        assertEquals("Beatmap Options unavailable in this version.", field("toast"));
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        pointerClicked = false; pointerPressed = false; updatePointer(1280, 720, 0);
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionExchangingLeftForRightUsesPreviousRightStateForPlay() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 0);
+        pointerPressed = true; pointerClicked = true; updatePointer(1280, 720, 0);
+        pointerPressed = false; pointerClicked = false; rightPressed = true; updatePointer(1280, 720, 0);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+        assertEquals("", field("toast"));
+    }
+    @Test void productionRightMotionCancellationSurvivesReturnToThePressedRow() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 1);
+        rightPressed = true; updatePointer(1280, 720, 0);
+        pointerX += 81; updatePointer(1280, 720, .02f);
+        pointerX -= 81; rightPressed = false; updatePointer(1280, 720, 0);
+        selected(1, 0, "Beta-easy.png"); assertEquals("", field("toast"));
+    }
+    @Test void productionRightReleaseOutsideThePressedRowDoesNotSelectOrRequestOptions() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 1);
+        rightPressed = true; updatePointer(1280, 720, 0);
+        pointerX = 0; rightPressed = false; updatePointer(1280, 720, 0);
+        selected(1, 0, "Beta-easy.png"); assertEquals("", field("toast"));
+    }
+    @Test void productionRowClickRequiresAPressedSnapshotRatherThanOnlyABackendClickFlag() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 0);
+        pointerClicked = true; updatePointer(1280, 720, 0);
+        pointerClicked = false; updatePointer(1280, 720, 0);
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionMiddleReleaseUsesTheGenericRowSelectionPath() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 1);
+        middlePressed = true; updatePointer(1280, 720, 0);
+        selected(1, 0, "Beta-easy.png");
+        middlePressed = false; updatePointer(1280, 720, 0);
+        selected(1, 1, "Beta-hard.png"); assertEquals("", field("toast"));
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void productionSetExpansionAllowsTheNextLeftClickWithoutAPlayDelay(boolean rightFirst) throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(2, -1);
+        pointerPressed = !rightFirst; pointerClicked = !rightFirst; rightPressed = rightFirst;
+        updatePointer(1280, 720, .01f);
+        pointerPressed = false; pointerClicked = false; rightPressed = false; updatePointer(1280, 720, .01f);
+        selected(2, 0, "Gamma-easy.png"); assertFalse(((UiNavigation) field("outgoing")).pending());
+        pointAtRow(2, 0); pointerPressed = true; pointerClicked = true; updatePointer(1280, 720, .01f);
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        pointerPressed = false; pointerClicked = false; updatePointer(1280, 720, .01f);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionMiddleDoubleClickDoesNotRecaptureButThirdPressCanPlay() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(2, -1);
+        middlePressed = true; updatePointer(1280, 720, .01f);
+        middlePressed = false; updatePointer(1280, 720, .01f);
+        selected(2, 0, "Gamma-easy.png"); assertFalse(((UiNavigation) field("outgoing")).pending());
+        pointAtRow(2, 0);
+        middlePressed = true; updatePointer(1280, 720, .01f);
+        assertNull(((SongSelectInputController) field("input")).pressedKey());
+        middlePressed = false; updatePointer(1280, 720, .01f);
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        pointAtRow(2, 0); middlePressed = true; updatePointer(1280, 720, 0);
+        middlePressed = false; updatePointer(1280, 720, 0);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionMiddlePressAfterTheDoubleClickWindowCanPlay() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 1);
+        middlePressed = true; updatePointer(1280, 720, 0);
+        middlePressed = false; updatePointer(1280, 720, 0);
+        selected(1, 1, "Beta-hard.png");
+        pointAtRow(1, 1); middlePressed = true; updatePointer(1280, 720, .25f);
+        pointAtRow(1, 1); // Release over the current bounds after the selection-follow animation.
+        middlePressed = false; updatePointer(1280, 720, 0);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionSuppressedMiddleDownResetsThePhysicalDistanceOriginDuringLeftDrag() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 0);
+        pointerPressed = true; pointerClicked = true; updatePointer(1280, 720, 0);
+        pointerClicked = false; pointerY -= 50; updatePointer(1280, 720, .02f);
+        var candidate = ((SongSelectInputController) field("input")).pressedKey();
+        middlePressed = true; updatePointer(1280, 720, 0);
+        assertEquals(candidate, ((SongSelectInputController) field("input")).pressedKey());
+        pointerY -= 40; updatePointer(1280, 720, .02f);
+        middlePressed = false; updatePointer(1280, 720, 0);
+        assertTrue(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionChromeClickAlsoParticipatesInTheSharedDoubleClickCounter() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle();
+        pointerX = 1000; pointerY = 70; // Search chrome.
+        pointerPressed = true; pointerClicked = true; updatePointer(1280, 720, 0);
+        pointerPressed = false; pointerClicked = false; updatePointer(1280, 720, 0);
+        assertTrue((boolean) field("searchActive"));
+        pointAtRow(1, 0); middlePressed = true; updatePointer(1280, 720, .01f);
+        assertNull(((SongSelectInputController) field("input")).pressedKey());
+        middlePressed = false; updatePointer(1280, 720, 0);
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionRightClickOnAnOrdinaryGroupTogglesWithoutBeatmapOptions() throws Exception {
+        open("Beta", 1); screen.resize(1280, 720);
+        screen.browserMode(SongBrowserModel.Sort.TITLE, SongBrowserModel.Group.CREATOR);
+        settle(); carousel().scrollBy(-carousel().maxScroll()); settle(); pointAtRow(-1, -2);
+        var browser = (SongBrowserModel) field("browser"); var selection = browser.selection();
+        rightPressed = true; updatePointer(1280, 720, 0);
+        assertEquals(browser.entries().getFirst().key(), ((SongSelectInputController) field("input")).pressedKey());
+        rightPressed = false; updatePointer(1280, 720, 0);
+        assertTrue(browser.entries().stream().allMatch(e -> e.kind() == SongBrowserModel.Kind.GROUP_HEADER));
+        assertEquals(selection, browser.selection()); assertEquals("", field("toast"));
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionOverlayCancelsARightRowCandidateAndClosingDoesNotRecaptureAHeldButton() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 1);
+        rightPressed = true; updatePointer(1280, 720, 0);
+        key(Input.Keys.F1); updatePointer(1280, 720, 0);
+        key(Input.Keys.ESCAPE); updatePointer(1280, 720, 0);
+        rightPressed = false; updatePointer(1280, 720, 0);
+        selected(1, 0, "Beta-easy.png"); assertEquals("", field("toast"));
+    }
+    @Test void productionHeldNavigationUpdatesFocusBeforeLayoutAndHeldEnterCannotPlayAfterConfirming() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720);
+        heldKeys.add(Input.Keys.DOWN); processor.keyDown(Input.Keys.DOWN);
+        selected(1, 1, "Beta-hard.png");
+        updatePointer(1280, 720, 0); updatePointer(1280, 720, .25f); updatePointer(1280, 720, 0);
+        var browser = (SongBrowserModel) field("browser");
+        assertEquals("Gamma", browser.row(browser.focusKey()).set.id());
+        selected(1, 1, "Beta-hard.png");
+        var focus = carousel().rows().stream().filter(r -> r.entry.key().equals(browser.focusKey())).findFirst().orElseThrow();
+        assertEquals(Math.max(0, Math.min(carousel().maxScroll(), focus.logicalY - 246)), carousel().scrollTarget(), .001);
+        heldKeys.remove(Input.Keys.DOWN); processor.keyUp(Input.Keys.DOWN);
+        heldKeys.add(Input.Keys.ENTER); processor.keyDown(Input.Keys.ENTER);
+        selected(2, 0, "Gamma-easy.png"); assertNull(browser.focusKey());
+        for (int i = 0; i < 20; i++) updatePointer(1280, 720, .05f);
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+        processor.keyDown(Input.Keys.ENTER); assertFalse(((UiNavigation) field("outgoing")).pending());
+        heldKeys.remove(Input.Keys.ENTER); processor.keyUp(Input.Keys.ENTER);
+        key(Input.Keys.ENTER); assertTrue(((UiNavigation) field("outgoing")).pending());
+    }
+    @Test void productionImportOutgoingAndGlobalVolumeHudSuppressRepeats() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720);
+        heldKeys.add(Input.Keys.DOWN); processor.keyDown(Input.Keys.DOWN); updatePointer(1280, 720, 0);
+        var browser = (SongBrowserModel) field("browser");
+        setField("importing", true);
+        for (int i = 0; i < 10; i++) updatePointer(1280, 720, .05f);
+        selected(1, 1, "Beta-hard.png"); assertNull(browser.focusKey());
+        setField("importing", false);
+        var game = (OsuJavaGame) field("game"); game.volumeHud().open();
+        for (int i = 0; i < 10; i++) updatePointer(1280, 720, .05f);
+        selected(1, 1, "Beta-hard.png"); assertNull(browser.focusKey());
+        game.volumeHud().close(); key(Input.Keys.SPACE);
+        for (int i = 0; i < 10; i++) updatePointer(1280, 720, .05f);
+        selected(1, 1, "Beta-hard.png"); assertNull(browser.focusKey());
+    }
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"pause", "hide"})
+    void productionScreenDeactivationClearsHeldNavigation(String operation) throws Exception {
+        open("Beta", 0); screen.resize(1280, 720);
+        heldKeys.add(Input.Keys.DOWN); processor.keyDown(Input.Keys.DOWN); updatePointer(1280, 720, 0);
+        if (operation.equals("pause")) screen.pause(); else screen.hide();
+        for (int i = 0; i < 10; i++) updatePointer(1280, 720, .05f);
+        selected(1, 1, "Beta-hard.png");
+        assertNull(((SongBrowserModel) field("browser")).focusKey());
+    }
     @Test void productionReleaseSelectsThePressedRowEvenWhenSelectedRowNowOverlapsIt() throws Exception {
         open("Beta", 0); screen.resize(1280, 720); settle();
         var pressed = carousel().rows().stream().filter(r -> r.entry.setIndex() == 2).findFirst().orElseThrow();
@@ -519,7 +891,7 @@ class SongSelectNavigationTest {
         float velocity = carousel().scrollVelocity();
         rightPressed = false; pointerY = height; updatePointer(width, height, 0);
         assertEquals(velocity, carousel().scrollVelocity());
-        assertFalse(((SongSelectInputController) processor).rightScrolling());
+        assertFalse(((SongSelectInputController) field("input")).rightScrolling());
         selected(1, 0, "Beta-easy.png");
         assertFalse(((UiNavigation) field("outgoing")).pending());
     }
@@ -529,16 +901,16 @@ class SongSelectNavigationTest {
         pointerX = Math.round(row.x() + 120); pointerY = 720 - Math.round(row.y() + row.height() / 2);
         float target = carousel().scrollTarget();
         rightClicked = true; rightPressed = true; updatePointer(1280, 720, 0);
-        assertFalse(((SongSelectInputController) processor).rightScrolling());
+        assertFalse(((SongSelectInputController) field("input")).rightScrolling());
         assertEquals(target, carousel().scrollTarget());
         rightClicked = false; rightPressed = false; updatePointer(1280, 720, 0);
         assertFalse(((UiNavigation) field("outgoing")).pending());
         pointerX = 500; rightClicked = true; rightPressed = true; updatePointer(1280, 720, 0);
-        assertTrue(((SongSelectInputController) processor).rightScrolling());
+        assertTrue(((SongSelectInputController) field("input")).rightScrolling());
         rightClicked = false; key(Input.Keys.F1); updatePointer(1280, 720, 0);
-        assertFalse(((SongSelectInputController) processor).rightScrolling());
+        assertFalse(((SongSelectInputController) field("input")).rightScrolling());
         key(Input.Keys.ESCAPE); updatePointer(1280, 720, 0);
-        assertFalse(((SongSelectInputController) processor).rightScrolling());
+        assertFalse(((SongSelectInputController) field("input")).rightScrolling());
     }
 
     @Test void modifiedTextNeverEntersSearchAndOrdinaryUnicodeStillDoes() throws Exception {

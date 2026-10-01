@@ -22,7 +22,7 @@ final class SongSelectCarousel {
         int logicalIndex;
         float hoverAmount, separationY, selectedAmount, groupAmount, focusAmount;
         float focusStart, focusElapsed;
-        boolean focused, resident;
+        boolean focused, resident, instantSprites;
         float motionY, motionX, revealAmount = 1;
         Row(Entry entry, float logicalY) { this.entry = entry; this.logicalY = logicalY; }
     }
@@ -45,6 +45,7 @@ final class SongSelectCarousel {
 
     List<Row> rows() { return rows; }
     List<Row> allRows() { return allRows; }
+    String hoverKey() { return hoverKey; }
     boolean presents(Row row) {
         return row.entry.visible() && row.resident && row.logicalIndex >= activeStart && row.logicalIndex < activeEnd;
     }
@@ -146,7 +147,7 @@ final class SongSelectCarousel {
             Row row = allRows.get(i);
             if (row.entry.header()) break;
             row.motionX = group.motionX; row.motionY = y;
-            if (insideBuffer(y)) row.resident = true;
+            if (insideBuffer(y) && !row.resident) { row.resident = true; row.instantSprites = false; }
             if (families.add(row.entry.familyKey()) && row.entry.visible())
                 y += SongSelectMetrics.ROW_PITCH * referenceScale;
         }
@@ -215,6 +216,9 @@ final class SongSelectCarousel {
     }
     void releaseDrag() { scroll.releaseDrag(); }
     void cancelDrag() { scroll.cancelDrag(); }
+    boolean pointerCancellationEnabled(float referenceX) {
+        return !keyboardTracking && (referenceX >= 200 || scroll.dragging());
+    }
 
     /** 06003253/324f: right-button position in the 70..400 reference-Y interval. */
     void rightScroll(float referenceX, float referenceY) {
@@ -301,7 +305,7 @@ final class SongSelectCarousel {
             row.motionX = snapNextFrame ? x : interpolate(row.motionX, x, .95, dt);
             row.motionY = snapNextFrame ? y : interpolate(row.motionY, y, .875, dt);
             row.separationY = row.logicalY - row.motionY;
-            if (insideBuffer(row.motionY)) row.resident = true;
+            if (insideBuffer(row.motionY) && !row.resident) { row.resident = true; row.instantSprites = true; }
             else if (belowBuffer(screenY(y)) && belowBuffer(screenY(row.motionY))) {
                 // Both current and destination are below the buffer: retire and snap the whole suffix.
                 for (int j = activeEnd - 1; j >= i; j--) retire(allRows.get(j), hovered);

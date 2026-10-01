@@ -34,21 +34,25 @@ class BeatmapThumbnailsTest {
         var path = Path.of("missing");
         assertNull(cache.resident(path)); assertEquals(0, loads[0]);
         cache.prepare(Set.of(path)); cache.prepare(Set.of(path));
-        assertEquals(1, loads[0]); assertEquals(0, cache.opacity(path));
+        assertEquals(1, loads[0]);
         cache.close();
     }
-    @Test void slowFramesDoNotStretchTheThumbnailFade() {
+    @Test void sharedTextureDoesNotShareRowFadeState() {
         var path = Path.of("image");
-        var slow = new BeatmapThumbnails(ignored -> new Image());
-        var fast = new BeatmapThumbnails(ignored -> new Image());
-        slow.prepare(Set.of(path)); fast.prepare(Set.of(path));
-        slow.advance(.2f);
-        for (int i = 0; i < 24; i++) fast.advance(1f / 120);
-        assertEquals(1, slow.opacity(path));
-        assertEquals(fast.opacity(path), slow.opacity(path));
-        slow.advance(Float.NaN); slow.advance(Float.POSITIVE_INFINITY);
-        assertEquals(1, slow.opacity(path));
-        slow.close(); fast.close();
+        var cache = new BeatmapThumbnails(ignored -> new Image());
+        cache.prepare(Set.of(path));
+        var first = new SongSelectForegroundAnimation();
+        var second = new SongSelectForegroundAnimation();
+        first.update(3, true, 1000, 16); second.update(1, true, 1000, 16);
+        first.thumbnailLoaded(1000, 0);
+        first.update(3, false, 1200, 0);
+        second.thumbnailLoaded(1200, 0);
+        assertEquals(.5f, first.snapshot().thumbnailOpacity());
+        assertEquals(0, second.snapshot().thumbnailOpacity());
+        assertEquals(255, first.snapshot().thumbnailBrightness());
+        assertEquals(50, second.snapshot().thumbnailBrightness());
+        assertSame(cache.resident(path), cache.get(path));
+        cache.close();
     }
 
 }

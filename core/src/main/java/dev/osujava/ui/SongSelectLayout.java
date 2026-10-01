@@ -17,7 +17,7 @@ final class SongSelectLayout {
     }
     record RowGeometry(int logicalIndex, boolean selected, boolean hovered,
                        float targetX, float targetY, Rect body, Rect thumbnail,
-                       Rect title, Rect metadata, Rect clip, Rect hit, float alpha, int zOrder,
+                       Rect title, Rect metadata, Rect inputClip, Rect hit, float alpha, int zOrder,
                        SongSelectRowPresentation.Geometry text) { }
     record Snapshot(SongSelectChrome.Content chrome, SongSelectToolboxLayout toolbox,
                     Rect viewport, Rect metadata, Rect search, ScoreBrowserBounds scores) { }
@@ -35,14 +35,20 @@ final class SongSelectLayout {
 
     static RowGeometry row(SongSelectRow row, int index, float targetX, float targetY,
                            float width, float bottom, float top, boolean thumbnails, boolean grade) {
+        return row(row, index, targetX, targetY, width, bottom, top, thumbnails, grade, false, false);
+    }
+
+    static RowGeometry row(SongSelectRow row, int index, float targetX, float targetY,
+                           float width, float bottom, float top, boolean thumbnails, boolean grade, boolean mode, boolean cropped) {
         var body = new Rect(row.x(), row.y(), row.width(), row.height());
         var clip = body.intersect(new Rect(0, bottom, width, top - bottom));
-        var text = SongSelectRowPresentation.geometry(row.width(), row.height(), width - row.x(), thumbnails, (grade ? 52 : 32) * row.height() / 72);
+        var text = SongSelectRowPresentation.geometry(row.width(), row.height(), width - row.x(), thumbnails,
+                row.difficultyIndex() >= 0, cropped, mode, grade);
         var thumbnail = new Rect(row.x() + text.thumbnailX(), row.y() + text.thumbnailY(), text.thumbnailWidth(), text.thumbnailHeight());
         return new RowGeometry(index, row.selected(), row.hoverAmount() > 0, targetX, targetY, body, thumbnail,
                 new Rect(row.x() + text.textX(), row.y() + text.titleY(), text.textWidth(), 16),
                 new Rect(row.x() + text.textX(), row.y() + text.starsY(), text.textWidth(), text.bylineY() - text.starsY() + 16),
                 clip, row.interactive() && row.revealAmount() >= .05f ? clip : new Rect(0, 0, 0, 0),
-                row.revealAmount(), row.selected() ? Integer.MAX_VALUE : index, text);
+                row.revealAmount(), index, text);
     }
 }

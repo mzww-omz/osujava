@@ -24,9 +24,7 @@ final class BeatmapThumbnails implements AutoCloseable {
         });
     }
     BeatmapThumbnails(Function<Path, Texture> loader) { this.loader = loader; }
-    private float elapsed;
     private Set<Path> framePaths = Set.of();
-    private final Map<Path, Float> loadedAt = new LinkedHashMap<>();
     private final LinkedHashMap<Path, Texture> textures = new LinkedHashMap<>(20, .75f, true);
 
     Texture get(Path path) {
@@ -37,7 +35,6 @@ final class BeatmapThumbnails implements AutoCloseable {
             texture = loader.apply(path);
         } catch (GdxRuntimeException ignored) { }
         textures.put(path, texture);
-        if (texture != null) loadedAt.put(path, elapsed);
         trim();
         return texture;
     }
@@ -58,22 +55,13 @@ final class BeatmapThumbnails implements AutoCloseable {
             Map.Entry<Path, Texture> eldest = iterator.next();
             if (framePaths.contains(eldest.getKey())) continue;
             if (eldest.getValue() != null) eldest.getValue().dispose();
-            loadedAt.remove(eldest.getKey());
             iterator.remove();
         }
     }
 
-    void advance(float delta) { if (Float.isFinite(delta)) elapsed += Math.max(0, Math.min(delta, 2f)); }
-    float opacity(Path path) {
-        Float start = loadedAt.get(path);
-        return start == null ? 0 : fade(elapsed - start);
-    }
-    static float fade(float age) { return Math.max(0, Math.min(1, age / .11f)); }
-
     @Override public void close() {
         for (Texture texture : textures.values()) if (texture != null) texture.dispose();
         textures.clear();
-        loadedAt.clear();
         framePaths = Set.of();
     }
 }

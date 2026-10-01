@@ -8,7 +8,6 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import dev.osujava.ruleset.osu.OsuGrade;
 import dev.osujava.skin.SongSelectSkinAssets;
 import dev.osujava.skin.SongSelectSkinAssets.Image;
-import dev.osujava.ui.theme.UiLayout;
 import dev.osujava.ui.theme.UiTheme;
 import dev.osujava.ui.theme.UiView;
 import java.util.List;
@@ -16,7 +15,22 @@ import java.util.List;
 /** Draw-only row pass. Receives immutable presentation and resident textures, never a browser or Library. */
 final class SongSelectRowRenderer {
     record Presentation(SongSelectRow row, SongSelectRowPresentation.Content content, boolean played,
-                        OsuGrade grade, Texture thumbnail, float thumbnailOpacity, SongSelectLayout.RowGeometry geometry) { }
+                        OsuGrade grade, Texture thumbnail, SongSelectLayout.RowGeometry geometry,
+                        boolean groupContainsSelection, int backgroundRgba, SongSelectStarAnimation.Snapshot stars,
+                        SongSelectForegroundAnimation.Snapshot foreground) {
+        Presentation(SongSelectRow row, SongSelectRowPresentation.Content content, boolean played,
+                     OsuGrade grade, Texture thumbnail, float thumbnailOpacity, SongSelectLayout.RowGeometry geometry,
+                     boolean groupContainsSelection, int backgroundRgba, SongSelectStarAnimation.Snapshot stars) {
+            this(row, content, played, grade, thumbnail, geometry, groupContainsSelection,
+                    backgroundRgba, stars, new SongSelectForegroundAnimation.Snapshot(1, 1, thumbnailOpacity, 255));
+        }
+        Presentation(SongSelectRow row, SongSelectRowPresentation.Content content, boolean played,
+                     OsuGrade grade, Texture thumbnail, float thumbnailOpacity, SongSelectLayout.RowGeometry geometry,
+                     boolean groupContainsSelection, int backgroundRgba) {
+            this(row, content, played, grade, thumbnail, thumbnailOpacity, geometry, groupContainsSelection,
+                    backgroundRgba, SongSelectStarAnimation.Snapshot.EMPTY);
+        }
+    }
     record Style(float width, SongSelectSkinAssets skin, Texture fill, Color activeText,
                  Color inactiveText, boolean thumbnails) { }
     private final SpriteBatch batch;
@@ -24,60 +38,32 @@ final class SongSelectRowRenderer {
     private Style style;
     private final Color rowTint = new Color(), thumbnailTint = new Color();
     private final Color primaryTint = new Color(), secondaryTint = new Color(), detailTint = new Color(), starTint = new Color();
-    // 06000fb1 -> 04000857/0856; Group state colour selection in 060025e6.
-    private static final Color GROUP_CLOSED = new Color(35 / 255f, 50 / 255f, 143 / 255f, 1);
-    private static final Color GROUP_OPEN = new Color(163 / 255f, 240 / 255f, 44 / 255f, 1);
-    private static final Color OTHER = new Color(.58f, .30f, .49f, .90f);
-    private static final Color OTHER_HOVER = new Color(.73f, .38f, .59f, .96f);
-    private static final Color PLAYED = new Color(.79f, .46f, .23f, .92f);
-    private static final Color PLAYED_HOVER = new Color(.90f, .57f, .30f, .98f);
-    private static final Color SIBLING = new Color(.25f, .54f, .73f, .92f);
-    private static final Color SIBLING_HOVER = new Color(.34f, .66f, .84f, .98f);
-    private static final Color SELECTED = new Color(.96f, .95f, .98f, .98f);
     private static final Color THUMB_FALLBACK = new Color(.23f, .20f, .31f, 1f);
 
     SongSelectRowRenderer(SpriteBatch batch, UiView view) { this.batch = batch; this.view = view; }
 
-    void draw(List<Presentation> rows, Style style, UiLayout layout, float bottom, float top) {
+    void draw(List<Presentation> rows, Style style) {
         this.style = style;
-        float scaleX = Gdx.graphics.getBackBufferWidth() / layout.width();
-        float scaleY = Gdx.graphics.getBackBufferHeight() / layout.height();
-        Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
-        Gdx.gl.glScissor(0, Math.round(bottom * scaleY), Math.round(layout.width() * scaleX),
-                Math.max(0, Math.round((top - bottom) * scaleY)));
+        int src = batch.getBlendSrcFunc(), dst = batch.getBlendDstFunc();
+        int srcAlpha = batch.getBlendSrcFuncAlpha(), dstAlpha = batch.getBlendDstFuncAlpha();
+        // 06003287/2c21: full browser order, preserving each row's sprite insertion order.
+        // The row manager has no custom scissor (06003810/3813): use the full display viewport.
+        Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
+        batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         try {
-            for (var row : rows) if (!row.row().selected()) drawClipped(row, layout, bottom, top, scaleX, scaleY);
-            for (var row : rows) if (row.row().selected()) drawClipped(row, layout, bottom, top, scaleX, scaleY);
-        } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
-    }
-
-    private void drawClipped(Presentation row, UiLayout layout, float bottom, float top, float scaleX, float scaleY) {
-        var clip = row.geometry().clip();
-        if (clip.width() <= 0 || clip.height() <= 0) return;
-        Gdx.gl.glScissor(0, Math.round(bottom * scaleY), Math.round(layout.width() * scaleX),
-                Math.max(0, Math.round((top - bottom) * scaleY)));
-        drawRow(row, scaleX, scaleY);
-    }
-
-    private void clipContent(Presentation item, float scaleX, float scaleY) {
-        var clip = item.geometry().clip();
-        Gdx.gl.glScissor(Math.round(clip.x() * scaleX), Math.round(clip.y() * scaleY),
-                Math.max(0, Math.round(clip.width() * scaleX)), Math.max(0, Math.round(clip.height() * scaleY)));
+            for (var row : rows) drawRow(row);
+        } finally {
+            batch.setBlendFunctionSeparate(src, dst, srcAlpha, dstAlpha);
+        }
     }
 
     private boolean has(Image image) { return style.skin() != null && style.skin().get(image) != null; }
-    private void drawRow(Presentation item, float scaleX, float scaleY) {
+    private void drawRow(Presentation item) {
         var row = item.row();
         if (row.revealAmount() < .01f) return;
-        boolean played = item.played();
-        var tone = SongSelectRowPresentation.tone(row.selected(), row.sibling(), played);
-        Color color = rowTint.set(switch (tone) {
-            case SELECTED -> SELECTED; case SIBLING -> SIBLING; case PLAYED -> PLAYED; case UNPLAYED -> OTHER;
-        });
-        if (row.group()) color.set(row.groupExpanded() ? GROUP_OPEN : GROUP_CLOSED);
-        else if (!row.selected()) color.lerp(row.sibling() ? SIBLING_HOVER : played ? PLAYED_HOVER : OTHER_HOVER,row.hoverAmount());
-        focusTint(color, row.focusAmount());
-        color.a *= row.revealAmount();
+        Color.rgba8888ToColor(rowTint, item.backgroundRgba());
+        Color color = rowTint;
+        color.a *= row.revealAmount() * item.foreground().baseOpacity();
         float x = row.x(), y = row.y();
         if (has(Image.MENU_BUTTON_BACKGROUND)) {
             view.beginText();
@@ -95,112 +81,132 @@ final class SongSelectRowRenderer {
         // a light selected surface when that text is dark. Never wash custom skin artwork.
         var background = has(Image.MENU_BUTTON_BACKGROUND) ? style.skin().get(Image.MENU_BUTTON_BACKGROUND) : null;
         if (fallbackWash(row.selected() || row.group() && row.groupExpanded(), background != null && background.file().classpathResource() != null, style.activeText())) {
-            batch.setColor(1,1,1,.86f * row.revealAmount());
+            batch.setColor(1,1,1,.86f * row.revealAmount() * item.foreground().baseOpacity());
             batch.draw(style.fill(),x,y,row.width(),row.height());
             batch.setColor(Color.WHITE);
         }
         if (row.group()) {
-            batch.flush();
-            clipContent(item, scaleX, scaleY);
             Color text = row.groupExpanded() ? style.activeText() : style.inactiveText();
             primaryTint.set(text == null ? UiTheme.TEXT : text);
-            primaryTint.a *= row.revealAmount();
+            primaryTint.a *= row.revealAmount() * item.foreground().baseOpacity();
             float inset = 15 * row.height() / SongSelectMetrics.ROW_PITCH;
-            view.textSmooth(row.header(), x + inset, y + row.height() / 2,
-                    Math.max(0, style.width() - x - inset), .90f, primaryTint);
+            view.textCenteredVertically(row.header(), x + inset, y + row.height() / 2,
+                    Math.max(0, style.width() - x - inset), 24 * row.height() / (48 * 1.6f * 17), primaryTint, false);
             view.endText();
             return;
         }
-        var content = item.content();
         var geometry = item.geometry().text();
+        drawBaseLabels(item, geometry);
         float tx = x + geometry.thumbnailX(), ty = y + geometry.thumbnailY();
         if (style.thumbnails()) {
             // Keep body, thumbnail fallback, cover and text in the same sprite batch.
-            batch.setColor(thumbnailTint.set(THUMB_FALLBACK.r, THUMB_FALLBACK.g, THUMB_FALLBACK.b, row.revealAmount()));
-            batch.draw(style.fill(), tx, ty, geometry.thumbnailWidth(), geometry.thumbnailHeight());
+            float opacity = row.revealAmount() * item.foreground().thumbnailOpacity();
+            float brightness = item.foreground().thumbnailBrightness() / 255f;
             var texture = item.thumbnail();
-            float brightness = row.selected() ? 1 : .78f + row.hoverAmount() * .12f;
-            batch.setColor(brightness, brightness, brightness, row.revealAmount() * item.thumbnailOpacity());
+            if (texture == null) {
+                batch.setColor(thumbnailTint.set(THUMB_FALLBACK.r * brightness, THUMB_FALLBACK.g * brightness,
+                        THUMB_FALLBACK.b * brightness, opacity));
+                batch.draw(style.fill(), tx, ty, geometry.thumbnailWidth(), geometry.thumbnailHeight());
+            }
+            batch.setColor(brightness, brightness, brightness, opacity);
             view.imageCover(texture, tx, ty, geometry.thumbnailWidth(), geometry.thumbnailHeight());
             batch.setColor(Color.WHITE);
         }
-        // Stable thumbnails are taller than the 48-unit row pitch. Preserve the full image
-        // within the carousel viewport; only labels use the body clip.
-        batch.flush();
-        clipContent(item, scaleX, scaleY);
-        drawRowLabel(item, geometry);
+        drawDetails(item, geometry);
         view.endText();
-    }
-
-    /** 06001965: brighten RGB by 40%, saturate each byte, and leave alpha unchanged. */
-    static void focusTint(Color color, float amount) {
-        color.r += (Math.min(255, (int) (color.r * 255 * 1.4f)) / 255f - color.r) * amount;
-        color.g += (Math.min(255, (int) (color.g * 255 * 1.4f)) / 255f - color.g) * amount;
-        color.b += (Math.min(255, (int) (color.b * 255 * 1.4f)) / 255f - color.b) * amount;
     }
 
     static boolean fallbackWash(boolean selected, boolean bundled, Color text) {
         return selected && bundled && .2126f * text.r + .7152f * text.g + .0722f * text.b < .35f;
     }
 
-    private void drawRowLabel(Presentation item, SongSelectRowPresentation.Geometry geometry) {
-        var row = item.row();
-        var content = item.content();
-        Color base = row.selected() ? style.activeText() : style.inactiveText() != null ? style.inactiveText() : UiTheme.TEXT;
-        Color primary = primaryTint.set(base);
-        primary.a *= row.revealAmount() * (row.sibling() ? .24f : 1);
-        Color secondary = secondaryTint.set(base);
-        secondary.a *= row.revealAmount() * (row.sibling() ? .20f : .80f);
-        Color detail = detailTint.set(base);
-        detail.a *= row.revealAmount() * (row.difficultyIndex() >= 0 ? 1 : .72f);
-        float x = row.x() + geometry.textX(), width = geometry.textWidth();
-        boolean child = row.difficultyIndex() >= 0;
-        float badgeScale = row.height() / 72;
-        float modeSize = 24 * badgeScale;
-        float column = (item.grade() == null ? 32 : 52) * badgeScale;
-        float modeY = item.grade() == null ? row.y() + (row.height() - modeSize) / 2
-                : row.y() + row.height() - modeSize - 2 * badgeScale;
-        if (content.mode() >= 0) SongSelectSkinDrawing.fit(batch, style.skin(), SongSelectSkinAssets.modeImage(content.mode(), 1),
-                x - column + (column - modeSize) / 2, modeY, modeSize, modeSize, detail);
-        if (item.grade() != null)
-            drawGrade(item.grade(), x - 48 * badgeScale, row.y() + 2 * badgeScale, 40 * badgeScale, 30 * badgeScale, thumbnailTint.set(1, 1, 1, detail.a), detail);
-        view.textSmooth(content.title(), x, row.y() + (child ? geometry.titleY() : row.height() / 2 + 8), width,
-                .87f, primary);
-        view.textSmooth(content.byline(), x, row.y() + (child ? geometry.bylineY() : row.height() / 2 - 12), width, .65f, secondary);
-        if (child) view.textSmoothBold(content.detail(), x, row.y() + geometry.detailY(), width, .90f, detail);
-        var stars = content.stars();
-        if (stars.present() && width > 0) drawStars(stars, x,
-                row.y() + geometry.starsY(), detail, row.selected(), width);
+    private Color textColour(SongSelectRow row) {
+        return row.selected() ? style.activeText() : style.inactiveText() != null ? style.inactiveText() : UiTheme.TEXT;
     }
 
-    private void drawStars(SongSelectRowPresentation.Stars stars, float x, float y, Color tint, boolean selected, float availableWidth) {
+    private void drawBaseLabels(Presentation item, SongSelectRowPresentation.Geometry geometry) {
+        var row = item.row();
+        Color base = textColour(row);
+        Color primary = SongSelectRowColours.label(primaryTint, base, row, true);
+        Color secondary = SongSelectRowColours.label(secondaryTint, base, row, true);
+        primary.a *= item.foreground().baseOpacity();
+        secondary.a *= item.foreground().baseOpacity();
+        float canvasScale = row.height() / (48 * 1.6f);
+        view.textCenteredVertically(item.content().title(), row.x() + geometry.textX(), row.y() + geometry.titleY(),
+                geometry.textWidth(), 16 * canvasScale / 17, primary, false);
+        float secondaryWidth = Math.max(0, geometry.textWidth() - (geometry.secondaryX() - geometry.textX()));
+        view.textCenteredVertically(item.content().byline(), row.x() + geometry.secondaryX(), row.y() + geometry.bylineY(),
+                secondaryWidth, 12 * canvasScale / 17, secondary, false);
+    }
+
+    private void drawDetails(Presentation item, SongSelectRowPresentation.Geometry geometry) {
+        var row = item.row();
+        var content = item.content();
+        Color base = textColour(row);
+        Color detail = SongSelectRowColours.label(detailTint, base, row, false);
+        detail.a *= item.foreground().detailOpacity();
+        float canvasScale = row.height() / (48 * 1.6f);
+        float secondaryWidth = Math.max(0, geometry.textWidth() - (geometry.secondaryX() - geometry.textX()));
+        view.textCenteredVertically(content.detail(), row.x() + geometry.secondaryX(), row.y() + geometry.detailY(), secondaryWidth,
+                12 * canvasScale / 17, detail, true);
+        if (content.mode() > 0) nativeBadge(SongSelectSkinAssets.modeImage(content.mode(), 1),
+                row.x() + geometry.modeX(), row.y() + geometry.modeY(), .8f * canvasScale, detail);
+        if (item.grade() != null) {
+            thumbnailTint.set(1, 1, 1, row.revealAmount() * item.foreground().detailOpacity());
+            nativeBadge(gradeImage(item.grade()), row.x() + geometry.gradeX(), row.y() + geometry.gradeY(), canvasScale, thumbnailTint);
+        }
+        // Stars have their own opacity transforms and must not inherit the detail fade.
+        SongSelectRowColours.label(detail, base, row, false);
+        drawStars(item.stars(), row, row.x() + geometry.textX(), detail);
+    }
+
+    private void nativeBadge(Image image, float x, float centreY, float scale, Color tint) {
+        if (!has(image)) return;
+        var asset = style.skin().get(image);
+        float w = (int) asset.logicalWidth() * scale, h = (int) asset.logicalHeight() * scale;
+        skinImage(image, x, centreY - h / 2, w, h, tint);
+    }
+
+    /** Native star dimensions are texture-based; clipping never compresses the ten sprite positions. */
+    private void drawStars(SongSelectStarAnimation.Snapshot stars, SongSelectRow row, float x, Color tint) {
         var texture = style.skin() == null ? null : style.skin().starTexture();
-        var band = stars.layout(availableWidth);
-        float scale = texture == null ? 0 : Math.min(band.size() / texture.getWidth(), band.size() / texture.getHeight());
-        float w = texture == null ? 0 : texture.getWidth() * scale, h = texture == null ? 0 : texture.getHeight() * scale;
-        for (int i = 0; texture != null && i < band.icons(); i++) {
-            float sx = x + i * band.step() + (band.size() - w) / 2, sy = y + (15 - h) / 2;
-            batch.setColor(starTint.set(tint.r, tint.g, tint.b, tint.a * .24f));
-            batch.draw(texture, sx, sy, w, h);
-            float fill = stars.fill(i);
-            batch.setColor(starTint.set(tint.r, tint.g, tint.b, tint.a * (selected ? 1 : .88f)));
-            if (fill > 0) {
-                if (style.skin().configuration().legacyVersion() >= 2.2)
-                    batch.draw(texture, sx + w * (1 - fill) / 2, sy + h * (1 - fill) / 2, w * fill, h * fill);
-                else batch.draw(texture, sx, sy, w * fill, h, 0, 1, fill, 0);
-            }
+        if (texture == null) return;
+        var asset = style.skin().get(Image.STAR);
+        float density = asset == null ? 1 : asset.density();
+        float unit = .6f * row.height() / (48 * 1.6f);
+        float w = (int) (texture.getWidth() / density) * unit, h = (int) (texture.getHeight() / density) * unit;
+        float cy = row.y() + row.height() / 2 - (stars.cropped() ? 15 : 18) * row.height() / 48;
+        for (int i = 0; i < stars.glyphs().size(); i++) {
+            float cx = x + (i + .5f) * w;
+            float backgroundScale = stars.cropped() ? 1 : .35f;
+            batch.setColor(starTint.set(1, 1, 1, 30 / 255f * stars.backgroundOpacity() * row.revealAmount()));
+            batch.draw(texture, cx - w * backgroundScale / 2, cy - h * backgroundScale / 2,
+                    w * backgroundScale, h * backgroundScale);
+        }
+        for (int i = 0; i < stars.glyphs().size(); i++) {
+            float cx = x + (i + .5f) * w;
+            var glyph = stars.glyphs().get(i);
+            batch.setColor(starTint.set(tint.r, tint.g, tint.b, tint.a * stars.foregroundOpacity()));
+            if (stars.cropped()) {
+                if (glyph.crop() > 0) batch.draw(texture, cx - w / 2, cy - h / 2, w * glyph.crop(), h,
+                        0, 1, glyph.crop(), 0);
+            } else if (glyph.scale() != 0) batch.draw(texture, cx - w * glyph.scale() / 2, cy - h * glyph.scale() / 2,
+                    w * glyph.scale(), h * glyph.scale());
         }
         batch.setColor(Color.WHITE);
-        view.textSmooth(stars.label(), x + band.numberX(), y + 3, band.numberWidth(), .62f, tint);
     }
 
     void drawGrade(OsuGrade grade, float x, float y, float w, float h, Color tint, Color textTint) {
-        Image image = switch (grade) {
+        Image image = gradeImage(grade);
+        if (has(image)) skinImageFit(image, x, y, w, h, tint);
+        else view.textSmoothBold(grade.name(), x + 3, y + h * .35f, w - 6, 1.35f, textTint);
+    }
+
+    static Image gradeImage(OsuGrade grade) {
+        return switch (grade) {
             case SS -> Image.GRADE_SS; case S -> Image.GRADE_S; case A -> Image.GRADE_A;
             case B -> Image.GRADE_B; case C -> Image.GRADE_C; case D -> Image.GRADE_D;
         };
-        if (has(image)) skinImageFit(image, x, y, w, h, tint);
-        else view.textSmoothBold(grade.name(), x + 3, y + h * .35f, w - 6, 1.35f, textTint);
     }
 
     private void skinImage(Image image, float x, float y, float w, float h, Color tint) {

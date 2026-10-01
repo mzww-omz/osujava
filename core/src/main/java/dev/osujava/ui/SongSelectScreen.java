@@ -42,6 +42,12 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final SongSelectRenderer renderer;
     private final SongSelectViewState viewState = new SongSelectViewState();
     private List<SongSelectRowRenderer.Presentation> rowPresentations = List.of();
+    private final Map<SongSelectCarousel.Row, SongSelectRowColourAnimation> rowColours = new IdentityHashMap<>();
+    private final Color rowBaseColour = new Color();
+    private double rowColourTimeMs;
+    private static final class RowStars { SongSelectStarAnimation animation; }
+    private final Map<SongSelectCarousel.Row, RowStars> rowStars = new IdentityHashMap<>();
+    private final Map<SongSelectCarousel.Row, SongSelectForegroundAnimation> rowForeground = new IdentityHashMap<>();
     private String geometryViewport;
     private SongSelectSkinAssets skin;
     private SongSelectCursor cursor;
@@ -62,6 +68,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final OsuCookie playCookie = new OsuCookie();
     private final SongSelectCarousel carousel = viewState.carousel;
     private SongSelectInputController input;
+    private SongSelectWheelInput wheelInput;
     private boolean contentDirty = true;
     private float contentWidth, contentViewportHeight, contentRowHeight;
     private boolean legacyThumbnailPreview;
@@ -81,7 +88,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private String search = "";
     private String toast = "";
     private Color toastColor = UiTheme.TEXT;
-    private float toastSeconds, seconds, setClickGuard;
+    private float toastSeconds, seconds;
     private float backgroundFade;
     private Path backgroundPath;
     private SongSelectToolboxLayout bottomLayout;
@@ -198,12 +205,14 @@ public final class SongSelectScreen extends ScreenAdapter {
                 selectionSound(identity);
             }
             @Override public boolean scroll(float amount) { return scrollAtPointer(amount); }
+            @Override public boolean repeatEnabled() { return !closed && !importing && !outgoing.pending() && !game.volumeHud().active(); }
             @Override public void cursor(int x, int y, int button, boolean down) {
                 if (button == Input.Buttons.LEFT && down) carousel.pointerPressed();
                 if (cursor != null) cursor.event(Gdx.input.getCurrentEventTime(), x, y, button, down);
             }
         });
-        Gdx.input.setInputProcessor(input);
+        wheelInput = new SongSelectWheelInput(input);
+        Gdx.input.setInputProcessor(wheelInput);
         carousel.snapOnNextFrame();
         if (preview == null && Gdx.audio != null && Gdx.gl != null) {
             preview = new SongSelectPreview(path -> java.nio.file.Files.isRegularFile(path)
@@ -304,6 +313,8 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     /** Input, model synchronization, animation and resource preparation precede drawing. */
     private boolean update(UiLayout layout, float delta) {
+        wheelInput.dispatch();
+        input.advanceKeys(delta);
         viewState.sample(layout, Gdx.input.getX(), Gdx.input.getY(), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
         viewState.advance(delta);
         seconds = viewState.elapsed;
@@ -318,18 +329,20 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (cursor != null) cursor.update(layout, Gdx.input.getX(), Gdx.input.getY(), viewState.pointerPressed,
                 Gdx.input.isButtonPressed(Input.Buttons.RIGHT), seconds);
         toastSeconds = Math.max(0, toastSeconds - delta);
-        setClickGuard = Math.max(0, setClickGuard - Math.max(0, delta));
         calculateLayout(layout);
         if (scoreSnapshot.refresh(sets)) {
             var set = selectedSet();
             scores.target(set == null ? null : DifficultyIdentity.of(set.id(),selectedDifficulty()));
         }
-        thumbnails.advance(delta);
         visibleRows = layoutRows(layout, 0, false);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
+        var buttons = input.buttons(Gdx.input.isButtonPressed(Input.Buttons.LEFT),
+                Gdx.input.isButtonPressed(Input.Buttons.RIGHT), Gdx.input.isButtonPressed(Input.Buttons.MIDDLE), delta * 1000.0);
+        if (buttons.physicalPressed()) input.pressPosition(Gdx.input.getX(), Gdx.input.getY());
+        boolean rowPressAllowed = true;
         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             carousel.pointerPressed();
-            input.cancelLeftPointer();
+            rowPressAllowed = false;
             var oldSort = browser.sort(); var oldGroup = browser.group();
             var previousMenu = controls.menu();
             if (toolbox.open()) SongSelectToolboxOverlay.click(toolbox,layout,px,py);
@@ -358,30 +371,30 @@ public final class SongSelectScreen extends ScreenAdapter {
                         return false;
                     }
                 }
-                else {
-                    var row = hitRow(px, py);
-                    input.pressRow(row == null ? null : row.key(), Gdx.input.getX(), Gdx.input.getY(), carousel);
-                }
+                else rowPressAllowed = true;
             }
         }
 
-        boolean blocked = toolbox.open() || importing || outgoing.pending();
-        if (!blocked && !controls.open() && Gdx.input.isButtonJustPressed(Input.Buttons.RIGHT)) {
-            carousel.pointerPressed();
-            input.pressRight(hitRow(px, py) != null);
-        }
+        boolean blocked = toolbox.open() || controls.open() || importing || outgoing.pending() || !rowPressAllowed;
         if (blocked) input.cancelPointer();
+        else if (buttons.pressed()) {
+            var row = hitRow(px, py);
+            input.pressPointer(row == null ? null : row.key(), Gdx.input.getX(), Gdx.input.getY(), buttons.right(), carousel);
+        }
         var pressedRow = visibleRows.stream().filter(row -> row.key().equals(input.pressedKey())).findFirst().orElse(null);
-        if (input.pointer(Gdx.input.isButtonPressed(Input.Buttons.LEFT),
-                pressedRow != null && pressedRow.boundsContain(px, py),
-                Gdx.input.getX(), Gdx.input.getY(), layout.scale(), delta) != null)
-            handleRowClick(pressedRow);
+        if (buttons.released() && input.releasePointer(buttons.left(),
+                pressedRow != null && pressedRow.boundsContain(px, py)) != null)
+            handleRowClick(pressedRow, buttons.context());
         float referenceScale = SongSelectMetrics.carouselScale(layout.height());
-        input.rightPointer(Gdx.input.isButtonPressed(Input.Buttons.RIGHT), Gdx.input.isButtonPressed(Input.Buttons.LEFT),
-                px / referenceScale, (layout.height() - py) / referenceScale, carousel);
+        if (!blocked && !outgoing.pending()) input.samplePointer(buttons, Gdx.input.getX(), Gdx.input.getY(),
+                layout.scale(), px / referenceScale, (layout.height() - py) / referenceScale, delta, carousel);
+        else input.cancelPointer();
         // Sample input before integrating free flight, then publish drawing and hit geometry together.
         visibleRows = layoutRows(layout, delta);
-        prepareRowPresentations();
+        advanceRowColours(delta);
+        advanceRowStars(delta);
+        advanceRowForeground(delta);
+        prepareRowPresentations(delta);
         if (audio != null) {
             String target = null;
             var cue = SongSelectAudio.Cue.HOVER_CONTROL;
@@ -489,8 +502,13 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
-    @Override public void hide() { if (input != null) input.cancelPointer(); if (preview != null) preview.close(); if (cursor != null) cursor.hide(); }
-    @Override public void dispose() { closed = true; if (input != null) input.cancelPointer(); if (preview != null) preview.close(); if (audio != null) audio.close(); if (cursor != null) cursor.close(); thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
+    private void cancelInput() {
+        if (input != null) input.cancel();
+        if (wheelInput != null) wheelInput.cancel();
+    }
+    @Override public void pause() { cancelInput(); }
+    @Override public void hide() { cancelInput(); if (preview != null) preview.close(); if (cursor != null) cursor.hide(); }
+    @Override public void dispose() { closed = true; cancelInput(); if (preview != null) preview.close(); if (audio != null) audio.close(); if (cursor != null) cursor.close(); thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
 
     private void calculateLayout(UiLayout layout) {
         viewportHeight = layout.height();
@@ -526,7 +544,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         for (SongSelectCarousel.Row entry : carousel.rows()) {
             if (!carousel.presents(entry)) continue;
             float y = carousel.renderY(entry, top);
-            if (y + carousel.rowHeight() < bottom || y > top) continue;
+            // Resident buffer rows may have artwork extending beyond their body into the viewport.
             int setIndex = entry.entry.setIndex(), diffIndex = entry.entry.difficultyIndex();
             boolean selected = setIndex == selectedSetIndex && diffIndex == selectedDifficultyIndex;
             var target = carousel.targetPosition(entry.logicalIndex, layout.width(), top);
@@ -595,37 +613,135 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
     }
 
+    private boolean groupContainsSelection(String key) {
+        var selected = browser.row(browser.selectedKey());
+        return selected != null && !selected.excluded && selected.parent == browser.row(key);
+    }
+
+    private boolean rowPlayed(SongSelectCarousel.Entry entry) {
+        if (entry.header()) return false;
+        var set = sets.get(entry.setIndex());
+        return entry.difficultyIndex() < 0 ? scoreSnapshot.played(set)
+                : scoreSnapshot.best(set, set.difficulties().get(entry.difficultyIndex())) != null;
+    }
+
+    /** Retain colour clocks for resident sprites, including those outside the drawing viewport. */
+    private void advanceRowColours(float delta) {
+        double frameMs = Float.isFinite(delta) ? Math.max(0, delta * 1000.0) : 0;
+        rowColourTimeMs += frameMs;
+        var residents = java.util.Collections.newSetFromMap(new IdentityHashMap<SongSelectCarousel.Row, Boolean>());
+        for (var row : carousel.allRows()) {
+            if (!row.resident || !row.entry.visible()) continue;
+            residents.add(row);
+            var entry = row.entry;
+            var model = browser.row(entry.key());
+            SongSelectRowColours.base(rowBaseColour, entry.header(), model.expanded,
+                    model.state == SongBrowserModel.RowState.SELECTED,
+                    model.state == SongBrowserModel.RowState.EXPANDED, rowPlayed(entry),
+                    entry.header() && groupContainsSelection(entry.key()));
+            rowColours.computeIfAbsent(row, ignored -> new SongSelectRowColourAnimation()).update(
+                    model.state.ordinal(), Color.rgba8888(rowBaseColour), entry.key().equals(browser.focusKey()),
+                    entry.key().equals(carousel.hoverKey()), (long) rowColourTimeMs, (int) frameMs);
+        }
+        rowColours.keySet().retainAll(residents);
+    }
+
+    private void advanceRowStars(float delta) {
+        long now = (long) rowColourTimeMs;
+        int frameMs = Float.isFinite(delta) ? (int) Math.max(0, delta * 1000.0) : 0;
+        var residents = java.util.Collections.newSetFromMap(new IdentityHashMap<SongSelectCarousel.Row, Boolean>());
+        var asset = skin == null ? null : skin.get(Image.STAR);
+        boolean cropped = croppedStars();
+        int width = asset == null ? 40 : (int) asset.logicalWidth();
+        for (var row : carousel.allRows()) {
+            if (!row.resident || !row.entry.visible() || row.entry.header()) continue;
+            residents.add(row);
+            boolean created = !rowStars.containsKey(row);
+            var state = rowStars.computeIfAbsent(row, ignored -> new RowStars());
+            var model = browser.row(row.entry.key());
+            if (model.state.ordinal() >= SongBrowserModel.RowState.SINGLETON.ordinal()) {
+                if (state.animation == null) state.animation = new SongSelectStarAnimation(cropped, width);
+                state.animation.update(rowContent.get(model.difficulty).stars(), created && row.instantSprites, now, frameMs);
+            } else {
+                // 06003267 clears the manager each frame; 06000fd2 removes these pairs
+                // before resubmission. Its fade transforms do not create visible afterimages.
+                state.animation = null;
+            }
+        }
+        rowStars.keySet().retainAll(residents);
+    }
+
+    private boolean croppedStars() {
+        var background = skin == null ? null : skin.get(Image.MENU_BUTTON_BACKGROUND);
+        return SongSelectStarAnimation.cropped(skin == null ? 2.2 : skin.configuration().legacyVersion(),
+                background == null || background.file().provider() == dev.osujava.skin.SkinAssetResolver.Provider.BUNDLED);
+    }
+
+    private void advanceRowForeground(float delta) {
+        var residents = java.util.Collections.newSetFromMap(new IdentityHashMap<SongSelectCarousel.Row, Boolean>());
+        int frameMs = Float.isFinite(delta) ? (int) Math.max(0, delta * 1000.0) : 0;
+        for (var row : carousel.allRows()) {
+            if (!row.resident || !row.entry.visible()) continue;
+            residents.add(row);
+            boolean created = !rowForeground.containsKey(row);
+            rowForeground.computeIfAbsent(row, ignored -> new SongSelectForegroundAnimation()).update(
+                    browser.row(row.entry.key()).state.ordinal(), created && row.instantSprites,
+                    (long) rowColourTimeMs, frameMs);
+        }
+        rowForeground.keySet().retainAll(residents);
+    }
+
     /** Resource lookup and score projection happen before any drawing. */
-    private void prepareRowPresentations() {
+    private void prepareRowPresentations(float delta) {
+        long now = (long) rowColourTimeMs;
+        int frameMs = Float.isFinite(delta) ? (int) Math.max(0, delta * 1000.0) : 0;
+        var foreground = new java.util.HashMap<String, SongSelectForegroundAnimation>();
+        rowForeground.forEach((row, animation) -> foreground.put(row.entry.key(), animation));
         var paths = new java.util.HashSet<Path>();
+        var thumbnailRows = new java.util.HashSet<String>();
         if (backgroundPath != null) paths.add(backgroundPath);
         if (showThumbnails()) for (var row : visibleRows) {
             if (row.setIndex() < 0 || row.revealAmount() < .01f) continue;
-            var set = sets.get(row.setIndex());
-            var content = rowContent.get(row.difficultyIndex() < 0 ? set : set.difficulties().get(row.difficultyIndex()));
-            if (content.thumbnail() != null) paths.add(content.thumbnail());
+            var content = rowContent.get(browser.row(row.key()).difficulty);
+            if (content.thumbnail() != null && foreground.get(row.key()).requestThumbnail(now)) {
+                paths.add(content.thumbnail());
+                thumbnailRows.add(row.key());
+            }
         }
         thumbnails.prepare(paths);
+        var colours = new java.util.HashMap<String, Integer>();
+        rowColours.forEach((row, animation) -> colours.put(row.entry.key(), animation.rgba()));
+        var stars = new java.util.HashMap<String, SongSelectStarAnimation.Snapshot>();
+        rowStars.forEach((row, state) -> stars.put(row.entry.key(), state.animation == null
+                ? SongSelectStarAnimation.Snapshot.EMPTY : state.animation.snapshot()));
         var result = new ArrayList<SongSelectRowRenderer.Presentation>(visibleRows.size());
         for (var row : visibleRows) {
             if (row.setIndex() < 0) {
-                result.add(new SongSelectRowRenderer.Presentation(row, null, false, null, null, 0, rowGeometry(row, false)));
+                boolean containsSelection = groupContainsSelection(row.key());
+                result.add(new SongSelectRowRenderer.Presentation(row, null, false, null, null, rowGeometry(row, false, false), containsSelection,
+                        colours.get(row.key()), SongSelectStarAnimation.Snapshot.EMPTY, foreground.get(row.key()).snapshot()));
                 continue;
             }
             var set = sets.get(row.setIndex());
-            var diff = row.difficultyIndex() < 0 ? null : set.difficulties().get(row.difficultyIndex());
-            var content = rowContent.get(diff == null ? set : diff);
-            var best = diff == null ? null : scoreSnapshot.best(set, diff);
-            boolean played = diff == null ? scoreSnapshot.played(set) : best != null;
+            // A collapsed card still owns its representative difficulty's sprites, including fading details.
+            var diff = browser.row(row.key()).difficulty;
+            var content = rowContent.get(diff);
+            var best = scoreSnapshot.best(set, diff);
+            boolean played = row.difficultyIndex() < 0 ? scoreSnapshot.played(set) : best != null;
+            var texture = thumbnailRows.contains(row.key()) ? thumbnails.resident(content.thumbnail()) : null;
+            var animation = foreground.get(row.key());
+            if (texture != null) animation.thumbnailLoaded(now, frameMs);
+            boolean gradeImage = best != null && skin != null && skin.get(SongSelectRowRenderer.gradeImage(best.grade())) != null;
             result.add(new SongSelectRowRenderer.Presentation(row, content, played, best == null ? null : best.grade(),
-                    showThumbnails() ? thumbnails.resident(content.thumbnail()) : null, thumbnails.opacity(content.thumbnail()), rowGeometry(row, best != null)));
+                    texture, rowGeometry(row, gradeImage, content.mode() > 0),
+                    false, colours.get(row.key()), stars.get(row.key()), animation.snapshot()));
         }
         rowPresentations = List.copyOf(result);
     }
 
-    private SongSelectLayout.RowGeometry rowGeometry(SongSelectRow row, boolean grade) {
+    private SongSelectLayout.RowGeometry rowGeometry(SongSelectRow row, boolean grade, boolean mode) {
         return SongSelectLayout.row(row, row.logicalIndex(), row.targetX(), row.targetY(),
-                contentWidth, bottom, top, showThumbnails(), grade);
+                contentWidth, bottom, top, showThumbnails(), grade, mode, croppedStars());
     }
 
     private void updateDetails() {
@@ -641,9 +757,9 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private void handleRowClick(float x, float y) {
-        handleRowClick(hitRow(x, y));
+        handleRowClick(hitRow(x, y), false);
     }
-    private void handleRowClick(SongSelectRow row) {
+    private void handleRowClick(SongSelectRow row, boolean context) {
         var identity = browser.selection();
         if (row == null) return;
         if (row.group()) {
@@ -654,15 +770,14 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
         if (row.difficultyIndex() >= 0) {
             if (row.setIndex() == selectedSetIndex && row.difficultyIndex() == selectedDifficultyIndex) {
-                if (setClickGuard == 0) playSelected();
+                if (!context) playSelected();
             }
             else { selectSet(row.setIndex()); selectDifficulty(row.difficultyIndex()); }
         } else {
             selectSet(row.setIndex());
-            // Expansion replaces the clicked Set at this position; its double-click must not play.
-            setClickGuard = .24f;
         }
         selectionSound(identity);
+        if (context) perform(SongSelectAction.OPTIONS);
     }
     private void randomize() {
         if (importing || outgoing.pending()) return;
@@ -690,7 +805,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void ensureVisibleSelection() { browser.search(search); syncBrowser(true); }
     private void selectSet(int index) {
         if (index < 0 || index >= sets.size() || index == selectedSetIndex) return;
-        browser.select(sets.get(index).id(), 0); syncBrowser(true);
+        browser.selectSet(sets.get(index).id()); syncBrowser(true);
     }
     private void selectDifficulty(int index) {
         BeatmapSet set = selectedSet();

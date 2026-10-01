@@ -1,5 +1,7 @@
 # Song Select Phase 3 — local Song Browser
 
+Current difficulty-level filtering and metadata persistence are documented in [parity phase 10](songselect-parity-phase10-search-20260929.md).
+
 Historical Phase 3 report. Current toolbox actions, F1/F3 routing and played-state projection are documented in [Phase 5A](songselect-toolbox.md).
 
 ## References and scope

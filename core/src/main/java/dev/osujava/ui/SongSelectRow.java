@@ -35,7 +35,8 @@ record SongSelectRow(int setIndex, int difficultyIndex, String header, boolean s
 
     static SongSelectRow hit(List<SongSelectRow> rows, float x, float y, float bottom, float top) {
         if (y <= bottom || y >= top) return null;
-        // Selected is composited last. Remaining rows are composited in list order.
+        // Existing input approximation; native sprite hit/depth arbitration is deferred to phase 8b.
+        // This priority is independent of the browser-order draw pass.
         for (var row : rows) if (row.selected && row.contains(x, y)) return row;
         for (int i = rows.size() - 1; i >= 0; i--) if (rows.get(i).contains(x, y)) return rows.get(i);
         return null;

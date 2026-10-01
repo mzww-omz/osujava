@@ -9,19 +9,20 @@ final class SongSelectPointer {
     private boolean dragged;
 
     void press(String key, float x, float y) {
-        pressedKey = key; startX = x; startY = y; dragged = false;
+        pressedKey = key; pressPosition(x, y);
     }
+    void pressPosition(float x, float y) { startX = x; startY = y; }
     String pressedKey() { return pressedKey; }
-    String update(boolean held, boolean insidePressedRow, float x, float y) {
-        if (pressedKey == null) return null;
-        if (held) {
-            float dx = x - startX, dy = y - startY;
-            dragged |= dx * dx + dy * dy > CANCEL_DISTANCE_SQUARED;
-            return null;
-        }
+    void sample(float x, float y) {
+        float dx = x - startX, dy = y - startY;
+        dragged |= dx * dx + dy * dy > CANCEL_DISTANCE_SQUARED;
+    }
+    String release(boolean insidePressedRow, boolean leftHeld) {
         // 06003244 tests the pressed sprite itself, not the frontmost release hit.
         String clicked = !dragged && insidePressedRow ? pressedKey : null;
-        cancel();
+        // A failed release keeps the candidate; cancellation resets only with left up.
+        if (!leftHeld) dragged = false;
+        if (clicked != null) pressedKey = null;
         return clicked;
     }
     void cancel() { pressedKey = null; dragged = false; }
