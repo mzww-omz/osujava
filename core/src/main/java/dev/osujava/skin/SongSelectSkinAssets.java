@@ -129,7 +129,7 @@ public final class SongSelectSkinAssets implements Disposable {
                     return true;
                 } catch (GdxRuntimeException | IllegalArgumentException e) {
                     if (texture != null && !owned.contains(texture)) texture.dispose();
-                    log("Could not load " + file.path() + "; trying the next skin candidate", e);
+                    log("Could not load " + file.path(), e);
                     return false;
                 }
             };
@@ -139,10 +139,10 @@ public final class SongSelectSkinAssets implements Disposable {
             } else if (image == Image.CURSOR_MIDDLE) {
                 // Stable 06002ac0: middle follows the resolved cursor; trail resolves independently.
                 var cursor = get(Image.CURSOR);
-                if (cursor != null) resolver.resolveFromProvider(image.basename, cursor.file().provider(), load);
+                if (cursor != null) resolver.resolvePresentImageFromProvider(image.basename, cursor.file().provider(), load);
             } else {
                 // Stable 0600136e resolves normal, hover, top and bottom independently.
-                resolver.resolve(image.basename, load);
+                resolver.resolvePresentImage(image.basename, load);
             }
         }
         // Selection geometry depends on the resolved Mods provider, which may load after Mode.

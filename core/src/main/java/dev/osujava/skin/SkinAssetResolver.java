@@ -86,6 +86,16 @@ public final class SkinAssetResolver {
         return Optional.empty();
     }
 
+    /** Stable static images: an existing file owns the result, even if decoding fails.
+     * Keep the successful-load fallback policy used by Gameplay/Results separate. */
+    Optional<AssetFile> resolvePresentImage(String name, Predicate<AssetFile> loadable) {
+        return resolve(name).filter(loadable);
+    }
+
+    Optional<AssetFile> resolvePresentImageFromProvider(String name, Provider provider, Predicate<AssetFile> loadable) {
+        return resolveFromProvider(name, provider, file -> true).filter(loadable);
+    }
+
     /** Provider-local lookup for choosing a custom circle family before considering fallback skins. */
     Optional<AssetFile> resolveCustom(String name, Predicate<AssetFile> loadable) {
         return resolveFromProvider(name, Provider.CUSTOM, loadable);

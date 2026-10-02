@@ -12,6 +12,28 @@ import static org.junit.jupiter.api.Assertions.*;
 class SkinAssetResolverTest {
     @TempDir Path directory;
 
+    @Test void stablePresentImageStopsAfterDecodeFailureWithoutChangingOtherScreens() throws IOException {
+        Path fallback = Files.createDirectory(directory.resolve("fallback"));
+        Path hd = Files.createFile(directory.resolve("songselect-top@2x.png"));
+        Path sd = Files.createFile(directory.resolve("songselect-top.png"));
+        Files.createFile(fallback.resolve("songselect-top@2x.png"));
+        var resolver = SkinAssetResolver.withBundledDefault(directory, fallback);
+        var attempts = new java.util.ArrayList<Path>();
+        assertTrue(resolver.resolvePresentImage("songselect-top", file -> {
+            attempts.add(file.path()); return !file.path().equals(hd);
+        }).isEmpty());
+        assertEquals(java.util.List.of(hd),attempts);
+        assertEquals(sd,resolver.resolve("songselect-top",file -> !file.path().equals(hd)).orElseThrow().path());
+        Files.delete(hd);
+        assertTrue(resolver.resolvePresentImageFromProvider("songselect-top",SkinAssetResolver.Provider.CUSTOM,
+                file -> false).isEmpty());
+        Files.delete(sd);
+        assertEquals(SkinAssetResolver.Provider.FALLBACK,
+                resolver.resolvePresentImage("songselect-top",file -> true).orElseThrow().provider());
+        assertTrue(resolver.resolvePresentImage("songselect-bottom",file -> false).isEmpty());
+        assertThrows(IllegalArgumentException.class,() -> resolver.resolvePresentImage("../star",file -> true));
+    }
+
     @Test void providerRestrictedLookupKeepsIdentityWithoutCrossProviderFallback() throws IOException {
         Path fallback = Files.createDirectory(directory.resolve("fallback"));
         Files.createFile(directory.resolve("star.png"));

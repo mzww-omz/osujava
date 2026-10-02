@@ -1908,8 +1908,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     throw new AssertionError("Normal and hover did not resolve independently");
                 if (name.equals("phase5a-assets-high") && (texture == null || texture.density() != 2)) throw new AssertionError("Selection density lost");
                 String expected = name.equals("phase5a-assets-fallback") ? "fallback"
-                        : name.equals("phase5a-assets-bundled") || name.equals("phase5a-assets-malformed") ? "bundled"
-                        : name.equals("phase5a-assets-missing") ? "procedural" : null;
+                        : name.equals("phase5a-assets-bundled") ? "bundled"
+                        : name.equals("phase5a-assets-missing") || name.equals("phase5a-assets-malformed") ? "procedural" : null;
                 if (expected != null && !assets.provider(image).equals(expected)) throw new AssertionError("Selection provider priority: " + name + " " + image);
                 System.out.println("SELECTION PASS " + name + " asset=" + image.basename + " provider=" + assets.provider(image)
                         + " density=" + (texture == null ? 0 : texture.density()) + " procedural=" + (texture == null)
