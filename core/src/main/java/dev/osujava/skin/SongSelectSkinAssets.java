@@ -79,7 +79,6 @@ public final class SongSelectSkinAssets implements Disposable {
     private Texture fallbackStar;
     private final Set<Image> generatedModes = java.util.EnumSet.noneOf(Image.class);
     private List<SkinTexture> backFrames = List.of();
-    private final java.util.Map<SkinTexture,SelectionAssetBounds> backBounds = new IdentityHashMap<>();
     private SongSelectTopCoverage topCoverage;
     private SkinConfiguration configuration = SkinConfiguration.defaults();
     private SkinConfiguration.SongSelect rowTextColours;
@@ -158,27 +157,23 @@ public final class SongSelectSkinAssets implements Disposable {
         // Reserve all static interface images (including fallback chrome) before extra Back frames.
         var first = textures.get(Image.BACK);
         if (first != null) {
-            var firstBounds = selectionBounds.get(Image.BACK);
             var frames = new ArrayList<SkinTexture>();
             var load = backLoader;
             frames.add(first);
             resolver.resolvePresentAnimation(Image.BACK.basename, first.file(), 512, file -> {
                 if (!load.test(file)) return false;
                 var frame = textures.get(Image.BACK);
-                measureGeometry(Image.BACK,frame);
                 frames.add(frame);
                 return true;
             });
             backFrames = List.copyOf(frames);
             textures.put(Image.BACK, first);
-            if (firstBounds != null) selectionBounds.put(Image.BACK, firstBounds);
         }
 
     }
 
     private void measureGeometry(Image image, SkinTexture asset) {
-        if (Gdx.gl == null || (image != Image.BACK
-                && Selection.of(image) == null && image != Image.TOP)) return;
+        if (Gdx.gl == null || (Selection.of(image) == null && image != Image.TOP)) return;
         Pixmap pixels = null;
         try {
             pixels = new Pixmap(asset.file().handle());
@@ -186,11 +181,6 @@ public final class SongSelectSkinAssets implements Disposable {
             if (image == Image.TOP) {
                 topCoverage = SongSelectTopCoverage.detect(pixels.getWidth(), pixels.getHeight(),
                         asset.density(), (x,y) -> source.getPixel(x,y) & 255);
-            } else if (image == Image.BACK) {
-                var bounds = SelectionAssetBounds.detect(pixels.getWidth(), pixels.getHeight(),
-                        asset.density(), 224, 90, false, (x,y) -> source.getPixel(x,y) & 255);
-                selectionBounds.put(image,bounds);
-                backBounds.put(asset,bounds);
             } else if (Selection.of(image) != null) {
                 var action = Selection.of(image);
                 boolean legacy = legacySelectionAnchors();
@@ -212,7 +202,6 @@ public final class SongSelectSkinAssets implements Disposable {
         return backFrameAt(SkinAnimation.frameIndex(backFrames.size(),configuration.animationFramerate(),elapsedSeconds));
     }
     public SkinTexture backFrameAt(int index) { return backFrames.isEmpty() ? null : backFrames.get(Math.floorMod(index,backFrames.size())); }
-    public SelectionAssetBounds backBounds(SkinTexture frame) { return backBounds.get(frame); }
     public SelectionAssetBounds selectionBounds(Image image) { return selectionBounds.get(image); }
     public String provider(Image image) {
         if (generatedModes.contains(image)) return "generated";
@@ -293,7 +282,6 @@ public final class SongSelectSkinAssets implements Disposable {
         selectionBounds.clear();
         fallbackStar = null;
         backFrames = List.of();
-        backBounds.clear();
         topCoverage = null;
     }
 }

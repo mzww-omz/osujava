@@ -248,6 +248,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 scenes.add(new Scene(Integer.getInteger("osujava.songSelectWidth", 1280),
                         Integer.getInteger("osujava.songSelectHeight", 720),
                         Integer.getInteger("osujava.songSelectDensity", 1), "configured"));
+            } else if (phase.equals("button-hit-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
+                    for (String fixture : List.of("asymmetric", "asymmetric-high", "transparent-canvas", "oversized-hover", "normal-bundled", "missing"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"phase5a-assets-"+fixture));
             } else if (phase.equals("score-scroll-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
@@ -414,7 +419,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
 
     private void createToolboxFixtures() throws Exception {
         for (String name : List.of("all", "normal", "high", "missing", "malformed", "composite",
-                "transparent", "asymmetric", "asymmetric-high", "oversized-hover", "mismatched-high", "tiny-chrome", "normal-bundled", "v1-default-mods", "v1-custom-mods", "upper-chrome", "upper-chrome-high")) {
+                "transparent", "transparent-canvas", "asymmetric", "asymmetric-high", "oversized-hover", "mismatched-high", "tiny-chrome", "normal-bundled", "v1-default-mods", "v1-custom-mods", "upper-chrome", "upper-chrome-high")) {
             Path dir = Files.createDirectories(output.resolve("fixtures/toolbox-" + name));
             Files.writeString(dir.resolve("skin.ini"),"[General]\nVersion: " + (name.startsWith("v1-") ? "1" : "2.5") + "\n");
             if (name.equals("missing")) continue;
@@ -436,7 +441,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 if (name.startsWith("asymmetric")) {
                     p.fillRectangle(20*density,80*density,40*density,50*density);
                     p.fillRectangle(300*density,5*density,60*density,15*density);
-                } else if (!name.equals("transparent")) {
+                } else if (!name.startsWith("transparent")) {
                     p.fillRectangle(3*density,height-80*density,(int)action.logicalWidth*density-6*density,73*density);
                     if (width > 500) { p.setColor(.5f,.3f,.5f,.8f); p.fillRectangle(0,height-140,width,30); }
                 }
@@ -460,10 +465,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     high.dispose();
                 }
             }
-            if (name.startsWith("asymmetric") || name.equals("transparent")) {
+            if (name.startsWith("asymmetric") || name.startsWith("transparent")) {
                 int d = name.endsWith("high") ? 2 : 1;
                 var p = new Pixmap(400*d,150*d,Pixmap.Format.RGBA8888);
-                if (!name.equals("transparent")) {
+                if (!name.startsWith("transparent")) {
                     p.setColor(Color.WHITE); p.fillRectangle(20*d,80*d,100*d,50*d);
                     p.fillRectangle(300*d,5*d,60*d,15*d);
                 }
@@ -774,6 +779,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseGroupCards(screen, scene.name, pointer, clicked, pressed, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if (System.getProperty("osujava.songSelectPhase", "").equals("button-hit-contracts")) {
+                exerciseButtonHit(screen, scene, processor[0], pointer, clicked, pressed, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
             if (System.getProperty("osujava.songSelectPhase", "").equals("score-scroll-contracts")) {
                 exerciseScoreScroll(screen, scene, processor[0], pointer, clicked, pressed, layout, fb, name);
                 fb.end(); advanceScene(); return;
@@ -1952,9 +1961,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 if ((rgba >>> 24 & 255) < 240 || (rgba >>> 16 & 255) > 15 || (rgba >>> 8 & 255) > 15)
                     throw new AssertionError("Normal button covered Mode hover: " + Integer.toHexString(rgba));
             } finally { overlap.dispose(); }
-            if (geometry.control(SongSelectSkinAssets.Selection.MODE).interaction().contains(
-                    art.x() + 125 * scale, art.y() + 45 * scale))
-                throw new AssertionError("Hover decoration expanded Mode input into Mods");
+            if (SongSelectAction.bottom(art.x()+125*scale,art.y()+45*scale,geometry) != SongSelectAction.MODE)
+                throw new AssertionError("Overlapping hover sprite lost its creation priority");
         }
         boolean legacy = assets.legacySelectionAnchors();
         if (name.equals("phase5a-assets-v1-default-mods") && (legacy || assets.configuration().legacyVersion() != 1))
@@ -1972,7 +1980,6 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         for (var action : SongSelectSkinAssets.Selection.values()) {
             var control = geometry.control(action);
             if (control.slot().y() != geometry.baseline || control.slot().height() != geometry.controlHeight
-                    || control.interaction().width() > control.slot().width()+.01f || control.interaction().height() > control.slot().height()+.01f
                     || control.slot().x()+control.slot().width() > geometry.cookie.x()) throw new AssertionError("Toolbox geometry diverged");
             if (screen.renderedSelectionProcedural(action) != (assets.get(action.normal) == null)) throw new AssertionError("Current selection asset lost to procedural");
             for (var image : List.of(action.normal,action.hover)) {
@@ -1983,13 +1990,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         || Math.abs(artwork.image().height()-texture.logicalHeight()*scale) > .01f
                         || Math.abs(artwork.image().y() - (legacy ? control.anchorY()-artwork.image().height() : control.anchorY())) > .01f))
                     throw new AssertionError("Raw artwork was fitted or alpha-aligned: " + image);
-                if (name.equals("phase5a-assets-transparent") && (!artwork.opaque().empty() || !control.interaction().empty()))
-                    throw new AssertionError("Transparent replacement created interaction");
-                if (name.startsWith("phase5a-assets-asymmetric")
-                        && (control.interaction().contains(artwork.image().x()+310*scale,135*scale)
-                            || Math.abs(control.interaction().x()-(control.anchorX()+20*scale)) > .01f
-                            || Math.abs(control.interaction().y()-20*scale) > .01f))
-                    throw new AssertionError("Decorative overshoot became an action");
+                if (name.equals("phase5a-assets-transparent") && !artwork.opaque().empty())
+                    throw new AssertionError("Transparent replacement gained opaque artwork");
                 if (name.startsWith("phase5a-current") && (texture == null || texture.file().fallback() || texture.density() != 2))
                     throw new AssertionError("Current @2x selection did not win: " + image);
                 if (name.startsWith("phase5a-profile-")) {
@@ -2015,8 +2017,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         + " interaction=" + control.interaction());
             }
         }
-        if (name.equals("phase5a-assets-transparent") && !geometry.backInteraction.empty())
-            throw new AssertionError("Transparent Back created interaction");
+
+        var viewport = new SongSelectToolboxLayout.Bounds(0,0,layout.width(),layout.height());
+        for (var action : SongSelectSkinAssets.Selection.values()) {
+            var c = geometry.control(action);
+            var owner = assets.get(action.hover) != null ? c.hover().image()
+                    : assets.get(action.normal) != null ? c.normal().image() : c.slot();
+            if (!c.interaction().equals(SongSelectToolboxLayout.intersect(viewport,owner)))
+                throw new AssertionError("Input differs from hover sprite canvas: " + action);
+        }
         if (geometry.importAction.height() >= geometry.controlHeight*.5f) throw new AssertionError("Import gained primary visual weight");
         var snapshot = (SongSelectScoreSnapshot)screenField(screen,"scoreSnapshot");
         for (var set : browser(screen).librarySets()) {
@@ -2095,6 +2104,40 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     private ScoreBrowserModel scoreBrowser(SongSelectScreen screen) {
         try { var f=SongSelectScreen.class.getDeclaredField("scores"); f.setAccessible(true); return (ScoreBrowserModel)f.get(screen); }
         catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+    private void exerciseButtonHit(SongSelectScreen screen, Scene scene, InputProcessor processor,
+                                   int[] pointer, boolean[] clicked, boolean[] pressed, UiLayout layout,
+                                   FrameBuffer fb, String name) {
+        var geometry = toolboxLayout(screen);
+        var mode = geometry.control(SongSelectSkinAssets.Selection.MODE).interaction();
+        point(mode,pointer,layout,scene.height);
+        if (scene.name.contains("asymmetric")) {
+            // These pixels are transparent margins, 18 SD pixels before the first opaque body.
+            float scale = layout.height()/768;
+            pointer[0] = Math.round((mode.x()+2*scale)*layout.scale());
+            pointer[1] = scene.height-Math.round((mode.y()+2*scale)*layout.scale());
+        }
+        for (int frame=0;frame<12;frame++) { screen.render(1f/60); transitionFrames++; }
+        if (SongSelectAction.bottom(layout.pointerX(pointer[0]),layout.pointerY(pointer[1]),geometry) != SongSelectAction.MODE)
+            throw new AssertionError("Native Mode fixture point lost to alpha/slot clipping");
+        capture(fb,name+"-hover");
+        clicked[0] = pressed[0] = true; screen.render(1f/60); transitionFrames++;
+        clicked[0] = false;
+        if (((SongSelectToolboxState)screenField(screen,"toolbox")).overlay() != SongSelectToolboxState.Overlay.MODE)
+            throw new AssertionError("Transparent hover sprite pixel did not open Mode");
+        capture(fb,name+"-mode");
+        pressed[0] = false; screen.render(1f/60); transitionFrames++;
+        tapKey(processor,Input.Keys.ESCAPE); screen.render(1f/60); transitionFrames++;
+        // Test Back's independent sprite rectangle, outside all selection canvases.
+        var back = toolboxLayout(screen).backInteraction;
+        if (!back.empty()) {
+            pointer[0] = Math.round((back.x()+Math.min(1,back.width()/2))*layout.scale());
+            pointer[1] = scene.height-Math.round((back.y()+Math.min(1,back.height()/2))*layout.scale());
+            clicked[0] = pressed[0] = true; screen.render(1f/60); transitionFrames++;
+            clicked[0] = pressed[0] = false;
+            if (!((UiNavigation)screenField(screen,"outgoing")).pending())
+                throw new AssertionError("Back transparent margin did not request navigation");
+        }
     }
     private void exerciseScoreScroll(SongSelectScreen screen, Scene scene, InputProcessor processor,
                                      int[] pointer, boolean[] clicked, boolean[] pressed, UiLayout layout,

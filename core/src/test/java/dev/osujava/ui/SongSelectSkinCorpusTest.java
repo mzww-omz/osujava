@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /** Portable measured real-skin geometry, without redistributing skin artwork or needing OpenGL.
  * The opt-in production harness verifies original PNG hashes and renders those same originals. */
 class SongSelectSkinCorpusTest {
-    @Test void pinnedRealCanvasesKeepNativeOriginsAndBoundedInteractionAtEveryDisplayProfile() throws Exception {
+    @Test void pinnedRealCanvasesKeepNativeOriginsAndHoverSpriteInteractionAtEveryDisplayProfile() throws Exception {
         var input = getClass().getResourceAsStream("/songselect-skin-geometry.json");
         assertNotNull(input);
         var skins = new JsonReader().parse(new String(input.readAllBytes(), StandardCharsets.UTF_8));
@@ -60,9 +60,11 @@ class SongSelectSkinCorpusTest {
                             assertEquals(control.anchorX(),artwork.image().x());
                             assertEquals(control.anchorY(),legacy ? artwork.image().y()+artwork.image().height() : artwork.image().y(),.001);
                         }
-                        assertTrue(control.interaction().width() <= control.slot().width());
-                        assertTrue(control.interaction().height() <= control.slot().height());
-                        assertFalse(control.interaction().contains(height, height/2),"Decorative canvas cannot become a button");
+                        var owner = images.containsKey(action.hover) ? control.hover().image()
+                                : images.containsKey(action.normal) ? control.normal().image() : control.slot();
+                        assertEquals(SongSelectToolboxLayout.intersect(owner,
+                                new SongSelectToolboxLayout.Bounds(0,0,height*16/9,height)),control.interaction());
+                        assertFalse(control.interaction().contains(height*16/9,height/2),"Input must stop at the viewport edge");
                     }
                     assertTrue(layout.chrome.height() >= SongSelectChrome.bottomHeight(height));
                 }

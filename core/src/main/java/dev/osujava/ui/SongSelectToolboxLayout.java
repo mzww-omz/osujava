@@ -7,8 +7,8 @@ import dev.osujava.skin.SongSelectSkinAssets.Selection;
 import dev.osujava.skin.SongSelectSkinAssets.SkinTexture;
 import java.util.EnumMap;
 
-/** Shared stable canvas geometry. Artwork may overshoot; input never uses its PNG rectangle.
- * Selection canvases stay adjacent so composite skins retain their authored connections. */
+/** Shared stable canvas geometry. The clickable hover sprite uses its raw image rectangle,
+ * independently of PNG alpha. Selection anchors stay adjacent for composite skins. */
 final class SongSelectToolboxLayout {
     record Bounds(float x, float y, float width, float height) {
         boolean contains(float px, float py) {
@@ -35,8 +35,6 @@ final class SongSelectToolboxLayout {
         }
         if (backFrame != null) {
             images.put(Image.BACK,backFrame);
-            metrics.remove(Image.BACK);
-            if (skin != null && skin.backBounds(backFrame) != null) metrics.put(Image.BACK,skin.backBounds(backFrame));
         }
         return new SongSelectToolboxLayout(width, height, skin != null && skin.legacySelectionAnchors(),
                 images, metrics);
@@ -57,13 +55,13 @@ final class SongSelectToolboxLayout {
         float selectionX = (width > height * 4 / 3f ? 224 : 192) * scale;
         back = new Bounds(0,baseline,selectionX,90 * scale);
         var backAsset = images.get(Image.BACK);
+        var viewport = new Bounds(0,0,width,height);
         if (backAsset == null) { backImage = back; backInteraction = back; }
         else {
             // Back uses the same native scale and bottom-left raw origin as v2 selection artwork.
-            // Transparent margins position artwork; alpha metrics only constrain interaction.
+            // 060040ce/040cf use the sprite rectangle; transparent margins are interactive too.
             backImage = new Bounds(0,baseline,backAsset.logicalWidth() * scale,backAsset.logicalHeight() * scale);
-            var backMetrics = metrics.get(Image.BACK);
-            backInteraction = intersect(back,backMetrics == null ? backImage : map(backImage,backMetrics.content(),scale));
+            backInteraction = intersect(viewport,backImage);
         }
         float x = selectionX;
         float overshoot = 0;
@@ -71,8 +69,10 @@ final class SongSelectToolboxLayout {
             var slot = new Bounds(x,baseline,action.logicalWidth * scale,controlHeight);
             var normal = artwork(slot, images.get(action.normal), metrics.get(action.normal), scale, legacy);
             var hover = artwork(slot, images.get(action.hover), metrics.get(action.hover), scale, legacy);
-            Bounds interaction = images.get(action.normal) == null ? slot : union(normal.content(),hover.content());
-            interaction = intersect(slot,interaction);
+            // 0600136e attaches input to the .96 hover sprite, not the .95 normal sprite.
+            // Missing artwork keeps the local procedural button usable.
+            Bounds interaction = intersect(viewport,images.get(action.hover) != null ? hover.image()
+                    : images.get(action.normal) != null ? normal.image() : slot);
             controls.put(action,new Control(slot,normal,hover,interaction,x,legacy ? baseline + controlHeight : baseline));
             overshoot = Math.max(overshoot, Math.max(normal.image().height(),hover.image().height()) - controlHeight);
             x += slot.width() + spacing;
@@ -112,7 +112,7 @@ final class SongSelectToolboxLayout {
         if (asset == null) return new Artwork(empty(),empty(),empty());
         var image = new Bounds(slot.x(),legacy ? slot.y() + slot.height() - asset.logicalHeight() * scale : slot.y(),
                 asset.logicalWidth() * scale,asset.logicalHeight() * scale);
-        // Metrics absent only in GL-free tests. Keep bounded nominal interaction there.
+        // Alpha metrics describe artwork for diagnostics; input uses the raw hover rectangle.
         return new Artwork(image, metrics == null ? image : map(image,metrics.opaque(),scale),
                 metrics == null ? intersect(slot,image) : intersect(slot,map(image,metrics.content(),scale)));
     }
@@ -124,11 +124,6 @@ final class SongSelectToolboxLayout {
         float x = Math.max(a.x(),b.x()), y = Math.max(a.y(),b.y());
         return new Bounds(x,y,Math.max(0, Math.min(Math.min(a.width(), b.width()), Math.min(a.x()+a.width(),b.x()+b.width())-x)),
                 Math.max(0, Math.min(Math.min(a.height(), b.height()), Math.min(a.y()+a.height(),b.y()+b.height())-y)));
-    }
-    private static Bounds union(Bounds a, Bounds b) {
-        if (a.empty()) return b; if (b.empty()) return a;
-        float x = Math.min(a.x(),b.x()), y = Math.min(a.y(),b.y());
-        return new Bounds(x,y,Math.max(a.x()+a.width(),b.x()+b.width())-x,Math.max(a.y()+a.height(),b.y()+b.height())-y);
     }
     private static Bounds empty() { return new Bounds(0,0,0,0); }
 }

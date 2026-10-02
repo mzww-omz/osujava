@@ -20,10 +20,13 @@ enum SongSelectAction {
         };
     }
     static SongSelectAction bottom(float x, float y, SongSelectToolboxLayout layout) {
-        if (layout.backInteraction.contains(x,y)) return BACK;
+        // Local auxiliary action retains priority over authored composite decoration.
         if (layout.importAction.contains(x,y)) return IMPORT;
+        // Native mouse priority is negative creation depth: selection .96 precedes Back .91.
+        // Equal selection priorities retain creation order (Mode, Mods, Random, Options).
         for (var action : Selection.values()) if (layout.control(action).interaction().contains(x,y))
             return valueOf(action.name());
+        if (layout.backInteraction.contains(x,y)) return BACK;
         return null;
     }
 }

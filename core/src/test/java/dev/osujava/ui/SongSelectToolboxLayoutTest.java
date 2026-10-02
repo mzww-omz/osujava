@@ -10,6 +10,38 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SongSelectToolboxLayoutTest {
+    @Test void hoverSpritePriorityWinsOverBackAndEqualPrioritiesKeepCreationOrder() {
+        var images = new EnumMap<Image,SkinTexture>(Image.class);
+        images.put(Image.BACK,texture(800,200,1));
+        images.put(Image.MODE,texture(1,1,1));
+        images.put(Image.MODE_OVER,texture(200,180,1));
+        images.put(Image.MODS_OVER,texture(200,180,1));
+        var layout = new SongSelectToolboxLayout(1280,720,false,images,new EnumMap<>(Image.class));
+        assertEquals(SongSelectAction.BACK,SongSelectAction.bottom(100,100,layout));
+        assertEquals(SongSelectAction.MODE,SongSelectAction.bottom(220,100,layout));
+        assertEquals(SongSelectAction.MODE,SongSelectAction.bottom(320,100,layout));
+        assertEquals(SongSelectAction.MODS,SongSelectAction.bottom(440,100,layout));
+        assertEquals(SongSelectAction.IMPORT,SongSelectAction.bottom(layout.importAction.x()+1,
+                layout.importAction.y()+1,layout));
+        assertNull(SongSelectAction.bottom(220,720,layout));
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints={0,15,16,159,160,255})
+    void alphaDoesNotMoveNativeInputEdges(int alpha) {
+        for (int density : new int[]{1,2}) for (int[] size : new int[][]{{1280,720},{1280,800},{1024,768}}) {
+            var images = new EnumMap<Image,SkinTexture>(Image.class);
+            var metrics = new EnumMap<Image,SelectionAssetBounds>(Image.class);
+            images.put(Image.MODE_OVER,texture(92*density,90*density,density));
+            metrics.put(Image.MODE_OVER,SelectionAssetBounds.detect(92*density,90*density,density,92,90,false,(x,y)->alpha));
+            var l = new SongSelectToolboxLayout(size[0],size[1],false,images,metrics);
+            var hit = l.control(Selection.MODE).interaction();
+            assertEquals(SongSelectAction.MODE,SongSelectAction.bottom(hit.x(),hit.y(),l));
+            assertEquals(SongSelectAction.MODE,SongSelectAction.bottom(hit.x()+hit.width()-.001f,
+                    hit.y()+hit.height()-.001f,l));
+            assertNull(SongSelectAction.bottom(hit.x()+hit.width(),hit.y()+hit.height(),l));
+        }
+    }
     private SkinTexture texture(int width, int height, int density) {
         return new SkinTexture(new Texture() {
             @Override public int getWidth() { return width; }
@@ -39,7 +71,7 @@ class SongSelectToolboxLayoutTest {
         }
     }
 
-    @Test void oversizedHoverAndMismatchedDensityDoNotRescaleNormalOrExpandInput() {
+    @Test void oversizedHoverOwnsInputWithoutRescalingNormalArtwork() {
         var images = new EnumMap<Image,SkinTexture>(Image.class);
         images.put(Image.MODE,texture(184,180,2));
         images.put(Image.MODE_OVER,texture(1200,700,2));
@@ -49,9 +81,9 @@ class SongSelectToolboxLayoutTest {
         assertEquals(600*720f/768,control.hover().image().width());
         assertEquals(control.slot().x(), control.interaction().x(), .0001);
         assertEquals(control.slot().y(), control.interaction().y(), .0001);
-        assertEquals(control.slot().width(), control.interaction().width(), .0001);
-        assertEquals(control.slot().height(), control.interaction().height(), .0001);
-        assertFalse(control.interaction().contains(800,300));
+        assertEquals(600*720f/768, control.interaction().width(), .0001);
+        assertEquals(350*720f/768, control.interaction().height(), .0001);
+        assertTrue(control.interaction().contains(700,300));
     }
     @Test void commonCanvasesPreserveBaselineAspectAndAuxiliaryPriorityAtEveryResolution() {
         for (int[] size : new int[][]{{1280,720},{1920,1080},{2560,1440},{960,720}}) for (int density : new int[]{1,2}) {
@@ -76,7 +108,7 @@ class SongSelectToolboxLayoutTest {
             assertTrue(l.cookie.y() < 0); assertTrue(l.cookie.y()+l.cookie.height() > l.chrome.height());
         }
     }
-    @Test void compositeNormalAndIndependentHoverKeepNativeSizeWithoutHugeHitbox() {
+    @Test void compositeNormalDoesNotBecomeClickableOutsideTheIndependentHoverSprite() {
         for (int density : new int[]{1,2}) {
             var images = new EnumMap<Image,SkinTexture>(Image.class);
             var metrics = new EnumMap<Image,SelectionAssetBounds>(Image.class);
@@ -89,7 +121,7 @@ class SongSelectToolboxLayoutTest {
             assertEquals(1143*720f/768,c.normal().image().width());
             assertEquals(930*720f/768,c.normal().image().height());
             assertEquals(c.normal().image().x(),c.hover().image().x()); assertEquals(0,c.anchorY());
-            assertEquals(35*720f/768,c.interaction().width());
+            assertEquals(82*720f/768,c.interaction().width());
             assertFalse(c.interaction().contains(900,400));
             assertEquals(SongSelectAction.MODE,SongSelectAction.bottom(c.interaction().x()+1,c.interaction().y()+1,l));
             assertTrue(l.transparentOvershoot > 700);
@@ -98,7 +130,7 @@ class SongSelectToolboxLayoutTest {
             assertTrue(l.importAction.y() > l.chrome.height(),"Local Import must clear composite decoration");
         }
     }
-    @Test void transparentNormalUsesHoverBodyOnlyForInputAndPreservesBothRawOrigins() {
+    @Test void transparentNormalUsesHoverCanvasForInputAndPreservesBothRawOrigins() {
         var images = new EnumMap<Image,SkinTexture>(Image.class);
         var metrics = new EnumMap<Image,SelectionAssetBounds>(Image.class);
         images.put(Image.RANDOM,texture(1,1,1));
@@ -108,13 +140,13 @@ class SongSelectToolboxLayoutTest {
         metrics.put(Image.RANDOM_OVER,new SelectionAssetBounds(body,body));
         var l = new SongSelectToolboxLayout(1280,720,false,images,metrics);
         var c = l.control(Selection.RANDOM);
-        assertEquals(c.hover().content(),c.interaction());
+        assertEquals(c.hover().image(),c.interaction());
         assertEquals(c.slot().x(),c.hover().image().x());
         assertEquals(0,c.hover().image().y());
         assertEquals(66*720f/768,c.hover().image().width());
         assertEquals(90*720f/768,c.hover().image().height());
         assertEquals(1*720f/768,c.normal().image().width());
-        assertNull(SongSelectAction.bottom(c.slot().x()+2,10,l));
+        assertEquals(SongSelectAction.RANDOM,SongSelectAction.bottom(c.slot().x()+2,10,l));
         assertEquals(SongSelectAction.RANDOM,SongSelectAction.bottom(c.interaction().x()+1,c.interaction().y()+1,l));
     }
     @Test void legacyTopLeftAnchorAndBackBodyPreserveTransparentOvershoot() {
@@ -130,8 +162,7 @@ class SongSelectToolboxLayoutTest {
         assertEquals(l.baseline,l.backImage.y());
         assertEquals(174*720f/768,l.backImage.width());
         assertEquals(90*720f/768,l.backImage.height());
-        assertEquals(l.baseline+l.backImage.height()*.03f,l.backInteraction.y());
-        assertEquals(l.backInteraction.width(),l.backImage.width()*.9f,.001);
+        assertEquals(l.backImage,l.backInteraction);
     }
 
     @Test void nativeMarginsAndUnusualAspectRatiosNeverChangeDrawOriginsOrScale() {
@@ -168,11 +199,11 @@ class SongSelectToolboxLayoutTest {
             assertEquals((width == 960 ? 192 : 224)*720f/768,l.control(Selection.MODE).anchorX());
             assertEquals(0,l.backImage.x()); assertEquals(0,l.backImage.y());
             assertEquals(size[0]*720f/768,l.backImage.width());
-            assertTrue(l.backInteraction.x()+l.backInteraction.width() <= l.control(Selection.MODE).anchorX());
+            assertEquals(l.backImage,l.backInteraction);
         }
     }
 
-    @Test void fullyTransparentValidAssetsRetainRawArtworkButHaveNoInteraction() {
+    @Test void fullyTransparentValidAssetsStillHaveSpriteRectangleInteraction() {
         var images = new EnumMap<Image,SkinTexture>(Image.class);
         var metrics = new EnumMap<Image,SelectionAssetBounds>(Image.class);
         for (var image : new Image[]{Image.MODE,Image.MODE_OVER,Image.BACK}) {
@@ -181,8 +212,10 @@ class SongSelectToolboxLayoutTest {
         }
         var l = new SongSelectToolboxLayout(1280,720,false,images,metrics);
         assertFalse(l.control(Selection.MODE).normal().image().empty());
-        assertTrue(l.control(Selection.MODE).interaction().empty());
-        assertFalse(l.backImage.empty()); assertTrue(l.backInteraction.empty());
+        assertEquals(l.control(Selection.MODE).hover().image(),l.control(Selection.MODE).interaction());
+        assertFalse(l.backImage.empty()); assertEquals(l.backImage,l.backInteraction);
+        assertEquals(SongSelectAction.BACK,SongSelectAction.bottom(1,1,l));
+        assertEquals(SongSelectAction.MODE,SongSelectAction.bottom(211,1,l));
     }
 
     @Test void backDecorationAndAsymmetricMarginsAreDrawnWithoutMovingTheButtonBody() {
@@ -195,8 +228,8 @@ class SongSelectToolboxLayoutTest {
                             || x >= 300*density && y < 20*density ? 255 : 0));
             var l = new SongSelectToolboxLayout(1280,720,false,images,metrics);
             assertEquals(new SongSelectToolboxLayout.Bounds(0,0,375,140.625f),l.backImage);
-            assertEquals(new SongSelectToolboxLayout.Bounds(18.75f,18.75f,93.75f,46.875f),l.backInteraction);
-            assertNull(SongSelectAction.bottom(310,130,l));
+            assertEquals(l.backImage,l.backInteraction);
+            assertEquals(SongSelectAction.BACK,SongSelectAction.bottom(310,130,l));
             assertEquals(SongSelectAction.BACK,SongSelectAction.bottom(30,30,l));
         }
     }
