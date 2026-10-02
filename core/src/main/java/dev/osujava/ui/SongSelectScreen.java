@@ -89,6 +89,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final SongSelectScoreHover scoreHover = new SongSelectScoreHover();
     private final ScoreBrowserScroll scoreScroll = new ScoreBrowserScroll();
     private final SongSelectScoreSnapshot scoreSnapshot;
+    private List<BeatmapSet> librarySource;
     private final SongBrowserControls controls = new SongBrowserControls();
     private List<SongBrowserModel.Row> browserRows = List.of();
     private List<SongBrowserModel.Entry> browserEntries = List.of();
@@ -145,7 +146,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         view = new UiView(game);
         rowRenderer = new SongSelectRowRenderer(game.batch(), view);
         renderer = new SongSelectRenderer(view, game.batch(), rowRenderer, playCookie);
-        browser = new SongBrowserModel(game.library().all());
+        librarySource = game.library().all();
+        browser = new SongBrowserModel(librarySource);
         scores = new ScoreBrowserModel(game.localScores());
         scoreSnapshot = new SongSelectScoreSnapshot(game.localScores());
         sets = browser.librarySets();
@@ -259,7 +261,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         calculateLayout(layout);
         if (scoreSnapshot.refresh(sets)) {
             var set = selectedSet();
-            scores.target(set == null ? null : DifficultyIdentity.of(set.id(),selectedDifficulty()));
+            scores.target(set == null ? null : DifficultyIdentity.of(set.id(),selectedDifficulty()),
+                    dev.osujava.beatmap.BeatmapContentKey.of(selectedDifficulty()));
         }
         visibleRows = layoutRows(layout, 0);
     }
@@ -332,6 +335,13 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     /** Input, model synchronization, animation and resource preparation precede drawing. */
     private boolean update(UiLayout layout, float delta) {
+        var source = game.library().all();
+        if (!importing && source != librarySource) {
+            librarySource = source;
+            scoreScroll.cancel();
+            browser.library(source);
+            syncBrowser(true);
+        }
         wheelInput.dispatch();
         input.advanceKeys(delta);
         viewState.sample(layout, Gdx.input.getX(), Gdx.input.getY(), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
@@ -348,7 +358,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         calculateLayout(layout);
         if (scoreSnapshot.refresh(sets)) {
             var set = selectedSet();
-            scores.target(set == null ? null : DifficultyIdentity.of(set.id(),selectedDifficulty()));
+            scores.target(set == null ? null : DifficultyIdentity.of(set.id(),selectedDifficulty()),
+                    dev.osujava.beatmap.BeatmapContentKey.of(selectedDifficulty()));
         }
         visibleRows = layoutRows(layout, 0, false);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
@@ -888,7 +899,8 @@ public final class SongSelectScreen extends ScreenAdapter {
             selectedSetIndex = sets.indexOf(selected);
             selectedDifficultyIndex = selected.difficulties().indexOf(browser.selectedDifficulty());
         }
-        scores.target(selected == null ? null : DifficultyIdentity.of(selected.id(), browser.selectedDifficulty()));
+        scores.target(selected == null ? null : DifficultyIdentity.of(selected.id(), browser.selectedDifficulty()),
+                dev.osujava.beatmap.BeatmapContentKey.of(browser.selectedDifficulty()));
         refreshSelection(rebuild);
     }
     // Package-local bridge for deterministic visual capture; production uses the controls.
@@ -983,7 +995,8 @@ public final class SongSelectScreen extends ScreenAdapter {
                 importing = false;
                 if (closed) return;
                 if (failure != null) { showToast("Import failed: " + failure, UiTheme.ERROR); return; }
-                browser.library(game.library().all());
+                librarySource = game.library().all();
+                browser.library(librarySource);
                 browser.select(finished.beatmapSet().id(), 0);
                 syncBrowser(true);
                 String message = existing ? "Already imported: " : "Imported: ";

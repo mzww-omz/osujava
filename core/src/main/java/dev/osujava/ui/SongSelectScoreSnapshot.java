@@ -2,6 +2,7 @@ package dev.osujava.ui;
 
 import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapSet;
+import dev.osujava.beatmap.BeatmapContentKey;
 import dev.osujava.score.*;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -23,7 +24,7 @@ final class SongSelectScoreSnapshot {
             var best = new IdentityHashMap<BeatmapDifficulty,LocalScore>();
             for (var diff : set.difficulties()) {
                 var identity = DifficultyIdentity.of(set.id(),diff);
-                var score = identity == null ? null : store.best(identity);
+                var score = identity == null ? null : store.best(BeatmapContentKey.of(diff));
                 if (score != null) best.put(diff,score);
             }
             entries.put(set,new Entry(!best.isEmpty(),best));

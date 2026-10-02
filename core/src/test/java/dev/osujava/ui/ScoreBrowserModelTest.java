@@ -7,6 +7,21 @@ import org.junit.jupiter.params.provider.*;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 class ScoreBrowserModelTest {
+    @Test void contentChangeAtSameLocationResetsSelectionAndSeparatesUnverifiedLegacyRows() {
+        var identity = new DifficultyIdentity("set","map.osu");
+        var key = new dev.osujava.beatmap.BeatmapContentKey("a".repeat(64),0);
+        var legacy = new LocalScore(UUID.randomUUID(),identity,0,new ScoreState(999,0,1,1,0,0,0,1));
+        var confirmed = new LocalScore(UUID.randomUUID(),identity,0,new ScoreState(1,0,1,1,0,0,0,1),
+                new ScoreDetails(ScoreDetails.SCORE_V1,key.sha256(),"",null,null,null,null,null,null,null,null));
+        store.save(legacy,GameplayRunMode.MANUAL); store.save(confirmed,GameplayRunMode.MANUAL);
+        scores.target(identity,key); assertEquals(confirmed,scores.rows().getFirst().score());
+        assertTrue(scores.rows().getFirst().verified()); assertFalse(scores.rows().get(1).verified());
+        scores.select(0); var rows = scores.rows(); scores.target(identity,key); assertSame(rows,scores.rows());
+        scores.target(identity,new dev.osujava.beatmap.BeatmapContentKey("b".repeat(64),0));
+        assertNull(scores.selected()); assertEquals(0,scores.first()); assertEquals(1,scores.rows().size());
+        assertEquals(legacy.result(),scores.open(0).score());
+        assertTrue(scores.rows().getFirst().date().contains("unverified"));
+    }
     private final LocalScoreStore store=new LocalScoreStore();
     private final ScoreBrowserModel scores=new ScoreBrowserModel(store);
     private void save(DifficultyIdentity target,long value) {

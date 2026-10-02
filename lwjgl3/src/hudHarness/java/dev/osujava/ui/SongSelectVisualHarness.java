@@ -652,7 +652,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 var diff = new BeatmapDifficulty(title,artist,mapper,version + (difficulty + 1),0,"","",DifficultySettings.defaults(),
                         List.of(new TimingPoint(0,browserScene ? 60000.0 / (80 + (i % 6) * 55) : 500,4,0,0,100,true,0)),
                         browserScene ? List.of(new dev.osujava.beatmap.HitObject(0,0,1000,dev.osujava.beatmap.HitObject.Type.CIRCLE,1,0),
-                                new dev.osujava.beatmap.HitObject(0,0,1000 + (i % 7 + 1) * 90000,dev.osujava.beatmap.HitObject.Type.CIRCLE,1,0)) : List.of(),null,image);
+                                new dev.osujava.beatmap.HitObject(0,0,1000 + (i % 7 + 1) * 90000,dev.osujava.beatmap.HitObject.Type.CIRCLE,1,0)) : List.of(),null,image,null,-1,
+                        new dev.osujava.beatmap.BeatmapPlayData(List.of(),0,String.format("%064x",i*512L+difficulty+1),""));
                 if (scene.name.startsWith("phase4") || scene.name.startsWith("phase5a")) diff = diff.withAssets(null, image, output.resolve("maps/set" + i + "/難易度" + difficulty + ".osu"));
                 diffs.add(diff);
                 double rating = switch (scene.name) {
@@ -1184,9 +1185,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
         }
     }
+    private dev.osujava.score.ScoreDetails scoreDetails(BeatmapDifficulty diff) {
+        // Synthetic fixture content, not production rating/status data.
+        return new dev.osujava.score.ScoreDetails("osujava-legacy-1",diff.playData().sha256(),"",
+                null,null,null,null,null,null,null,null);
+    }
     private void savePlayed(dev.osujava.score.LocalScoreStore store, BeatmapSet set, int difficulty) {
         store.save(new dev.osujava.score.LocalScore(UUID.randomUUID(),dev.osujava.score.DifficultyIdentity.of(set.id(),set.difficulties().get(difficulty)),
-                1_790_467_200_000L,new dev.osujava.gameplay.ScoreState(123456,0,100,100,0,0,0,1)),dev.osujava.gameplay.GameplayRunMode.MANUAL);
+                1_790_467_200_000L,new dev.osujava.gameplay.ScoreState(123456,0,100,100,0,0,0,1),
+                scoreDetails(set.difficulties().get(difficulty))),dev.osujava.gameplay.GameplayRunMode.MANUAL);
     }
     private void exerciseLifecycle(SongSelectScreen screen, Scene scene, InputProcessor input,
             int[] pointer, boolean[] clicked, boolean[] pressed, UiLayout layout, FrameBuffer fb, String name) {
@@ -2093,12 +2100,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             } else if (count>100) tracker.recordBonusScore(i * 100000L);
             var identity = dev.osujava.score.DifficultyIdentity.of(set.id(),set.difficulties().get(1));
             store.save(new dev.osujava.score.LocalScore(new UUID(0,i+1),identity,1_790_467_200_000L + i * 60000L,
-                    tracker.snapshot()),dev.osujava.gameplay.GameplayRunMode.MANUAL);
+                    tracker.snapshot(),scoreDetails(set.difficulties().get(1))),dev.osujava.gameplay.GameplayRunMode.MANUAL);
         }
         if (!name.equals("phase4-empty") && !name.startsWith("phase4-large")) {
             var identity = dev.osujava.score.DifficultyIdentity.of(set.id(),set.difficulties().get(2));
             store.save(new dev.osujava.score.LocalScore(new UUID(1,1),identity,1_790_467_200_000L,
-                    new dev.osujava.gameplay.ScoreState(30000,100,100,100,0,0,0,1)),dev.osujava.gameplay.GameplayRunMode.MANUAL);
+                    new dev.osujava.gameplay.ScoreState(30000,100,100,100,0,0,0,1),
+                    scoreDetails(set.difficulties().get(2))),dev.osujava.gameplay.GameplayRunMode.MANUAL);
         }
     }
     private ScoreBrowserModel scoreBrowser(SongSelectScreen screen) {

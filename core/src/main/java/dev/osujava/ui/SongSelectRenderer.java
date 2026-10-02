@@ -365,7 +365,8 @@ final class SongSelectRenderer {
     private void drawRanking(UiLayout layout) {
         var bounds = frame.scoreBounds;
         view.textSmooth("Local Rankings", 28, frame.chromeContent.rankingHeaderTop() - 17, bounds.width() - 20, .96f, UiTheme.TEXT);
-        view.textSmooth(frame.scores.rows().isEmpty() ? "Local records" : "Personal Best  ·  " + frame.scores.rows().getFirst().value()
+        view.textSmooth(frame.scores.rows().isEmpty() ? "Local records" : !frame.scores.rows().getFirst().verified()
+                ? "Legacy records · chart content unverified" : "Personal Best  ·  " + frame.scores.rows().getFirst().value()
                 + "  ·  " + frame.scores.rows().getFirst().accuracy(), 28,
                 frame.chromeContent.rankingHeaderTop() - 46, bounds.width() - 20, .64f, UiTheme.MUTED);
         if (frame.scores.rows().isEmpty()) {
@@ -392,7 +393,7 @@ final class SongSelectRenderer {
         for (int slot = 0; slot < bounds.capacity() && frame.scores.first() + slot < frame.scores.rows().size(); slot++) {
             var row = frame.scores.rows().get(frame.scores.first() + slot);
             float y = bounds.rowY(slot), x = bounds.x();
-            view.textCenteredVertically(Integer.toString(frame.scores.first() + slot + 1),
+            view.textCenteredVertically(row.verified() ? Integer.toString(frame.scores.first() + slot + 1) : "—",
                     x + 4 * scale, y + bounds.rowHeight() / 2, 22 * scale, .62f * scale, UiTheme.TEXT, false);
             rowRenderer.drawGrade(row.score().grade(), x + 28 * scale, y + 5 * scale,
                     32 * scale, 35 * scale, UiTheme.TEXT, UiTheme.TEXT);

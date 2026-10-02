@@ -14,13 +14,14 @@ class SongSelectScoreSnapshotTest {
     @TempDir Path root;
     private BeatmapSet set(String id) {
         var diffs = List.of("Easy","Hard").stream().map(name -> new BeatmapDifficulty(id,"Artist","Mapper",name,0,
-                "","",DifficultySettings.defaults(),List.of(),List.of(),null,null)
-                .withAssets(null,null,Path.of("maps",id,name+".osu"))).toList();
+                "","",DifficultySettings.defaults(),List.of(),List.of(),null,null,Path.of("maps",id,name+".osu"),-1,
+                new BeatmapPlayData(List.of(),0,String.format("%064x",Integer.toUnsignedLong(java.util.Objects.hash(id,name))),""))).toList();
         return new BeatmapSet(id,id,"Artist","Mapper",null,null,diffs,List.of());
     }
     private LocalScore score(BeatmapSet set, int difficulty, long value) {
         return new LocalScore(UUID.randomUUID(),DifficultyIdentity.of(set.id(),set.difficulties().get(difficulty)),0,
-                new ScoreState(value,0,10,10,0,0,0,1));
+                new ScoreState(value,0,10,10,0,0,0,1),new ScoreDetails(ScoreDetails.SCORE_V1,
+                set.difficulties().get(difficulty).playData().sha256(),"",null,null,null,null,null,null,null,null));
     }
     @Test void oneCompletedDifficultyMarksOnlyItsSetAndDifficultyPlayed() {
         var a = set("a"); var b = set("b"); var sets = List.of(a,b);
@@ -54,6 +55,16 @@ class SongSelectScoreSnapshotTest {
         var unknown = new LocalScore(UUID.randomUUID(),new DifficultyIdentity("a","deleted.osu"),0,new ScoreState(0,0,0,0,0,0,0,1));
         store.save(unknown,GameplayRunMode.MANUAL); snapshot.refresh(List.of(set));
         assertFalse(snapshot.played(set)); assertNull(snapshot.best(set,set.difficulties().getFirst()));
+    }
+    @Test void hashlessLegacyScoreRemainsBrowsableWithoutMarkingCurrentContentPlayed() {
+        var set = set("a"); var store = new LocalScoreStore();
+        var diff = set.difficulties().getFirst(); var location = DifficultyIdentity.of(set.id(),diff);
+        var legacy = new LocalScore(UUID.randomUUID(),location,0,new ScoreState(100,0,1,1,0,0,0,1));
+        store.save(legacy,GameplayRunMode.MANUAL);
+        var snapshot = new SongSelectScoreSnapshot(store); snapshot.refresh(List.of(set));
+        assertFalse(snapshot.played(set)); assertNull(snapshot.best(set,diff));
+        var browser = new ScoreBrowserModel(store); browser.target(location,BeatmapContentKey.of(diff));
+        assertEquals(legacy,browser.rows().getFirst().score()); assertFalse(browser.rows().getFirst().verified());
     }
     @Test void selectionHierarchyAlwaysWinsOverPlayedState() {
         for (boolean played : new boolean[]{false,true}) {

@@ -19,6 +19,7 @@ public record ScoreDetails(String scoringVersion, String beatmapSha256, String b
 
     public ScoreDetails {
         if (scoringVersion == null || scoringVersion.isBlank() || beatmapSha256 == null || beatmapMd5 == null
+                || !beatmapSha256.matches("(?:[0-9a-f]{64})?") || !beatmapMd5.matches("(?:[0-9a-f]{32})?")
                 || geki != null && geki < 0 || katu != null && katu < 0 || possibleCombo != null && possibleCombo < 0)
             throw new IllegalArgumentException("Invalid score details");
         health = health == null ? null : List.copyOf(health);

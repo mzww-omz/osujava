@@ -2,6 +2,7 @@ package dev.osujava.score;
 
 import dev.osujava.gameplay.GameplayRunMode;
 import dev.osujava.gameplay.ScoreState;
+import dev.osujava.beatmap.BeatmapContentKey;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -14,6 +15,8 @@ public final class LocalScoreStore {
     private final Path directory;
     private final Map<UUID, LocalScore> plays = new HashMap<>();
     private final Map<DifficultyIdentity, List<LocalScore>> scores = new HashMap<>();
+    private final Map<String, List<LocalScore>> contentScores = new HashMap<>();
+    private final Map<DifficultyIdentity, List<LocalScore>> legacyScores = new HashMap<>();
     private Status status = Status.READY;
     private long revision;
     /** In-memory store for explicit fixtures and GL-free screen tests. */
@@ -22,6 +25,14 @@ public final class LocalScoreStore {
     public Status status() { return status; }
     public long revision() { return revision; }
     public List<LocalScore> query(DifficultyIdentity identity) { return scores.getOrDefault(identity, List.of()); }
+    /** Raw .osu bytes include mode; schema 2 scores already retain this exact digest. */
+    public List<LocalScore> query(BeatmapContentKey content) {
+        return content == null ? List.of() : contentScores.getOrDefault(content.sha256(), List.of());
+    }
+    public List<LocalScore> legacy(DifficultyIdentity location) { return legacyScores.getOrDefault(location, List.of()); }
+    public LocalScore best(BeatmapContentKey content) {
+        var list = query(content); return list.isEmpty() ? null : list.getFirst();
+    }
     public LocalScore best(DifficultyIdentity identity) {
         var list = query(identity); return list.isEmpty() ? null : list.getFirst();
     }
@@ -52,6 +63,14 @@ public final class LocalScoreStore {
         plays.put(score.playId(), score);
         var list = new ArrayList<>(query(score.difficulty())); list.add(score); list.sort(LocalScore.ORDER);
         scores.put(score.difficulty(), List.copyOf(list)); revision++;
+        if (score.details().beatmapSha256().isEmpty()) {
+            var legacy = new ArrayList<>(legacy(score.difficulty())); legacy.add(score); legacy.sort(LocalScore.ORDER);
+            legacyScores.put(score.difficulty(), List.copyOf(legacy));
+        } else {
+            String hash = score.details().beatmapSha256();
+            var content = new ArrayList<>(contentScores.getOrDefault(hash, List.of())); content.add(score); content.sort(LocalScore.ORDER);
+            contentScores.put(hash, List.copyOf(content));
+        }
     }
     private void load() {
         if (Files.notExists(directory)) return;

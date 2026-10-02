@@ -87,6 +87,21 @@ class SongSelectNavigationTest {
     }
     private final java.util.Set<Integer> heldKeys = new java.util.HashSet<>();
 
+    @Test void libraryReplacementIsPublishedOnceWithoutAnImportCallback() throws Exception {
+        open("Beta",0); screen.resize(1280,720); settle();
+        var before = (SongBrowserModel)field("browser"); var source = field("librarySource");
+        var previous = before.selectedSet();
+        var replacement = new BeatmapSet(previous.id(),"Replacement",previous.artist(),previous.creator(),
+                previous.audioPath(),previous.backgroundPath(),previous.difficulties(),previous.assets());
+        library.add(replacement); updatePointer(1280,720,.016f);
+        assertSame(replacement,((SongBrowserModel)field("browser")).selectedSet());
+        assertNotSame(source,field("librarySource"));
+        assertSame(library.all(),field("librarySource"));
+        var published = field("librarySource"); var rows = ((SongBrowserModel)field("browser")).rows();
+        for (int frame=0;frame<60;frame++) updatePointer(1280,720,.016f);
+        assertSame(published,field("librarySource")); assertSame(rows,((SongBrowserModel)field("browser")).rows());
+    }
+
     @BeforeEach void setup() {
         oldInput = Gdx.input;
         Gdx.input = (Input) Proxy.newProxyInstance(Input.class.getClassLoader(),new Class[]{Input.class},(p,m,a) -> switch(m.getName()) {
