@@ -13,6 +13,22 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SongSelectNavigationTest {
+    @Test void confirmingFocusedGroupWithArrowRefreshesCarouselWithoutChangingPlayableSelection() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720);
+        screen.browserMode(SongBrowserModel.Sort.TITLE, SongBrowserModel.Group.CREATOR);
+        var browser = (SongBrowserModel) field("browser");
+        var selection = browser.selection();
+        shift = true; key(Input.Keys.ENTER); shift = false; // Close selected difficulty's parent.
+        assertEquals(1, carousel().rows().size());
+        key(Input.Keys.UP); // Focus the only group without changing the playable selection.
+        assertNotNull(browser.focusKey());
+        assertTrue(browser.row(browser.focusKey()).group());
+        key(Input.Keys.RIGHT); // moveSet confirms focus; selectedSet is unchanged.
+        assertEquals(selection, browser.selection());
+        assertEquals(5, carousel().rows().size()); // Header, selected family's two difficulties, two representatives.
+        assertTrue(carousel().allRows().stream().anyMatch(r -> r.entry.key().equals(browser.selectedKey()) && r.entry.visible()));
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
     private Input oldInput;
     private InputProcessor processor;
     private final BeatmapLibrary library = new BeatmapLibrary();

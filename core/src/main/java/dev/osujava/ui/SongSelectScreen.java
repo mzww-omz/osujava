@@ -79,6 +79,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final SongSelectScoreSnapshot scoreSnapshot;
     private final SongBrowserControls controls = new SongBrowserControls();
     private List<SongBrowserModel.Row> browserRows = List.of();
+    private List<SongBrowserModel.Entry> browserEntries = List.of();
     private Map<String, String> groupLabels = Map.of();
     // Transient display indices only; browser identities are authoritative.
     private List<BeatmapSet> sets;
@@ -561,7 +562,8 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void updateContent(UiLayout layout) {
         float height = SongSelectMetrics.rowHeight(layout.height());
         float viewportHeight = top - bottom;
-        if (contentDirty || browserRows != browser.rows() || contentWidth != layout.width() || contentViewportHeight != viewportHeight || contentRowHeight != height) {
+        if (contentDirty || browserRows != browser.rows() || browserEntries != browser.entries()
+                || contentWidth != layout.width() || contentViewportHeight != viewportHeight || contentRowHeight != height) {
             List<SongSelectCarousel.Entry> entries = new ArrayList<>();
             Map<String, String> labels = new java.util.HashMap<>();
             Map<String, Integer> indices = new java.util.HashMap<>();
@@ -580,6 +582,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             }
             groupLabels = Map.copyOf(labels);
             browserRows = browser.rows();
+            browserEntries = browser.entries();
             carousel.content(entries, viewportHeight, height, SongSelectMetrics.rowPitch(layout.height()),
                     selectedRowKey(), layout.height(), top);
             contentDirty = false;
