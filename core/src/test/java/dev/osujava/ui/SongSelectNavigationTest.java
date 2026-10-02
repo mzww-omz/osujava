@@ -102,6 +102,23 @@ class SongSelectNavigationTest {
         assertSame(published,field("librarySource")); assertSame(rows,((SongBrowserModel)field("browser")).rows());
     }
 
+    @Test void libraryReplacementCancelsCapturedRowUntilAFreshPress() throws Exception {
+        open("Beta",0); screen.resize(1280,720); settle(); pointAtRow(1,0);
+        pointerPressed = pointerClicked = true; updatePointer(1280,720,.016f);
+        assertNotNull(((SongSelectInputController)field("input")).pressedKey());
+        var previous = library.all().get(1);
+        library.add(new BeatmapSet(previous.id(),previous.title()+" revised",previous.artist(),previous.creator(),
+                previous.audioPath(),previous.backgroundPath(),previous.difficulties(),previous.assets()));
+        pointerClicked = false; updatePointer(1280,720,.016f);
+        assertNull(((SongSelectInputController)field("input")).pressedKey());
+        pointerPressed = false; updatePointer(1280,720,.016f);
+        assertFalse(((UiNavigation)field("outgoing")).pending(),"Release must not play the replacement chart");
+        settle(); pointAtRow(1,0);
+        pointerPressed = pointerClicked = true; updatePointer(1280,720,.016f);
+        pointerPressed = pointerClicked = false; updatePointer(1280,720,.016f);
+        assertTrue(((UiNavigation)field("outgoing")).pending(),"A fresh click must still work");
+    }
+
     @BeforeEach void setup() {
         oldInput = Gdx.input;
         Gdx.input = (Input) Proxy.newProxyInstance(Input.class.getClassLoader(),new Class[]{Input.class},(p,m,a) -> switch(m.getName()) {

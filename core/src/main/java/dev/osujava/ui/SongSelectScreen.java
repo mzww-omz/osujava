@@ -338,7 +338,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         var source = game.library().all();
         if (!importing && source != librarySource) {
             librarySource = source;
-            scoreScroll.cancel();
+            cancelInput();
             browser.library(source);
             syncBrowser(true);
         }
