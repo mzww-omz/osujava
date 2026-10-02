@@ -47,7 +47,9 @@ barの完全な寸法・色・animation・dispatcher順と一致したとの主�
 優先度はSong Selectの違和感・入力影響順。確認できない仕様は計測を先に行う。
 backend依存の項目をUIだけ有効にしない。他mode Gameplay等の全実装へ作業範囲を拡大しない。
 R06/R07/R08の実装順・保存互換・受入条件は
-[ローカルbackend改善計画](songselect-backend-improvement-plan-20261002.md)を参照。計画段階であり実装済みではない。
+[ローカルbackend改善計画](songselect-backend-improvement-plan-20261002.md)を参照。
+B01/B02（内容照合・更新通知・score schema 3・play context）は実装済み。
+検証と後続の具体的作業は[backend実装進捗](songselect-backend-progress-20261002.md)を参照。
 
 | ID / 優先度 / 分類 | 現在の差異・根拠 | 次の具体的作業と終了判定 |
 | --- | --- | --- |
@@ -58,7 +60,7 @@ R06/R07/R08の実装順・保存互換・受入条件は
 | R05 / P1 / 追加観測 | metadata typography/font metrics、全frame合成。AWTとnative GDIの差、独自5行構成、Greylooks fallbackと公式defaultの差 | 再配布可能な同一font/skinでLatin/CJK/結合文字・長文を720/800/768高で比較。baseline・省略・影・originを測定して調整。公式素材の抽出で埋めない |
 | R06 / P1 / backend依存 | production star rating sourceと本当のranked statusがない。星描画/animationは実装済みでfixture ratingを表示可能 | 信頼できる独立ローカルdifficulty計算をcacheとして供給。ranked statusは実metadata sourceがある場合のみ接続。Settingsから偽rating/statusを作らない |
 | R07 / P1 / backend依存 | 通常Mods/他mode/Options、Difficulty/Recently Played/Collections tabに実機能がない | 既存capability境界を維持。local schema・collection・rating・rulesetの対応後に各UIへ接続し、filter/selection/score identityの回帰を確認 |
-| R08 / P2 / 観測・backend依存 | score native座標/grade配置/managerの全比較、player/mods/replay未保存。thumb dragは今回接続済みだがbarのnative形状・連続scroll・track操作は未確定 | score専用native managerを0/1/多数/選択/hoverで比較。必要ならlocal schemaに実データを保存してから表示。carousel barとscore barを分けて寸法/hit/scrollを検証。旧V17/V18 |
+| R08 / P2 / 観測・backend依存 | 新規scoreのplayer/Mods/rulesetをschema 3へ保存しranking/Resultsへ接続済み。現GameplayはNMのみ、旧scoreの未収集情報はunknown。replay、score native座標/grade配置/managerの全比較、barのnative形状・連続scroll・track操作は未完了 | score専用native managerを0/1/多数/選択/hoverで比較。通常ModsはB07、実replayはB08で収集後に接続。carousel barとscore barを分けて寸法/hit/scrollを検証。旧V17/V18 |
 | R09 / P2 / 追加観測 | 同frameの選曲/音声更新と、失敗音源の選択変更時のみ1回再試行を修復済み。同一audio pathの健康なstreamは継続。別PreviewTime、未指定seek=0、loop/focus/Gameplay復帰のnative契約は未確定 | 同一音源で別PreviewTime、失敗後再選択、focus/minimize、Gameplay短時間往復を観測。位置・再生/停止・fade・再試行をfake Music testへ落とす。旧T01/T02 |
 | R10 / P2 / layout方針 | chromeの安全上限とrow scissorはnativeとの差。極端なportraitではscore幅0で非表示になる | 正常skinのnative clipと巨大/異常skinの安全方針を区別。portraitを対応対象にする場合は専用レイアウト方針とresize回帰を追加 |
 | R11 / P2 / 素材・追加観測 | CookieはJava素材。拍/粒子・hover/入退場clockは近似 | 独自素材を維持し、音声position/frame固定の自作fixtureで位相・半径・fade・layer順を比較。公式素材の再配布は行わない |
@@ -72,14 +74,16 @@ R03は共通resolverへの影響が広いため、option/display/reloadの未確
 
 [全面棚卸し](songselect-full-audit-20261002.md#skin-asset棚卸し)の48画像・12音声の分類を継続。
 新たな画像loadや削除はない。ranking barはproceduralの既存要素を入力へ接続した。
-online/replay/player/score Mods/silver gradeは実データ・機能がないため意図的に未接続。
+online/replay/silver gradeは実データ・機能がないため意図的に未接続。
+新規scoreの明示local playerと既知NMはB02で文字表示へ接続。通常Modsの効果・iconはB07まで未接続。
 `star2`の透明fallback、独自mode glyph、missing grade/star/chrome fallbackを維持。
 旧body scan等のobsolete削除は前回対応済み。今回、Backのalpha map/getter/連番ごとのPixmap再decodeを削除。
 Selectionのalpha範囲は画像診断に使用するがinputには使用しない。画像・音の使用分類は維持する。
 
 ## 最新の検証・commit
 
-[解消可能な差の修復](songselect-actionable-differences-20261002.md)に最新build・GL harness・commitを記録。
+[backend実装進捗](songselect-backend-progress-20261002.md)に最新build・GL harness・commitを記録。
+[解消可能な差の修復](songselect-actionable-differences-20261002.md)はその直前のUI修復記録。
 下記は前回修復の検証履歴であり、現在の総test数ではない。
 
 ## 前回の検証・変更
