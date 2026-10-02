@@ -10,7 +10,7 @@ phase 7以降の番号はphase 6時点で付与した実装単位で、当初か
 phaseの実装完了と実機の1:1合格は別に管理し、行内compositionの完了を画面全体へ拡張しない。
 [実装計画](songselect-one-to-one-implementation-plan-20261002.md)に、分類修正からビジュアル優先で進む順序、変更単位、依存、検証先を記載した。
 
-**phase 10を進める。難易度検索とmetadata保持に続き、BPM／length／drain／mode検索と詳細欄の時間統計を対応した。次はSort／Groupの分類条件と残りの検索fieldへ進む。** ユーザーの進行方針に従い、8bの未完了項目は後段へ繰り越す。
+**phase 10を進める。難易度検索・時間統計に続き、難易度単位のSort／Group、最大BPM／Library終端整数秒、分類境界、複数Group所属、代表行activation、難易度metadataによる文字Sortと表示内容を対応した。次はculture／tie-break、family identity／選択規則と残りの検索fieldを閉じる。** ユーザーの進行方針に従い、8bの未完了項目は後段へ繰り越す。
 8bを完了扱いにはしないが、そこに留まって追加調査を続けることをphase 9以降の前提にはしない。
 
 ## 完了した実装範囲
@@ -34,7 +34,9 @@ phaseの実装完了と実機の1:1合格は別に管理し、行内composition�
 - [phase 9のcomposition](songselect-parity-phase9-composition-20260929.md): 毎frameの描画list再構築に合わせ、collapseした星とhidden／非resident行を即時に描画対象から外す。選択行の最前面化を除去し、Browser順・行内sprite順・通常alpha合成・画面全体の描画範囲を対応。Group文字の中央左origin／公称24も反映。991 tests / Gradle build、36 scenes / 300 PNG成功。phase 9の実装単位を閉じる。
 
 - [phase 10の検索・metadata](songselect-parity-phase10-search-20260929.md): Tags／Source／Unicode／正の譜面IDをImportから永続化・検索まで保持。schema 1は保存済み`.osu`から補完する。難易度単位のAND検索、引用、文字field、AR/CS/OD/HP比較、代表行・singleton・Group件数・選択経路を対応。1,076 tests / Gradle build、8 scenes / 120 PNG成功。phase 10全体は継続中。
-- [phase 10の時間統計・mode](songselect-parity-phase10-timing-20260929.md): BPM／length／drain／mode検索を追加。Library用終端・休憩・主なBPMをImport／再読込で保持し、Gameplayの時間計算から分離した。詳細欄のLength・変速BPM表示も修正。1,138 tests / Gradle build、8 scenes / 192 PNG成功。Sort／Groupの分類修正は次の対象。
+- [phase 10の時間統計・mode](songselect-parity-phase10-timing-20260929.md): BPM／length／drain／mode検索を追加。Library用終端・休憩・主なBPMをImport／再読込で保持し、Gameplayの時間計算から分離した。詳細欄のLength・変速BPM表示も修正。1,138 tests / Gradle build、8 scenes / 192 PNG成功。Sort／Groupの分類修正は以下の2026-10-02実装で対応した。
+
+- [1〜6の実装進捗](songselect-parity-implementation-progress-20261002.md): phase 10の分類に加え、Back重なり、整数HDとUV crop、静的画像decode失敗、top延長、通常Playのtab、Back epoch／異寸法更新を先行対応。段階6のfont・機能・音声・遷移は調査結果と未解消依存を記録。core 1,227＋desktop 4 tests、30＋28 scenes、Gradle build成功。
 
 これは各phaseで閉じた静的契約とJava側検証の範囲を示す。実機を含む全画面の1:1一致が完了したという意味ではない。
 
@@ -43,9 +45,9 @@ phaseの実装完了と実機の1:1合格は別に管理し、行内composition�
 | Phase | 対象 | 主な作業と完了条件 |
 | --- | --- | --- |
 | **8b（後段へ繰越）** | 入力判定・dispatcherの残り | native background spriteのhitbox/丸め/clip・depthとhover候補の優先・alpha条件（描画はBrowser順へ修正済みだが、既存のselected優先body hitは近似のまま）、初回key callbackとwheelの順序・同時key snapshot、global polling/画面/focus境界での入力状態継承・mouse代替等。保持repeat、左右併用・右行context要求、画面内のdouble-click分類、wheel集約と保持repeat/mouseより先の通知は実装済み。独自play guardは除去済み。初回keyと修飾キー/overlayの同時更新順は未完了。Options等のdialog実機能はphase 13、検索編集repeat/IMEはphase 10と照合する。8aのpointer契約も実装済み。Song Selectのdrag-out先は空callbackと確認済み。同一入力列のfocus/selection/play requestと時刻を比較する。 |
-| **10（進行中）** | Browserデータ・検索・分類 | 次はSort／Groupの分類条件（BPM Sortは検索と異なる最大値、Lengthは整数秒、Groupは難易度ごとの区分）と残りの検索field。stars/key/status/played/unplayed/speed、modeの追加alias／conversion、日付・rank・collection/favourite、近い難易度を選ぶ規則、metadata/score。検索待機・選択修復・Regex境界・culture・IMEも残る。Tags/Source/Unicode/正のID保持、難易度単位のAND、引用・文字field・AR/CS/OD/HP/BPM/length/drainと公開mode名称の比較、行再構築は対応済み。オンライン未取得値を捏造せず、評価互換はRuleset側の依存として追跡する。 |
-| **11** | フォント・画面構成 | GDI系文字測定とJavaの字幅/baseline/省略/Unicode fallback、DPI・丸め・影。chrome予約/延長、search/tab/metadata/score/Mode/Mods/Options/Back/Cookie/scrollbarのdepth・clip・hitを揃える。診断UIと通常画面を区別し、フォント差を全面maskして合格にしない。backendの大変更は実測が必要性を示した場合だけ行う。 |
-| **12** | **Skin独立対応の残り** | HD eligibility、missingとdecode failure、許可mask/RawName等、部品ごとの探索、Back二層・frame/clock/hit、cursor/trailのproviderと設定owner、音のalias/provider/形式、Skin/HD切替時のcacheと破棄。自作画像・音のfixtureで選択ファイル/設定/draw/hit/frameを比較し、共有Skin変更はGameplay回帰も検証する。 |
+| **10（進行中）** | Browserデータ・検索・分類 | Sort／Groupの難易度単位分類は対応済み。culture／tie-break、family identity／選択規則と残りの検索fieldを閉じる。stars/key/status/played/unplayed/speed、modeの追加alias／conversion、日付・rank・collection/favourite、近い難易度を選ぶ規則、metadata/score。検索待機・選択修復・Regex境界・culture・IMEも残る。Tags/Source/Unicode/正のID保持、難易度単位のAND、引用・文字field・AR/CS/OD/HP/BPM/length/drainと公開mode名称の比較、行再構築は対応済み。オンライン未取得値を捏造せず、評価互換はRuleset側の依存として追跡する。 |
+| **11** | フォント・画面構成 | GDI系文字測定とJavaの字幅/baseline/省略/Unicode fallback、DPI・丸め・影。top延長gate/crop、通常Play tab構成、metadata内容、Back→selectionは先行対応済み。chrome予約、search/tab/metadata/score/Mode/Mods/Options/Back/Cookie/scrollbarの残る配置・depth・clip・hitを揃える。診断UIと通常画面を区別し、フォント差を全面maskして合格にしない。backendの大変更は実測が必要性を示した場合だけ行う。 |
+| **12** | **Skin独立対応の残り** | 静的画像の存在decode失敗で停止、整数logical寸法/UV crop、Back二層・初回epoch・異寸法更新は先行対応済み。HD eligibility、Back連番探索、許可mask/RawName等、部品ごとの探索、Backの全clock寿命/最終hit、cursor/trailのproviderと設定owner、音のalias/provider/形式、Skin/HD切替時のcacheと破棄。自作画像・音のfixtureで選択ファイル/設定/draw/hit/frameを比較し、共有Skin変更はGameplay回帰も検証する。 |
 | **13** | 音声・背景・遷移・機能依存 | previewの選択/seek/fade/loop/clock、同音源別難易度、選択連打、非同期ロード順、背景・拍・入退場、Gameplay復帰。Skinは音源解決、画面は発音時刻を担当する。Options/Mods/Mode/score/replay/collection/editorについて表示・操作・遷移先の実機能を区別し、必要なローカル依存を別変更単位で実装する。ボタン表示だけを機能完了としない。他ruleset Gameplay全実装は自動的に含めない。 |
 | **14** | stable実機との総合比較 | ネットワーク遮断下で正常起動できるb20230727.9と、同じ譜面/Skin/音/font/設定/入力列を比較。状態、geometry/time、pixel/audioの三層で合格判定する。差分を根拠付きで修正し、残差と条件を明記する。公式asset抽出・保護回避は行わない。 |
 

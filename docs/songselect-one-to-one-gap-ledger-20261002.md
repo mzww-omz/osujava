@@ -9,7 +9,9 @@ Bancho等への接続は対象外とし、オンライン未取得値を作ら�
 他rulesetのGameplay全実装はこの調査の範囲へ自動的には追加しないが、Mode変更で生じる
 Song Selectの表示・検索・操作の差は機能依存として残す。
 
-Java基準commitは`ee065543d744cbe15fcf27923b5de0e9b5f85bff`。
+初稿のJava基準commitは`ee065543d744cbe15fcf27923b5de0e9b5f85bff`。
+ユーザー指定の1〜6を進めた現在の変更・検証・commitは[1〜6の実装進捗](songselect-parity-implementation-progress-20261002.md)を参照。
+下表は今回の実装を反映し、元の画像・数値は初稿commit時点の比較として扱う。
 stableは`/home/coder/workspace/b20230727.9/osu!.exe`、SHA-256は
 `bfa4ad675cdcd773b7b1c899e0a5e193d05d055d93e001271f06756c8185a28a`。
 [IL tool](../tools/stable_results_inspect.py)、dnfile 0.18.0／dncil 1.0.2を使用。
@@ -36,62 +38,56 @@ Quota懸念を受け、今回もWine等の起動検証は行っていない。
 
 | ID / 判定 | stableに対するJavaの差／不足 | 1:1の受入条件 |
 | --- | --- | --- |
-| V01 / Java再現 | main manager内でBack .9/.91→selection .95/.96の順。Javaはselection→Cookie→Backなので巨大BackがMode/Modsを覆う | 同managerのdepth順を保ち、400×150のBackと不透明selectionが交差する画素を比較。Cookieや別managerの順は別途確定 |
-| V02 / Java再現 | nativeのdensity除算は整数。Javaの汎用geometryはfloatで、奇数HD selection185×181が92.5×90.5（native92×90） | 全部品の論理寸法・origin・crop・hitを追跡。星／mode／gradeの対応済みを他画像へ一般化しない |
-| V03 / Java再現 | top延長はnative display width>1366でcrop X1365の1列。Javaは短いtextureの最終列を任意の画面幅で延長 | 1365/1366/1367付近と短いtop、SD/HDを比較。nativeのcrop→UV変換まで閉じてから移植 |
+| V01 / 部分対応 | main manager内のBack .9/.91→selection .95/.96へ修正。自作の巨大Backで交差画素を検証済み。Cookie・別managerの全順は残る | 同一条件のnative画像で合成を比較。managerを跨ぐ順は別途確定 |
+| V02 / 部分対応 | Song Selectのdensity除算を整数化し、奇数HDの末端をUV crop。185×181は92×90、545×183は272×91へ修正。共有Gameplay寸法は維持 | 全部品のorigin・crop・hitとnative実画素を照合。整数寸法の成功を最終hitの一致へ一般化しない |
+| V03 / 部分対応 | display width>1366のgate、logical X1365の1列crop、UV・位置・scale・同depthの登録順を反映。短いtopの任意幅延長を除去 | 1365/1366/1367、短いtop、SD/HDのnative draw/clipを照合。予約高さはV04へ残す |
 | V04 / 差確定 | Javaのalpha scan、top40%/bottom30%上限、最低予約高さが配置・viewportを変える | 透明top・高さ600top・高さ400bottomで、各spriteと入力範囲のwindow geometryを比較。nativeで裏づけのない予約規則を互換仕様にしない |
-| V05 / 差確定 | JavaのOptions絵は機能未対応のためRGBを常時.54倍する | 同じ白い自作画像で通常/hover/押下の色とalphaを比較。機能依存と通常画像の合成差を分けて記録 |
-| V06 / 差確定 | bundled行背景＋暗い選択文字等の条件でJavaがalpha .86の白い補助矩形を描く | 対象条件で余分な矩形がないことを比較。可読性の独自補正をnativeの色契約へ混ぜない |
+| V05 / 部分対応 | Options normal絵の常時RGB .54倍を除去し、白い自作画像の画素を検証。操作機能は未対応 | 同一素材でnative通常/hover/押下の色とalphaを照合。機能依存はV21で管理 |
+| V06 / 部分対応 | bundled行に独自のalpha .86白矩形を重ねる処理を除去 | 対象条件でnativeの色・alpha合成を照合。可読性の独自補正を互換仕様へ混ぜない |
 | V07 / 差確定・未確定 | Javaのalpha>=16/160によるnormal/over範囲union、固定slotがhitを決める。native sprite寸法はalpha非依存だが最終dispatcherは未確定 | alpha0/15/16/159/160/255と600×350 overでhover候補、down対象、up結果を比較。透明画像の読み込み成功だけで合格にしない |
-| V08 / 差確定・未確定 | BackはJavaで描画frameだけ更新し、初回frameのlayout/hitを保持。nativeは寸法更新経路を持つが全寿命の抑止flagは未確定 | 連番ごとに異寸法・透明度を変え、frame番号とdraw/crop/hitを同時記録。nativeの画面生存中flagも確認 |
-| V09 / 差確定・未確定 | nativeはsprite初回updateを基準にするanimation経路。Javaは画面elapsedを使う | 入場後の遅延生成・再表示・Skin切替でepoch、fps、wrap、初回frameを比較。時計が違うことと実際のframe差を区別 |
+| V08 / 部分対応・未確定 | Backのframe別geometryを更新。nativeのbase更新→texture交換を保ち、新寸法は次updateでdraw/crop/hitへ反映。alpha推定・最終dispatcherは残る | 異寸法連番のframe・crop・hitをnativeと同時比較。画面境界の抑止flag寿命も確認 |
+| V09 / 部分対応・未確定 | Back専用の初回update epochとSingle除算interval、wrap・再生成を対応。正常画面内の更新をunit/GLで検証 | native時計のfocus/minimize/復帰継続性、normal/overの全寿命を確認。UI elapsedとの差を全条件で閉じる |
 | V10 / 差確定 | Java resolverは常にHD優先。nativeに800/capability/optionsによるHD eligibilityがある | HD/SDを異なる自作色にし、実際に選んだpath/densityを照合。未確定optionをJava window heightで代用しない |
-| V11 / 差確定 | nativeの存在HD decode失敗は単なる不存在とは別経路。JavaはSD／別providerへfallback | missing、壊れたHD、壊れたSDを区別し、選択pathと結果を記録。安全なエラー処理も維持 |
+| V11 / 部分対応 | Song Selectの静的画像は最初の存在ファイルのdecode失敗で探索停止。missingはfallback。Back連番のprovider探索は旧経路のまま | missing/壊れたHD/壊れたSD/連番の結果を別々に照合。Gameplay/Resultsの既存policyを誤変更しない |
 | V12 / 部分対応・未確定 | 部品の独立探索は対応済み。native mask/RawName/global例外、cursor設定owner等は残る | CUSTOM/FALLBACK/BUNDLEDを別色にし、画像・INI・音それぞれのownerを比較。Javaの任意fallback Skinをnative譜面providerと同一視しない |
 | V13 / 部分対応 | INIのcase/最初のキー/boolean/RGBA、cursor-middle同provider・trail独立は対応済み | 重複section、省略、読込失敗、Version切替、cursor/trail設定と音のaliasを追加照合。通常キーの成功でparser全体を完了にしない |
-| V14 / 差確定・未確定 | tabの数、登録カテゴリ、配置、クリックによる状態遷移の比較が不足。JavaはGroup enumを直接tabにする | 下記の幅境界・native登録値を比較。正式ラベルとカテゴリの意味は暗号化文字列を推定せず追加根拠で確定 |
-| V15 / 差確定・未確定 | native metadataには公称18/12/8と別depth/位置がある。Javaは独自の5行・bold/scale/幅制限 | title/mapper/時間/統計/評価文字列の内容、baseline、折返し、省略、影、色を項目別比較。native origin変換を閉じてから座標を変更 |
+| V14 / 部分対応・機能依存 | 通常SelectPlayの5/6 tab、カテゴリidentity、Artist/CreatorのSort連動を対応。未対応カテゴリは案内を出し別Groupへ誤対応しない | 下記の幅境界とnative登録値を比較。tab配置・animation・localized表示、Difficulty/Recent/Collectionsの機能が残る |
+| V15 / 部分対応・未確定 | titleと行title/bylineを選択・代表難易度のmetadataへ修正。公称18/12/8、depth/位置、独自5行・bold/scale/幅制限は残る | 内容とbaseline・折返し・省略・影・色を項目別比較。origin変換を閉じてから座標を変更 |
 | V16 / 差確定・未確定 | native GDI系とJava AWT系の測定・描画差。Latin/CJK/結合文字等の最終pixelは未測定 | 同じ許可されたfontで字幅・baseline・glyph fallback・影・省略位置を測定。文字全領域のmaskで合格にしない |
 | V17 / 機能依存・未確定 | Java score欄はローカル独自の64高/68pitch・grade枠・情報配置。native score containerのclipは別の矩形 | 空/1件/多数、scroll端、score種別、replay有無で内容・draw/hit/clipを比較。native score用managerをcarouselと混同しない |
 | V18 / 差確定・未確定 | Java scrollbarは独自の幅5、最小thumb18等。nativeのどのbarと対応するかを分けて確定する必要 | carouselとscoreを別々に、0/少数/多数、端/中間位置でbar geometryとdrag操作を比較 |
 | V19 / 差確定・未確定 | Java Cookieは生成ロゴと独自のbeat/hover/pressed半径、bottom限定hit | 自作の許可素材でorigin、動く境界、重なり、click範囲を比較。公式ロゴ抽出で差を隠さない |
 | V20 / 未確定 | 背景の暗化・切替、粒子、拍同期、入退場の全native経路は閉じていない | 同一音源・背景、静止/選択変更/無音/連打でphase、fade曲線、合成順を比較。Javaの.22秒fade等は当面の値として扱う |
 | V21 / 差確定・機能依存 | Java Mode/Modsは独自の帯・tile・Unavailable表示。通常Modsはactive空、toggleはfalse。Optionsは案内のみ | native selectorのgeometry/時間/キー/close/状態適用を比較。実機能と外観を別の完了項目にする |
-| V22 / 差確定 | Import、local/debug案内等のJava独自表示が通常画面にもある | 通常の比較画面と診断表示を分け、比較画面の余分な文字・矩形を差として残す |
+| V22 / 部分対応 | local/debug案内をdebugUi設定に限定し、Options hoverの常設Unavailable文字を除去。Import・生成Cookie・未対応操作後の案内は残る | 通常比較画面の余分な文字・矩形とローカル機能の差を記録。診断表示を別条件として扱う |
 
-### 今回追加したtabの境界比較
+### 通常SelectPlayのtab構成と境界（実装後）
 
-`0600136e` `184d–193d`はtab manager `04000ae1`へ次の値を登録する。
-登録method `060042d5`は現在件数を使って`060042d6`へ追加する。
+`0600136e` `184d–193d`はmanager `04000ae1`へ値12、5、1、3、14を登録し、
+`06001dc9()>720`の場合だけ18を追加する。
+constructor `00a1–00b9`の`04000ac3/ac2`はglobal `040016f6`と5/13との比較。
+平文enum `02000b03 osu.OsuModes`の定数からSelectPlay=5、SelectMulti=13、SelectEdit=4を確認した。
+従って**通常SelectPlayは5/6個**。初稿で比較した双方flag=falseの4/5個はeditor等の別分岐である。
 
-- 最初にenum `020008b0`の値12（localization ID 751）。
-- flag `04000ac3`または`04000ac2`がtrueなら5、1（ID 756、752）。双方falseなら8（ID 765）。
-- 続いて3、14（ID 754、767）。
-- `06001dc9()>720`の場合だけ18（ID 762）を追加する。
-- flagsはconstructor `00a1–00b9`でglobal `040016f6`と5/13の比較から作る。
-  そのglobalの正式な状態名はここでは断定しない。
+平文`02000b0a osu_common.Helpers.OsuString`の定数から、localization ID 751/756/752/754/767/762は
+それぞれNoGrouping/ByDifficulty/ByArtist/ByCreator/RecentlyPlayed/Collectionsと確定した。
+暗号化文字列は復号していない。localized表示文字列そのものの一致は未認定。
+Javaはこの順の明示的Tabを使い、未実装カテゴリをBPM/Lengthへ誤対応しない。
+BPM/Lengthは現ローカルGroup dropdownで利用可能。dropdown全内容はnative未対応。
+click `0600138a→1384`のArtist/CreatorのSort連動を反映し、NoGroupingはSortを維持する。
 
 `06001dc9`は`ceil(displayWidth / (displayHeight / 480f))`。
-従って双方flag=falseの経路は4/5個、いずれかtrueの経路は5/6個になる。
-Java [SongBrowserControls](../core/src/main/java/dev/osujava/ui/SongBrowserControls.java)は
-幅/高さ<=4/3で4、それを超えると5。内容はAll/Artist/Creator/BPM/Length。
-native click handler `0600138a`は現在値`04000af2`と比較して`06001384`、`060013ac`へ渡す。
-Javaは直接`browser.group()`へ渡す。カテゴリの意味の対応表はまだ未完成であり、
-localization IDだけから正式ラベルを決めない。
 
-実際のJava `tabCount()`をGL不要の一時probeで呼び、native分岐をILのfloat計算で評価した。
-JavaのUiLayoutへの一様なscale変換はこの比率判定を変えない。
+| display W×H | native論理幅 | native追加Collections | native SelectPlay / Java修正後tab数 |
+| --- | --- | --- | --- |
+| 1024×768 | 640 | なし | 5 / 5 |
+| 1280×900 | 683 | なし | 5 / 5 |
+| 1152×768 | 720 | なし | 5 / 5 |
+| 1153×768 | 721 | あり | 6 / 6 |
+| 1366×768 | 854 | あり | 6 / 6 |
 
-| display W×H | Java tab数 | native論理幅 | native追加18 | native tab数（双方flag=false） |
-| --- | --- | --- | --- | --- |
-| 1024×768 | 4 | 640 | なし | 4 |
-| 1280×900 | 5 | 683 | なし | 4 |
-| 1152×768 | 5 | 720 | なし | 4 |
-| 1153×768 | 5 | 721 | あり | 5 |
-| 1366×768 | 5 | 854 | あり | 5 |
-
-これは登録数の静的比較。native最終描画時のclip・animation・表示状態や正式ラベルは未観測。
-16:9で数が一致するだけでは互換と判定できない。
+`SongSelectVisualComponentsTest`で数・identity・クリック・Sort連動・未対応案内を回帰検証した。
+native最終描画のclip・animation・カテゴリ機能は未完了であり、登録数の一致だけで合格にしない。
 
 ### depthはmanagerの境界も比較する
 
@@ -108,11 +104,11 @@ phase 9の「行内composition対応済み」は、画面全体の合成完了�
 
 | ID / 判定 | 比較結果と残る差 | 受入条件 |
 | --- | --- | --- |
-| D01 / 差確定 | Java Sort/GroupはSet集約。nativeは難易度側を分類。BPM Sortは検索用の主なBPMと別の最大値、Lengthは曲頭基準終端の整数秒 | 同Setの各難易度でBPM・長さを変え、検索後の順序、Group所属、代表行、family、選択修復を比較 |
-| D02 / 差確定 | Java BPM Groupは50刻み、Length Groupは2/4/6/10分。対象ILのBPM predicateは60刻み、Lengthは1/2/3/4/5/10分の経路 | 各境界の直前/一致/直後で所属と件数を照合。長い導入と同整数秒tieも含む |
+| D01 / 部分対応 | 難易度単位のSort/Group、最大BPM、Library終端整数秒、文字metadataへ修正。検索に合うchartからSetをprojection。culture/tie-breakとfamily identityは残る | 同Set異BPM/Length/metadata、部分検索、代表行、family、選択修復をnativeと比較 |
+| D02 / 部分対応 | BPM60刻み、Length1/2/3/4/5/10分境界へ修正。native predicateのちょうど300 BPMの未所属、負Lengthの除外も保持 | 各境界の直前/一致/直後で所属・件数・selectionを照合。Java unitだけでnative合格にしない |
 | D03 / 部分対応・機能依存 | 難易度AND検索、metadata、AR/CS/OD/HP/BPM/length/drain等は対応済み。stars/key/status/played/date/rank/collection等は残る | 各fieldの変換・丸め・culture・未知値・AND/引用を比較。未取得オンライン値を0で捏造しない |
 | D04 / 差確定・未確定 | Javaは即時rebuild。nativeに300ms待機経路。Regex境界・IME/culture・alias/conversionは未完了 | 編集時刻ごとの表示件数とselection、クリア・0件・再入力、IME確定を入力列で照合 |
-| D05 / 部分対応・未確定 | 永続行/状態/focus/代表行は対応済み。familyはlocal Set近似で、検索後に近い難易度を選ぶ全規則は未完了 | 同名/別Set/同Set複数Group・部分検索で行ID、focus ID、playable selection IDを別々に比較 |
+| D05 / 部分対応・未確定 | 同Set複数Group、連続familyの区切り、クリックした代表難易度のactivateを修正。family identityはlocal Set近似、近い難易度の全選択規則は未完了 | 同名/別Set/同Set複数Group・部分検索で行ID、focus ID、playable selection IDを別々に比較 |
 | I01 / 部分対応・未確定 | 行の参照座標/指数慣性/色/星/foregroundは各phaseで対応済み | nativeの同一入力列で全frameの位置・色・scale/cropを確認。Java snapshotだけで総合合格にしない |
 | I02 / 差確定・未確定 | Javaの行hitはselected優先と逆順。他のspriteと重なる場合のnative候補優先、alpha/clip/丸めは残る | 巨大行・透明行・重なり・画面端でdraw順とhit対象を別記録し、選択/開始/context結果を照合 |
 | I03 / 部分対応・未確定 | wheel集約/保持repeat/mouse snapshotは対応。初回key callbackはnativeと同じ更新順に閉じていない | 同frameのwheel+key+mouse、overlay開閉、修飾key、focus喪失/復帰で消費順と発火時刻を比較 |
@@ -155,12 +151,14 @@ pixelは同一の許可素材・font・設定が揃う領域で比較し、font�
 
 ビジュアル優先ではV01→V02/V10–13→V03/V04→V14/V15/V17/V18→V07–09→V16/V19–22。
 D01/D02は表示行を決める依存として並行して扱える。phase番号の既存の進行方針は
-[roadmap](songselect-parity-roadmap-20260929.md)を維持し、この調査で勝手に製品実装へ進まない。
+[roadmap](songselect-parity-roadmap-20260929.md)を維持する。
+ユーザーの1〜6の実装指示を受け、今回の確定契約を製品へ反映した。詳細は[1〜6の実装進捗](songselect-parity-implementation-progress-20261002.md)を参照。
 同じspriteの配置・hit・時間を別々の近似で直さず、確定した契約ごとに小さく実装する。
 
-今回の変更はこの比較台帳とroadmap参照の追加のみ。製品コード、既存テスト、binaryは変更していない。
+以下は台帳初稿追加時の検証記録。実装後の最新結果は[1〜6の実装進捗](songselect-parity-implementation-progress-20261002.md)を参照。
+初稿の変更はこの比較台帳とroadmap参照の追加のみ。製品コード、既存テスト、binaryは変更していない。
 新規IL調査は`0600136e/138a/13ae/13a3/1376/13b4`、`0600321a`、`060042d5`、`06001dc9`。
-tab probeは一時ファイルで実行し、上表のJava値を確認した。
+tab probeは一時ファイルで初稿Java実装の4/5値を確認した。現在の5/6値は回帰testで確認した。
 前回のJava自作Skin captureは[画像つき調査](songselect-visual-skin-audit-20261002.md)に保存済み。
 docsのリンク27件は参照先が存在し、`git diff --check`も成功。
 `./gradlew build --offline --console=plain`は成功（15 tasksすべてUP-TO-DATE）。

@@ -1,5 +1,8 @@
 # Song Select: Skinとビジュアルの再調査（2026-10-02）
 
+追補: 本書のJava画像・差分は調査時のcommitに対応する。ユーザー指定1〜6による修正後の画像、
+契約・検証・commit・残差は[1〜6の実装進捗](songselect-parity-implementation-progress-20261002.md)を参照。
+
 ## 結論
 
 現在のSong Selectは、素材の独立探索、行の状態色、10枠の星、foregroundの時間変化には対応している。

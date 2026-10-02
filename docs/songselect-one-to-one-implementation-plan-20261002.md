@@ -16,7 +16,9 @@
 公式asset抽出・保護回避を行わず、自作fixtureで差を観測する。
 Wine起動検証は当面行わない。Quota制限に抵触しそうな参照実行は試行を増やさず中止する。
 参照環境がなくても確定契約の改修は進め、実機待ちを明示する。
-今回は計画の追加のみで、製品実装は開始しない。
+計画作成時は文書のみを追加した。その後のユーザー指示「1〜6を進めてください」を受け、
+P0〜P9の確定契約の実装と未確定部分の調査を進めた。現在の対応範囲・残差・検証・commitは
+[1〜6の実装進捗](songselect-parity-implementation-progress-20261002.md)を参照。全工程の完了／stableとの1:1合格はまだ認定していない。
 
 ## 実装順・依存・完了条件
 
@@ -68,7 +70,7 @@ Optionsやdiagnostic表示の見直しは入力・機能状態と関係するた
 | --- | --- |
 | manager間のdraw順、field/origin/crop変換 | spriteごとのowner、座標系、depth、clip、blendを表にし、入力fixtureのwindow geometryを独立計算できる |
 | HD eligibilityとprovider/INI owner | 各globalの設定元・寿命・意味と、Java設定への対応表。fallback・読込失敗の結果をケース別に確定 |
-| native tabのカテゴリとglobal状態 | enum値、公開根拠で確認した意味、表示条件、クリック後のfilter/group状態を対応付ける。ラベルを暗号化IDから推測しない |
+| native tabのカテゴリとglobal状態 | 通常SelectPlayの5/6構成・平文enumの意味・Artist/CreatorのSort連動は実装済み。配置／animation／未対応カテゴリ機能／localized表示を追加比較。暗号化文字列は復号しない |
 | sprite/dispatcherのhit | hover/down/upそれぞれの候補集合・優先順・alpha/clip/矩形境界・focus時の寿命を確定 |
 | Backとsprite clock | 初回epoch、dimension更新抑止、frame番号、再生成/再表示時の継承を確定 |
 | preview/背景/遷移 | 同path扱い、seek、loop、fade、clock、非同期完了と復帰の更新順を確定 |
