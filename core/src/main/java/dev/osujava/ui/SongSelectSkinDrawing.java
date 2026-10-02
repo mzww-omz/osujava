@@ -22,6 +22,7 @@ final class SongSelectSkinDrawing {
                     float x, float y, float w, float h, Color tint) {
         if (!present(skin, image)) return;
         var asset = skin.get(image);
+        if (asset.logicalWidth() <= 0 || asset.logicalHeight() <= 0) return;
         float scale = Math.min(w / asset.logicalWidth(), h / asset.logicalHeight());
         float width = asset.logicalWidth() * scale, height = asset.logicalHeight() * scale;
         draw(batch, skin, image, x + (w - width) / 2, y + (h - height) / 2, width, height, tint);
@@ -31,7 +32,12 @@ final class SongSelectSkinDrawing {
         if (!present(skin, image)) return;
         float previous = batch.getPackedColor();
         batch.setColor(tint);
-        batch.draw(skin.get(image).texture(), x, y, w, h);
+        drawTexture(batch,skin.get(image),x,y,w,h);
         batch.setPackedColor(previous);
+    }
+    static void drawTexture(SpriteBatch batch, SongSelectSkinAssets.SkinTexture asset,
+                            float x, float y, float w, float h) {
+        if (asset.logicalWidth() <= 0 || asset.logicalHeight() <= 0 || w <= 0 || h <= 0) return;
+        batch.draw(asset.texture(),x,y,w,h,0,asset.cropV2(),asset.cropU2(),0);
     }
 }

@@ -25,11 +25,15 @@ class SongSelectSkinAssetsTest {
         });
         assertEquals(92,assets.get(Image.MODE).logicalWidth());
         assertEquals(90,assets.get(Image.MODE).logicalHeight());
+        assertEquals(184f/185,assets.get(Image.MODE).cropU2());
+        assertEquals(180f/181,assets.get(Image.MODE).cropV2());
         assertEquals(272,assets.get(Image.BACK).logicalWidth());
         assertEquals(91,assets.get(Image.BACK).logicalHeight());
         assertNotNull(assets.get(Image.TOP));
         assertEquals(0,assets.get(Image.TOP).logicalWidth());
         assertEquals(0,assets.get(Image.TOP).logicalHeight());
+        assertEquals(0,assets.get(Image.TOP).cropU2());
+        assertEquals(0,assets.get(Image.TOP).cropV2());
         // The shared file helper is deliberately not changed by the screen contract.
         assertEquals(92.5f,assets.get(Image.MODE).file().logicalSize(185));
         assets.dispose();

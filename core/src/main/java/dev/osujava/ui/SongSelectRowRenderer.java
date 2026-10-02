@@ -165,13 +165,15 @@ final class SongSelectRowRenderer {
         float density = asset == null ? 1 : asset.density();
         float unit = .6f * row.height() / (48 * 1.6f);
         float w = (int) (texture.getWidth() / density) * unit, h = (int) (texture.getHeight() / density) * unit;
+        if (w <= 0 || h <= 0) return;
+        float u2 = asset == null ? 1 : asset.cropU2(), v2 = asset == null ? 1 : asset.cropV2();
         float cy = row.y() + row.height() / 2 - (stars.cropped() ? 15 : 18) * row.height() / 48;
         for (int i = 0; i < stars.glyphs().size(); i++) {
             float cx = x + (i + .5f) * w;
             float backgroundScale = stars.cropped() ? 1 : .35f;
             batch.setColor(starTint.set(1, 1, 1, 30 / 255f * stars.backgroundOpacity() * row.revealAmount()));
             batch.draw(texture, cx - w * backgroundScale / 2, cy - h * backgroundScale / 2,
-                    w * backgroundScale, h * backgroundScale);
+                    w * backgroundScale, h * backgroundScale,0,v2,u2,0);
         }
         for (int i = 0; i < stars.glyphs().size(); i++) {
             float cx = x + (i + .5f) * w;
@@ -179,9 +181,9 @@ final class SongSelectRowRenderer {
             batch.setColor(starTint.set(tint.r, tint.g, tint.b, tint.a * stars.foregroundOpacity()));
             if (stars.cropped()) {
                 if (glyph.crop() > 0) batch.draw(texture, cx - w / 2, cy - h / 2, w * glyph.crop(), h,
-                        0, 1, glyph.crop(), 0);
+                        0, v2, u2 * glyph.crop(), 0);
             } else if (glyph.scale() != 0) batch.draw(texture, cx - w * glyph.scale() / 2, cy - h * glyph.scale() / 2,
-                    w * glyph.scale(), h * glyph.scale());
+                    w * glyph.scale(), h * glyph.scale(),0,v2,u2,0);
         }
         batch.setColor(Color.WHITE);
     }
@@ -202,7 +204,7 @@ final class SongSelectRowRenderer {
     private void skinImage(Image image, float x, float y, float w, float h, Color tint) {
         if (!has(image)) return;
         batch.setColor(tint);
-        batch.draw(style.skin().get(image).texture(), x, y, w, h);
+        SongSelectSkinDrawing.drawTexture(batch,style.skin().get(image),x,y,w,h);
         batch.setColor(Color.WHITE);
     }
 

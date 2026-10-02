@@ -2129,6 +2129,14 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     throw new AssertionError("Options normal artwork must retain its white tint: " + Integer.toHexString(colour));
             } finally { pixel.dispose(); }
         }
+        if (scene.name.equals("parity-odd-hd") && scene.height == 768 && scene.density == 1) {
+            var pixel = Pixmap.createFromFrameBuffer(315,40,1,1);
+            try {
+                int colour = pixel.getPixel(0,0);
+                if ((colour >>> 16 & 255) < 240 || (colour >>> 8 & 255) > 15)
+                    throw new AssertionError("Odd HD sentinel column must be cropped: " + Integer.toHexString(colour));
+            } finally { pixel.dispose(); }
+        }
         capture(fb, name);
         var report = new StringBuilder("window=" + scene.width + "x" + scene.height + " density=" + scene.density
                 + " time=" + time + "\n");
@@ -2180,7 +2188,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             switch (name) {
                 case "overlap" -> parityImage(dir,"menu-back",400,150,Color.RED);
                 case "odd-hd" -> {
-                    parityImage(dir,"selection-mode@2x",185,181,Color.GREEN);
+                    var pixels = new Pixmap(185,181,Pixmap.Format.RGBA8888);
+                    try {
+                        pixels.setColor(Color.GREEN); pixels.fill();
+                        pixels.setColor(Color.BLUE); pixels.drawLine(184,0,184,180); pixels.drawLine(0,180,184,180);
+                        PixmapIO.writePNG(Gdx.files.absolute(dir.resolve("selection-mode@2x.png").toString()),pixels);
+                    } finally { pixels.dispose(); }
                     parityImage(dir,"menu-back@2x",545,183,Color.RED);
                 }
                 case "short-top" -> parityImage(dir,"songselect-top",100,90,Color.BLUE);

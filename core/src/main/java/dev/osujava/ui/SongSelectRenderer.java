@@ -212,7 +212,7 @@ final class SongSelectRenderer {
     private void skinImage(Image image, float x, float y, float w, float h, Color tint) {
         if (!has(image)) return;
         batch.setColor(tint);
-        batch.draw(frame.skin.get(image).texture(), x, y, w, h);
+        SongSelectSkinDrawing.drawTexture(batch,frame.skin.get(image),x,y,w,h);
         batch.setColor(Color.WHITE);
     }
 
@@ -240,14 +240,14 @@ final class SongSelectRenderer {
         if (backFrame != null) {
             float scale = layout.height() / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
             batch.setColor(Color.WHITE);
-            batch.draw(backFrame.texture(), 0, frame.bottomLayout.baseline,
+            SongSelectSkinDrawing.drawTexture(batch,backFrame, 0, frame.bottomLayout.baseline,
                     backFrame.logicalWidth() * scale, backFrame.logicalHeight() * scale);
             int src = batch.getBlendSrcFunc(), dst = batch.getBlendDstFunc();
             int srcAlpha = batch.getBlendSrcFuncAlpha(), dstAlpha = batch.getBlendDstFuncAlpha();
             try {
                 batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
                 batch.setColor(1,1,1,frame.hoverAppearance.back());
-                batch.draw(backFrame.texture(), 0, frame.bottomLayout.baseline,
+                SongSelectSkinDrawing.drawTexture(batch,backFrame, 0, frame.bottomLayout.baseline,
                         backFrame.logicalWidth()*scale, backFrame.logicalHeight()*scale);
             } finally {
                 batch.setBlendFunctionSeparate(src,dst,srcAlpha,dstAlpha);

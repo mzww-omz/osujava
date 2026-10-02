@@ -53,6 +53,9 @@ public final class SongSelectSkinAssets implements Disposable {
         // Keep this Song Select contract separate from other screens' sizing policies.
         public float logicalWidth() { return texture.getWidth() / density(); }
         public float logicalHeight() { return texture.getHeight() / density(); }
+        // 060040af builds an integer logical crop; 060040b1 multiplies it by density.
+        public float cropU2() { return logicalWidth() * density() / texture.getWidth(); }
+        public float cropV2() { return logicalHeight() * density() / texture.getHeight(); }
     }
 
     /** Official selection action family. Widths describe control canvases, never composite PNGs. */
