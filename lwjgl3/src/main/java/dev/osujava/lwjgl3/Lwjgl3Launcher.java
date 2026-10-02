@@ -21,7 +21,7 @@ public final class Lwjgl3Launcher {
         }
         Lwjgl3ApplicationConfiguration configuration = new Lwjgl3ApplicationConfiguration();
         configuration.setTitle("osu!java");
-        configuration.setWindowedMode(1100, 720);
+        configuration.setWindowedMode(1280, 720);
         configuration.useVsync(true);
         configuration.setForegroundFPS(120);
         configuration.setWindowListener(new Lwjgl3WindowAdapter() {
