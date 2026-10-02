@@ -8,6 +8,11 @@ final class SongSelectRowColourAnimation {
     private long start, end;
     private boolean focused, hovered, active, flash;
     private final Color tint = new Color();
+    private final long spriteGeneration;
+
+    SongSelectRowColourAnimation() { this(0); }
+    SongSelectRowColourAnimation(long spriteGeneration) { this.spriteGeneration = spriteGeneration; }
+    long spriteGeneration() { return spriteGeneration; }
 
     int rgba() { return current; }
 

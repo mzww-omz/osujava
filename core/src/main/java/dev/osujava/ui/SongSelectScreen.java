@@ -45,7 +45,11 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final Map<SongSelectCarousel.Row, SongSelectRowColourAnimation> rowColours = new IdentityHashMap<>();
     private final Color rowBaseColour = new Color();
     private double rowColourTimeMs;
-    private static final class RowStars { SongSelectStarAnimation animation; }
+    private static final class RowStars {
+        final long spriteGeneration;
+        SongSelectStarAnimation animation;
+        RowStars(long spriteGeneration) { this.spriteGeneration = spriteGeneration; }
+    }
     private final Map<SongSelectCarousel.Row, RowStars> rowStars = new IdentityHashMap<>();
     private final Map<SongSelectCarousel.Row, SongSelectForegroundAnimation> rowForeground = new IdentityHashMap<>();
     private String geometryViewport;
@@ -675,7 +679,12 @@ public final class SongSelectScreen extends ScreenAdapter {
                     model.state == SongBrowserModel.RowState.SELECTED,
                     model.state == SongBrowserModel.RowState.EXPANDED, rowPlayed(entry),
                     entry.header() && groupContainsSelection(entry.key()));
-            rowColours.computeIfAbsent(row, ignored -> new SongSelectRowColourAnimation()).update(
+            var animation = rowColours.get(row);
+            if (animation == null || animation.spriteGeneration() != row.spriteGeneration) {
+                animation = new SongSelectRowColourAnimation(row.spriteGeneration);
+                rowColours.put(row, animation);
+            }
+            animation.update(
                     model.state.ordinal(), Color.rgba8888(rowBaseColour), entry.key().equals(browser.focusKey()),
                     entry.key().equals(carousel.hoverKey()), (long) rowColourTimeMs, (int) frameMs);
         }
@@ -690,8 +699,12 @@ public final class SongSelectScreen extends ScreenAdapter {
         int width = asset == null ? 40 : (int) asset.logicalWidth();
         for (var row : carousel.residentRows()) {
             if (row.entry.header()) continue;
-            boolean created = !rowStars.containsKey(row);
-            var state = rowStars.computeIfAbsent(row, ignored -> new RowStars());
+            var state = rowStars.get(row);
+            boolean created = state == null || state.spriteGeneration != row.spriteGeneration;
+            if (created) {
+                state = new RowStars(row.spriteGeneration);
+                rowStars.put(row, state);
+            }
             var model = browser.row(row.entry.key());
             if (model.state.ordinal() >= SongBrowserModel.RowState.SINGLETON.ordinal()) {
                 if (state.animation == null) state.animation = new SongSelectStarAnimation(cropped, width);

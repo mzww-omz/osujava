@@ -606,6 +606,31 @@ class SongSelectNavigationTest {
         assertEquals(1,animations.get(carousel().row(((SongBrowserModel)field("browser")).selectedKey())).baseOpacity());
     }
 
+    @Test void sameFrameHideAndReturnDiscardsColourTransformsAndRestartsStars() throws Exception {
+        testRating = java.util.OptionalDouble.of(3.25);
+        open("Beta",0); screen.resize(1280,720); settle();
+        var sibling = carousel().rows().stream().filter(row -> row.entry.setIndex() == 1
+                && row.entry.difficultyIndex() == 1).findFirst().orElseThrow();
+        var colours = (java.util.Map<?,?>) field("rowColours");
+        var stars = (java.util.Map<?,?>) field("rowStars");
+        var oldColour = colours.get(sibling);
+        var oldStars = stars.get(sibling);
+        assertEquals(.6f,presentation(sibling.entry.key()).stars().glyphs().getFirst().scale(),.000001);
+        screen.previewSelection(2,0); screen.previewSelection(1,0);
+        updatePointer(1280,720,.016f);
+        assertNotSame(oldColour,colours.get(sibling));
+        assertNotSame(oldStars,stars.get(sibling));
+        assertEquals(0,presentation(sibling.entry.key()).stars().glyphs().getFirst().scale());
+        assertTrue(presentation(sibling.entry.key()).stars().backgroundOpacity() < 1);
+        var replacementColour = colours.get(sibling);
+        var replacementStars = stars.get(sibling);
+        screen.resize(1920,1080); updatePointer(1920,1080,0);
+        assertSame(replacementColour,colours.get(sibling));
+        assertSame(replacementStars,stars.get(sibling));
+        updatePointer(1920,1080,.8f);
+        assertEquals(.6f,presentation(sibling.entry.key()).stars().glyphs().getFirst().scale(),.000001);
+    }
+
     @Test void shiftF2WalksBackDuringSearchAndGrouping() throws Exception {
         open("Alpha",1);
         key(Input.Keys.F2); screen.browserMode(SongBrowserModel.Sort.ARTIST,SongBrowserModel.Group.ARTIST);
