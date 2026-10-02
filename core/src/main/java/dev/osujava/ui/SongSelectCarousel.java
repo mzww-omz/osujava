@@ -142,8 +142,11 @@ final class SongSelectCarousel {
                 }
             }
             row.entry = entry; row.logicalY = logicalY; row.logicalIndex = i;
-            row.drawDepth = depth;
-            depth += SongSelectMetrics.ROW_DEPTH_STEP; // Includes hidden rows (06003287).
+            // A selection, visibility change or resize does not change browser order.
+            if (!sameOrder) {
+                row.drawDepth = depth;
+                depth += SongSelectMetrics.ROW_DEPTH_STEP; // Includes hidden rows (06003287).
+            }
             resident(row, entry.visible() && row.resident);
             // 06000fd3 creates returning sprites before the ordinary viewport pass,
             // with a 200ms base fade. The representative's existing opacity survives.
