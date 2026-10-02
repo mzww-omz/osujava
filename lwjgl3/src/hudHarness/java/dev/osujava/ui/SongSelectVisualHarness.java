@@ -1062,7 +1062,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 tapKey(processor[0], Input.Keys.DOWN);
                 pointer[0] = Math.round((layout.width()-20)*layout.scale()); pointer[1] = scene.height-Math.round(30*layout.scale());
             } else pointerRow(screen,selectedRow.entry.setIndex(),selectedRow.entry.difficultyIndex(),pointer,layout,scene.height);
-            String expectedKey = null;
+            SongSelectRow expectedCandidate = null;
+            String selectionBeforeClick = browser(screen).selectedKey();
+            boolean groupBeforeClick = false;
             if (scene.name.equals("phase4-oversized-score")) {
                 // This shared skin background is taller than several carousel rows. Its
                 // native input canvas can cover the selected label with a later sprite.
@@ -1072,14 +1074,21 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 var candidate = rows.stream().filter(row -> row.interactive() && row.boundsContain(px,py))
                         .min(Comparator.comparingDouble(row -> carousel(screen).row(row.key()).mousePriority))
                         .orElseThrow(() -> new AssertionError("Oversized background has no input candidate"));
-                expectedKey = candidate.key();
+                expectedCandidate = candidate;
+                if (candidate.group()) groupBeforeClick = browser(screen).row(candidate.key()).expanded;
             }
             tapPointer(screen, clicked, pressed);
-            if (expectedKey != null) {
-                if (!browser(screen).selectedKey().equals(expectedKey))
-                    throw new AssertionError("Oversized background click ignored sprite priority: " + name);
+            if (expectedCandidate != null) {
+                boolean correct = expectedCandidate.group()
+                        ? browser(screen).selectedKey().equals(selectionBeforeClick)
+                            && browser(screen).row(expectedCandidate.key()).expanded != groupBeforeClick
+                        : browser(screen).selectedKey().equals(expectedCandidate.key());
+                if (!correct)
+                    throw new AssertionError("Oversized background click ignored sprite priority: " + name
+                            + " expected=" + expectedCandidate.key() + " actual=" + browser(screen).selectedKey()
+                            + " pointer=" + layout.pointerX(pointer[0]) + "," + layout.pointerY(pointer[1]));
                 // Play remains reachable even if the giant canvas obscures the selected row.
-                if (!pending(screen)) tapKey(processor[0],Input.Keys.ENTER);
+                if (!pending(screen)) tapKey(processor[0],Input.Keys.SPACE);
             }
             if (!pending(screen)) throw new AssertionError("Selected re-click did not play: " + name);
             if ((scene.name.equals("phase3-chrome-cookie") || scene.name.equals("phase4-sibling"))) {
