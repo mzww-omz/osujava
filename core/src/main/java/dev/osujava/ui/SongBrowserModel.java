@@ -234,6 +234,10 @@ final class SongBrowserModel {
         // preference exists, retain the local first-difficulty fallback for Set activation.
         else selectRow(row.representative != null ? row.representative : row);
     }
+    void activateRow(String key) {
+        Row row = rowsByKey.get(key);
+        if (row != null) activate(row);
+    }
     private void selectRow(Row row) {
         select(row.set.id(), row.set.difficulties().indexOf(row.difficulty));
     }

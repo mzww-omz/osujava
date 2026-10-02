@@ -774,7 +774,8 @@ public final class SongSelectScreen extends ScreenAdapter {
             }
             else { selectSet(row.setIndex()); selectDifficulty(row.difficultyIndex()); }
         } else {
-            selectSet(row.setIndex());
+            if (row.key() == null) selectSet(row.setIndex());
+            else { browser.activateRow(row.key()); syncBrowser(true); }
         }
         selectionSound(identity);
         if (context) perform(SongSelectAction.OPTIONS);

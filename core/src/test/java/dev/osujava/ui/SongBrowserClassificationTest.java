@@ -77,4 +77,15 @@ class SongBrowserClassificationTest {
         var a = browser.rows().stream().filter(r -> !r.group() && r.set.id().equals("A")).toList();
         assertSame(a.get(0),a.get(0).representative); assertSame(a.get(1),a.get(1).representative);
     }
+    @Test void collapsedRowActivationSelectsItsOwnGroupRepresentative() {
+        var slow = chart("slow",90,100000); var fast = chart("fast",240,180000);
+        var browser = new SongBrowserModel(List.of(set("A",slow,fast,chart("sibling",250,190000)),set("B",chart("other",310,100000))));
+        browser.group(SongBrowserModel.Group.BPM); browser.selectSet("B");
+        String key = SongBrowserModel.rowKey("A",SongBrowserModel.difficultyId(fast));
+        browser.toggleGroup(browser.row(key).parent.key);
+        assertEquals(SongBrowserModel.RowState.COLLAPSED,browser.row(key).state);
+        browser.activateRow(key);
+        assertSame(fast,browser.selectedDifficulty());
+        assertEquals(key,browser.selectedKey());
+    }
 }
