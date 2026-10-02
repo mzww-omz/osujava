@@ -80,6 +80,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final SongBrowserControls controls = new SongBrowserControls();
     private List<SongBrowserModel.Row> browserRows = List.of();
     private List<SongBrowserModel.Entry> browserEntries = List.of();
+    private List<SongSelectCarousel.Entry> carouselEntries = List.of();
     private Map<String, String> groupLabels = Map.of();
     // Transient display indices only; browser identities are authoritative.
     private List<BeatmapSet> sets;
@@ -564,26 +565,43 @@ public final class SongSelectScreen extends ScreenAdapter {
         float viewportHeight = top - bottom;
         if (contentDirty || browserRows != browser.rows() || browserEntries != browser.entries()
                 || contentWidth != layout.width() || contentViewportHeight != viewportHeight || contentRowHeight != height) {
-            List<SongSelectCarousel.Entry> entries = new ArrayList<>();
-            Map<String, String> labels = new java.util.HashMap<>();
-            Map<String, Integer> indices = new java.util.HashMap<>();
-            for (int i = 0; i < sets.size(); i++) indices.put(sets.get(i).id(), i);
-            for (var row : browser.rows()) {
-                boolean expanded = row.state.ordinal() >= SongBrowserModel.RowState.EXPANDED.ordinal();
-                if (row.group()) {
-                    entries.add(new SongSelectCarousel.Entry(row.key, -1, -2, row.key, expanded, row.visible()));
-                    int count = row.matchingChildren;
-                    labels.put(row.key, row.label + " (" + count + (count == 1 ? " beatmap)" : " beatmaps)"));
-                } else {
-                    int i = indices.get(row.set.id());
-                    int j = row.state == SongBrowserModel.RowState.COLLAPSED ? -1 : row.set.difficulties().indexOf(row.difficulty);
-                    entries.add(new SongSelectCarousel.Entry(row.key, i, j, row.set.id(), expanded, row.visible()));
+            if (browserRows != browser.rows()) {
+                List<SongSelectCarousel.Entry> entries = new ArrayList<>();
+                Map<String, String> labels = new java.util.HashMap<>();
+                Map<String, Integer> indices = new java.util.HashMap<>();
+                for (int i = 0; i < sets.size(); i++) indices.put(sets.get(i).id(), i);
+                for (var row : browser.rows()) {
+                    boolean expanded = row.state.ordinal() >= SongBrowserModel.RowState.EXPANDED.ordinal();
+                    if (row.group()) {
+                        entries.add(new SongSelectCarousel.Entry(row.key, -1, -2, row.key, expanded, row.visible()));
+                        int count = row.matchingChildren;
+                        labels.put(row.key, row.label + " (" + count + (count == 1 ? " beatmap)" : " beatmaps)"));
+                    } else {
+                        int i = indices.get(row.set.id());
+                        int j = row.state == SongBrowserModel.RowState.COLLAPSED ? -1 : row.set.difficulties().indexOf(row.difficulty);
+                        entries.add(new SongSelectCarousel.Entry(row.key, i, j, row.set.id(), expanded, row.visible()));
+                    }
+                }
+                groupLabels = Map.copyOf(labels);
+                carouselEntries = entries;
+            } else {
+                // Selection/group state changes preserve order, set indices and metadata.
+                // Only the old/new family changes its immutable carousel entries.
+                for (int i = 0; i < browser.rows().size(); i++) {
+                    var row = browser.rows().get(i);
+                    var previous = carouselEntries.get(i);
+                    boolean expanded = row.state.ordinal() >= SongBrowserModel.RowState.EXPANDED.ordinal();
+                    int difficulty = row.group() ? -2 : row.state == SongBrowserModel.RowState.COLLAPSED ? -1
+                            : previous.difficultyIndex() >= 0 ? previous.difficultyIndex() : row.set.difficulties().indexOf(row.difficulty);
+                    if (previous.expanded() != expanded || previous.visible() != row.visible()
+                            || previous.difficultyIndex() != difficulty)
+                        carouselEntries.set(i, new SongSelectCarousel.Entry(previous.key(), previous.setIndex(), difficulty,
+                                previous.familyKey(), expanded, row.visible()));
                 }
             }
-            groupLabels = Map.copyOf(labels);
             browserRows = browser.rows();
             browserEntries = browser.entries();
-            carousel.content(entries, viewportHeight, height, SongSelectMetrics.rowPitch(layout.height()),
+            carousel.content(carouselEntries, viewportHeight, height, SongSelectMetrics.rowPitch(layout.height()),
                     selectedRowKey(), layout.height(), top);
             contentDirty = false;
             contentWidth = layout.width(); contentViewportHeight = viewportHeight; contentRowHeight = height;

@@ -33,6 +33,7 @@ final class SongSelectCarousel {
     private final java.util.Set<Row> residents = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
     private final java.util.Set<Row> residentView = java.util.Collections.unmodifiableSet(residents);
     private final Map<String, Row> byKey = new HashMap<>();
+    private final Map<String, Row> familyRepresentatives = new HashMap<>();
     private String selectedKey, hoverKey, focusKey, emphasisKey, selectionTrackingKey;
     private float hoverAbsence, viewportHeight, rowHeight = 76, maxScroll;
     private final SongSelectScroll scroll = new SongSelectScroll();
@@ -78,12 +79,15 @@ final class SongSelectCarousel {
             return;
         }
         boolean sameOrder = allRows.size() == entries.size();
-        for (int i = 0; sameOrder && i < entries.size(); i++)
+        boolean sameFamilies = sameOrder;
+        for (int i = 0; sameOrder && i < entries.size(); i++) {
             sameOrder = allRows.get(i).entry.key().equals(entries.get(i).key());
+            sameFamilies &= allRows.get(i).entry.familyKey().equals(entries.get(i).familyKey());
+        }
+        sameFamilies &= sameOrder;
         List<String> openingGroups = new ArrayList<>();
-        Map<String, Row> previous = new HashMap<>(byKey);
-        Map<String, Row> representatives = new HashMap<>();
-        for (Row row : allRows) representatives.putIfAbsent(row.entry.familyKey(), row);
+        Map<String, Row> previous = sameOrder ? byKey : new HashMap<>(byKey);
+        Map<String, Row> representatives = familyRepresentatives;
         float oldScale = referenceScale, oldOrigin = viewportTop - screenHeight;
         viewportHeight = validSize(height, 620);
         screenHeight = validSize(fullHeight, viewportHeight);
@@ -98,8 +102,8 @@ final class SongSelectCarousel {
             row.motionY = viewportTop - screenHeight + (row.motionY - oldOrigin) * ratio;
             row.motionX *= ratio;
         }
-        byKey.clear();
-        List<Row> next = new ArrayList<>(), visible = new ArrayList<>();
+        if (!sameOrder) byKey.clear();
+        List<Row> next = sameOrder ? null : new ArrayList<>(), visible = new ArrayList<>();
         Entry previousVisible = null;
         float logicalY = viewportTop - screenHeight + SongSelectMetrics.FIRST_ROW_Y * referenceScale - rowStep;
         for (int i = 0; i < entries.size(); i++) {
@@ -110,7 +114,7 @@ final class SongSelectCarousel {
                 logicalY += rowStep + (gap ? SongSelectMetrics.OPEN_SPACING * referenceScale : 0);
             }
             // Hidden rows have an index/coordinate too, but do not advance the visible pitch.
-            Row row = previous.get(entry.key());
+            Row row = sameOrder ? allRows.get(i) : previous.get(entry.key());
             if (initialized && entry.header() && entry.expanded()
                     && (row == null || !row.entry.expanded())) openingGroups.add(entry.key());
             if (row == null) {
@@ -128,10 +132,15 @@ final class SongSelectCarousel {
             }
             row.entry = entry; row.logicalY = logicalY; row.logicalIndex = i;
             resident(row, entry.visible() && row.resident);
-            next.add(row); byKey.put(entry.key(), row);
+            if (!sameOrder) { next.add(row); byKey.put(entry.key(), row); }
             if (entry.visible()) { visible.add(row); previousVisible = entry; }
         }
-        allRows = List.copyOf(next); rows = List.copyOf(visible); contentEntries = List.copyOf(entries);
+        if (!sameOrder) allRows = List.copyOf(next);
+        rows = List.copyOf(visible); contentEntries = List.copyOf(entries);
+        if (!sameFamilies) {
+            familyRepresentatives.clear();
+            for (Row row : allRows) familyRepresentatives.putIfAbsent(row.entry.familyKey(), row);
+        }
         residents.removeIf(row -> byKey.get(row.entry.key()) != row);
         if (!sameOrder) { activeStart = 0; activeEnd = allRows.size(); }
         maxScroll = rows.isEmpty() ? 0 : rows.getLast().logicalY - rows.getFirst().logicalY;
