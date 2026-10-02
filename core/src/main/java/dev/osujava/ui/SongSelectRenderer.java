@@ -3,7 +3,6 @@ package dev.osujava.ui;
 import dev.osujava.score.LocalScoreStore;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
@@ -30,7 +29,6 @@ final class SongSelectRenderer {
     private static final Color SIBLING = new Color(.25f, .54f, .73f, .92f);
     private static final Color SIBLING_HOVER = new Color(.34f, .66f, .84f, .98f);
     private static final Color SELECTED = new Color(.96f, .95f, .98f, .98f);
-    private static final Color DARK_TEXT = new Color(.14f, .10f, .18f, 1f);
     private static final Color BACK_PINK = new Color(.83f, .28f, .55f, 1f);
 
     private final UiView view;
@@ -285,8 +283,13 @@ final class SongSelectRenderer {
     }
 
     private void drawRows(UiLayout layout) {
-        rowRenderer.draw(frame.rowPresentations, new SongSelectRowRenderer.Style(frame.contentWidth, frame.skin, frame.rowFill,
-                frame.activeText, frame.inactiveText, frame.showThumbnails));
+        // Publish one viewport for bodies, thumbnails, labels, stars and hover transforms.
+        Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
+        try {
+            chromeClip(layout, new SongSelectChrome.Bounds(0, frame.bottom, layout.width(), frame.top - frame.bottom));
+            rowRenderer.draw(frame.rowPresentations, new SongSelectRowRenderer.Style(frame.contentWidth, frame.skin, frame.rowFill,
+                    frame.activeText, frame.inactiveText, frame.showThumbnails));
+        } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
         if (frame.visibleRows.isEmpty()) {
             view.beginShapes();
             view.box(layout.width() * .59f, frame.bottom + 155, layout.width() * .38f, 66, 0, LEFT);

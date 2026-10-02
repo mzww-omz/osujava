@@ -396,7 +396,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
         var pressedRow = visibleRows.stream().filter(row -> row.key().equals(input.pressedKey())).findFirst().orElse(null);
         if (buttons.released() && input.releasePointer(buttons.left(),
-                pressedRow != null && pressedRow.boundsContain(px, py)) != null)
+                pressedRow != null && rowPointerVisible(px, py) && pressedRow.boundsContain(px, py)) != null)
             handleRowClick(pressedRow, buttons.context());
         float referenceScale = SongSelectMetrics.carouselScale(layout.height());
         if (!blocked && !outgoing.pending()) input.samplePointer(buttons, Gdx.input.getX(), Gdx.input.getY(),
@@ -546,7 +546,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private List<SongSelectRow> layoutRows(UiLayout layout, float delta, boolean advance) {
         updateContent(layout);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
-        SongSelectRow hit = toolbox.open() ? null : hitRow(px, py);
+        SongSelectRow hit = toolbox.open() || controls.open() || importing || outgoing.pending() ? null : hitRow(px, py);
         carousel.pointerTracking(px / SongSelectMetrics.carouselScale(layout.height()),
                 Gdx.input.isButtonPressed(Input.Buttons.LEFT), !toolbox.open() && !importing && !outgoing.pending());
         carousel.focus(browser.focusKey());
@@ -775,7 +775,11 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private SongSelectRow hitRow(float x, float y) {
-        return SongSelectRow.hit(visibleRows, x, y, bottom, top);
+        return rowPointerVisible(x, y) ? SongSelectRow.hit(visibleRows, x, y, bottom, top) : null;
+    }
+
+    private boolean rowPointerVisible(float x, float y) {
+        return SongSelectRow.inViewport(x, y, contentWidth, bottom, top);
     }
 
     private void handleRowClick(float x, float y) {

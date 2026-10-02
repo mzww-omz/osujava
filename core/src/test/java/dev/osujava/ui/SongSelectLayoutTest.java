@@ -6,6 +6,30 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SongSelectLayoutTest {
+    @Test void rankingsStayLeftOfTheMostIndentedCarouselAtAllWindowProfiles() {
+        for (int[] size : new int[][]{{1280,720},{1280,800},{1024,768},{960,720},{1920,1080}}) {
+            var ui = UiLayout.fromPixels(size[0], size[1]);
+            var snapshot = SongSelectLayout.create(ui, null);
+            var scores = snapshot.scores();
+            float leftmost = ui.width() - 435 * SongSelectMetrics.carouselScale(ui.height());
+            assertTrue(scores.x() + scores.width() + ScoreBrowserBounds.COLUMN_GAP <= leftmost + .001f);
+            assertEquals(scores, ScoreBrowserBounds.of(ui));
+            for (int slot = 0; slot < scores.capacity(); slot++) {
+                assertTrue(scores.rowY(slot) >= scores.bottom());
+                assertEquals(slot, scores.slot(scores.x() + 5, scores.rowY(slot) + 20));
+            }
+        }
+    }
+
+    @Test void clippedRowCannotReceiveAPressOrReleaseInsideChromeOrOutsideTheWindow() {
+        var row = new SongSelectRow(0, 0, null, true, false, 700, 50, 800, 72, 1, 1);
+        assertTrue(row.boundsContain(800, 70));
+        assertFalse(SongSelectRow.inViewport(800, 70, 1280, 84, 636));
+        assertTrue(SongSelectRow.inViewport(800, 100, 1280, 84, 636));
+        assertFalse(SongSelectRow.inViewport(1280, 100, 1280, 84, 636));
+        assertFalse(SongSelectRow.inViewport(-1, 100, 1280, 84, 636));
+        assertFalse(SongSelectRow.inViewport(800, 636, 1280, 84, 636));
+    }
     @Test void layoutDensityIsIndependentOfResolutionAndFramebufferDensity() {
         var hd = UiLayout.fromPixels(1280, 720);
         var full = UiLayout.fromPixels(1920, 1080);

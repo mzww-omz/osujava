@@ -33,6 +33,10 @@ record SongSelectRow(int setIndex, int difficultyIndex, String header, boolean s
         return px >= x && px < x + width && py > y && py <= y + height;
     }
 
+    static boolean inViewport(float x, float y, float width, float bottom, float top) {
+        return x >= 0 && x < width && y > bottom && y < top;
+    }
+
     static SongSelectRow hit(List<SongSelectRow> rows, float x, float y, float bottom, float top) {
         if (y <= bottom || y >= top) return null;
         // Existing input approximation; native sprite hit/depth arbitration is deferred to phase 8b.

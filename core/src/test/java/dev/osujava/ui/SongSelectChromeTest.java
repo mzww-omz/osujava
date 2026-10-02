@@ -54,14 +54,18 @@ class SongSelectChromeTest {
         assertEquals(636,transparent.carouselTop());
         assertEquals(84,transparent.bottom());
     }
-    @Test void artworkUsesFullViewportIndependentOfContentReservation() {
+    @Test void artworkClipHonoursReservationCeilingsWithoutRescalingTheCanvas() {
         for (float height : new float[]{720, 1080, 1440}) {
             var content = SongSelectChrome.content(height, 4096, 4096, 4096);
             var top = SongSelectChrome.topClip(1280, height);
             var bottom = SongSelectChrome.bottomClip(1280, height);
             assertEquals(height, top.y() + top.height(), .001);
-            assertEquals(0, top.y(), .001);
-            assertEquals(height, bottom.height(), .001);
+            assertEquals(height * .6f, top.y(), .001);
+            assertEquals(height * .4f, top.height(), .001);
+            assertEquals(0, bottom.y(), .001);
+            assertEquals(height * .3f, bottom.height(), .001);
+            assertEquals(content.carouselTop(), top.y(), .001);
+            assertEquals(content.bottom(), bottom.height(), .001);
             assertTrue(content.carouselTop() > content.bottom());
         }
     }

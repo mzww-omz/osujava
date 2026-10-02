@@ -47,8 +47,8 @@ final class SongSelectRowRenderer {
         int src = batch.getBlendSrcFunc(), dst = batch.getBlendDstFunc();
         int srcAlpha = batch.getBlendSrcFuncAlpha(), dstAlpha = batch.getBlendDstFuncAlpha();
         // 06003287/2c21: full browser order, preserving each row's sprite insertion order.
-        // The row manager has no custom scissor (06003810/3813): use the full display viewport.
-        Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
+        // The caller owns the browser viewport, including chrome reservations.
+        // This bounded osujava policy also applies to transparent chrome replacements.
         batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         try {
             for (var row : rows) drawRow(row);
