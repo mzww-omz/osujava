@@ -56,7 +56,18 @@ public final class SongSelectPerformanceProbe {
                             if (scenario.equals("selection") && f % 12 == 0) screen.previewSelection(count / 2 + f / 12 % 20, f / 12 % 4);
                         }
                     };
-                    measure(count, scenario, () -> { event.run(); update.invoke(screen, LAYOUT, DT); });
+                    float[] scrollRange = {Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY};
+                    measure(count, scenario, () -> {
+                        event.run(); update.invoke(screen, LAYOUT, DT);
+                        scrollRange[0] = Math.min(scrollRange[0], carousel.scrollOffset());
+                        scrollRange[1] = Math.max(scrollRange[1], carousel.scrollOffset());
+                    });
+                    if (scenario.contains("wheel")) {
+                        if (scrollRange[1] - scrollRange[0] <= carousel.rowHeight())
+                            throw new AssertionError("Wheel probe did not move through rows");
+                        System.out.printf(Locale.ROOT, "Scroll range %d %s: %.1f units%n",
+                                count, scenario, scrollRange[1] - scrollRange[0]);
+                    }
                 }
                 // Isolate confirmed scan sites in a settled frame (not added to total update timing).
                 for (int i = 0; i < 240; i++) update.invoke(screen, LAYOUT, DT);
@@ -97,6 +108,10 @@ public final class SongSelectPerformanceProbe {
         return type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class[]{type}, (p, m, a) -> {
             if (m.getName().equals("getWidth")) return 1280;
             if (m.getName().equals("getHeight")) return 720;
+            // Reference X >= 200 disables the native pointer-tracking scroll seek.
+            // Stay left of the row body so scrolling samples do not also trigger hover.
+            if (m.getName().equals("getX")) return 640;
+            if (m.getName().equals("getY")) return 360;
             if (m.getReturnType() == boolean.class) return false;
             if (m.getReturnType() == int.class) return 0;
             if (m.getReturnType() == long.class) return 0L;
