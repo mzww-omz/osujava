@@ -68,6 +68,8 @@ final class SongSelectRowRenderer {
         if (has(Image.MENU_BUTTON_BACKGROUND)) {
             view.beginText();
             var artwork = row.interaction();
+            if (artwork == null) artwork = SongSelectArtwork.row(x, y, row.width(), row.height(),
+                    style.skin().get(Image.MENU_BUTTON_BACKGROUND));
             skinImage(Image.MENU_BUTTON_BACKGROUND, artwork.x(), artwork.y(), artwork.width(), artwork.height(), color);
         } else {
             view.beginShapes();

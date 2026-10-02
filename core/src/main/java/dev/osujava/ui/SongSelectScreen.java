@@ -556,6 +556,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         carousel.emphasize(browser.selectedKey());
         if (advance) carousel.advance(delta, hit == null ? null : hit.key(), input != null && input.rightScrolling());
         List<SongSelectRow> result = new ArrayList<>();
+        var background = skin == null ? null : skin.get(Image.MENU_BUTTON_BACKGROUND);
         for (int i = carousel.activeStart(); i < carousel.activeEnd(); i++) {
             SongSelectCarousel.Row entry = carousel.allRows().get(i);
             if (!carousel.presents(entry)) continue;
@@ -565,11 +566,10 @@ public final class SongSelectScreen extends ScreenAdapter {
             boolean selected = setIndex == selectedSetIndex && diffIndex == selectedDifficultyIndex;
             var target = carousel.targetPosition(entry.logicalIndex, layout.width(), top);
             float x = carousel.renderX(entry, layout.width()), height = carousel.rowHeight(), width = rowWidth(layout);
-            var background = skin == null ? null : skin.get(Image.MENU_BUTTON_BACKGROUND);
             result.add(new SongSelectRow(setIndex, diffIndex, groupLabels.get(entry.entry.key()), selected, setIndex == selectedSetIndex && !selected,
                     x, y, width, height, entry.hoverAmount, selected ? 1 : entry.revealAmount * entry.revealAmount, entry.logicalIndex, target[0], target[1], entry.entry.key(),
                     browser.row(entry.entry.key()).group() && browser.row(entry.entry.key()).expanded, entry.focusAmount,
-                    SongSelectArtwork.row(x, y, width, height, background)));
+                    background == null ? null : SongSelectArtwork.row(x, y, width, height, background)));
         }
         return result;
     }

@@ -68,6 +68,9 @@ class SongSelectArtworkTest {
         assertEquals(281.25f, small.height());
         var missing = SongSelectArtwork.row(100, 200, 900, 72, null);
         assertEquals(new SongSelectChrome.Bounds(100, 200, 900, 72), missing);
+        var procedural = new SongSelectRow(0, 0, "", true, false, 100, 200, 900, 72, 0, 1);
+        assertTrue(procedural.boundsContain(100, 272));
+        assertFalse(procedural.boundsContain(100, 200));
         var zero = SongSelectArtwork.row(100, 200, 900, 72, texture(1, 1, 2));
         var row = new SongSelectRow(0, 0, "", true, false, 100, 200, 900, 72,
                 0, 1, 0, 100, 200, "row", false, 0, zero);

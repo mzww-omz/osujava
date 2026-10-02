@@ -7,9 +7,6 @@ record SongSelectRow(int setIndex, int difficultyIndex, String header, boolean s
                      float x, float y, float width, float height, float hoverAmount, float revealAmount,
                      int logicalIndex, float targetX, float targetY, String key, boolean groupExpanded, float focusAmount,
                      SongSelectChrome.Bounds interaction) {
-    SongSelectRow {
-        if (interaction == null) interaction = new SongSelectChrome.Bounds(x, y, width, height);
-    }
     SongSelectRow(int setIndex, int difficultyIndex, String header, boolean selected, boolean sibling,
                   float x, float y, float width, float height, float hoverAmount, float revealAmount,
                   int logicalIndex, float targetX, float targetY, String key, boolean groupExpanded, float focusAmount) {
@@ -40,6 +37,8 @@ record SongSelectRow(int setIndex, int difficultyIndex, String header, boolean s
     }
     boolean boundsContain(float px, float py) {
         // Native top-left rectangle includes left/top and excludes right/bottom; Java Y is up.
+        // Missing artwork shares the existing procedural body, without an extra bounds allocation.
+        if (interaction == null) return px >= x && px < x + width && py > y && py <= y + height;
         return px >= interaction.x() && px < interaction.x() + interaction.width()
                 && py > interaction.y() && py <= interaction.y() + interaction.height();
     }

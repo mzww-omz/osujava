@@ -55,7 +55,7 @@ final class SongSelectLayout {
                            float width, float bottom, float top, boolean thumbnails, boolean grade, boolean mode, boolean cropped) {
         var body = new Rect(row.x(), row.y(), row.width(), row.height());
         var canvas = row.interaction();
-        var clip = new Rect(canvas.x(), canvas.y(), canvas.width(), canvas.height())
+        var clip = (canvas == null ? body : new Rect(canvas.x(), canvas.y(), canvas.width(), canvas.height()))
                 .intersect(new Rect(0, bottom, width, top - bottom));
         var text = SongSelectRowPresentation.geometry(row.width(), row.height(), width - row.x(), thumbnails,
                 row.difficultyIndex() >= 0, cropped, mode, grade);
