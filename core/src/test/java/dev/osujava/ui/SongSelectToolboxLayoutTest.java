@@ -31,7 +31,7 @@ class SongSelectToolboxLayoutTest {
             images.put(Image.BOTTOM,texture(1,1,density));
             images.put(Image.MODE,texture(1150*density,540*density,density));
             var layout = new SongSelectToolboxLayout(1280,height,false,images,new EnumMap<>(Image.class));
-            assertEquals(height/768/density,layout.bottomImage.height(),.001);
+            assertEquals(density == 1 ? height/768 : 0,layout.bottomImage.height(),.001);
             assertEquals(SongSelectChrome.bottomHeight(height),layout.chrome.height(),.001);
             assertTrue(layout.importAction.y() > layout.chrome.height());
             assertTrue(layout.back.height() >= 90*height/768);

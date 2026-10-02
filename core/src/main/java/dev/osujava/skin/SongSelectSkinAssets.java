@@ -49,8 +49,10 @@ public final class SongSelectSkinAssets implements Disposable {
 
     public record SkinTexture(Texture texture, SkinAssetResolver.AssetFile file) {
         public int density() { return file.density(); }
-        public float logicalWidth() { return file.logicalSize(texture.getWidth()); }
-        public float logicalHeight() { return file.logicalSize(texture.getHeight()); }
+        // Stable 06000739/073a divide integer texture dimensions by integer density.
+        // Keep this Song Select contract separate from other screens' sizing policies.
+        public float logicalWidth() { return texture.getWidth() / density(); }
+        public float logicalHeight() { return texture.getHeight() / density(); }
     }
 
     /** Official selection action family. Widths describe control canvases, never composite PNGs. */

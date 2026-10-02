@@ -14,6 +14,27 @@ import static org.junit.jupiter.api.Assertions.*;
 class SongSelectSkinAssetsTest {
     @TempDir Path directory;
 
+    @Test void logicalDimensionsTruncateOddHdPixelsAndKeepTransparentAssetsPresent() throws Exception {
+        Files.createFile(directory.resolve("selection-mode@2x.png"));
+        Files.createFile(directory.resolve("menu-back@2x.png"));
+        Files.createFile(directory.resolve("songselect-top@2x.png"));
+        var assets = new SongSelectSkinAssets(new SkinAssetResolver(directory), file -> {
+            String name = file.path().getFileName().toString();
+            return name.startsWith("selection-mode") ? new TestTexture(185,181)
+                    : name.startsWith("menu-back") ? new TestTexture(545,183) : new TestTexture(1,1);
+        });
+        assertEquals(92,assets.get(Image.MODE).logicalWidth());
+        assertEquals(90,assets.get(Image.MODE).logicalHeight());
+        assertEquals(272,assets.get(Image.BACK).logicalWidth());
+        assertEquals(91,assets.get(Image.BACK).logicalHeight());
+        assertNotNull(assets.get(Image.TOP));
+        assertEquals(0,assets.get(Image.TOP).logicalWidth());
+        assertEquals(0,assets.get(Image.TOP).logicalHeight());
+        // The shared file helper is deliberately not changed by the screen contract.
+        assertEquals(92.5f,assets.get(Image.MODE).file().logicalSize(185));
+        assets.dispose();
+    }
+
     @ParameterizedTest @ValueSource(doubles = {1, 1.1, 1.5, 2, 2.2, 2.7})
     void selectionAnchorVersionGateIsIndependentOfThumbnails(double version) throws Exception {
         Files.writeString(directory.resolve("skin.ini"), "[General]\nVersion: " + version);
@@ -255,7 +276,7 @@ class SongSelectSkinAssetsTest {
         assertSame(layoutTexture, assets.get(Image.TOP).texture());
         assertEquals("bundled",assets.provider(Image.TOP));
         assertEquals(assets.provider(Image.TOP), assets.topLayoutProvider());
-        assertEquals(74.5f,assets.topDepth(0,100)); // Bundled @2x loader fixture, raw 149 high.
+        assertEquals(74f,assets.topDepth(0,100)); // Bundled @2x loader fixture, raw 149 high.
         assertEquals(0,layoutTexture.disposals);
         assets.dispose(); assets.dispose();
         assertEquals(1,layoutTexture.disposals); assertEquals(0,assets.topDepth(0,100));
