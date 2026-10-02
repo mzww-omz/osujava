@@ -288,7 +288,7 @@ class SongSelectWheelTest {
     @Test void wheelPrecedesReleaseDampingOnAnExistingStationaryDrag() throws Exception {
         addBeatmap(); var game=game(); var screen=new SongSelectScreen(game); game.navigate(screen);
         try {
-            update(screen,0);
+            update(screen,.016f); // Initial instant sprites must have evaluated opacity before pressing.
             var f=SongSelectScreen.class.getDeclaredField("visibleRows"); f.setAccessible(true);
             var row=((List<?>)f.get(screen)).stream().map(SongSelectRow.class::cast).filter(SongSelectRow::selected).findFirst().orElseThrow();
             pointerX=Math.round(row.x()+120); pointerY=height-Math.round(row.y()+row.height()/2);

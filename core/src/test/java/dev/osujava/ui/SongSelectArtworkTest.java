@@ -58,7 +58,7 @@ class SongSelectArtworkTest {
             assertEquals(Math.min(sd.width(), 900), geometry.hit().width(), .001);
             assertEquals(210, geometry.hit().y());
             assertEquals(50, geometry.hit().height());
-            assertNull(SongSelectRow.hit(java.util.List.of(row), 150, 209, 210, 260));
+            assertFalse(SongSelectRow.inViewport(150,209,1000,210,260));
         }
     }
 

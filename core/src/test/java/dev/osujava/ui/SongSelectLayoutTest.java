@@ -88,21 +88,22 @@ class SongSelectLayoutTest {
             assertTrue(row.contains(layout.width() - 1, 330));
         }
     }
-    @Test void existingBodyHitApproximationKeepsSelectedPriorityAndContentBounds() {
+    @Test void bodyGeometryAndViewportContainmentAreIndependentOfSelection() {
         var selected = row(0, true, 1);
         var last = row(1, false, 1);
-        assertSame(selected, SongSelectRow.hit(List.of(selected, last), 600, 110, 84, 600));
-        assertSame(last, SongSelectRow.hit(List.of(row(0, false, 1), last), 600, 110, 84, 600));
-        assertNull(SongSelectRow.hit(List.of(selected), 600, 84, 84, 600));
-        assertNull(SongSelectRow.hit(List.of(row(-1, false, 1), row(1, false, .01f)), 600, 110, 84, 600));
-        assertNull(SongSelectRow.hit(List.of(selected), 499, 110, 84, 600));
+        assertTrue(selected.contains(600,110));
+        assertTrue(last.contains(600,110));
+        assertFalse(SongSelectRow.inViewport(600,84,1280,84,600));
+        assertFalse(row(-1,false,1).contains(600,110));
+        assertFalse(row(1,false,.01f).contains(600,110));
+        assertFalse(selected.contains(499,110));
     }
     @Test void groupCardUsesTheSameClipAndHitGeometryAsBeatmapCards() {
         var group = new SongSelectRow(-1, -2, "A (2 beatmaps)", false, false,
                 500, 80, 600, 80, 0, 1, 0, 500, 80, "group:ARTIST:A", true);
         assertTrue(group.group());
-        assertSame(group, SongSelectRow.hit(List.of(group), 600, 110, 84, 600));
-        assertNull(SongSelectRow.hit(List.of(group), 600, 82, 84, 600));
+        assertTrue(group.contains(600,110));
+        assertFalse(SongSelectRow.inViewport(600,82,1280,84,600));
         var geometry = SongSelectLayout.row(group, 0, 500, 80, 1280, 84, 600, false, false);
         assertEquals(geometry.inputClip(), geometry.hit());
         assertEquals(84, geometry.hit().y());

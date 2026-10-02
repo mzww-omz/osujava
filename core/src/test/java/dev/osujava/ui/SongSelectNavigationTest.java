@@ -472,10 +472,13 @@ class SongSelectNavigationTest {
     }
     private SongSelectCarousel carousel() throws Exception { return (SongSelectCarousel) field("carousel"); }
     private void settle() throws Exception {
-        for (int i=0;i<120;i++) carousel().advance(1f/60,null);
+        // Advance production sprite opacity as well as carousel motion before input.
+        for (int i=0;i<120;i++) updatePointer(1280,720,1f/60);
         screen.resize(1280,720);
     }
     private void click(int set, int difficulty) throws Exception {
+        pointAtRow(set, difficulty);
+        updatePointer(1280,720,1f/60);
         var row = carousel().rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == difficulty).findFirst().orElseThrow();
         var method = SongSelectScreen.class.getDeclaredMethod("handleRowClick",float.class,float.class); method.setAccessible(true);
         method.invoke(screen,carousel().renderX(row,1280) + 150,carousel().renderY(row,636) + carousel().rowHeight()/2);
@@ -514,7 +517,7 @@ class SongSelectNavigationTest {
         var diff = library.all().iterator().next().difficulties().get(0);
         for (String title : List.of("Delta", "Epsilon"))
             library.add(new BeatmapSet(title,title,"Artist","Creator",null,null,List.of(diff),List.of()));
-        open("Beta",0); screen.resize(1280,720);
+        open("Beta",0); screen.resize(1280,720); settle();
         var row = carousel().rows().stream().filter(r -> r.entry.setIndex() == 4).findFirst().orElseThrow();
         float center = carousel().renderY(row,636) + carousel().rowHeight()/2;
         carousel().dragBy(115 - center); screen.resize(1280,720);
@@ -567,13 +570,12 @@ class SongSelectNavigationTest {
         var method = row.getClass().getDeclaredMethod(name); method.setAccessible(true); return method.invoke(row);
     }
 
-    @Test void animatedDrawBoundsAreClickableAndSelectedRowWinsDuringExpansionOverlap() throws Exception {
+    @Test void animatedDrawSnapshotUsesTheCarouselPositionThroughoutExpansion() throws Exception {
         open("Beta",0); screen.resize(1280,720); settle();
-        var hit = SongSelectScreen.class.getDeclaredMethod("hitRow",float.class,float.class); hit.setAccessible(true);
         key(Input.Keys.RIGHT); // Expansion inherits the collapsed Set bounds, overlapping children.
         for (int frame = 0; frame < 40; frame++) {
             if (frame < 8) carousel().scrollBy(frame < 4 ? 80 : -80);
-            carousel().advance(1f/60,"Gamma#0");
+            carousel().advance(1f/60,((SongBrowserModel)field("browser")).selectedKey());
             // resize refreshes the production draw snapshot without advancing motion.
             screen.resize(1280,720);
             for (Object snapshot : (List<?>) field("visibleRows")) {
@@ -581,14 +583,27 @@ class SongSelectNavigationTest {
                 var modelRow = carousel().rows().stream().filter(r -> r.entry.setIndex() == set && r.entry.difficultyIndex() == diff).findFirst().orElseThrow();
                 assertEquals(carousel().renderX(modelRow,1280),(float)rowValue(snapshot,"x"),.001);
                 assertEquals(carousel().renderY(modelRow,636),(float)rowValue(snapshot,"y"),.001);
-                if ((boolean)rowValue(snapshot,"selected")) {
-                    float x = (float)rowValue(snapshot,"x") + 150;
-                    float y = (float)rowValue(snapshot,"y") + (float)rowValue(snapshot,"height") / 2;
-                    if (y > 84 && y < 636) assertSame(snapshot,hit.invoke(screen,x,y),"Selected row must win over overlapping animated siblings");
-                }
             }
         }
         assertFalse(((UiNavigation)field("outgoing")).pending());
+    }
+
+    @Test void hideAndReturnBeforeTheNextFrameRecreatesBackgroundOpacity() throws Exception {
+        open("Beta",0); screen.resize(1280,720); settle();
+        var sibling = carousel().rows().stream().filter(row -> row.entry.setIndex() == 1
+                && row.entry.difficultyIndex() == 1).findFirst().orElseThrow();
+        @SuppressWarnings("unchecked")
+        var animations = (java.util.Map<SongSelectCarousel.Row,SongSelectForegroundAnimation>) field("rowForeground");
+        var old = animations.get(sibling);
+        assertEquals(1,old.baseOpacity());
+        long generation = sibling.spriteGeneration;
+        screen.previewSelection(2,0); screen.previewSelection(1,0);
+        assertTrue(sibling.spriteGeneration > generation);
+        updatePointer(1280,720,.016f);
+        var replacement = animations.get(sibling);
+        assertNotSame(old,replacement);
+        assertTrue(replacement.baseOpacity() > 0 && replacement.baseOpacity() < 1);
+        assertEquals(1,animations.get(carousel().row(((SongBrowserModel)field("browser")).selectedKey())).baseOpacity());
     }
 
     @Test void shiftF2WalksBackDuringSearchAndGrouping() throws Exception {

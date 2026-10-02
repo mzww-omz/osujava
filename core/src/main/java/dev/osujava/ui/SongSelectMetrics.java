@@ -13,6 +13,7 @@ final class SongSelectMetrics {
     static final float ROW_RIGHT_OFFSET = 340;
     static final float HOVER_INDENT = 45, HOVER_SPACING = 10;
     static final float OPEN_INDENT = 50, OPEN_SPACING = 10;
+    static final float ROW_DEPTH_START = .6f, ROW_DEPTH_STEP = .00003f;
 
     private SongSelectMetrics() { }
     static float rowWidth(float width, float height) {

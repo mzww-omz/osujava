@@ -59,12 +59,13 @@ class SongSelectCarouselTest {
         assertEquals(0,hovered.separationY); assertEquals(oldY,above.logicalY);
         assertTrue(hovered.hoverAmount > 0 && hovered.hoverAmount < 1);
     }
-    @Test void hoverRetainsAcrossBriefGapsThenEasesBackAndSwitchesWithoutReset() {
+    @Test void missingCandidateClearsHoverImmediatelyAndVisualsEaseBack() {
         var model = model(5);
         model.advance(.05f,"set#2");
         float amount = model.rows().get(2).hoverAmount;
         model.advance(.025f,null);
-        assertTrue(model.rows().get(2).hoverAmount >= amount);
+        assertNull(model.hoverKey());
+        assertTrue(model.rows().get(2).hoverAmount < amount);
         model.advance(.016f,"set#3");
         assertTrue(model.rows().get(2).hoverAmount > 0);
         assertTrue(model.rows().get(3).hoverAmount > 0);

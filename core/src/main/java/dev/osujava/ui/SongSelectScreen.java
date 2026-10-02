@@ -69,6 +69,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final BeatmapThumbnails thumbnails = new BeatmapThumbnails();
     private final OsuCookie playCookie = new OsuCookie();
     private final SongSelectCarousel carousel = viewState.carousel;
+    private final SongSelectRowInput rowInput = new SongSelectRowInput(carousel, rowForeground);
     private SongSelectInputController input;
     private SongSelectWheelInput wheelInput;
     private boolean contentDirty = true;
@@ -520,6 +521,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private void cancelInput() {
+        rowInput.clear();
         if (input != null) input.cancel();
         if (wheelInput != null) wheelInput.cancel();
     }
@@ -712,8 +714,13 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void advanceRowForeground(float delta) {
         int frameMs = Float.isFinite(delta) ? (int) Math.max(0, delta * 1000.0) : 0;
         for (var row : carousel.residentRows()) {
-            boolean created = !rowForeground.containsKey(row);
-            rowForeground.computeIfAbsent(row, ignored -> new SongSelectForegroundAnimation()).update(
+            var animation = rowForeground.get(row);
+            boolean created = animation == null || animation.spriteGeneration() != row.spriteGeneration;
+            if (created) {
+                animation = new SongSelectForegroundAnimation(row.spriteGeneration);
+                rowForeground.put(row, animation);
+            }
+            animation.update(
                     browser.row(row.entry.key()).state.ordinal(), created && row.instantSprites,
                     (long) rowColourTimeMs, frameMs);
         }
@@ -779,7 +786,8 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private SongSelectRow hitRow(float x, float y) {
-        return rowPointerVisible(x, y) ? SongSelectRow.hit(visibleRows, x, y, bottom, top) : null;
+        return rowInput.hit(visibleRows, x, y, contentWidth, bottom, top,
+                carousel.dragging() || input != null && input.rightScrolling());
     }
 
     private boolean rowPointerVisible(float x, float y) {

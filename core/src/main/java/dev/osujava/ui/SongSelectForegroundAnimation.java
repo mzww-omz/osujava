@@ -11,6 +11,11 @@ final class SongSelectForegroundAnimation {
     private int state;
     private long lastRequest, requestAge;
     private boolean requested, loaded;
+    private final long spriteGeneration;
+
+    SongSelectForegroundAnimation() { this(0); }
+    SongSelectForegroundAnimation(long spriteGeneration) { this.spriteGeneration = spriteGeneration; }
+    long spriteGeneration() { return spriteGeneration; }
 
     void update(int next, boolean instant, long now, int frameMs) {
         if (next != state) {
@@ -54,6 +59,7 @@ final class SongSelectForegroundAnimation {
     }
 
     Snapshot snapshot() { return new Snapshot(base.current, detail.current, thumbnail.current, (int) brightness.current); }
+    float baseOpacity() { return base.current; }
 
     private static final class Linear {
         float current, from, to;

@@ -1,7 +1,5 @@
 package dev.osujava.ui;
 
-import java.util.List;
-
 /** Immutable shared drawing/input geometry. Coordinates have already incorporated all motion. */
 record SongSelectRow(int setIndex, int difficultyIndex, String header, boolean selected, boolean sibling,
                      float x, float y, float width, float height, float hoverAmount, float revealAmount,
@@ -47,13 +45,4 @@ record SongSelectRow(int setIndex, int difficultyIndex, String header, boolean s
         return x >= 0 && x < width && y > bottom && y < top;
     }
 
-    static SongSelectRow hit(List<SongSelectRow> rows, float x, float y, float bottom, float top) {
-        if (y <= bottom || y >= top) return null;
-        // Existing arbitration: native negative creation-depth priority and full-opacity
-        // hover acquisition must be applied together, including sprite lifetime across re-sort.
-        // Geometry already shares the rendered background canvas.
-        for (var row : rows) if (row.selected && row.contains(x, y)) return row;
-        for (int i = rows.size() - 1; i >= 0; i--) if (rows.get(i).contains(x, y)) return rows.get(i);
-        return null;
-    }
 }

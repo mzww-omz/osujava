@@ -20,6 +20,8 @@ final class SongSelectCarousel {
         Entry entry;
         float logicalY;
         int logicalIndex;
+        float drawDepth, mousePriority;
+        long spriteGeneration;
         float hoverAmount, separationY, selectedAmount, groupAmount, focusAmount;
         float focusStart, focusElapsed;
         boolean focused, resident, instantSprites;
@@ -35,7 +37,7 @@ final class SongSelectCarousel {
     private final Map<String, Row> byKey = new HashMap<>();
     private final Map<String, Row> familyRepresentatives = new HashMap<>();
     private String selectedKey, hoverKey, focusKey, emphasisKey, selectionTrackingKey;
-    private float hoverAbsence, viewportHeight, rowHeight = 76, maxScroll;
+    private float viewportHeight, rowHeight = 76, maxScroll;
     private final SongSelectScroll scroll = new SongSelectScroll();
     private boolean keyboardTracking, pointerTracking;
     private boolean initialized, snapNextFrame;
@@ -54,10 +56,17 @@ final class SongSelectCarousel {
     int activeStart() { return activeStart; }
     int activeEnd() { return activeEnd; }
     private void resident(Row row, boolean value) {
+        // Sprite input priority captures creation depth; reordering a resident row only
+        // changes its drawing depth (060040a7/00fbe). Returning sprites capture again.
+        if (value && !row.resident) {
+            row.mousePriority = -row.drawDepth;
+            row.spriteGeneration++;
+        }
         row.resident = value;
         if (value && row.entry.visible()) residents.add(row); else residents.remove(row);
     }
     String hoverKey() { return hoverKey; }
+    boolean dragging() { return scroll.dragging(); }
     boolean presents(Row row) {
         return row.entry.visible() && row.resident && row.logicalIndex >= activeStart && row.logicalIndex < activeEnd;
     }
@@ -106,6 +115,7 @@ final class SongSelectCarousel {
         List<Row> next = sameOrder ? null : new ArrayList<>(), visible = new ArrayList<>();
         Entry previousVisible = null;
         float logicalY = viewportTop - screenHeight + SongSelectMetrics.FIRST_ROW_Y * referenceScale - rowStep;
+        float depth = SongSelectMetrics.ROW_DEPTH_START;
         for (int i = 0; i < entries.size(); i++) {
             Entry entry = entries.get(i);
             if (entry.visible()) {
@@ -115,6 +125,7 @@ final class SongSelectCarousel {
             }
             // Hidden rows have an index/coordinate too, but do not advance the visible pitch.
             Row row = sameOrder ? allRows.get(i) : previous.get(entry.key());
+            boolean returning = row != null && !row.entry.visible() && entry.visible();
             if (initialized && entry.header() && entry.expanded()
                     && (row == null || !row.entry.expanded())) openingGroups.add(entry.key());
             if (row == null) {
@@ -131,7 +142,15 @@ final class SongSelectCarousel {
                 }
             }
             row.entry = entry; row.logicalY = logicalY; row.logicalIndex = i;
+            row.drawDepth = depth;
+            depth += SongSelectMetrics.ROW_DEPTH_STEP; // Includes hidden rows (06003287).
             resident(row, entry.visible() && row.resident);
+            // 06000fd3 creates returning sprites before the ordinary viewport pass,
+            // with a 200ms base fade. The representative's existing opacity survives.
+            if (returning && entry.expanded() && !row.resident && insideBuffer(row.motionY)) {
+                resident(row, true);
+                row.instantSprites = false;
+            }
             if (!sameOrder) { next.add(row); byKey.put(entry.key(), row); }
             if (entry.visible()) { visible.add(row); previousVisible = entry; }
         }
@@ -157,7 +176,7 @@ final class SongSelectCarousel {
         }
         for (String key : openingGroups) seedGroup(byKey.get(key));
         Row hover = byKey.get(hoverKey);
-        if (hover == null || !hover.entry.visible()) { hoverKey = null; hoverAbsence = 0; }
+        if (hover == null || !hover.entry.visible()) hoverKey = null;
     }
 
     /** 06003273: seed every child; only visible family representatives advance the starting Y. */
@@ -227,7 +246,7 @@ final class SongSelectCarousel {
 
     void beginDrag(String key) {
         keyboardTracking = false;
-        hoverKey = key; hoverAbsence = 0;
+        hoverKey = key;
         scroll.beginDrag();
     }
     void drag(float distance, float delta) {
@@ -249,7 +268,7 @@ final class SongSelectCarousel {
         scroll.seek(fraction * maxScroll / referenceScale, SongSelectScroll.TRACK_DECAY);
     }
 
-    /** Retain the existing hover gap policy; row displacement is independent of scroll speed. */
+    /** Hover acquisition is supplied by the background sprite candidate controller. */
     void advance(float delta, String hitKey) {
         advance(delta, hitKey, false);
     }
@@ -257,8 +276,7 @@ final class SongSelectCarousel {
         float dt = Float.isFinite(delta) ? Math.max(0, Math.min(2, delta)) : 0;
         // 06003256/3267 preserve the hover identity throughout either scroll gesture.
         if (!scroll.dragging() && !rightScrolling) {
-            if (hitKey != null && byKey.containsKey(hitKey) && byKey.get(hitKey).entry.visible()) { hoverKey = hitKey; hoverAbsence = 0; }
-            else if ((hoverAbsence += dt) >= .075f) hoverKey = null;
+            hoverKey = hitKey != null && byKey.containsKey(hitKey) && byKey.get(hitKey).entry.visible() ? hitKey : null;
         }
         if (dt > 0) {
             Row tracking = byKey.get(keyboardTracking && focusKey != null ? focusKey : selectionTrackingKey);
