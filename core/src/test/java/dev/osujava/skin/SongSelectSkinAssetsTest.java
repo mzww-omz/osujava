@@ -14,6 +14,48 @@ import static org.junit.jupiter.api.Assertions.*;
 class SongSelectSkinAssetsTest {
     @TempDir Path directory;
 
+    @Test void partialSkinPairsOmittedColoursWithInheritedBackgroundWithoutChangingSelectedConfiguration() throws Exception {
+        Files.writeString(directory.resolve("skin.ini"), "[General]\nVersion: 2.2");
+        var bundled = new SongSelectSkinAssets(SkinAssetResolver.withBundledDefault(directory, null),
+                file -> new TestTexture(700, 117));
+        assertEquals(new SkinConfiguration.Rgb(0, 0, 0), bundled.configuration().songSelect().activeText());
+        assertEquals(new SkinConfiguration.Rgb(1, 1, 1), bundled.rowTextColours().activeText());
+        assertEquals(new SkinConfiguration.Rgb(192 / 255f, 192 / 255f, 192 / 255f), bundled.rowTextColours().inactiveText());
+        assertEquals(2.2, bundled.configuration().legacyVersion());
+        bundled.dispose();
+
+        Path fallback = Files.createDirectory(directory.resolve("fallback"));
+        Files.createFile(fallback.resolve("menu-button-background@2x.png"));
+        Files.writeString(fallback.resolve("skin.ini"), "[Colours]\nSongSelectActiveText: 20,40,60\nSongSelectInactiveText: 80,100,120");
+        var local = new SongSelectSkinAssets(SkinAssetResolver.withBundledDefault(directory, fallback),
+                file -> new TestTexture(1400, 234));
+        assertEquals(2, local.get(Image.MENU_BUTTON_BACKGROUND).density());
+        assertEquals(new SkinConfiguration.Rgb(20 / 255f, 40 / 255f, 60 / 255f), local.rowTextColours().activeText());
+        assertEquals(new SkinConfiguration.Rgb(80 / 255f, 100 / 255f, 120 / 255f), local.rowTextColours().inactiveText());
+        local.dispose();
+    }
+
+    @Test void authoredColoursAndCustomBackgroundKeepSelectedPaletteIncludingBlackAndTransparency() throws Exception {
+        Files.writeString(directory.resolve("skin.ini"), "[Colours]\nSongSelectActiveText: 0,0,0");
+        var partial = new SongSelectSkinAssets(SkinAssetResolver.withBundledDefault(directory, null),
+                file -> new TestTexture(700, 117));
+        assertEquals(new SkinConfiguration.Rgb(0, 0, 0), partial.rowTextColours().activeText());
+        assertEquals(new SkinConfiguration.Rgb(192 / 255f, 192 / 255f, 192 / 255f), partial.rowTextColours().inactiveText());
+        partial.dispose();
+
+        Files.createFile(directory.resolve("menu-button-background.png"));
+        Files.writeString(directory.resolve("skin.ini"), "[General]\nVersion: 2.2");
+        var custom = new SongSelectSkinAssets(SkinAssetResolver.withBundledDefault(directory, null),
+                file -> new TestTexture(1, 1));
+        assertEquals("current", custom.provider(Image.MENU_BUTTON_BACKGROUND));
+        assertEquals(custom.configuration().songSelect(), custom.rowTextColours());
+        custom.dispose();
+        var missing = new SongSelectSkinAssets(new SkinAssetResolver(directory.resolve("missing")),
+                file -> { fail("No textures expected"); return null; });
+        assertEquals(SkinConfiguration.SongSelect.defaults(), missing.rowTextColours());
+        missing.dispose();
+    }
+
     @Test void logicalDimensionsTruncateOddHdPixelsAndKeepTransparentAssetsPresent() throws Exception {
         Files.createFile(directory.resolve("selection-mode@2x.png"));
         Files.createFile(directory.resolve("menu-back@2x.png"));

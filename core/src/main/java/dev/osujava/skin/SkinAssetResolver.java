@@ -73,6 +73,15 @@ public final class SkinAssetResolver {
 
     SkinConfiguration.Fonts bundledFonts() { return bundledConfiguration().fonts(); }
 
+    /** Used only to pair an inherited Song Select background with its omitted text colours. */
+    SkinConfiguration imageConfiguration(Provider provider) throws IOException {
+        return switch (provider) {
+            case CUSTOM -> readSelectedConfiguration();
+            case FALLBACK -> fallbackDirectory == null ? SkinConfiguration.defaults() : SkinConfiguration.read(fallbackDirectory);
+            case BUNDLED -> bundledConfiguration();
+        };
+    }
+
     public Optional<AssetFile> resolve(String name) {
         return resolve(name, file -> true);
     }

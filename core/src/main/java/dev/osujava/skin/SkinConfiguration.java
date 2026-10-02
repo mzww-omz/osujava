@@ -16,8 +16,18 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
         this(fonts, hasIni, overlay, version, colours, cursor, spinner, songSelect, -1);
     }
     /** Official skin.ini defaults, independent of the artwork provider. */
-    public record SongSelect(Rgb activeText, Rgb inactiveText) {
-        public static SongSelect defaults() { return new SongSelect(new Rgb(0, 0, 0), new Rgb(1, 1, 1)); }
+    public record SongSelect(Rgb activeText, Rgb inactiveText, boolean activeTextSpecified,
+                             boolean inactiveTextSpecified) {
+        public SongSelect(Rgb activeText, Rgb inactiveText) { this(activeText, inactiveText, true, true); }
+        public static SongSelect defaults() {
+            return new SongSelect(new Rgb(0, 0, 0), new Rgb(1, 1, 1), false, false);
+        }
+        /** Local fallback palette only; explicitly authored colours always keep ownership. */
+        SongSelect withFallback(SongSelect fallback) {
+            return new SongSelect(activeTextSpecified ? activeText : fallback.activeText,
+                    inactiveTextSpecified ? inactiveText : fallback.inactiveText,
+                    activeTextSpecified, inactiveTextSpecified);
+        }
     }
     public SkinConfiguration(Fonts fonts, boolean hasIni, boolean overlay, double version, Colours colours, Cursor cursor, Spinner spinner) {
         this(fonts, hasIni, overlay, version, colours, cursor, spinner, SongSelect.defaults());
@@ -114,6 +124,7 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
         Rgb border = Colours.defaults().sliderBorder();
         Rgb track = null;
         Rgb activeText = SongSelect.defaults().activeText(), inactiveText = SongSelect.defaults().inactiveText();
+        boolean activeTextSpecified = false, inactiveTextSpecified = false;
         var comboColours = new TreeMap<Integer, Rgb>();
         boolean allowSliderBallTint = false;
         boolean centre = true, rotate = true, expand = true, trailRotate = false, noBlink = false;
@@ -168,11 +179,11 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             if (section.equals("Colours")) {
                 if (key.equals("SongSelectActiveText")) {
                     Rgb parsed = parseRgb(value);
-                    if (parsed != null) activeText = parsed;
+                    if (parsed != null) { activeText = parsed; activeTextSpecified = true; }
                 }
                 if (key.equals("SongSelectInactiveText")) {
                     Rgb parsed = parseRgb(value);
-                    if (parsed != null) inactiveText = parsed;
+                    if (parsed != null) { inactiveText = parsed; inactiveTextSpecified = true; }
                 }
                 if (key.matches("Combo[1-8]")) {
                     Rgb parsed = parseRgb(value);
@@ -207,6 +218,6 @@ public record SkinConfiguration(Fonts fonts, boolean hasIni, boolean hitCircleOv
             }
         }
         return new SkinConfiguration(new Fonts(prefix, overlap, scorePrefix, scoreOverlap, comboPrefix, comboOverlap), true,
-                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track, List.copyOf(comboColours.values()), allowSliderBallTint), new Cursor(centre, rotate, expand, trailRotate), new Spinner(noBlink, spinnerBackground), new SongSelect(activeText, inactiveText), animationFramerate);
+                overlay != null ? overlay : typoOverlay != null ? typoOverlay : true, version, new Colours(border, track, List.copyOf(comboColours.values()), allowSliderBallTint), new Cursor(centre, rotate, expand, trailRotate), new Spinner(noBlink, spinnerBackground), new SongSelect(activeText, inactiveText, activeTextSpecified, inactiveTextSpecified), animationFramerate);
     }
 }

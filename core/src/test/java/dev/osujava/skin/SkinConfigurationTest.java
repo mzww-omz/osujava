@@ -187,6 +187,18 @@ class SkinConfigurationTest {
         }
     }
 
+    @Test
+    void songSelectDistinguishesOmittedAndExplicitDefaultColours() throws IOException {
+        var omitted = parse("[Colours]\nSongSelectActiveText: invalid\nSongSelectActiveText: 0,0,0").songSelect();
+        assertFalse(omitted.activeTextSpecified());
+        assertFalse(omitted.inactiveTextSpecified());
+        var explicit = parse("[Colours]\nSongSelectActiveText: 0,0,0\nSongSelectInactiveText: 255,255,255").songSelect();
+        assertTrue(explicit.activeTextSpecified());
+        assertTrue(explicit.inactiveTextSpecified());
+        assertEquals(omitted.activeText(), explicit.activeText());
+        assertEquals(omitted.inactiveText(), explicit.inactiveText());
+    }
+
     private SkinConfiguration parse(String ini) throws IOException {
         return SkinConfiguration.parse(new StringReader(ini));
     }

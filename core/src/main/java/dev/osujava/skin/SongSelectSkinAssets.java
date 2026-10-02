@@ -82,6 +82,7 @@ public final class SongSelectSkinAssets implements Disposable {
     private final java.util.Map<SkinTexture,SelectionAssetBounds> backBounds = new IdentityHashMap<>();
     private SongSelectTopCoverage topCoverage;
     private SkinConfiguration configuration = SkinConfiguration.defaults();
+    private SkinConfiguration.SongSelect rowTextColours;
     private final SkinAssetResolver resolver;
     public SkinAssetResolver resolver() { return resolver; }
 
@@ -144,6 +145,13 @@ public final class SongSelectSkinAssets implements Disposable {
                 // Stable 0600136e resolves normal, hover, top and bottom independently.
                 resolver.resolvePresentImage(image.basename, load);
             }
+        }
+        rowTextColours = configuration.songSelect();
+        var background = get(Image.MENU_BUTTON_BACKGROUND);
+        if (background != null && background.file().provider() != SkinAssetResolver.Provider.CUSTOM) {
+            try {
+                rowTextColours = rowTextColours.withFallback(resolver.imageConfiguration(background.file().provider()).songSelect());
+            } catch (IOException e) { log("Could not read inherited row palette", e); }
         }
         // Selection geometry depends on the resolved Mods provider, which may load after Mode.
         for (var entry : textures.entrySet()) measureGeometry(entry.getKey(), entry.getValue());
@@ -231,6 +239,8 @@ public final class SongSelectSkinAssets implements Disposable {
     }
     public boolean thumbnailsEnabled() { return configuration.legacyVersion() >= 2.2; }
     public SkinConfiguration configuration() { return configuration; }
+    /** Cached local fallback policy; selected configuration and texture pixels are unchanged. */
+    public SkinConfiguration.SongSelect rowTextColours() { return rowTextColours; }
 
     /** Resolver candidates always win; this small UI glyph is created once if all are absent/corrupt. */
     public Texture starTexture() {

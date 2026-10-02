@@ -156,7 +156,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
                 for (String name : List.of("empty", "single", "three", "many", "SS", "S", "A", "B", "C", "D",
                         "numbers", "numbers-bottom", "sibling", "no-score", "group", "search", "long", "unicode", "fallback", "bundled-fallback",
-                        "high-only", "scroll-top", "scroll-middle", "scroll-bottom", "selected", "wheel-hover", "transitions", "resize", "oversized-score",
+                        "high-only", "scroll-top", "scroll-middle", "scroll-bottom", "selected", "wheel-hover", "transitions", "resize", "oversized-score", "partial-palette",
                         "large-0", "large-10", "large-100", "large-1000"))
                     scenes.add(new Scene(size[0],size[1],size[2],"phase4-" + name));
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
@@ -240,7 +240,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     for (String name : List.of("repair-empty", "repair-single", "greylooks-expanded-many-last",
                             "greylooks-collapse-many", "greylooks-scroll-reverse", "phase2-long-english", "phase2-japanese",
                             "phase2-missing-thumbnail", "phase3-search-none", "phase4-empty", "phase4-single", "phase4-many",
-                            "phase4-wheel-hover", "phase4-oversized-score", "phase4-resize", "phasechrome-giant",
+                            "phase4-wheel-hover", "phase4-oversized-score", "phase4-resize", "phase4-partial-palette", "phasechrome-giant",
                             "phasechrome-transparent", "phase5a-state-save-reload"))
                         scenes.add(new Scene(size[0],size[1],size[2],name));
             } else if (phase.equals("configured")) {
@@ -693,6 +693,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "phase4-fallback", "phase3-fallback" -> new SkinAssetResolver(output.resolve("fixtures/empty"));
             case "phase4-high-only" -> new SkinAssetResolver(output.resolve("fixtures/high-only"));
             case "phase4-bundled-fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), null);
+            case "phase4-partial-palette" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/star-high"), null);
             case "phase3-modern" -> new SkinAssetResolver(output.resolve("fixtures/latest"));
             case "phase2-missing-star" -> new SkinAssetResolver(output.resolve("fixtures/missing"));
             case "phase2-broken-star" -> new SkinAssetResolver(output.resolve("fixtures/star-broken"));
@@ -728,6 +729,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         var fb = new FrameBuffer(Pixmap.Format.RGBA8888,scene.width * scene.density,scene.height * scene.density,false);
         try {
             screen.show();
+            if (scene.name.equals("phase4-partial-palette")) {
+                if (!Color.WHITE.equals(screenField(screen, "activeText")))
+                    throw new AssertionError("Partial skin did not connect its inherited row palette to the renderer");
+                if (assets.configuration().legacyVersion() != 2.2 || !assets.thumbnailsEnabled())
+                    throw new AssertionError("Inherited row palette replaced selected skin configuration");
+            }
             if (assets == null) {
                 try { var field = SongSelectScreen.class.getDeclaredField("skin"); field.setAccessible(true);
                     assets = (SongSelectSkinAssets)field.get(screen); }

@@ -169,8 +169,8 @@ public final class SongSelectScreen extends ScreenAdapter {
                 if (cursor == null) cursor = new SongSelectCursor(skin);
                 cursor.show();
             }
-            activeText = textColor(skin.configuration().songSelect().activeText(), Color.BLACK);
-            inactiveText = textColor(skin.configuration().songSelect().inactiveText(), null);
+            activeText = textColor(skin.rowTextColours().activeText(), Color.BLACK);
+            inactiveText = textColor(skin.rowTextColours().inactiveText(), null);
         }
         contentDirty = true;
         chromeContent = null;
