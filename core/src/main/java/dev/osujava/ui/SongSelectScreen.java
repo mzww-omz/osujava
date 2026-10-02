@@ -58,7 +58,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private Color activeText = DARK_TEXT, inactiveText;
     private final SongSelectToolboxState toolbox = new SongSelectToolboxState();
     boolean renderedSelectionProcedural(Selection action) { return renderer.renderedSelectionProcedural(action); }
-    private final Map<Object, SongSelectRowPresentation.Content> rowContent = new IdentityHashMap<>();
+    private final Map<BeatmapDifficulty, SongSelectRowPresentation.Content> rowContent = new IdentityHashMap<>();
     private final Function<BeatmapDifficulty, OptionalDouble> ratings;
     private BeatmapDifficulty metadataDifficulty;
     private BeatmapSet metadataSet;
@@ -115,7 +115,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         return renderer.renderedChromeProcedural(image);
     }
     private float viewportHeight;
-    private float top, bottom, searchX, searchW, cookieX, cookieY, cookieRadius;
+    private float top, bottom, searchX, searchW;
 
     public SongSelectScreen(OsuJavaGame game) { this(game, null, 0); }
     public SongSelectScreen(OsuJavaGame game, String preferredSetId, int preferredDifficulty) {
@@ -537,10 +537,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         searchW = geometry.search().width();
         searchX = geometry.search().x();
         var cookie = bottomLayout.cookie;
-        cookieRadius = cookie.width() / 2;
-        cookieX = cookie.x() + cookieRadius;
-        cookieY = cookie.y() + cookieRadius;
-        playCookie.bounds(cookieX, cookieY, cookieRadius, bottom);
+        float cookieRadius = cookie.width() / 2;
+        playCookie.bounds(cookie.x() + cookieRadius, cookie.y() + cookieRadius, cookieRadius, bottom);
         scores.capacity(scoreBounds(layout).capacity());
     }
 
@@ -644,7 +642,6 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void cacheRowContent() {
         rowContent.clear();
         for (BeatmapSet set : sets) {
-            rowContent.put(set, SongSelectRowPresentation.content(set, null, OptionalDouble.empty()));
             for (BeatmapDifficulty diff : set.difficulties())
                 rowContent.put(diff, SongSelectRowPresentation.content(set, diff, ratings.apply(diff)));
         }

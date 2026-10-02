@@ -22,7 +22,7 @@ final class SongSelectChrome {
     }
     static Content content(float height, float leftDepth, float rightDepth, float bottomDepth) {
         // Authored artwork keeps native drawing bounds. It must not reserve the whole viewport.
-        // Extreme canvases are treated as decoration; this safety limit is an osujava policy.
+        // Extreme canvases keep native scale inside a bounded clip; this is an osujava policy.
         return new Content(height - reservation(leftDepth + 8, 130, height * MAX_TOP_FRACTION),
                 height - reservation(rightDepth + 4, 84, height * MAX_TOP_FRACTION), bottomReservation(height, bottomDepth));
     }

@@ -120,9 +120,8 @@ class SongSelectToolboxLayoutTest {
     @Test void legacyTopLeftAnchorAndBackBodyPreserveTransparentOvershoot() {
         var images = new EnumMap<Image,SkinTexture>(Image.class);
         images.put(Image.MODE,texture(92,85,1)); images.put(Image.BACK,texture(174,90,1));
-        var body = new SongSelectBodyBounds(.05f,.03f,.9f,.83f);
         var metrics = new EnumMap<Image,SelectionAssetBounds>(Image.class);
-        var backRect = new SelectionAssetBounds.Rect(body.left()*174,body.bottom()*90,body.width()*174,body.height()*90);
+        var backRect = new SelectionAssetBounds.Rect(.05f*174,.03f*90,.9f*174,.83f*90);
         metrics.put(Image.BACK,new SelectionAssetBounds(backRect,backRect));
         var l = new SongSelectToolboxLayout(1280,720,true,images,metrics);
         var c = l.control(Selection.MODE);
@@ -131,8 +130,8 @@ class SongSelectToolboxLayoutTest {
         assertEquals(l.baseline,l.backImage.y());
         assertEquals(174*720f/768,l.backImage.width());
         assertEquals(90*720f/768,l.backImage.height());
-        assertEquals(l.baseline+l.backImage.height()*body.bottom(),l.backInteraction.y());
-        assertEquals(l.backInteraction.width(),l.backImage.width()*body.width(),.001);
+        assertEquals(l.baseline+l.backImage.height()*.03f,l.backInteraction.y());
+        assertEquals(l.backInteraction.width(),l.backImage.width()*.9f,.001);
     }
 
     @Test void nativeMarginsAndUnusualAspectRatiosNeverChangeDrawOriginsOrScale() {

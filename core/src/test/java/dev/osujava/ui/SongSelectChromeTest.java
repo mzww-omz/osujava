@@ -2,7 +2,6 @@ package dev.osujava.ui;
 
 import com.badlogic.gdx.graphics.Texture;
 import dev.osujava.skin.SkinAssetResolver;
-import dev.osujava.skin.SongSelectBodyBounds;
 import dev.osujava.skin.SongSelectSkinAssets.SkinTexture;
 import dev.osujava.skin.SongSelectSkinAssets.Image;
 import java.nio.file.Path;

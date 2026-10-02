@@ -190,7 +190,7 @@ final class SongSelectRowRenderer {
 
     void drawGrade(OsuGrade grade, float x, float y, float w, float h, Color tint, Color textTint) {
         Image image = gradeImage(grade);
-        if (has(image)) skinImageFit(image, x, y, w, h, tint);
+        if (has(image)) SongSelectSkinDrawing.fit(batch, style.skin(), image, x, y, w, h, tint);
         else view.textSmoothBold(grade.name(), x + 3, y + h * .35f, w - 6, 1.35f, textTint);
     }
 
@@ -206,14 +206,6 @@ final class SongSelectRowRenderer {
         batch.setColor(tint);
         SongSelectSkinDrawing.drawTexture(batch,style.skin().get(image),x,y,w,h);
         batch.setColor(Color.WHITE);
-    }
-
-    private void skinImageFit(Image image, float x, float y, float w, float h, Color tint) {
-        if (!has(image)) return;
-        var asset = style.skin().get(image);
-        float scale = Math.min(w / asset.logicalWidth(), h / asset.logicalHeight());
-        float width = asset.logicalWidth() * scale, height = asset.logicalHeight() * scale;
-        skinImage(image, x + (w - width) / 2, y + (h - height) / 2, width, height, tint);
     }
 
 }

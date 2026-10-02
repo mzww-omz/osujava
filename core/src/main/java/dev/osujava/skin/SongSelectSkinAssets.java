@@ -81,7 +81,6 @@ public final class SongSelectSkinAssets implements Disposable {
     private List<SkinTexture> backFrames = List.of();
     private final java.util.Map<SkinTexture,SelectionAssetBounds> backBounds = new IdentityHashMap<>();
     private SongSelectTopCoverage topCoverage;
-    private SongSelectBodyBounds rowBody = SongSelectBodyBounds.FULL;
     private SkinConfiguration configuration = SkinConfiguration.defaults();
     private final SkinAssetResolver resolver;
     public SkinAssetResolver resolver() { return resolver; }
@@ -171,7 +170,7 @@ public final class SongSelectSkinAssets implements Disposable {
     }
 
     private void measureGeometry(Image image, SkinTexture asset) {
-        if (Gdx.gl == null || (image != Image.MENU_BUTTON_BACKGROUND && image != Image.BACK
+        if (Gdx.gl == null || (image != Image.BACK
                 && Selection.of(image) == null && image != Image.TOP)) return;
         Pixmap pixels = null;
         try {
@@ -191,10 +190,6 @@ public final class SongSelectSkinAssets implements Disposable {
                 selectionBounds.put(image, SelectionAssetBounds.detect(pixels.getWidth(), pixels.getHeight(),
                         asset.density(), action.logicalWidth, legacy ? LEGACY_SELECTION_HEIGHT : 90, legacy,
                         (x, y) -> source.getPixel(x, y) & 255));
-            } else {
-                var body = SongSelectBodyBounds.detect(pixels.getWidth(), pixels.getHeight(),
-                        (x, y) -> source.getPixel(x, y) & 255);
-                rowBody = body;
             }
         } catch (GdxRuntimeException ignored) { /* Full-image bounds remain the safe default. */ }
         finally { if (pixels != null) pixels.dispose(); }
@@ -228,7 +223,6 @@ public final class SongSelectSkinAssets implements Disposable {
         var top = get(Image.TOP);
         return top == null ? 0 : topCoverage == null ? top.logicalHeight() : topCoverage.depth(start,end);
     }
-    public SongSelectBodyBounds rowBody() { return rowBody; }
     /** Stable 0600136e also uses new anchors when the resolved Mods normal is built-in. */
     public boolean legacySelectionAnchors() {
         var mods = get(Image.MODS);
