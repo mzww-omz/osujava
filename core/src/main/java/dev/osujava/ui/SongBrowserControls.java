@@ -10,6 +10,21 @@ import dev.osujava.skin.SongSelectSkinAssets.Image;
 /** Small legacy-style text selectors. Mouse activation never captures typing focus. */
 final class SongBrowserControls {
     enum Menu { GROUP, SORT }
+    // 0600136e, SelectPlay=5 (OsuModes): explicit tab identities, not Group ordinals.
+    enum Tab {
+        ALL("No grouping",SongBrowserModel.Group.NONE), DIFFICULTY("By Difficulty",null),
+        ARTIST("By Artist",SongBrowserModel.Group.ARTIST,SongBrowserModel.Sort.ARTIST),
+        CREATOR("By Creator",SongBrowserModel.Group.CREATOR,SongBrowserModel.Sort.CREATOR),
+        RECENT("Recently Played",null), COLLECTIONS("Collections",null);
+        final String label;
+        final SongBrowserModel.Group group;
+        final SongBrowserModel.Sort sort;
+        Tab(String label,SongBrowserModel.Group group) { this(label,group,null); }
+        Tab(String label,SongBrowserModel.Group group,SongBrowserModel.Sort sort) {
+            this.label = label; this.group = group; this.sort = sort;
+        }
+        boolean available() { return group != null; }
+    }
     private Menu menu;
     private static final float OPTION_HEIGHT = 26;
     private static final Color TAB_IDLE = new Color(.72f,.25f,.42f,1);
@@ -25,9 +40,8 @@ final class SongBrowserControls {
         float start = w * .54f, width = (w - start - 12) / tabCount(w,h);
         return new Bounds(start + width * index, h - 52, width - 1, 20);
     }
-    // 0600136e / 06001dc9: the fifth tab requires ceil(displayWidth / (height/480)) > 720.
-    // Category contents still depend on the local Browser's implemented Group modes.
-    static int tabCount(float w, float h) { return h > 0 && Math.ceil(w / (h / 480f)) > 720 ? 5 : 4; }
+    // 0600136e / 06001dc9: the sixth Play tab requires ceil(displayWidth / (height/480)) > 720.
+    static int tabCount(float w, float h) { return h > 0 && Math.ceil(w / (h / 480f)) > 720 ? 6 : 5; }
     Menu menu() { return menu; }
     String hover(float x, float y, float w, float h) {
         if (groupBounds(w,h).hit(x,y)) return "group";
@@ -39,17 +53,26 @@ final class SongBrowserControls {
                 return menu + ":" + (int)((b.y()-y)/OPTION_HEIGHT);
             return null;
         }
-        for (var group : SongBrowserModel.Group.values()) if (tabBounds(w,h,group.ordinal()).hit(x,y)) return "tab:"+group;
+        for (var tab : Tab.values()) if (tabBounds(w,h,tab.ordinal()).hit(x,y)) return "tab:"+tab;
         return null;
     }
     boolean open() { return menu != null; }
     void close() { menu = null; }
     boolean click(float x, float y, float w, float h, SongBrowserModel browser) {
+        return click(x,y,w,h,browser,tab -> { });
+    }
+    boolean click(float x, float y, float w, float h, SongBrowserModel browser,
+                  java.util.function.Consumer<Tab> unavailable) {
         if (groupBounds(w,h).hit(x,y)) { menu = menu == Menu.GROUP ? null : Menu.GROUP; return true; }
         if (sortBounds(w,h).hit(x,y)) { menu = menu == Menu.SORT ? null : Menu.SORT; return true; }
         if (menu == null) {
-            for (var group : SongBrowserModel.Group.values()) if (tabBounds(w,h,group.ordinal()).hit(x,y)) {
-                browser.group(group); return true;
+            for (var tab : Tab.values()) if (tabBounds(w,h,tab.ordinal()).hit(x,y)) {
+                if (tab.available()) {
+                    // 0600138a -> 06001384: Artist/Creator also select their matching Sort.
+                    if (tab.sort != null) browser.sort(tab.sort);
+                    browser.group(tab.group);
+                } else unavailable.accept(tab);
+                return true;
             }
             return false;
         }
@@ -67,8 +90,8 @@ final class SongBrowserControls {
     void drawShapes(UiView view, float w, float h, SongSelectSkinAssets skin) {
         for (var b : new Bounds[]{groupBounds(w,h),sortBounds(w,h)})
             view.box(b.x()+52,b.y(),b.width()-52,b.height(),0,PANEL);
-        if (!SongSelectSkinDrawing.present(skin,Image.TAB)) for (var group : SongBrowserModel.Group.values()) {
-            var b = tabBounds(w,h,group.ordinal());
+        if (!SongSelectSkinDrawing.present(skin,Image.TAB)) for (var tab : Tab.values()) {
+            var b = tabBounds(w,h,tab.ordinal());
             view.box(b.x(),b.y(),b.width(),b.height(),0,PANEL);
         }
     }
@@ -79,13 +102,13 @@ final class SongBrowserControls {
         view.textSmooth(browser.group().label+"  ▾",g.x()+58,h-22,g.width()-62,.76f,UiTheme.TEXT);
         view.textSmooth("Sort",s.x(),h-22,50,.83f,UiTheme.MUTED);
         view.textSmooth(browser.sort().label+"  ▾",s.x()+58,h-22,s.width()-62,.76f,UiTheme.TEXT);
-        for (var group : SongBrowserModel.Group.values()) {
-            var b = tabBounds(w,h,group.ordinal());
+        for (var tab : Tab.values()) {
+            var b = tabBounds(w,h,tab.ordinal());
             if (b.width() <= 0) continue;
-            boolean selected = group == browser.group();
+            boolean selected = tab.group == browser.group();
             Color tint = selected ? Color.WHITE : b.hit(px,py) ? UiTheme.ACCENT : TAB_IDLE;
             SongSelectSkinDrawing.fit(batch,skin,Image.TAB,b.x(),b.y(),b.width(),b.height(),tint);
-            String label = group == SongBrowserModel.Group.NONE ? "All" : group.label;
+            String label = tab.label;
             Color text = selected && SongSelectSkinDrawing.present(skin,Image.TAB) ? Color.BLACK : UiTheme.TEXT;
             // A contrasting outline also works when the author supplies a transparent tab.
             for (int[] offset : LABEL_OUTLINE) view.textSmooth(label,

@@ -356,7 +356,8 @@ public final class SongSelectScreen extends ScreenAdapter {
             var oldSort = browser.sort(); var oldGroup = browser.group();
             var previousMenu = controls.menu();
             if (toolbox.open()) SongSelectToolboxOverlay.click(toolbox,layout,px,py);
-            else if (controls.click(px, py, layout.width(), layout.height(), browser)) {
+            else if (controls.click(px, py, layout.width(), layout.height(), browser,
+                    tab -> showToast(tab.label + " is unavailable.",UiTheme.MUTED))) {
                 sound(controls.menu() != null && controls.menu() != previousMenu ? SongSelectAudio.Cue.EXPAND : SongSelectAudio.Cue.CONFIRM);
                 if (oldSort != browser.sort() || oldGroup != browser.group()) { refreshBrowserOrder(); }
             }
