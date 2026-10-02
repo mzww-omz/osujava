@@ -123,7 +123,7 @@ native画像がある場合は、その可視Rowの共有canvasを使い、Rende
 
 | 優先度 | 残件 | 次に必要な比較・作業 |
 | --- | --- | --- |
-| P1 | 重複行のselected優先は既存近似のまま。nativeのmouse priority/opacity/既存hoverの全組合せに未対応 | 生成時priorityを保持する寿命を、sort/filter・resident再生成を跨いで照合する。200ms fadeの0/途中/1、hover済み/新規、即時再生の入力列を同時に閉じる。選択優先だけを除く修正は展開直後の再生を壊すため採用しない |
+| P1 | global dispatcher/frame順序の最終native比較 | [row入力の続き](songselect-row-input-follow-up-20261002.md)でselected優先を廃止し、生成時priority・opacity・既存hover・復帰fadeを接続。展開直後の再生も維持。native登録途中の候補更新とJava snapshot評価のframe差を同期captureで閉じる |
 | P1 | native pixel rounding、dispatcher/callback時刻・focus境界 | 同じ許可skinでpointerをpixel単位に動かすnative capture。今回の共有canvasはJavaの描画/input一致であり最終native hitの完全一致ではない |
 | P1 | HD eligibility | 上記二optionとdisplay/GL条件を確定し、799/800高・SD/HD同時・HD-only・resize/reloadを比較。Gameplay/Resultsの共通resolverを不用意に変えない |
 | P1 | 明示的な黒色＋暗いfallback背景、skinの全frame合成・font/metadata typography | 明示色は尊重するためcontrastを自動改変しない。同じ許可skin/fontのnative比較が必要。bundled素材は引き続きGreylooks |
