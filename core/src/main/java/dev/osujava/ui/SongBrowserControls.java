@@ -25,8 +25,9 @@ final class SongBrowserControls {
         float start = w * .54f, width = (w - start - 12) / tabCount(w,h);
         return new Bounds(start + width * index, h - 52, width - 1, 20);
     }
-    // Four/five tabs are documented; this aspect threshold is a local layout policy.
-    static int tabCount(float w, float h) { return w <= h * 4 / 3f ? 4 : 5; }
+    // 0600136e / 06001dc9: the fifth tab requires ceil(displayWidth / (height/480)) > 720.
+    // Category contents still depend on the local Browser's implemented Group modes.
+    static int tabCount(float w, float h) { return h > 0 && Math.ceil(w / (h / 480f)) > 720 ? 5 : 4; }
     Menu menu() { return menu; }
     String hover(float x, float y, float w, float h) {
         if (groupBounds(w,h).hit(x,y)) return "group";

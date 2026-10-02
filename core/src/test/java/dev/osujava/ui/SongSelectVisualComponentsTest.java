@@ -30,6 +30,11 @@ class SongSelectVisualComponentsTest {
     @Test void narrowWindowRetainsAllGroupsInDropdownButUsesFourTabs() {
         assertEquals(4,SongBrowserControls.tabCount(960,720));
         assertEquals(5,SongBrowserControls.tabCount(1280,720));
+        assertEquals(4,SongBrowserControls.tabCount(1152,768));
+        assertEquals(5,SongBrowserControls.tabCount(1153,768));
+        assertEquals(4,SongBrowserControls.tabCount(1280,900));
+        assertEquals(4,SongBrowserControls.tabCount(1080,720));
+        assertEquals(5,SongBrowserControls.tabCount(1081,720));
         var controls = new SongBrowserControls(); var browser = new SongBrowserModel(List.of());
         var g = SongBrowserControls.groupBounds(960,720);
         controls.click(g.x()+1,g.y()+1,960,720,browser);
