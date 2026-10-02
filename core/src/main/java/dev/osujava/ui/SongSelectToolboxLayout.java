@@ -24,11 +24,19 @@ final class SongSelectToolboxLayout {
     final float baseline, controlHeight, spacing, transparentOvershoot;
 
     static SongSelectToolboxLayout create(float width, float height, SongSelectSkinAssets skin) {
+        return create(width,height,skin,skin == null ? null : skin.get(Image.BACK));
+    }
+    static SongSelectToolboxLayout create(float width, float height, SongSelectSkinAssets skin, SkinTexture backFrame) {
         var images = new EnumMap<Image, SkinTexture>(Image.class);
         var metrics = new EnumMap<Image, SelectionAssetBounds>(Image.class);
         if (skin != null) for (var image : Image.values()) {
             if (skin.get(image) != null) images.put(image, skin.get(image));
             if (skin.selectionBounds(image) != null) metrics.put(image, skin.selectionBounds(image));
+        }
+        if (backFrame != null) {
+            images.put(Image.BACK,backFrame);
+            metrics.remove(Image.BACK);
+            if (skin != null && skin.backBounds(backFrame) != null) metrics.put(Image.BACK,skin.backBounds(backFrame));
         }
         return new SongSelectToolboxLayout(width, height, skin != null && skin.legacySelectionAnchors(),
                 images, metrics);

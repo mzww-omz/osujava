@@ -23,8 +23,11 @@ final class SongSelectLayout {
                     Rect viewport, Rect metadata, Rect search, ScoreBrowserBounds scores) { }
 
     static Snapshot create(UiLayout ui, SongSelectSkinAssets skin) {
+        return create(ui,skin,skin == null ? null : skin.get(SongSelectSkinAssets.Image.BACK));
+    }
+    static Snapshot create(UiLayout ui, SongSelectSkinAssets skin, SongSelectSkinAssets.SkinTexture backFrame) {
         var chrome = SongSelectChrome.content(ui.width(), ui.height(), skin);
-        var toolbox = SongSelectToolboxLayout.create(ui.width(), ui.height(), skin);
+        var toolbox = SongSelectToolboxLayout.create(ui.width(), ui.height(), skin,backFrame);
         float left = SongSelectMetrics.wheelLeft(ui.width(), ui.height());
         return new Snapshot(chrome, toolbox,
                 new Rect(left, chrome.bottom(), ui.width() - left, chrome.carouselTop() - chrome.bottom()),

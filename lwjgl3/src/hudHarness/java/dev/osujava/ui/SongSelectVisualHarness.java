@@ -232,7 +232,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             } else if (phase.equals("parity-visual")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1365,768,1},{1366,768,1},{1367,768,1},{1152,768,1},{1153,768,1},{1280,720,2}})
-                    for (String name : List.of("overlap", "transparent-back", "odd-hd", "short-top"))
+                    for (String name : List.of("overlap", "transparent-back", "odd-hd", "short-top", "animated-back"))
                         scenes.add(new Scene(size[0],size[1],size[2],"parity-"+name));
             } else if (phase.equals("configured")) {
                 scenes.clear();
@@ -2079,7 +2079,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
     }
 
-    /** Repeatable state capture through production model/input APIs; no reflection. */
+    /** Repeatable state capture through production model/input APIs and read-only state inspection. */
     private void captureConfigured(SongSelectScreen screen, Scene scene, FrameBuffer fb, int[] pointer,
                                    InputProcessor input, SongSelectSkinAssets assets) {
         var layout = UiLayout.fromPixels(scene.width, scene.height);
@@ -2088,6 +2088,27 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         screen.browserSearch(System.getProperty("osujava.songSelectSearch", ""), false);
         // Establish resources and initial state before the requested transition.
         screen.render(0);
+        if (scene.name.equals("parity-animated-back")) {
+            float scale = layout.height()/768;
+            screen.render(.5f);
+            var changed = (SongSelectToolboxLayout)screenField(screen,"bottomLayout");
+            var texture = (SongSelectSkinAssets.SkinTexture)screenField(screen,"backFrame");
+            if (texture.logicalWidth() != 140 || Math.abs(changed.backImage.width()-80*scale) > .01f)
+                throw new AssertionError("Back texture swaps after the cached geometry update");
+            var pixel = Pixmap.createFromFrameBuffer(Math.round(60*scene.height/768f*scene.density),
+                    Math.round(20*scene.height/768f*scene.density),1,1);
+            try {
+                int colour = pixel.getPixel(0,0);
+                if ((colour >>> 24 & 255) < 240 || (colour >>> 8 & 255) > 15)
+                    throw new AssertionError("Back must sample the cached 80x50 crop after the HD texture swap");
+            } finally { pixel.dispose(); }
+            screen.render(0);
+            var refreshed = (SongSelectToolboxLayout)screenField(screen,"bottomLayout");
+            if (Math.abs(refreshed.backImage.width()-140*scale) > .01f
+                    || Math.abs(refreshed.backImage.height()-90*scale) > .01f
+                    || Math.abs(refreshed.backInteraction.width()-140*scale) > .01f)
+                throw new AssertionError("Back draw and interaction dimensions must follow the next update");
+        }
         screen.previewScroll(Float.parseFloat(System.getProperty("osujava.songSelectScroll", "0")));
         int key = switch (System.getProperty("osujava.songSelectAction", "none")) {
             case "selection" -> Input.Keys.DOWN;
@@ -2148,6 +2169,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         capture(fb, name);
         var report = new StringBuilder("window=" + scene.width + "x" + scene.height + " density=" + scene.density
                 + " time=" + time + "\n");
+        report.append("elapsed=").append(screenField(screen,"seconds"))
+                .append(" backProbe=").append(scene.name.equals("parity-animated-back") ? "update(0.5),update(0)" : "none").append("\n");
+        var sampledBack = (SongSelectSkinAssets.SkinTexture)screenField(screen,"backFrame");
+        if (sampledBack != null) report.append("backFrame=").append(sampledBack.file().path()).append("\n");
         for (var image : SongSelectSkinAssets.Image.values()) {
             var asset = assets.get(image);
             report.append(image.basename).append(" provider=").append(assets.provider(image));
@@ -2165,7 +2190,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         report.append("input action=").append(System.getProperty("osujava.songSelectAction","none"))
                 .append(" hover=").append(Arrays.toString(hover)).append(" steps=").append(steps).append(" hz=120\n");
         report.append("tabs=").append(SongBrowserControls.tabCount(layout.width(),layout.height())).append("\n");
-        var geometry = SongSelectToolboxLayout.create(layout.width(),layout.height(),assets);
+        var geometry = (SongSelectToolboxLayout)screenField(screen,"bottomLayout");
         report.append("back=").append(geometry.backImage).append(" hit=").append(geometry.backInteraction).append("\n");
         for (var action : SongSelectSkinAssets.Selection.values())
             report.append(action).append('=').append(geometry.control(action)).append("\n");
@@ -2183,9 +2208,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
 
     /** Authored test colours, never exported native assets. Baselines record Java, not parity. */
     private void createParityFixtures() throws java.io.IOException {
-        for (String name : List.of("overlap","transparent-back","odd-hd","short-top")) {
+        for (String name : List.of("overlap","transparent-back","odd-hd","short-top","animated-back")) {
             Path dir = Files.createDirectories(output.resolve("fixtures/parity-"+name));
-            Files.writeString(dir.resolve("skin.ini"),"[General]\nVersion: 2.2\n[Colours]\nSongSelectActiveText: 0,0,0\nSongSelectInactiveText: 255,255,255\n");
+            Files.writeString(dir.resolve("skin.ini"),"[General]\nVersion: 2.2\nAnimationFramerate: 2\n[Colours]\nSongSelectActiveText: 0,0,0\nSongSelectInactiveText: 255,255,255\n");
             for (String image : List.of("songselect-top","songselect-bottom","menu-back","cursor","cursortrail","cursormiddle","star2"))
                 parityImage(dir,image,1,1,Color.CLEAR);
             for (var action : SongSelectSkinAssets.Selection.values()) {
@@ -2205,6 +2230,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     parityImage(dir,"menu-back@2x",545,183,Color.RED);
                 }
                 case "short-top" -> parityImage(dir,"songselect-top",100,90,Color.BLUE);
+                case "animated-back" -> {
+                    parityImage(dir,"menu-back-0",80,50,Color.RED);
+                    var pixels = new Pixmap(280,180,Pixmap.Format.RGBA8888);
+                    try {
+                        pixels.setColor(Color.BLUE); pixels.fill();
+                        pixels.setColor(Color.RED); pixels.fillRectangle(0,0,160,100);
+                        PixmapIO.writePNG(Gdx.files.absolute(dir.resolve("menu-back-1@2x.png").toString()),pixels);
+                    } finally { pixels.dispose(); }
+                }
                 default -> { }
             }
         }

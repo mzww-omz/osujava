@@ -50,6 +50,8 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final Map<SongSelectCarousel.Row, SongSelectForegroundAnimation> rowForeground = new IdentityHashMap<>();
     private String geometryViewport;
     private SongSelectSkinAssets skin;
+    private final SongSelectBackAnimation backAnimation = new SongSelectBackAnimation();
+    private SongSelectSkinAssets.SkinTexture backFrame, backGeometry, layoutBackFrame;
     private SongSelectCursor cursor;
     private SongSelectAudio audio;
     private SongSelectPreview preview;
@@ -96,8 +98,10 @@ public final class SongSelectScreen extends ScreenAdapter {
     private SongSelectChrome.Content chromeContent;
     private float chromeWidth = -1, chromeHeight = -1;
     private SongSelectLayout.Snapshot layoutSnapshot(UiLayout layout) {
-        if (layoutSnapshot == null || chromeWidth != layout.width() || chromeHeight != layout.height()) {
-            layoutSnapshot = SongSelectLayout.create(layout, skin);
+        var currentBack = backGeometry != null ? backGeometry : skin == null ? null : skin.get(Image.BACK);
+        if (layoutSnapshot == null || chromeWidth != layout.width() || chromeHeight != layout.height() || layoutBackFrame != currentBack) {
+            layoutSnapshot = SongSelectLayout.create(layout, skin,currentBack);
+            layoutBackFrame = currentBack;
             chromeWidth = layout.width(); chromeHeight = layout.height();
         }
         return layoutSnapshot;
@@ -285,6 +289,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 toastColor,
                 toastSeconds,
                 seconds,
+                backFrame,
                 preview != null && preview.available() ? preview.positionMs() / 1000.0 : seconds,
                 backgroundFade,
                 bottom,
@@ -318,6 +323,11 @@ public final class SongSelectScreen extends ScreenAdapter {
         viewState.sample(layout, Gdx.input.getX(), Gdx.input.getY(), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
         viewState.advance(delta);
         seconds = viewState.elapsed;
+        if (skin != null) {
+            backAnimation.update((int)(seconds * 1000),skin.backFrameCount(),skin.configuration().animationFramerate());
+            backFrame = skin.backFrameAt(backAnimation.frame());
+            backGeometry = skin.backFrameAt(backAnimation.geometryFrame());
+        }
         if (preview != null) {
             var difficulty = selectedDifficulty();
             var set = selectedSet();

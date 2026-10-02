@@ -40,4 +40,12 @@ final class SongSelectSkinDrawing {
         if (asset.logicalWidth() <= 0 || asset.logicalHeight() <= 0 || w <= 0 || h <= 0) return;
         batch.draw(asset.texture(),x,y,w,h,0,asset.cropV2(),asset.cropU2(),0);
     }
+    /** Animated Back caches its logical crop before changing texture/density (06001b19/40b1). */
+    static void drawBackTexture(SpriteBatch batch, SongSelectSkinAssets.SkinTexture asset,
+                                SongSelectToolboxLayout.Bounds bounds, float scale) {
+        if (bounds.empty()) return;
+        float u2 = bounds.width() / scale * asset.density() / asset.texture().getWidth();
+        float v2 = bounds.height() / scale * asset.density() / asset.texture().getHeight();
+        batch.draw(asset.texture(),bounds.x(),bounds.y(),bounds.width(),bounds.height(),0,v2,u2,0);
+    }
 }

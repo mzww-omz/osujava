@@ -65,6 +65,7 @@ final class SongSelectRenderer {
         Color toastColor,
         float toastSeconds,
         float seconds,
+        SongSelectSkinAssets.SkinTexture backFrame,
         double previewSeconds,
         float backgroundFade,
         float bottom,
@@ -236,19 +237,17 @@ final class SongSelectRenderer {
     }
 
     private void drawBack(UiLayout layout) {
-        var backFrame = frame.skin == null ? null : frame.skin.backFrame(frame.seconds);
+        var backFrame = frame.backFrame;
         if (backFrame != null) {
             float scale = layout.height() / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
             batch.setColor(Color.WHITE);
-            SongSelectSkinDrawing.drawTexture(batch,backFrame, 0, frame.bottomLayout.baseline,
-                    backFrame.logicalWidth() * scale, backFrame.logicalHeight() * scale);
+            SongSelectSkinDrawing.drawBackTexture(batch,backFrame,frame.bottomLayout.backImage,scale);
             int src = batch.getBlendSrcFunc(), dst = batch.getBlendDstFunc();
             int srcAlpha = batch.getBlendSrcFuncAlpha(), dstAlpha = batch.getBlendDstFuncAlpha();
             try {
                 batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
                 batch.setColor(1,1,1,frame.hoverAppearance.back());
-                SongSelectSkinDrawing.drawTexture(batch,backFrame, 0, frame.bottomLayout.baseline,
-                        backFrame.logicalWidth()*scale, backFrame.logicalHeight()*scale);
+                SongSelectSkinDrawing.drawBackTexture(batch,backFrame,frame.bottomLayout.backImage,scale);
             } finally {
                 batch.setBlendFunctionSeparate(src,dst,srcAlpha,dstAlpha);
                 batch.setColor(Color.WHITE);
