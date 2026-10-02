@@ -46,11 +46,11 @@ Quota懸念を受け、今回もWine等の起動検証は行っていない。
 | V04 / 差確定 | Javaのalpha scan、top40%/bottom30%上限、最低予約高さが配置・viewportを変える | 透明top・高さ600top・高さ400bottomで、各spriteと入力範囲のwindow geometryを比較。nativeで裏づけのない予約規則を互換仕様にしない |
 | V05 / 部分対応 | Options normal絵の常時RGB .54倍を除去し、白い自作画像の画素を検証。操作機能は未対応 | 同一素材でnative通常/hover/押下の色とalphaを照合。機能依存はV21で管理 |
 | V06 / 部分対応 | bundled行に独自のalpha .86白矩形を重ねる処理を除去 | 対象条件でnativeの色・alpha合成を照合。可読性の独自補正を互換仕様へ混ぜない |
-| V07 / 差確定・未確定 | Javaのalpha>=16/160によるnormal/over範囲union、固定slotがhitを決める。native sprite寸法はalpha非依存だが最終dispatcherは未確定 | alpha0/15/16/159/160/255と600×350 overでhover候補、down対象、up結果を比較。透明画像の読み込み成功だけで合格にしない |
-| V08 / 部分対応・未確定 | Backのframe別geometryを更新。nativeのbase更新→texture交換を保ち、新寸法は次updateでdraw/crop/hitへ反映。alpha推定・最終dispatcherは残る | 異寸法連番のframe・crop・hitをnativeと同時比較。画面境界の抑止flag寿命も確認 |
+| V07 / 部分対応・未確定 | alpha/normal union/固定slot依存を除去。raw hover矩形と画面clip、selection .96→Back .91の入力優先を対応。alphaは画像診断のみ。global dispatcher/物理pixel丸めは未確定 | alpha0/15/16/159/160/255と600×350 overでhover候補、down対象、up結果を比較。透明画像の読み込み成功だけで合格にしない |
+| V08 / 部分対応・未確定 | Backのframe別geometryを更新。nativeのbase更新→texture交換を保ち、新寸法は次updateでdraw/crop/hitへ反映。Back alpha推定を除去しraw矩形に対応。global dispatcher/物理pixel丸めは残る | 異寸法連番のframe・crop・hitをnativeと同時比較。画面境界の抑止flag寿命も確認 |
 | V09 / 部分対応・未確定 | Back専用の初回update epochとSingle除算interval、wrap・再生成を対応。正常画面内の更新をunit/GLで検証 | native時計のfocus/minimize/復帰継続性、normal/overの全寿命を確認。UI elapsedとの差を全条件で閉じる |
 | V10 / 差確定 | Java resolverは常にHD優先。nativeに800/capability/optionsによるHD eligibilityがある | HD/SDを異なる自作色にし、実際に選んだpath/densityを照合。未確定optionをJava window heightで代用しない |
-| V11 / 部分対応 | Song Selectの静的画像は最初の存在ファイルのdecode失敗で探索停止。missingはfallback。Back連番のprovider探索は旧経路のまま | missing/壊れたHD/壊れたSD/連番の結果を別々に照合。Gameplay/Resultsの既存policyを誤変更しない |
+| V11 / 部分対応 | Song Selectの静的画像は最初の存在ファイルのdecode失敗で探索停止。missingはfallback。Backはzero/staticを独立探索しprovider優先を比較、勝ったzeroのproviderで連番を固定。壊れたHD→SDへのretryを除去 | missing/壊れたHD/壊れたSD/連番の結果を別々に照合。Gameplay/Resultsの既存policyを誤変更しない |
 | V12 / 部分対応・未確定 | 部品の独立探索は対応済み。native mask/RawName/global例外、cursor設定owner等は残る | CUSTOM/FALLBACK/BUNDLEDを別色にし、画像・INI・音それぞれのownerを比較。Javaの任意fallback Skinをnative譜面providerと同一視しない |
 | V13 / 部分対応 | INIのcase/最初のキー/boolean/RGBA、cursor-middle同provider・trail独立は対応済み | 重複section、省略、読込失敗、Version切替、cursor/trail設定と音のaliasを追加照合。通常キーの成功でparser全体を完了にしない |
 | V14 / 部分対応・機能依存 | 通常SelectPlayの5/6 tab、カテゴリidentity、Artist/CreatorのSort連動を対応。未対応カテゴリは案内を出し別Groupへ誤対応しない | 下記の幅境界とnative登録値を比較。tab配置・animation・localized表示、Difficulty/Recent/Collectionsの機能が残る |
@@ -112,10 +112,10 @@ phase 9の「行内composition対応済み」は、画面全体の合成完了�
 | D04 / 差確定・未確定 | Javaは即時rebuild。nativeに300ms待機経路。Regex境界・IME/culture・alias/conversionは未完了 | 編集時刻ごとの表示件数とselection、クリア・0件・再入力、IME確定を入力列で照合 |
 | D05 / 部分対応・未確定 | 同Set複数Group、連続familyの区切り、クリックした代表難易度のactivateを修正。family identityはlocal Set近似、近い難易度の全選択規則は未完了 | 同名/別Set/同Set複数Group・部分検索で行ID、focus ID、playable selection IDを別々に比較 |
 | I01 / 部分対応・未確定 | 行の参照座標/指数慣性/色/星/foregroundは各phaseで対応済み | nativeの同一入力列で全frameの位置・色・scale/cropを確認。Java snapshotだけで総合合格にしない |
-| I02 / 差確定・未確定 | Javaの行hitはselected優先と逆順。他のspriteと重なる場合のnative候補優先、alpha/clip/丸めは残る | 巨大行・透明行・重なり・画面端でdraw順とhit対象を別記録し、選択/開始/context結果を照合 |
+| I02 / 部分対応・未確定 | 行背景の生成時priorityと同priority時の先着、fading候補/hover状態の分離は修復済み。下部sprite間のpriorityも修復。managerを跨ぐ候補更新/clip/物理pixel丸めは残る | 巨大行・透明行・重なり・画面端でdraw順とhit対象を別記録し、選択/開始/context結果を照合 |
 | I03 / 部分対応・未確定 | wheel集約/保持repeat/mouse snapshotは対応。初回key callbackはnativeと同じ更新順に閉じていない | 同frameのwheel+key+mouse、overlay開閉、修飾key、focus喪失/復帰で消費順と発火時刻を比較 |
 | I04 / 部分対応・未確定 | drag/80px取消/250counter等の画面内契約は対応。画面境界のglobal入力状態継承は残る | drag-out、左右交換、押下中の遷移、復帰直後、低fpsで入力stateの寿命を比較 |
-| T01 / 未確定 | Java previewは同path変更を無視、新pathでdispose/play/seek、未指定は0、全曲loop。nativeの全規則は未調査 | 同音源別難易度、異音源連打、PreviewTime省略/0/正値で選択・seek・fade・loop・clockを比較 |
+| T01 / 未確定 | Java previewの同frame選曲/音声更新と失敗後の新選択時1回retryを修復。健康な同pathは継続、新pathでdispose/play/seek、未指定0、全曲loop。nativeのseek/loop/focus/復帰規則は未調査 | 同音源別難易度、異音源連打、PreviewTime省略/0/正値で選択・seek・fade・loop・clockを比較 |
 | T02 / 未確定・機能依存 | 背景・thumbnail・音の非同期順、入退場/Gameplay復帰の状態保持が未完了 | 遅延/失敗/順序逆転と短時間往復で古い選択の画像・音が混入しないこと、nativeと同じ復帰状態を確認 |
 
 D01/D02の根拠は`06003288`、`06003c95`、`060013ff`、`06003282`、`060032b0`、
