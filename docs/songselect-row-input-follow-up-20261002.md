@@ -1,5 +1,6 @@
 # Song Select残件対応: row候補・opacity・sprite寿命
 
+現在の残件は[統合残件台帳](songselect-remaining-work-20261002.md)へ統合済み。本書は個別作業の証拠・履歴。
 開始commit `43940b0`、開始時working treeはclean。
 [前回の残件表](songselect-follow-up-20261002.md#未完了項目と次の実装単位)の
 重複row入力を対象に、既存carouselとimmutable描画geometryを維持して修復した。
@@ -122,13 +123,9 @@ depthはbrowser順変更時だけ更新する。全libraryの毎frame処理は�
 
 ## 残る差異と次の作業
 
-| 優先度 | 残件 | 次の検証・実装単位 |
-| --- | --- | --- |
-| P1 | global dispatcherの全frame順序・native pixel rounding | native `06003267`はrow登録途中にもlogical hoverを更新する。Javaは共有snapshotの最終候補を評価する。同じ許可skinと固定pointer列で、候補入替・callback・focus境界をpixel/frame単位に比較する |
-| P1 | buffer外を含む復帰spriteの全生成順・他animationの再生成時計 | 今回の復帰fadeは既存buffer内へ適用。foreground/inputの世代を照合したが、colour/starの全寿命までnative一致を主張しない。many difficulty・sort/filter・rapid collapse/expandを固定時刻で比較する |
-| P1 | HD eligibility、Back/下部buttonのalpha-based hit・provider/INI/音alias | 共通resolverの常時HD優先は維持。native option/display/GL条件と実pixel hitを確定してから変更する |
-| P1 | font/metadata typography、Greylooksと公式defaultの見た目 | 同じ再配布可能skin/fontでfull-frame比較。明示色を自動改変しない |
-| P1/P2 | Mods/他mode/Options/未対応tabs、rating/status source、score player/mods/replay/scrollbar drag、preview/focus/復帰 | [全体audit残件表](songselect-full-audit-20261002.md#残件と次の作業)の独立したbackend・UI単位で継続。ローカル実データのない情報を捏造しない |
+現在の未完了項目・優先度・次の検証は[統合残件台帳](songselect-remaining-work-20261002.md)のR01–R11を参照。
+今回までの修復に加え、ローカルscore thumbのdrag接続とcolour/star再生成を対応済み。
+本書の観測・測定は各開始commitからの履歴として保持する。
 
 安全用chrome/scissor予約領域、極端なportrait、Java Cookie・拍/粒子の差も維持する。
 native同期captureや画素完全一致を達成したとの主張はしない。

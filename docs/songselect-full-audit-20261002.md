@@ -1,5 +1,6 @@
 # Song Select 全面監査と修復（2026-10-02）
 
+現在の残件は[統合残件台帳](songselect-remaining-work-20261002.md)へ統合済み。本書は個別作業の証拠・履歴。
 開始commit: `5c75af7`。作業開始時のworking treeはclean。
 Screen / Renderer / RowRenderer / Layout / Carousel / BrowserModel / Input / SkinAssets /
 AssetResolver / Toolbox / ScoreBrowser / LocalScoreStore / Preview / Audio / thumbnails /
@@ -172,18 +173,9 @@ Frameへ渡すcopyもその容量分。新たな全library scan、GL texture/fon
 
 ## 残件と次の作業
 
-| 優先度 | 残るstableとの差異 | 次の具体的作業 |
-| --- | --- | --- |
-| P1 | custom skinの全frame合成、metadata typography/font metrics。built-in fallbackの見た目はGreylooksで公式defaultとは異なる | 同じ許可font/skinを使うnative captureを720/800/768高で取得。[残件対応](songselect-follow-up-20261002.md)で未指定色とfallback背景の組合せを修復。明示的な黒指定は尊重する |
-| P1 | global dispatcherのframe順序、native pixel roundingが残る | [canvas共有](songselect-follow-up-20261002.md)と[row入力修復](songselect-row-input-follow-up-20261002.md)でselected優先を廃止し、生成時priority/opacity/hover寿命を接続。native登録途中の候補更新、click/releaseとcallbackをpixel/frame単位で比較 |
-| P1 | HD eligibilityは常時HD優先。nativeはdisplay height/option/GL capability条件。Back連番provider、mask/INI owner/音aliasも部分未確定 | [既存差分台帳](songselect-one-to-one-gap-ledger-20261002.md) V07–V13のfixtureを閉じる |
-| P1 | 通常Mods/他mode gameplay/Options、Difficulty/Recently Played/Collections tabの実機能なし | 各Ruleset・rating・collection/backendを実装してから現在のcapability境界へ接続。見せかけの有効化をしない |
-| P1 | production star rating sourceなし。metadataに本当のranked statusなし | 独立した信頼できるローカルdifficulty計算・metadata sourceを用意。表示済みのSettingsからstarsを作らない |
-| P2 | player/mods/replayを保存していない。score indicatorは位置表示だけでdragできない。rank UIの全native座標は未確定 | ローカルschemaに実データがある機能だけ追加。thumb drag/hitをmodel操作として実装しnative layoutと比較 |
-| P2 | 同じ音声pathのdifficulty変更でPreviewTime変更を適用しない、未指定seek=0。preview/fade/loop/背景遷移の全契約は未測定 | T01/T02の同path別難易度、load失敗、Gameplay復帰、focus/minimizeの入力列を観測 |
-| P2 | safety上限/row scissorはnativeとの差。極端なportraitではscore幅が0になり表示対象外 | 正常skinのnative manager範囲と安全方針を区別。portraitを対応対象にするなら専用responsive方針を追加 |
-| P2 | CookieはJava素材、拍/粒子は近似。hoverと入退場の全native時計を比較していない | 再配布可能な独自素材と、音声position/frame時刻を固定した比較fixtureで確認 |
-| 対象外 | Bancho/online rankings/chat/profile/official website操作 | 完全ローカル要件のため接続しない |
+現在の未完了項目・優先度・次の検証は[統合残件台帳](songselect-remaining-work-20261002.md)のR01–R11を参照。
+今回までの修復に加え、ローカルscore thumbのdrag接続とcolour/star再生成を対応済み。
+本書の観測・測定は各開始commitからの履歴として保持する。
 
 既存差分台帳のV04/V17/V18/I02の一部を今回修復したが、ID全体を完了扱いにはしない。
 

@@ -1,5 +1,7 @@
 # Song Select: stableとの1:1比較台帳（2026-10-02）
 
+現在の実装状態・優先度は[統合残件台帳](songselect-remaining-work-20261002.md)を参照。本書はnative契約の詳細台帳。
+
 ## 目標と判定
 
 最終目標は、b20230727.9の**ローカルSong Select**に対して、同じ譜面・Skin・設定・入力列から
@@ -54,8 +56,8 @@ Quota懸念を受け、今回もWine等の起動検証は行っていない。
 | V14 / 部分対応・機能依存 | 通常SelectPlayの5/6 tab、カテゴリidentity、Artist/CreatorのSort連動を対応。未対応カテゴリは案内を出し別Groupへ誤対応しない | 下記の幅境界とnative登録値を比較。tab配置・animation・localized表示、Difficulty/Recent/Collectionsの機能が残る |
 | V15 / 部分対応・未確定 | titleと行title/bylineを選択・代表難易度のmetadataへ修正。公称18/12/8、depth/位置、独自5行・bold/scale/幅制限は残る | 内容とbaseline・折返し・省略・影・色を項目別比較。origin変換を閉じてから座標を変更 |
 | V16 / 差確定・未確定 | native GDI系とJava AWT系の測定・描画差。Latin/CJK/結合文字等の最終pixelは未測定 | 同じ許可されたfontで字幅・baseline・glyph fallback・影・省略位置を測定。文字全領域のmaskで合格にしない |
-| V17 / 機能依存・未確定 | Java score欄はローカル独自の64高/68pitch・grade枠・情報配置。native score containerのclipは別の矩形 | 空/1件/多数、scroll端、score種別、replay有無で内容・draw/hit/clipを比較。native score用managerをcarouselと混同しない |
-| V18 / 差確定・未確定 | Java scrollbarは独自の幅5、最小thumb18等。nativeのどのbarと対応するかを分けて確定する必要 | carouselとscoreを別々に、0/少数/多数、端/中間位置でbar geometryとdrag操作を比較 |
+| V17 / 機能依存・未確定 | Java score欄は現在45高/49.5pitch（native33/480高pitchから変換済み）。grade枠・情報配置とnative score containerのclip全体には差が残る | 空/1件/多数、scroll端、score種別、replay有無で内容・draw/hit/clipを比較。native score用managerをcarouselと混同しない |
+| V18 / 差確定・未確定 | Java score barは幅3×scale、最小thumb18×scale。既存thumbへのdrag入力は接続済み。carousel barを含むnative形状/連続scroll/track契約は未確定 | carouselとscoreを別々に、0/少数/多数、端/中間位置でbar geometryとdrag操作を比較 |
 | V19 / 差確定・未確定 | Java Cookieは生成ロゴと独自のbeat/hover/pressed半径、bottom限定hit | 自作の許可素材でorigin、動く境界、重なり、click範囲を比較。公式ロゴ抽出で差を隠さない |
 | V20 / 未確定 | 背景の暗化・切替、粒子、拍同期、入退場の全native経路は閉じていない | 同一音源・背景、静止/選択変更/無音/連打でphase、fade曲線、合成順を比較。Javaの.22秒fade等は当面の値として扱う |
 | V21 / 差確定・機能依存 | Java Mode/Modsは独自の帯・tile・Unavailable表示。通常Modsはactive空、toggleはfalse。Optionsは案内のみ | native selectorのgeometry/時間/キー/close/状態適用を比較。実機能と外観を別の完了項目にする |

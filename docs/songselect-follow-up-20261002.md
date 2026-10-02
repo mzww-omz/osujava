@@ -1,5 +1,6 @@
 # Song Select監査の残件対応 — 2026-10-02
 
+現在の残件は[統合残件台帳](songselect-remaining-work-20261002.md)へ統合済み。本書は個別作業の証拠・履歴。
 前回の[全面監査](songselect-full-audit-20261002.md)の続き。開始HEADは`9c785cc`。
 今回はpartial skinの文字色と、carouselの描画canvas/input矩形の不一致を修復した。
 stableの入力優先値とHD条件も再調査したが、その全契約の一致を完了扱いにはしない。
@@ -121,13 +122,9 @@ native画像がある場合は、その可視Rowの共有canvasを使い、Rende
 
 ## 未完了項目と次の実装単位
 
-| 優先度 | 残件 | 次に必要な比較・作業 |
-| --- | --- | --- |
-| P1 | global dispatcher/frame順序の最終native比較 | [row入力の続き](songselect-row-input-follow-up-20261002.md)でselected優先を廃止し、生成時priority・opacity・既存hover・復帰fadeを接続。展開直後の再生も維持。native登録途中の候補更新とJava snapshot評価のframe差を同期captureで閉じる |
-| P1 | native pixel rounding、dispatcher/callback時刻・focus境界 | 同じ許可skinでpointerをpixel単位に動かすnative capture。今回の共有canvasはJavaの描画/input一致であり最終native hitの完全一致ではない |
-| P1 | HD eligibility | 上記二optionとdisplay/GL条件を確定し、799/800高・SD/HD同時・HD-only・resize/reloadを比較。Gameplay/Resultsの共通resolverを不用意に変えない |
-| P1 | 明示的な黒色＋暗いfallback背景、skinの全frame合成・font/metadata typography | 明示色は尊重するためcontrastを自動改変しない。同じ許可skin/fontのnative比較が必要。bundled素材は引き続きGreylooks |
-| P1/P2 | Mods/他mode/Options、未対応tabs、rating/statusのローカルsource、ranking player/mods/replayとthumb drag、preview/focus/復帰契約 | [前回残件表](songselect-full-audit-20261002.md#残件と次の作業)を継続。backend/実データがないUIの有効化や値の捏造をしない |
+現在の未完了項目・優先度・次の検証は[統合残件台帳](songselect-remaining-work-20261002.md)のR01–R11を参照。
+今回までの修復に加え、ローカルscore thumbのdrag接続とcolour/star再生成を対応済み。
+本書の観測・測定は各開始commitからの履歴として保持する。
 
 下部button alpha-based hit、Backの全provider/INI/音alias契約、safety clipとnative無制限managerの差、
 Cookie/拍/粒子の素材・時計差も前回の残件として維持する。
