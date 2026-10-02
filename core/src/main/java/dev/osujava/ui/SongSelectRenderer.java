@@ -161,6 +161,8 @@ final class SongSelectRenderer {
         try {
             chromeClip(layout, new SongSelectChrome.Bounds(0, 0, layout.width(), layout.height()));
             view.beginText();
+            // Stable main-manager depths: Back .9/.91, selection .95/.96.
+            drawBack(layout);
             for (var action : Selection.values()) drawSelection(action, false);
             for (var action : Selection.values()) drawSelection(action, true);
             view.endText();
@@ -170,28 +172,6 @@ final class SongSelectRenderer {
                     !frame.toolbox.open() && frame.pointerPressed);
         }
         view.beginText();
-        Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
-        chromeClip(layout, new SongSelectChrome.Bounds(0, 0, layout.width(), layout.height()));
-        var backFrame = frame.skin == null ? null : frame.skin.backFrame(frame.seconds);
-        if (backFrame != null) {
-            float scale = layout.height() / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
-            batch.setColor(Color.WHITE);
-            batch.draw(backFrame.texture(), 0, frame.bottomLayout.baseline,
-                    backFrame.logicalWidth() * scale, backFrame.logicalHeight() * scale);
-            int src = batch.getBlendSrcFunc(), dst = batch.getBlendDstFunc();
-            int srcAlpha = batch.getBlendSrcFuncAlpha(), dstAlpha = batch.getBlendDstFuncAlpha();
-            try {
-                batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
-                batch.setColor(1,1,1,frame.hoverAppearance.back());
-                batch.draw(backFrame.texture(), 0, frame.bottomLayout.baseline,
-                        backFrame.logicalWidth()*scale, backFrame.logicalHeight()*scale);
-            } finally {
-                batch.setBlendFunctionSeparate(src,dst,srcAlpha,dstAlpha);
-                batch.setColor(Color.WHITE);
-            }
-        }
-        batch.flush();
-        Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST);
         frame.controls.drawLabels(view,batch,layout.width(),layout.height(),frame.browser,frame.skin,px,py);
         var modeControl = frame.bottomLayout.control(Selection.MODE).slot();
         SongSelectSkinDrawing.additiveFit(batch,frame.skin,SongSelectSkinAssets.modeImage(
@@ -255,6 +235,27 @@ final class SongSelectRenderer {
         float scaleY = Gdx.graphics.getBackBufferHeight() / layout.height();
         Gdx.gl.glScissor(Math.round(clip.x() * scaleX), Math.round(clip.y() * scaleY),
                 Math.round(clip.width() * scaleX), Math.round(clip.height() * scaleY));
+    }
+
+    private void drawBack(UiLayout layout) {
+        var backFrame = frame.skin == null ? null : frame.skin.backFrame(frame.seconds);
+        if (backFrame != null) {
+            float scale = layout.height() / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
+            batch.setColor(Color.WHITE);
+            batch.draw(backFrame.texture(), 0, frame.bottomLayout.baseline,
+                    backFrame.logicalWidth() * scale, backFrame.logicalHeight() * scale);
+            int src = batch.getBlendSrcFunc(), dst = batch.getBlendDstFunc();
+            int srcAlpha = batch.getBlendSrcFuncAlpha(), dstAlpha = batch.getBlendDstFuncAlpha();
+            try {
+                batch.setBlendFunction(GL20.GL_SRC_ALPHA, GL20.GL_ONE);
+                batch.setColor(1,1,1,frame.hoverAppearance.back());
+                batch.draw(backFrame.texture(), 0, frame.bottomLayout.baseline,
+                        backFrame.logicalWidth()*scale, backFrame.logicalHeight()*scale);
+            } finally {
+                batch.setBlendFunctionSeparate(src,dst,srcAlpha,dstAlpha);
+                batch.setColor(Color.WHITE);
+            }
+        }
     }
 
     private void drawTopSkin(UiLayout layout) {

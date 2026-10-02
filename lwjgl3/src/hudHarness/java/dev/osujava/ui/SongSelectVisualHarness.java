@@ -2110,6 +2110,16 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         for (int step = 0; step < steps; step++) screen.render(Math.min(1f / 120, time - step / 120f));
         screen.render(0);
         String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+        if (scene.name.equals("parity-overlap")) {
+            int x = Math.round(260 * scene.height / 768f * scene.density);
+            int y = Math.round(40 * scene.height / 768f * scene.density);
+            var pixel = Pixmap.createFromFrameBuffer(x,y,1,1);
+            try {
+                int colour = pixel.getPixel(0,0);
+                if ((colour >>> 16 & 255) < 240 || (colour >>> 24 & 255) > 15 || (colour >>> 8 & 255) > 15)
+                    throw new AssertionError("Back must precede green selection artwork: " + Integer.toHexString(colour));
+            } finally { pixel.dispose(); }
+        }
         capture(fb, name);
         var report = new StringBuilder("window=" + scene.width + "x" + scene.height + " density=" + scene.density
                 + " time=" + time + "\n");
