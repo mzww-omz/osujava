@@ -6,6 +6,20 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SongSelectLayoutTest {
+    @Test void emptyStateSharesItsTextAndPanelBoundsInsideChromeReservations() {
+        for (int[] size : new int[][]{{1280,720},{1280,800},{1024,768},{1920,1080}}) {
+            var ui = UiLayout.fromPixels(size[0],size[1]);
+            for (float depth : new float[]{0,149,4096}) {
+                var chrome = SongSelectChrome.content(ui.height(),depth,depth,depth);
+                var empty = SongSelectLayout.emptyState(ui.width(),ui.height(),chrome.bottom(),chrome.carouselTop());
+                assertTrue(empty.x() >= SongSelectMetrics.wheelLeft(ui.width(),ui.height()));
+                assertTrue(empty.x()+empty.width() <= ui.width());
+                assertTrue(empty.y() >= chrome.bottom());
+                assertTrue(empty.y()+empty.height() <= chrome.carouselTop());
+                assertTrue(empty.width() > 28);
+            }
+        }
+    }
     @Test void rankingsStayLeftOfTheMostIndentedCarouselAtAllWindowProfiles() {
         for (int[] size : new int[][]{{1280,720},{1280,800},{1024,768},{960,720},{1920,1080}}) {
             var ui = UiLayout.fromPixels(size[0], size[1]);

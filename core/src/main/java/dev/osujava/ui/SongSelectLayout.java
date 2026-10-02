@@ -5,6 +5,7 @@ import dev.osujava.ui.theme.UiLayout;
 
 /** Pure logical geometry. Window/framebuffer density and PNG dimensions never define row hitboxes. */
 final class SongSelectLayout {
+    private static final float EMPTY_WIDTH = 420, EMPTY_HEIGHT = 66, EMPTY_SIDE_MARGIN = 16;
     record Rect(float x, float y, float width, float height) {
         boolean contains(float px, float py) {
             return width > 0 && height > 0 && px >= x && px < x + width && py >= y && py < y + height;
@@ -21,6 +22,14 @@ final class SongSelectLayout {
                        SongSelectRowPresentation.Geometry text) { }
     record Snapshot(SongSelectChrome.Content chrome, SongSelectToolboxLayout toolbox,
                     Rect viewport, Rect metadata, Rect search, ScoreBrowserBounds scores) { }
+
+    static Rect emptyState(float width, float height, float bottom, float top) {
+        float left = Math.max(0, SongSelectMetrics.wheelLeft(width, height));
+        float available = Math.max(0, width - left);
+        float w = Math.min(EMPTY_WIDTH, Math.max(0, available - EMPTY_SIDE_MARGIN * 2));
+        float h = Math.min(EMPTY_HEIGHT, Math.max(0, top - bottom));
+        return new Rect(left + (available - w) / 2, bottom + (top - bottom - h) / 2, w, h);
+    }
 
     static Snapshot create(UiLayout ui, SongSelectSkinAssets skin) {
         return create(ui,skin,skin == null ? null : skin.get(SongSelectSkinAssets.Image.BACK));

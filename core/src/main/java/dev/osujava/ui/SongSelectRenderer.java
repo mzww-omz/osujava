@@ -302,12 +302,14 @@ final class SongSelectRenderer {
                     frame.activeText, frame.inactiveText, frame.showThumbnails));
         } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
         if (frame.visibleRows.isEmpty()) {
+            var empty = SongSelectLayout.emptyState(layout.width(), layout.height(), frame.bottom, frame.top);
             view.beginShapes();
-            view.box(layout.width() * .59f, frame.bottom + 155, layout.width() * .38f, 66, 0, LEFT);
+            view.box(empty.x(), empty.y(), empty.width(), empty.height(), 0, LEFT);
             view.endShapes();
             view.beginText();
-            view.textSmooth(frame.sets.isEmpty() ? "Import a beatmap to begin" : "No matching beatmaps",
-                    frame.searchX - 220, frame.bottom + 196, 410, UiTheme.BODY, UiTheme.TEXT);
+            view.textCenteredVertically(frame.sets.isEmpty() ? "Import a beatmap to begin" : "No matching beatmaps",
+                    empty.x() + 14, empty.y() + empty.height() / 2, Math.max(0, empty.width() - 28),
+                    UiTheme.BODY, UiTheme.TEXT, false);
             view.endText();
         }
     }
