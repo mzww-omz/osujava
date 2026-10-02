@@ -133,7 +133,7 @@ final class SongBrowserModel {
         if (clearing) beforeSearch = null;
     }
     void select(String setId, int difficultyIndex) {
-        BeatmapSet set = visible.stream().filter(s -> s.id().equals(setId)).findFirst().orElse(null);
+        BeatmapSet set = visibleById.get(setId);
         if (set == null) return;
         var difficulty = set.difficulties().get(Math.max(0, Math.min(difficultyIndex, set.difficulties().size() - 1)));
         if (!matches(set, difficulty)) return;
@@ -302,10 +302,11 @@ final class SongBrowserModel {
             selection = new Selection(set.id(), difficultyId(matchingDifficulties.get(set.id()).getFirst()));
         }
         // Retain identity through zero results, but expose no playable selection.
+        rebuildRows();
         expand();
     }
     /** Retain hidden/excluded rows; entries is only the renderer's visible projection. */
-    private void expand() {
+    private void rebuildRows() {
         Map<String, Row> retained = new LinkedHashMap<>();
         Map<String, List<Row>> children = new LinkedHashMap<>();
         Map<String, Indexed> indexed = new HashMap<>();
@@ -341,23 +342,31 @@ final class SongBrowserModel {
                 if (parent != null) children.get(parent.key).add(row);
             }
         }
-        Row selected = retained.get(selectedKey());
-        if (revealSelection || openGroupKey != null && !retained.containsKey(openGroupKey)) {
-            openGroupKey = selected == null || selected.parent == null ? null : selected.parent.key;
-            revealSelection = false;
-        }
         List<Row> orderedRows = new ArrayList<>();
         for (Row row : retained.values()) {
             if (row.group()) {
                 row.excluded = row.matchingChildren == 0;
-                row.expanded = row.key.equals(openGroupKey);
-                row.state = row.excluded ? RowState.HIDDEN : row.expanded ? RowState.EXPANDED : RowState.COLLAPSED;
                 orderedRows.add(row);
                 orderedRows.addAll(children.get(row.key));
             } else if (row.parent == null) orderedRows.add(row);
         }
+        rowsByKey.keySet().retainAll(retained.keySet());
+        rows = List.copyOf(orderedRows);
+    }
+
+    /** Selection and group activation change states, never row identity, metadata or order. */
+    private void expand() {
+        Row selected = rowsByKey.get(selectedKey());
+        if (revealSelection || openGroupKey != null && !rowsByKey.containsKey(openGroupKey)) {
+            openGroupKey = selected == null || selected.parent == null ? null : selected.parent.key;
+            revealSelection = false;
+        }
+        for (Row row : rows) if (row.group()) {
+            row.expanded = row.key.equals(openGroupKey);
+            row.state = row.excluded ? RowState.HIDDEN : row.expanded ? RowState.EXPANDED : RowState.COLLAPSED;
+        }
         List<Entry> result = new ArrayList<>();
-        for (Row row : orderedRows) {
+        for (Row row : rows) {
             if (!row.group()) {
                 boolean sameSet = selected != null && row.set.id().equals(selected.set.id());
                 row.state = row.excluded || row.parent != null && !row.parent.expanded ? RowState.HIDDEN
@@ -371,8 +380,6 @@ final class SongBrowserModel {
             result.add(new Entry(kind, row.key, row.label, row.set,
                     kind == Kind.DIFFICULTY ? row.difficulty : null));
         }
-        rowsByKey.keySet().retainAll(retained.keySet());
-        rows = List.copyOf(orderedRows);
         // Moving between expanded siblings only changes selection; keep the carousel projection
         // intact. A library refresh must still publish the new metadata object references.
         if (!sameProjection(result)) entries = List.copyOf(result);

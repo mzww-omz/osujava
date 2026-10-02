@@ -6,6 +6,27 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SongBrowserRowsTest {
+    @Test void selectionAndGroupActivationReuseStructureWhileQueriesAndLibraryRefreshRebuildIt() {
+        var m = model();
+        var rows = m.rows();
+        m.select("a", 1); assertSame(rows, m.rows());
+        m.select("b", 0); assertSame(rows, m.rows());
+        m.group(SongBrowserModel.Group.ARTIST);
+        assertNotSame(rows, m.rows());
+        rows = m.rows();
+        m.toggleGroup(group(m, "A").key); assertSame(rows, m.rows());
+        m.select("a", 0); assertSame(rows, m.rows());
+        assertTrue(group(m, "A").expanded);
+        m.search("Beta"); assertNotSame(rows, m.rows());
+        assertTrue(m.rows().stream().filter(r -> r.set != null && r.set.id().equals("a")).allMatch(r -> r.excluded));
+        rows = m.rows();
+        m.search(""); assertNotSame(rows, m.rows());
+        rows = m.rows();
+        m.sort(SongBrowserModel.Sort.ARTIST); assertNotSame(rows, m.rows());
+        rows = m.rows();
+        m.library(List.of(multi())); assertNotSame(rows, m.rows());
+        assertTrue(m.rows().stream().allMatch(r -> r.group() || r.set.id().equals("a")));
+    }
     private BeatmapSet multi() {
         var first = SongBrowserModelTest.set("a", "A", "Alpha", "Mapper", 120, 1000);
         var second = SongBrowserModelTest.set("a#nested", "A", "Alpha", "Mapper", 120, 1000);
