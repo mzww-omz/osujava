@@ -625,8 +625,39 @@ class SongSelectSkinAssetsTest {
             if (file.path().equals(directory.resolve("menu-back-0@2x.png"))) throw new GdxRuntimeException("Broken frame zero 2x");
             return new TestTexture(272,91);
         });
-        assertEquals(directory.resolve("menu-back-0.png"),brokenHigh.get(Image.BACK).file().path());
+        assertEquals("bundled",brokenHigh.provider(Image.BACK));
+        assertEquals(1,brokenHigh.backFrameCount());
         brokenHigh.dispose();
+    }
+
+    @Test void customStaticBackWinsOverFallbackAnimationWithoutJoiningItsFrames() throws Exception {
+        Files.createFile(directory.resolve("menu-back.png"));
+        Path fallback = Files.createDirectory(directory.resolve("fallback"));
+        Files.createFile(fallback.resolve("menu-back-0.png"));
+        Files.createFile(fallback.resolve("menu-back-1.png"));
+        var loaded = new ArrayList<TestTexture>();
+        var assets = new SongSelectSkinAssets(new SkinAssetResolver(directory,fallback),file -> {
+            var t = new TestTexture(100,90); loaded.add(t); return t;
+        });
+        assertEquals(directory.resolve("menu-back.png"),assets.get(Image.BACK).file().path());
+        assertEquals(1,assets.backFrameCount());
+        assertEquals(1,loaded.size(),"Losing fallback animation must not consume the interface texture budget");
+        assets.dispose();
+        for (var t : loaded) assertEquals(1,t.disposals);
+    }
+
+    @Test void brokenExtraHighFrameStopsAnimationInsteadOfSubstitutingSd() throws Exception {
+        for (var name : List.of("menu-back-0.png","menu-back-1.png","menu-back-1@2x.png","menu-back-2.png"))
+            Files.createFile(directory.resolve(name));
+        var attempts = new ArrayList<String>();
+        var assets = new SongSelectSkinAssets(new SkinAssetResolver(directory),file -> {
+            var name = file.path().getFileName().toString(); attempts.add(name);
+            if (name.equals("menu-back-1@2x.png")) throw new GdxRuntimeException("broken");
+            return new TestTexture(100,90);
+        });
+        assertEquals(1,assets.backFrameCount());
+        assertEquals(List.of("menu-back-0.png","menu-back-1@2x.png"),attempts);
+        assets.dispose();
     }
 
     @Test void missingChromeFallsBackWithoutReplacingCurrentActions() throws Exception {

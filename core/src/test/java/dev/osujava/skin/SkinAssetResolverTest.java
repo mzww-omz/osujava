@@ -12,6 +12,23 @@ import static org.junit.jupiter.api.Assertions.*;
 class SkinAssetResolverTest {
     @TempDir Path directory;
 
+    @Test void presentAnimationComparesLoadedFamiliesAndNeverSwitchesProviderMidSequence() throws IOException {
+        Path fallback = Files.createDirectory(directory.resolve("fallback"));
+        var currentZero = Files.createFile(directory.resolve("menu-back-0.png"));
+        Files.createFile(fallback.resolve("menu-back.png"));
+        Files.createFile(fallback.resolve("menu-back-1.png"));
+        var resolver = new SkinAssetResolver(directory,fallback);
+        var attempts = new java.util.ArrayList<Path>();
+        var first = resolver.resolvePresentAnimationFirstFrame("menu-back",file -> { attempts.add(file.path()); return true; }).orElseThrow();
+        assertEquals(currentZero,first.path());
+        assertEquals(java.util.List.of(currentZero),attempts);
+        assertEquals(java.util.List.of(first),resolver.resolvePresentAnimation("menu-back",first,512,file -> true));
+        Files.createFile(directory.resolve("menu-back.png"));
+        var failed = resolver.resolvePresentAnimationFirstFrame("menu-back",file -> !file.path().equals(currentZero)).orElseThrow();
+        assertEquals(directory.resolve("menu-back.png"),failed.path());
+        assertEquals(java.util.List.of(failed),resolver.resolvePresentAnimation("menu-back",failed,512,file -> true));
+    }
+
     @Test void stablePresentImageStopsAfterDecodeFailureWithoutChangingOtherScreens() throws IOException {
         Path fallback = Files.createDirectory(directory.resolve("fallback"));
         Path hd = Files.createFile(directory.resolve("songselect-top@2x.png"));

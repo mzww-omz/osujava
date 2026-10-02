@@ -190,6 +190,38 @@ public final class SkinAssetResolver {
         return Optional.empty();
     }
 
+    /** Song Select Back: resolve frame zero and static independently, then prefer the
+     * better provider (06001b72/1b73). A present broken HD never retries its SD sibling. */
+    Optional<AssetFile> resolvePresentAnimationFirstFrame(String name, Predicate<AssetFile> loadable) {
+        var animated = resolve(name + "-0");
+        var single = resolve(name);
+        if (single.isPresent() && (animated.isEmpty()
+                || single.get().provider().ordinal() < animated.get().provider().ordinal())) {
+            // Decode the better candidate first so discarded animation artwork cannot
+            // consume the interface texture budget. On failure the other family may win.
+            var swap = animated; animated = single; single = swap;
+        }
+        var loaded = animated.filter(loadable);
+        return loaded.isPresent() ? loaded : single.filter(loadable);
+    }
+
+    /** Extra frames stay with the winning frame-zero provider and stop on missing/failed decode. */
+    List<AssetFile> resolvePresentAnimation(String name, AssetFile first, int maximumFrames,
+                                           Predicate<AssetFile> loadable) {
+        validateName(name);
+        if (maximumFrames <= 0) return List.of();
+        var zero = resolveFromProvider(name + "-0", first.provider(), file -> true);
+        if (zero.isEmpty() || !zero.get().equals(first)) return List.of(first);
+        var frames = new ArrayList<AssetFile>();
+        frames.add(first);
+        for (int index = 1; index < maximumFrames; index++) {
+            var next = resolvePresentImageFromProvider(name + "-" + index, first.provider(), loadable);
+            if (next.isEmpty()) break;
+            frames.add(next.get());
+        }
+        return List.copyOf(frames);
+    }
+
     /** Runtime lookup uses successful texture loads, matching lazer's GetTexture rather than file existence. */
     List<AssetFile> resolveAnimation(String name, Predicate<AssetFile> loadable) {
         return resolveAnimation(name, "-", loadable);

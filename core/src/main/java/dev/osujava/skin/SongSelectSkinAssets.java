@@ -136,7 +136,7 @@ public final class SongSelectSkinAssets implements Disposable {
             };
             if (image == Image.BACK) {
                 backLoader = load;
-                resolver.resolveAnimationFirstFrame(image.basename, load);
+                resolver.resolvePresentAnimationFirstFrame(image.basename, load);
             } else if (image == Image.CURSOR_MIDDLE) {
                 // Stable 06002ac0: middle follows the resolved cursor; trail resolves independently.
                 var cursor = get(Image.CURSOR);
@@ -161,9 +161,8 @@ public final class SongSelectSkinAssets implements Disposable {
             var firstBounds = selectionBounds.get(Image.BACK);
             var frames = new ArrayList<SkinTexture>();
             var load = backLoader;
-            resolver.resolveAnimation(Image.BACK.basename, 512, file -> {
-                if (file.equals(first.file())) { frames.add(first); return true; }
-                if (frames.isEmpty()) return false;
+            frames.add(first);
+            resolver.resolvePresentAnimation(Image.BACK.basename, first.file(), 512, file -> {
                 if (!load.test(file)) return false;
                 var frame = textures.get(Image.BACK);
                 measureGeometry(Image.BACK,frame);
