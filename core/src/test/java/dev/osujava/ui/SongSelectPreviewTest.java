@@ -61,6 +61,34 @@ class SongSelectPreviewTest {
         assertEquals(1, loads[0]); assertFalse(preview.available()); assertEquals(1, stream.disposals);
         preview.select(null, -1); preview.close();
     }
+    @Test void newChartRetriesFailedSharedAudioOnceButHealthyPlaybackDoesNotRestart() {
+        int[] loads = {0}; var recovered = new Stream();
+        var preview = new SongSelectPreview(path -> ++loads[0] == 1 ? null : recovered.music,new AudioVolumes());
+        var path = Path.of("shared.ogg");
+        preview.select(path,1000,1);
+        for (int frame = 0; frame < 60; frame++) { preview.select(path,1000,1); preview.advance(0); }
+        assertEquals(1,loads[0]); assertFalse(preview.available());
+        preview.select(path,2000,2); assertEquals(2,loads[0]); assertTrue(preview.available());
+        recovered.position = 4;
+        preview.select(path,3000,3); preview.advance(0);
+        assertEquals(2,loads[0]); assertEquals(1,recovered.plays); assertEquals(1,recovered.seeks);
+        assertEquals(4000,preview.positionMs());
+        preview.close(); assertEquals(0,preview.positionMs());
+    }
+
+    @Test void backendFailureRetriesOnlyOnNewSelectionAndRemovesLostMusicGain() {
+        var lost = new Stream(); var replacement = new Stream(); int[] loads = {0};
+        var volumes = new AudioVolumes();
+        var preview = new SongSelectPreview(path -> ++loads[0] == 1 ? lost.music : replacement.music,volumes);
+        var path = Path.of("shared.ogg");
+        preview.select(path,0,1); preview.select(path,0,2); lost.broken = true; preview.advance(0);
+        for (int frame = 0; frame < 60; frame++) preview.select(path,0,2);
+        assertEquals(1,loads[0]); assertEquals(1,lost.disposals);
+        volumes.set(AudioVolumes.Channel.MUSIC,.5f);
+        preview.select(path,0,3); preview.advance(0);
+        assertEquals(2,loads[0]); assertEquals(.5f,replacement.volume);
+        preview.close(); assertEquals(1,replacement.disposals);
+    }
     @Test void beatUsesTimingOffsetAndBpmChangesAndIgnoresInheritedPoints() {
         var difficulty = new BeatmapDifficulty("", "", "", "", 0, "", "", null, List.of(
                 new TimingPoint(100, 500, 4, 1, 0, 100, true, 0),

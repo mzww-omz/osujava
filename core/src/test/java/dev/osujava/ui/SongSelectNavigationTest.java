@@ -60,6 +60,31 @@ class SongSelectNavigationTest {
     private boolean shift, control, alt, pointerPressed, pointerClicked, rightPressed, rightClicked, middlePressed;
     private int pointerX, pointerY;
     private java.util.OptionalDouble testRating = java.util.OptionalDouble.empty();
+
+    @Test void pointerSelectionUpdatesPreviewInTheSameFrameAsTheDisplayedMap() throws Exception {
+        for (var original : library.all()) {
+            var audio = Path.of(original.id()+".ogg");
+            var diffs = original.difficulties().stream().map(d -> d.withAssets(audio,d.backgroundPath())).toList();
+            library.add(new BeatmapSet(original.id(),original.title(),original.artist(),original.creator(),
+                    audio,original.backgroundPath(),diffs,original.assets()));
+        }
+        open("Beta",0); screen.resize(1280,720);
+        var loaded = new java.util.ArrayList<Path>();
+        var preview = new SongSelectPreview(path -> {
+            loaded.add(path);
+            return (com.badlogic.gdx.audio.Music) Proxy.newProxyInstance(getClass().getClassLoader(),
+                    new Class[]{com.badlogic.gdx.audio.Music.class},(p,m,a) -> m.getName().equals("getPosition") ? 0f : null);
+        },new dev.osujava.audio.AudioVolumes());
+        setField("preview",preview); settle();
+        assertEquals(List.of(Path.of("Beta.ogg")),loaded);
+        pointAtRow(2,-1); updatePointer(1280,720,.016f);
+        pointerPressed = pointerClicked = true; updatePointer(1280,720,.016f);
+        pointerClicked = pointerPressed = false; updatePointer(1280,720,.016f);
+        selected(2,0,"Gamma-easy.png");
+        assertEquals(List.of(Path.of("Beta.ogg"),Path.of("Gamma.ogg")),loaded,
+                "The release frame must publish the new chart and its audio together");
+        assertSame(((SongBrowserModel)field("browser")).selectedDifficulty(),field("previewDifficulty"));
+    }
     private final java.util.Set<Integer> heldKeys = new java.util.HashSet<>();
 
     @BeforeEach void setup() {

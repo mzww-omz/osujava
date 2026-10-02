@@ -13,6 +13,7 @@ final class SongSelectPreview implements AutoCloseable {
     private Path selected;
     private Music music;
     private double positionMs;
+    private long attemptedSelection = Long.MIN_VALUE;
 
     SongSelectPreview(Function<Path, Music> factory, AudioVolumes volumes) {
         this.factory = factory;
@@ -20,9 +21,18 @@ final class SongSelectPreview implements AutoCloseable {
     }
 
     void select(Path path, int previewTimeMs) {
-        if (Objects.equals(selected, path)) return;
+        select(path, previewTimeMs, 0);
+    }
+
+    /** Healthy shared audio continues; a new chart selection may retry a failed stream once. */
+    void select(Path path, int previewTimeMs, long selection) {
+        if (Objects.equals(selected, path)) {
+            if (music != null) { attemptedSelection = selection; return; }
+            if (attemptedSelection == selection) return;
+        }
         release();
         selected = path;
+        attemptedSelection = selection;
         positionMs = 0;
         if (path == null) return;
         try {
@@ -58,5 +68,5 @@ final class SongSelectPreview implements AutoCloseable {
         try { old.dispose(); } catch (RuntimeException ignored) { }
     }
 
-    @Override public void close() { release(); selected = null; }
+    @Override public void close() { release(); selected = null; attemptedSelection = Long.MIN_VALUE; positionMs = 0; }
 }

@@ -59,6 +59,9 @@ public final class SongSelectScreen extends ScreenAdapter {
     private SongSelectCursor cursor;
     private SongSelectAudio audio;
     private SongSelectPreview preview;
+    private BeatmapDifficulty previewDifficulty;
+    private BeatmapSet previewSet;
+    private long previewSelection;
     private Color activeText = DARK_TEXT, inactiveText;
     private final SongSelectToolboxState toolbox = new SongSelectToolboxState();
     boolean renderedSelectionProcedural(Selection action) { return renderer.renderedSelectionProcedural(action); }
@@ -339,14 +342,6 @@ public final class SongSelectScreen extends ScreenAdapter {
             backFrame = skin.backFrameAt(backAnimation.frame());
             backGeometry = skin.backFrameAt(backAnimation.geometryFrame());
         }
-        if (preview != null) {
-            var difficulty = selectedDifficulty();
-            var set = selectedSet();
-            Path path = difficulty != null && difficulty.audioPath() != null ? difficulty.audioPath()
-                    : set == null ? null : set.audioPath();
-            preview.select(path, difficulty == null ? -1 : difficulty.previewTimeMs());
-            preview.advance(outgoing.opacity());
-        }
         if (cursor != null) cursor.update(layout, Gdx.input.getX(), Gdx.input.getY(), viewState.pointerPressed,
                 Gdx.input.isButtonPressed(Input.Buttons.RIGHT), seconds);
         toastSeconds = Math.max(0, toastSeconds - delta);
@@ -422,6 +417,17 @@ public final class SongSelectScreen extends ScreenAdapter {
         advanceRowStars(delta);
         advanceRowForeground(delta);
         prepareRowPresentations(delta);
+        if (preview != null) {
+            var difficulty = selectedDifficulty();
+            var set = selectedSet();
+            if (difficulty != previewDifficulty || set != previewSet) {
+                previewDifficulty = difficulty; previewSet = set; previewSelection++;
+            }
+            Path path = difficulty != null && difficulty.audioPath() != null ? difficulty.audioPath()
+                    : set == null ? null : set.audioPath();
+            preview.select(path, difficulty == null ? -1 : difficulty.previewTimeMs(), previewSelection);
+            preview.advance(outgoing.opacity());
+        }
         if (audio != null) {
             String target = null;
             var cue = SongSelectAudio.Cue.HOVER_CONTROL;
