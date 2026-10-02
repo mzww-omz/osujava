@@ -54,6 +54,7 @@ class SongSelectNavigationTest {
     private Input oldInput;
     private InputProcessor processor;
     private final BeatmapLibrary library = new BeatmapLibrary();
+    private final dev.osujava.score.LocalScoreStore localScores = new dev.osujava.score.LocalScoreStore();
     private SongSelectScreen screen;
     private int importRequests;
     private boolean shift, control, alt, pointerPressed, pointerClicked, rightPressed, rightClicked, middlePressed;
@@ -85,6 +86,7 @@ class SongSelectNavigationTest {
         var game = new OsuJavaGame(onSelected -> importRequests++,null) {
             @Override public BeatmapLibrary library() { return library; }
             @Override public OsuRuleset osuRuleset() { return new OsuRuleset(); }
+            @Override public dev.osujava.score.LocalScoreStore localScores() { return localScores; }
         };
         screen = new SongSelectScreen(game,set,difficulty,null,ignored -> testRating); screen.show();
     }
@@ -629,6 +631,61 @@ class SongSelectNavigationTest {
         assertSame(replacementStars,stars.get(sibling));
         updatePointer(1920,1080,.8f);
         assertEquals(.6f,presentation(sibling.entry.key()).stars().glyphs().getFirst().scale(),.000001);
+    }
+
+    private ScoreBrowserModel openManyScores() throws Exception {
+        var original = library.all().stream().filter(s -> s.id().equals("Beta")).findFirst().orElseThrow();
+        var difficulties = original.difficulties().stream().map(d -> d.withAssets(d.audioPath(),d.backgroundPath(),
+                Path.of("Beta-"+d.version()+".osu"))).toList();
+        var set = new BeatmapSet(original.id(),original.title(),original.artist(),original.creator(),
+                original.audioPath(),original.backgroundPath(),difficulties,original.assets());
+        library.add(set);
+        var target = dev.osujava.score.DifficultyIdentity.of(set.id(),set.difficulties().getFirst());
+        for (int i = 0; i < 100; i++) localScores.save(new dev.osujava.score.LocalScore(
+                java.util.UUID.randomUUID(),target,0,new dev.osujava.gameplay.ScoreState(i,0,10,10,0,0,0,1)),
+                dev.osujava.gameplay.GameplayRunMode.MANUAL);
+        open("Beta",0); screen.resize(1280,720); settle();
+        var scores = (ScoreBrowserModel)field("scores");
+        var bounds = screen.scoreBounds(dev.osujava.ui.theme.UiLayout.fromPixels(1280,720));
+        var thumb = bounds.thumb(scores.first(),scores.rows().size());
+        pointerX = Math.round(thumb.x()+thumb.width()/2);
+        pointerY = 720-Math.round(thumb.y()+thumb.height()/2);
+        pointerClicked = pointerPressed = true; updatePointer(1280,720,.016f); pointerClicked = false;
+        assertFalse(((UiNavigation)field("outgoing")).pending(),"Thumb press must not open the score underneath");
+        assertTrue(((ScoreBrowserScroll)field("scoreScroll")).captured());
+        return scores;
+    }
+
+    @Test void rankingDragKeepsCarouselAndResultsInputSeparateThroughOutsideRelease() throws Exception {
+        var scores = openManyScores();
+        var selection = ((SongBrowserModel)field("browser")).selection();
+        float scroll = carousel().scrollTarget();
+        pointerX = 1100; pointerY = 1000; updatePointer(1280,720,.016f);
+        assertEquals(scores.rows().size()-scores.capacity(),scores.first());
+        assertEquals(scroll,carousel().scrollTarget()); assertFalse(carousel().dragging());
+        pointerPressed = false; updatePointer(1280,720,.016f);
+        assertEquals(selection,((SongBrowserModel)field("browser")).selection());
+        assertFalse(((UiNavigation)field("outgoing")).pending());
+        assertFalse(((ScoreBrowserScroll)field("scoreScroll")).captured());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings={"resize","difficulty","overlay","pause"})
+    void cancelledRankingDragCannotResumeOrActivateRows(String reason) throws Exception {
+        var scores = openManyScores();
+        switch (reason) {
+            case "resize" -> screen.resize(1024,768);
+            case "difficulty" -> key(Input.Keys.DOWN);
+            case "overlay" -> key(Input.Keys.F1);
+            case "pause" -> screen.pause();
+        }
+        pointerX = 1100; pointerY = 1000; updatePointer(1280,720,.016f);
+        if (reason.equals("overlay")) key(Input.Keys.ESCAPE);
+        updatePointer(1280,720,.016f);
+        assertEquals(0,scores.first()); assertFalse(carousel().dragging());
+        pointerPressed = false; updatePointer(1280,720,.016f);
+        assertFalse(((UiNavigation)field("outgoing")).pending());
+        assertFalse(((ScoreBrowserScroll)field("scoreScroll")).captured());
     }
 
     @Test void shiftF2WalksBackDuringSearchAndGrouping() throws Exception {

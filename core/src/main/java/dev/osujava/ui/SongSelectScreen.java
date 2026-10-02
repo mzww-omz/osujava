@@ -84,6 +84,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final SongBrowserModel browser;
     private final ScoreBrowserModel scores;
     private final SongSelectScoreHover scoreHover = new SongSelectScoreHover();
+    private final ScoreBrowserScroll scoreScroll = new ScoreBrowserScroll();
     private final SongSelectScoreSnapshot scoreSnapshot;
     private final SongBrowserControls controls = new SongBrowserControls();
     private List<SongBrowserModel.Row> browserRows = List.of();
@@ -237,6 +238,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private boolean scrollAtPointer(float amount) {
+        if (scoreScroll.captured()) return true;
         if (!usesMouseWheelAt(Gdx.input.getX(), Gdx.input.getY())) return false;
         if (!importing) {
             UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -249,6 +251,7 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     @Override public void resize(int width, int height) {
         if (width <= 0 || height <= 0) return;
+        scoreScroll.cancel();
         UiLayout layout = UiLayout.fromPixels(width, height);
         calculateLayout(layout);
         if (scoreSnapshot.refresh(sets)) {
@@ -357,8 +360,11 @@ public final class SongSelectScreen extends ScreenAdapter {
         var buttons = input.buttons(Gdx.input.isButtonPressed(Input.Buttons.LEFT),
                 Gdx.input.isButtonPressed(Input.Buttons.RIGHT), Gdx.input.isButtonPressed(Input.Buttons.MIDDLE), delta * 1000.0);
         if (buttons.physicalPressed()) input.pressPosition(Gdx.input.getX(), Gdx.input.getY());
+        boolean scoreGesture = scoreScroll.update(scoreBounds(layout), scores, py,
+                Gdx.input.isButtonPressed(Input.Buttons.LEFT),
+                !toolbox.open() && !controls.open() && !importing && !outgoing.pending());
         boolean rowPressAllowed = true;
-        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+        if (!scoreGesture && Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             carousel.pointerPressed();
             rowPressAllowed = false;
             var oldSort = browser.sort(); var oldGroup = browser.group();
@@ -382,7 +388,9 @@ public final class SongSelectScreen extends ScreenAdapter {
             else {
                 searchActive = false;
                 int slot = scoreBounds(layout).slot(px, py);
-                if (slot >= 0) {
+                if (!importing && !outgoing.pending() && scoreScroll.press(scoreBounds(layout), scores, px, py)) {
+                    scoreGesture = true;
+                } else if (slot >= 0) {
                     var result = scores.open(scores.first() + slot);
                     var set = selectedSet(); var difficulty = selectedDifficulty();
                     if (result != null && set != null && difficulty != null) {
@@ -394,7 +402,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             }
         }
 
-        boolean blocked = toolbox.open() || controls.open() || importing || outgoing.pending() || !rowPressAllowed;
+        boolean blocked = scoreGesture || toolbox.open() || controls.open() || importing || outgoing.pending() || !rowPressAllowed;
         if (blocked) input.cancelPointer();
         else if (buttons.pressed()) {
             var row = hitRow(px, py);
@@ -417,7 +425,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (audio != null) {
             String target = null;
             var cue = SongSelectAudio.Cue.HOVER_CONTROL;
-            if (!toolbox.open() && !importing && !outgoing.pending()) {
+            if (!scoreGesture && !toolbox.open() && !importing && !outgoing.pending()) {
                 var action = SongSelectAction.bottom(px, py, bottomLayout);
                 if (action != null) {
                     target = "control:" + action;
@@ -439,7 +447,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 : SongSelectAction.bottom(px,py,bottomLayout));
         var rankingBounds = scoreBounds(layout);
         scoreHover.advance(delta, scores.rows(), scores.first(), rankingBounds.capacity(),
-                toolbox.open() || controls.open() || importing || outgoing.pending() ? -1 : rankingBounds.slot(px, py));
+                scoreGesture || toolbox.open() || controls.open() || importing || outgoing.pending() ? -1 : rankingBounds.slot(px, py));
         return true;
     }
 
@@ -525,6 +533,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private void cancelInput() {
+        scoreScroll.cancel();
         rowInput.clear();
         if (input != null) input.cancel();
         if (wheelInput != null) wheelInput.cancel();
@@ -554,9 +563,9 @@ public final class SongSelectScreen extends ScreenAdapter {
     private List<SongSelectRow> layoutRows(UiLayout layout, float delta, boolean advance) {
         updateContent(layout);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
-        SongSelectRow hit = toolbox.open() || controls.open() || importing || outgoing.pending() ? null : hitRow(px, py);
+        SongSelectRow hit = scoreScroll.captured() || toolbox.open() || controls.open() || importing || outgoing.pending() ? null : hitRow(px, py);
         carousel.pointerTracking(px / SongSelectMetrics.carouselScale(layout.height()),
-                Gdx.input.isButtonPressed(Input.Buttons.LEFT), !toolbox.open() && !importing && !outgoing.pending());
+                Gdx.input.isButtonPressed(Input.Buttons.LEFT), !scoreScroll.captured() && !toolbox.open() && !importing && !outgoing.pending());
         carousel.focus(browser.focusKey());
         carousel.selectionTrackingTarget(browser.selectionTrackingKey());
         carousel.emphasize(browser.selectedKey());

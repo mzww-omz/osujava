@@ -38,6 +38,7 @@ public final class ScoreBrowserModel {
     public int first() { return first; }
     public int capacity() { return capacity; }
     public void capacity(int count) { capacity = Math.max(1, count); clamp(); }
+    public void first(int index) { first = index; remainder = 0; clamp(); }
     public void scroll(float amount) {
         if (!Float.isFinite(amount)) return;
         remainder += Math.max(-10000, Math.min(10000, amount));

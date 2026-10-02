@@ -248,6 +248,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 scenes.add(new Scene(Integer.getInteger("osujava.songSelectWidth", 1280),
                         Integer.getInteger("osujava.songSelectHeight", 720),
                         Integer.getInteger("osujava.songSelectDensity", 1), "configured"));
+            } else if (phase.equals("score-scroll-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
+                    for (String fixture : List.of("phase4-many", "phase4-fallback", "phase4-high-only"))
+                        scenes.add(new Scene(size[0],size[1],size[2],fixture));
             } else if (phase.equals("star-contracts")) {
                 var cases = Set.of("phase2-no-rating", "phase2-low-rating", "phase2-tenth-star", "phase2-high-rating");
                 scenes.removeIf(scene -> !cases.contains(scene.name));
@@ -769,6 +774,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseGroupCards(screen, scene.name, pointer, clicked, pressed, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if (System.getProperty("osujava.songSelectPhase", "").equals("score-scroll-contracts")) {
+                exerciseScoreScroll(screen, scene, processor[0], pointer, clicked, pressed, layout, fb, name);
+                fb.end(); advanceScene(); return;
+            }
             if (scene.name.startsWith("search-")) {
                 exerciseSearch(screen, scene, layout, fb, name);
                 fb.end(); advanceScene(); return;
@@ -2086,6 +2095,47 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     private ScoreBrowserModel scoreBrowser(SongSelectScreen screen) {
         try { var f=SongSelectScreen.class.getDeclaredField("scores"); f.setAccessible(true); return (ScoreBrowserModel)f.get(screen); }
         catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+    private void exerciseScoreScroll(SongSelectScreen screen, Scene scene, InputProcessor processor,
+                                     int[] pointer, boolean[] clicked, boolean[] pressed, UiLayout layout,
+                                     FrameBuffer fb, String name) {
+        var scores = scoreBrowser(screen);
+        var bounds = screen.scoreBounds(layout);
+        scores.first(0); scores.select(0);
+        var selected = scores.selected(); var target = scores.target();
+        var thumb = bounds.thumb(0,scores.rows().size());
+        if (thumb.height() <= 0) throw new AssertionError("Fixture needs overflowing scores");
+        float grabY = thumb.y()+thumb.height()/2;
+        pointer[0] = Math.round((thumb.x()+thumb.width()/2)*layout.scale());
+        pointer[1] = scene.height-Math.round(grabY*layout.scale());
+        clicked[0] = pressed[0] = true; screen.render(1f/60); transitionFrames++;
+        clicked[0] = false;
+        float carouselTarget = carousel(screen).scrollTarget();
+        if (!((ScoreBrowserScroll)screenField(screen,"scoreScroll")).captured()
+                || ((UiNavigation)screenField(screen,"outgoing")).pending())
+            throw new AssertionError("Thumb press opened a score or failed to capture");
+        capture(fb,name+"-grab");
+        float travel = bounds.top()-bounds.bottom()-thumb.height();
+        pointer[1] = scene.height-Math.round((grabY-travel/2)*layout.scale());
+        screen.render(1f/60); transitionFrames++;
+        if (Math.abs(scores.first()-Math.round((scores.rows().size()-scores.capacity())/2f)) > 1)
+            throw new AssertionError("Thumb midpoint did not scroll the score model");
+        capture(fb,name+"-middle");
+        // Captured wheel events cannot move either browser, even over the carousel.
+        pointer[0] = scene.width-20; pointer[1] = scene.height+100;
+        processor.scrolled(0,4); screen.render(1f/60); transitionFrames++;
+        if (scores.first()!=scores.rows().size()-scores.capacity()
+                || carousel(screen).scrollTarget()!=carouselTarget || carousel(screen).dragging())
+            throw new AssertionError("Outside drag/wheel escaped ranking capture");
+        capture(fb,name+"-bottom");
+        pressed[0] = false; screen.render(1f/60); transitionFrames++;
+        if (((ScoreBrowserScroll)screenField(screen,"scoreScroll")).captured()
+                || ((UiNavigation)screenField(screen,"outgoing")).pending()
+                || !Objects.equals(selected,scores.selected()) || !Objects.equals(target,scores.target()))
+            throw new AssertionError("Thumb release changed selection or opened another screen");
+        assertRenderedBounds(screen,layout);
+        assertScoreClipping(screen,layout,fb);
+        capture(fb,name+"-release");
     }
     /** Exercise the production background pass with a sentinel outside every row clip. */
     private void assertScoreClipping(SongSelectScreen screen, UiLayout layout, FrameBuffer fb) {
