@@ -54,7 +54,7 @@ ranking/Resultsは保存されたMods・採点由来・名前だけを表示す�
 Unicode fontを使用し、名前やmetadataの欠字を改善した。rowのhitbox/clip/pitchは維持する。
 ruleset versionは保存値として保持し、画面に新たな技術詳細欄は追加しない。
 
-## 検証
+## B01/B02実装時の検証
 
 - `./gradlew build :lwjgl3:hudHarnessClasses --console=plain`成功。
   core **135 suites / 1,305 tests**、lwjgl3 **2 suites / 4 tests**、failure/error/skippedすべて0。
@@ -97,12 +97,24 @@ commit:
 
 本書・計画/残件台帳は別のdocs commitとして記録する。
 
+## B03: 履歴・日時を接続済み
+
+manual Gameplayの実開始と終了/abortをscoreと別に保存し、Recently Played、Last Played / Date Added sort、
+`played` / `unplayed` / local `added`検索へ接続した。成功importの初回日時は内容単位で保持する。
+旧データの未知日時・中断状態は捏造せず、通常loadで旧schemaを書き換えない。
+音声ファイル名が空の譜面のrestart消失、将来library schemaの再import上書きも修復した。
+
+最新の仕様・テスト・commit・残件は[B03実装記録](songselect-backend-history-20261002.md)を参照。
+buildはcore 139 suites / 1,332 tests、lwjgl3 2 suites / 4 testsが成功。
+新規historyと既存3 GL suiteを合わせ128 scenes / 280報告PNG / 3,512 scripted transition framesが成功。
+HP/failは未実装で、COMPLETEDはsession終端だけを表す。次はB04 local Collections / Options。
+
 ## 後続・stableとの差
 
 | 残件 | 次の具体的な実装 |
 | --- | --- |
 | B00数値reference固定 | B05/B06の公開reference commit・algorithm version・数値許容差をfixture作成前に固定。UI対象versionとは別に扱う |
-| B03 history / addedAt | scoreとは別にmanual attempt開始・終端を保存し、Recently Playedとplayed/date検索へ供給。中断をfailへ変換しない |
+| B03 history / addedAt — 実装済み | nativeの小数日丸め/group境界は追加観測が必要。現在は明示したlocal分類。詳細はB03実装記録 |
 | B04 Collections / Options | UUID/name＋content key/locatorのlocal CRUDとmembershipを作り、既存UIへ接続する |
 | B05 star / Difficulty | referenceに基づく独立NM calculator、worker/cache/revisionを作る。現在のproduction ratingはunknownのまま |
 | B06 HP / fail | 実HP/終端を収集する。Resultsは既にpassed=falseのF表示に対応済みで、追加すべき中心はGameplayの計算・収集 |
