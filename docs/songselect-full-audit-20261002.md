@@ -174,8 +174,8 @@ Frameへ渡すcopyもその容量分。新たな全library scan、GL texture/fon
 
 | 優先度 | 残るstableとの差異 | 次の具体的作業 |
 | --- | --- | --- |
-| P1 | custom skinの全frame合成、metadata typography/font metrics。built-in fallbackの見た目はGreylooksで公式defaultとは異なる | 同じ許可font/skinを使うnative captureを720/800/768高で取得。partial skinの黒active textと暗いbundled背景のcontrastも比較 |
-| P1 | carouselのnative PNG外形と72 UI body hit、row重複時の候補優先、selected優先の近似が残る | native dispatcherを調査し、click/releaseをpixel位置で比較。今回直したのはwindow/予約領域のclip境界 |
+| P1 | custom skinの全frame合成、metadata typography/font metrics。built-in fallbackの見た目はGreylooksで公式defaultとは異なる | 同じ許可font/skinを使うnative captureを720/800/768高で取得。[残件対応](songselect-follow-up-20261002.md)で未指定色とfallback背景の組合せを修復。明示的な黒指定は尊重する |
+| P1 | row重複時の候補優先、selected優先の近似、native pixel roundingが残る | [残件対応](songselect-follow-up-20261002.md)でnative PNG canvasとinput矩形を共有。生成時mouse priority/opacity/既存hoverの寿命を組み合わせてdispatcherを閉じ、click/releaseをpixel位置で比較 |
 | P1 | HD eligibilityは常時HD優先。nativeはdisplay height/option/GL capability条件。Back連番provider、mask/INI owner/音aliasも部分未確定 | [既存差分台帳](songselect-one-to-one-gap-ledger-20261002.md) V07–V13のfixtureを閉じる |
 | P1 | 通常Mods/他mode gameplay/Options、Difficulty/Recently Played/Collections tabの実機能なし | 各Ruleset・rating・collection/backendを実装してから現在のcapability境界へ接続。見せかけの有効化をしない |
 | P1 | production star rating sourceなし。metadataに本当のranked statusなし | 独立した信頼できるローカルdifficulty計算・metadata sourceを用意。表示済みのSettingsからstarsを作らない |
