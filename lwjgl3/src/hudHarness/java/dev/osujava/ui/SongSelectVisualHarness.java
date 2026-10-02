@@ -243,6 +243,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                             "phase4-wheel-hover", "phase4-oversized-score", "phase4-resize", "phase4-partial-palette", "phasechrome-giant",
                             "phasechrome-transparent", "phase5a-state-save-reload"))
                         scenes.add(new Scene(size[0],size[1],size[2],name));
+            } else if (phase.equals("backend-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
+                    for (String state : List.of("known", "legacy", "edited", "mixed"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"phase4-backend-"+state));
             } else if (phase.equals("configured")) {
                 scenes.clear();
                 scenes.add(new Scene(Integer.getInteger("osujava.songSelectWidth", 1280),
@@ -669,12 +674,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             library.add(new BeatmapSet("set" + i,title,artist,mapper,null,image,diffs,List.of()));
         }
-        var localScores = scene.name.equals("phase5a-state-save-reload")
+        var localScores = scene.name.startsWith("phase4-backend-")
+                ? new dev.osujava.score.LocalScoreStore(backendScoreDirectory(scene))
+                : scene.name.equals("phase5a-state-save-reload")
                 ? new dev.osujava.score.LocalScoreStore(output.resolve("score-reload-" + scene.width + "-" + scene.density))
                 : new dev.osujava.score.LocalScoreStore();
         if (scene.name.startsWith("phase4")) populateScores(localScores, library, scene.name);
         if (scene.name.startsWith("phase5a")) populatePlayed(localScores,library,scene.name);
         Screen[] destination = {null};
+        dev.osujava.score.LocalPlayer[] player = {null};
         var game = new OsuJavaGame(null,null) {
             @Override public void navigate(Screen next) { destination[0] = next; }
             @Override public SpriteBatch batch() { return batch; }
@@ -683,6 +691,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             @Override public SmoothUiFont smoothFont() { return smooth; }
             @Override public BeatmapLibrary library() { return library; }
             @Override public dev.osujava.score.LocalScoreStore localScores() { return localScores; }
+            @Override public dev.osujava.score.LocalPlayer localPlayer() { return player[0]; }
             @Override public Path skinDirectory() { return scene.name.equals("phasechrome-custom") ? customSkin
                     : scene.name.startsWith("phasechrome-current") ? Path.of("core/src/main/resources/skins/default").toAbsolutePath() : null; }
             @Override public Path skinFallbackDirectory() { return scene.name.equals("phasechrome-custom") ? null : output.resolve("fixtures/latest"); }
@@ -780,6 +789,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseGroupCards(screen, scene.name, pointer, clicked, pressed, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if (scene.name.startsWith("phase4-backend-")) {
+                exerciseBackend(screen,scene,game,library,localScores,player,pointer,clicked,pressed,layout,fb,name,destination);
+                fb.end(); advanceScene(); return;
+            }
             if (System.getProperty("osujava.songSelectPhase", "").equals("button-hit-contracts")) {
                 exerciseButtonHit(screen, scene, processor[0], pointer, clicked, pressed, layout, fb, name);
                 fb.end(); advanceScene(); return;
@@ -2079,7 +2092,93 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         System.out.printf(Locale.ROOT,"Toolbox difficulty switch %s: mean %.3f ms, p95 %.3f ms, max %.3f ms%n",name,
                 Arrays.stream(switches).average().orElseThrow()/1e6,switches[94]/1e6,switches[99]/1e6);
     }
+    private Path backendScoreDirectory(Scene scene) {
+        return output.resolve("backend-scores/"+scene.width+"x"+scene.height+"-"+scene.density+"x-"+scene.name);
+    }
+    private void populateBackendScores(dev.osujava.score.LocalScoreStore store, BeatmapLibrary library, String name) {
+        var set = library.all().stream().filter(b -> b.id().equals("set3")).findFirst().orElseThrow();
+        var diff = set.difficulties().get(1);
+        var location = dev.osujava.score.DifficultyIdentity.of(set.id(),diff);
+        var content = dev.osujava.beatmap.BeatmapContentKey.of(diff);
+        var player = new dev.osujava.score.LocalPlayer(new UUID(3,1),"星の旅人 Café — A deliberately long local player name");
+        if (name.endsWith("known") || name.endsWith("mixed")) for (int i=0;i<(name.endsWith("known") ? 12 : 1);i++) {
+            var details = new dev.osujava.score.ScoreDetails(dev.osujava.score.ScoreDetails.SCORE_V1,content.sha256(),"",
+                    null,null,null,null,null,null,null,null);
+            var context = new dev.osujava.score.PlayContext(content,0,"osu",dev.osujava.ruleset.osu.OsuRuleset.VERSION,
+                    details.scoringVersion(),List.of(),player,dev.osujava.gameplay.GameplayRunMode.MANUAL);
+            store.save(new dev.osujava.score.LocalScore(new UUID(3,i+10),location,1_790_467_200_000L+i*60000L,
+                    new dev.osujava.gameplay.ScoreState(100000+i,100,100,100,0,0,0,1),details,context),
+                    dev.osujava.gameplay.GameplayRunMode.MANUAL);
+        }
+        if (name.endsWith("legacy") || name.endsWith("mixed"))
+            store.save(new dev.osujava.score.LocalScore(new UUID(3,2),location,1_790_467_200_000L,
+                    new dev.osujava.gameplay.ScoreState(999999,100,100,100,0,0,0,1)),dev.osujava.gameplay.GameplayRunMode.MANUAL);
+        if (name.endsWith("edited")) {
+            var details = new dev.osujava.score.ScoreDetails(dev.osujava.score.ScoreDetails.SCORE_V1,"f".repeat(64),"",
+                    null,null,null,null,null,null,null,null);
+            store.save(new dev.osujava.score.LocalScore(new UUID(3,3),location,1_790_467_200_000L,
+                    new dev.osujava.gameplay.ScoreState(999999,100,100,100,0,0,0,1),details),dev.osujava.gameplay.GameplayRunMode.MANUAL);
+        }
+    }
+    private void exerciseBackend(SongSelectScreen screen, Scene scene, OsuJavaGame game, BeatmapLibrary library,
+                                 dev.osujava.score.LocalScoreStore store, dev.osujava.score.LocalPlayer[] player,
+                                 int[] pointer, boolean[] clicked, boolean[] pressed,
+                                 UiLayout layout, FrameBuffer fb, String name, Screen[] destination) {
+        var set = library.all().stream().filter(b -> b.id().equals("set3")).findFirst().orElseThrow();
+        var diff = set.difficulties().get(1); var scores = scoreBrowser(screen);
+        var content = dev.osujava.beatmap.BeatmapContentKey.of(diff);
+        var location = dev.osujava.score.DifficultyIdentity.of(set.id(),diff);
+        var reloaded = new dev.osujava.score.LocalScoreStore(backendScoreDirectory(scene));
+        if (reloaded.status() != dev.osujava.score.LocalScoreStore.Status.READY
+                || !store.query(location).equals(reloaded.query(location))) throw new AssertionError("Schema restart changed local scores");
+        boolean confirmed = scene.name.endsWith("known") || scene.name.endsWith("mixed");
+        var snapshot = (SongSelectScoreSnapshot)screenField(screen,"scoreSnapshot");
+        if ((snapshot.best(set,diff) != null) != confirmed || snapshot.played(set) != confirmed)
+            throw new AssertionError("Legacy/stale score marked current content played");
+        if (scene.name.endsWith("edited") && (!scores.rows().isEmpty() || reloaded.query(location).size()!=1))
+            throw new AssertionError("Edited chart reused or discarded an old content score");
+        if (confirmed && (!scores.rows().getFirst().verified()
+                || !scores.rows().getFirst().provenance().startsWith("NM · ScoreV1 · ")))
+            throw new AssertionError("Known player/Mods provenance missing");
+        if (scene.name.endsWith("legacy") && (scores.rows().getFirst().verified()
+                || !scores.rows().getFirst().provenance().equals("Player/mods unknown · Legacy scoring")))
+            throw new AssertionError("Legacy context invented NM/player");
+        var rows = scores.rows();
+        pointer[0]=Math.round(layout.width()*.9f*layout.scale()); pointer[1]=scene.height/2;
+        for (int frame=0;frame<24;frame++) { screen.render(1f/60); transitionFrames++; }
+        if (scores.rows()!=rows || store.query(content)!=store.query(content)) throw new AssertionError("Idle rebuilt cached projection");
+        assertRenderedBounds(screen,layout); assertScoreClipping(screen,layout,fb); capture(fb,name);
+        if (!rows.isEmpty()) {
+            var bounds = screen.scoreBounds(layout);
+            pointer[0]=Math.round((bounds.x()+100)*layout.scale());
+            pointer[1]=scene.height-Math.round((bounds.top()-bounds.rowPitch()/2)*layout.scale());
+            clicked[0]=pressed[0]=true; screen.render(1f/60); clicked[0]=pressed[0]=false;
+            for (int frame=0;frame<24;frame++) { screen.render(1f/60); transitionFrames++; }
+            if (!(destination[0] instanceof ResultsScreen results)) throw new AssertionError("Ranking score did not open Results");
+            try {
+                var field=ResultsScreen.class.getDeclaredField("snapshot"); field.setAccessible(true);
+                var result=(dev.osujava.score.ResultsSnapshot)field.get(results);
+                if (!Objects.equals(rows.getFirst().score().context(),result.context())) throw new AssertionError("Results lost saved play context");
+                results.show(); results.resize(scene.width,scene.height);
+                Gdx.input.getInputProcessor().keyDown(Input.Keys.ENTER); results.render(0);
+                capture(fb,name+"-results");
+            } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+            finally { destination[0].dispose(); destination[0]=null; }
+        }
+        // The production Gameplay constructor must snapshot the explicit profile before it changes.
+        player[0]=new dev.osujava.score.LocalPlayer(new UUID(3,1),"Before rename");
+        var gameplay=new GameplayScreen(game,set,diff);
+        try {
+            player[0]=new dev.osujava.score.LocalPlayer(player[0].id(),"After rename");
+            var field=GameplayScreen.class.getDeclaredField("playContext"); field.setAccessible(true);
+            var frozen=(dev.osujava.score.PlayContext)field.get(gameplay);
+            if (!"Before rename".equals(frozen.player().name()) || !content.equals(frozen.content()) || !frozen.mods().isEmpty())
+                throw new AssertionError("Gameplay context changed after construction");
+        } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+        finally { gameplay.dispose(); }
+    }
     private void populateScores(dev.osujava.score.LocalScoreStore store, BeatmapLibrary library, String name) {
+        if (name.startsWith("phase4-backend-")) { populateBackendScores(store,library,name); return; }
         var set = library.all().stream().filter(b -> b.id().equals("set3")).findFirst().orElseThrow();
         int count = name.equals("phase4-empty") || name.equals("phase4-large-0") ? 0
                 : name.startsWith("phase4-large-") ? Integer.parseInt(name.substring("phase4-large-".length()))
@@ -2282,17 +2381,18 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     }
     private void profileScores(SongSelectScreen screen, dev.osujava.score.LocalScoreStore store, String name) {
         var scores=scoreBrowser(screen); var target=scores.target();
+        var content=dev.osujava.beatmap.BeatmapContentKey.of(((SongBrowserModel)screenField(screen,"browser")).selectedDifficulty());
         for(String operation:List.of("query","sort","scroll","difficulty","input-switch","cold-format")) {
             long[] samples=new long[100];
             for(int i=0;i<140;i++) {
                 long start=System.nanoTime();
                 switch(operation) {
-                    case "query" -> store.query(target);
-                    case "sort" -> { var copy=new ArrayList<>(store.query(target)); copy.sort(dev.osujava.score.LocalScore.ORDER); }
+                    case "query" -> store.query(content);
+                    case "sort" -> { var copy=new ArrayList<>(store.query(content)); copy.sort(dev.osujava.score.LocalScore.ORDER); }
                     case "scroll" -> scores.scroll(i%2==0 ? 1 : -1);
-                    case "difficulty" -> { scores.target(null); scores.target(target); }
+                    case "difficulty" -> { scores.target(null); scores.target(target,content); }
                     case "input-switch" -> tapKey(Gdx.input.getInputProcessor(), i%2==0 ? Input.Keys.DOWN : Input.Keys.UP);
-                    case "cold-format" -> new ScoreBrowserModel(store).target(target);
+                    case "cold-format" -> new ScoreBrowserModel(store).target(target,content);
                 }
                 if(i>=40)samples[i-40]=System.nanoTime()-start;
             }
