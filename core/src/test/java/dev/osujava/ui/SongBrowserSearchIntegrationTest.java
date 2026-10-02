@@ -67,7 +67,7 @@ class SongBrowserSearchIntegrationTest {
 
     @Test void importPersistenceAndBrowserRetainPerDifficultyMetadataAndIds() throws Exception {
         var set = imported(); storage().save(set);
-        assertEquals("2",properties(set).getProperty("schemaVersion"));
+        assertEquals("3",properties(set).getProperty("schemaVersion"));
         var restored = storage().load().getFirst();
         assertEquals(set.difficulties().stream().map(d -> d.metadata()).toList(),
                 restored.difficulties().stream().map(d -> d.metadata()).toList());
@@ -96,7 +96,7 @@ class SongBrowserSearchIntegrationTest {
         assertEquals(set.difficulties().stream().map(d -> d.metadata()).toList(),restored.difficulties().stream().map(d -> d.metadata()).toList());
         var browser = new SongBrowserModel(List.of(restored)); browser.search("夜空 fast 125");
         assertEquals(List.of("Insane"),matches(browser));
-        storage().save(restored); assertEquals("2",properties(set).getProperty("schemaVersion"));
+        storage().save(restored); assertEquals("3",properties(set).getProperty("schemaVersion"));
     }
 
     @Test void persistedTimelineFieldsFilterDifficultiesAndRepairSelectionWithoutIndexRewrite() throws Exception {

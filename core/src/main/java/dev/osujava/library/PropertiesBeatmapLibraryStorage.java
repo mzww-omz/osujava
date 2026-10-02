@@ -4,6 +4,9 @@ import dev.osujava.beatmap.BeatmapDifficulty;
 import dev.osujava.beatmap.BeatmapMetadata;
 import dev.osujava.beatmap.BeatmapFile;
 import dev.osujava.beatmap.BeatmapSet;
+import dev.osujava.beatmap.BeatmapContentKey;
+import java.util.Map;
+import java.util.HashMap;
 import dev.osujava.beatmap.parse.BeatmapFileParser;
 import dev.osujava.beatmap.parse.BeatmapParseException;
 
@@ -24,7 +27,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStorage {
-    private static final int SCHEMA_VERSION = 2;
+    private static final int SCHEMA_VERSION = 3;
     private static final int MAX_DIFFICULTIES = 512;
     private static final int MAX_ASSETS = 100_000;
     private static final String LEGACY_MIGRATION_MARKER = ".legacy-recovery-complete";
@@ -32,6 +35,8 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
     private final Path libraryRoot;
     private final Path indexDirectory;
     private final BeatmapFileParser parser;
+    private final Map<BeatmapContentKey,Long> addedAt = new HashMap<>();
+    @Override public Map<BeatmapContentKey,Long> addedAt() { return Map.copyOf(addedAt); }
 
     public PropertiesBeatmapLibraryStorage(Path libraryRoot) {
         this(libraryRoot, new BeatmapFileParser());
@@ -45,6 +50,7 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
 
     @Override
     public List<BeatmapSet> load() throws IOException {
+        addedAt.clear();
         List<Path> entries;
         if (Files.isDirectory(indexDirectory)) {
             try (var paths = Files.list(indexDirectory)) {
@@ -177,10 +183,19 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
 
     @Override
     public void save(BeatmapSet beatmapSet) throws IOException {
+        save(beatmapSet,Map.of());
+    }
+    @Override public void save(BeatmapSet beatmapSet, Map<BeatmapContentKey,Long> dates) throws IOException {
         if (!beatmapSet.id().matches("[A-Za-z0-9_-]+")) {
             throw new IOException("Invalid beatmap set id: " + beatmapSet.id());
         }
         Files.createDirectories(indexDirectory);
+        Path target=indexDirectory.resolve(beatmapSet.id()+".properties");
+        if(Files.exists(target)) {
+            var existing=new Properties(); try(var in=Files.newInputStream(target)) { existing.load(in); }
+            int version=integer(existing,"schemaVersion",-1);
+            if(version<1 || version>SCHEMA_VERSION) throw new IOException("Preserving unsupported/damaged library index");
+        }
         Properties properties = new Properties();
         properties.setProperty("schemaVersion", Integer.toString(SCHEMA_VERSION));
         properties.setProperty("id", beatmapSet.id());
@@ -214,6 +229,12 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
             properties.setProperty(prefix + "osuPath", encodePath(difficulty.beatmapPath()));
             properties.setProperty(prefix + "audioPath", encodePath(difficulty.audioPath()));
             properties.setProperty(prefix + "backgroundPath", encodePath(difficulty.backgroundPath()));
+            var content = BeatmapContentKey.of(difficulty);
+            var time = content == null ? null : dates.get(content);
+            if (time != null && time >= 0) {
+                properties.setProperty(prefix+"contentSha256",content.sha256());
+                properties.setProperty(prefix+"addedAt",Long.toString(time));
+            }
         }
 
         Path temporary = Files.createTempFile(indexDirectory, "." + beatmapSet.id() + "-", ".tmp");
@@ -246,10 +267,14 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
         String creator = required(properties, "creator");
         int difficultyCount = boundedCount(properties, "difficulty.count", MAX_DIFFICULTIES);
         List<BeatmapDifficulty> difficulties = new ArrayList<>();
+        var entryDates = new HashMap<BeatmapContentKey,Long>();
         for (int i = 0; i < difficultyCount; i++) {
             try {
                 BeatmapDifficulty difficulty = loadDifficulty(properties, i);
-                if (difficulty != null) difficulties.add(difficulty);
+                if (difficulty != null) {
+                    difficulties.add(difficulty);
+                    if(schema>=3) readAddedAt(properties,i,difficulty,entryDates);
+                }
             } catch (IOException | RuntimeException e) {
                 System.err.println("Skipping damaged difficulty " + i + " in " + entryPath.getFileName()
                         + ": " + safeMessage(e));
@@ -267,7 +292,17 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
         Path background = resolveStoredPath(properties.getProperty("backgroundPath"));
         if (audio == null) audio = firstPath(difficulties, true);
         if (background == null) background = firstPath(difficulties, false);
+        entryDates.forEach((key,time) -> addedAt.merge(key,time,Math::min));
         return new BeatmapSet(id, title, artist, creator, audio, background, difficulties, assets);
+    }
+
+    private void readAddedAt(Properties p, int index, BeatmapDifficulty difficulty, Map<BeatmapContentKey,Long> dates) {
+        var key=BeatmapContentKey.of(difficulty); String prefix="difficulty."+index+".";
+        if(key==null || !key.sha256().equals(p.getProperty(prefix+"contentSha256"))) return;
+        try {
+            long time=Long.parseLong(p.getProperty(prefix+"addedAt"));
+            if(time>=0) dates.merge(key,time,Math::min);
+        } catch(RuntimeException ignored) { /* Invalid date stays unknown; the chart remains usable. */ }
     }
 
     private BeatmapDifficulty loadDifficulty(Properties properties, int index) throws IOException {
@@ -291,7 +326,7 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
                 required(properties, prefix + "creator"),
                 required(properties, prefix + "version"),
                 requiredInteger(properties, prefix + "mode"),
-                required(properties, prefix + "audioFilename"),
+                properties.getProperty(prefix + "audioFilename", chart.audioFilename()),
                 properties.getProperty(prefix + "backgroundFilename", chart.backgroundFilename()),
                 chart.settings(), chart.timingPoints(), chart.hitObjects(),
                 resolveStoredPath(properties.getProperty(prefix + "audioPath")),
