@@ -29,6 +29,9 @@ final class SongSelectCarousel {
 
     private List<Row> rows = List.of(), allRows = List.of();
     private List<Entry> contentEntries = List.of();
+    // Membership follows the existing native buffer lifecycle, including group-seeded sprites.
+    private final java.util.Set<Row> residents = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+    private final java.util.Set<Row> residentView = java.util.Collections.unmodifiableSet(residents);
     private final Map<String, Row> byKey = new HashMap<>();
     private String selectedKey, hoverKey, focusKey, emphasisKey, selectionTrackingKey;
     private float hoverAbsence, viewportHeight, rowHeight = 76, maxScroll;
@@ -45,6 +48,13 @@ final class SongSelectCarousel {
 
     List<Row> rows() { return rows; }
     List<Row> allRows() { return allRows; }
+    java.util.Set<Row> residentRows() { return residentView; }
+    int activeStart() { return activeStart; }
+    int activeEnd() { return activeEnd; }
+    private void resident(Row row, boolean value) {
+        row.resident = value;
+        if (value && row.entry.visible()) residents.add(row); else residents.remove(row);
+    }
     String hoverKey() { return hoverKey; }
     boolean presents(Row row) {
         return row.entry.visible() && row.resident && row.logicalIndex >= activeStart && row.logicalIndex < activeEnd;
@@ -116,11 +126,12 @@ final class SongSelectCarousel {
                 }
             }
             row.entry = entry; row.logicalY = logicalY; row.logicalIndex = i;
-            if (!entry.visible()) row.resident = false;
+            resident(row, entry.visible() && row.resident);
             next.add(row); byKey.put(entry.key(), row);
             if (entry.visible()) { visible.add(row); previousVisible = entry; }
         }
         allRows = List.copyOf(next); rows = List.copyOf(visible); contentEntries = List.copyOf(entries);
+        residents.removeIf(row -> byKey.get(row.entry.key()) != row);
         if (!sameOrder) { activeStart = 0; activeEnd = allRows.size(); }
         maxScroll = rows.isEmpty() ? 0 : rows.getLast().logicalY - rows.getFirst().logicalY;
         scroll.range(maxScroll / (double) referenceScale);
@@ -147,7 +158,7 @@ final class SongSelectCarousel {
             Row row = allRows.get(i);
             if (row.entry.header()) break;
             row.motionX = group.motionX; row.motionY = y;
-            if (insideBuffer(y) && !row.resident) { row.resident = true; row.instantSprites = false; }
+            if (insideBuffer(y) && !row.resident) { resident(row, true); row.instantSprites = false; }
             if (families.add(row.entry.familyKey()) && row.entry.visible())
                 y += SongSelectMetrics.ROW_PITCH * referenceScale;
         }
@@ -249,6 +260,7 @@ final class SongSelectCarousel {
         Row hovered = byKey.get(hoverKey), selected = byKey.get(emphasisKey);
         advanceRows(dt, hovered);
         float selectionEase = ease(dt, 10);
+        float groupEase = 1 - (float) Math.pow(.95, dt * 60);
         for (Row row : rows) {
             boolean focused = row.entry.key().equals(focusKey);
             if (row.focused != focused) {
@@ -256,7 +268,7 @@ final class SongSelectCarousel {
             }
             row.focusElapsed = Math.min(.05f, row.focusElapsed + dt);
             row.focusAmount = row.focusStart + ((focused ? 1 : 0) - row.focusStart) * (row.focusElapsed / .05f);
-            row.groupAmount += (((row.entry.header() || row.entry.expanded()) ? 1 : 0) - row.groupAmount) * (1 - (float)Math.pow(.95, dt * 60));
+            row.groupAmount += (((row.entry.header() || row.entry.expanded()) ? 1 : 0) - row.groupAmount) * groupEase;
             row.hoverAmount += ((row == hovered ? 1 : 0) - row.hoverAmount) * (row == hovered ? hoverEase : releaseEase);
             row.selectedAmount += ((row == selected ? 1 : 0) - row.selectedAmount) * selectionEase;
         }
@@ -300,12 +312,12 @@ final class SongSelectCarousel {
         }
         for (int i = activeStart; i < activeEnd; i++) {
             Row row = allRows.get(i);
-            if (!row.entry.visible()) { row.resident = false; continue; }
+            if (!row.entry.visible()) { resident(row, false); continue; }
             float y = targetY(row, hovered), x = horizontalTarget(row.entry, row.motionY, row == hovered);
             row.motionX = snapNextFrame ? x : interpolate(row.motionX, x, .95, dt);
             row.motionY = snapNextFrame ? y : interpolate(row.motionY, y, .875, dt);
             row.separationY = row.logicalY - row.motionY;
-            if (insideBuffer(row.motionY) && !row.resident) { row.resident = true; row.instantSprites = true; }
+            if (insideBuffer(row.motionY) && !row.resident) { resident(row, true); row.instantSprites = true; }
             else if (belowBuffer(screenY(y)) && belowBuffer(screenY(row.motionY))) {
                 // Both current and destination are below the buffer: retire and snap the whole suffix.
                 for (int j = activeEnd - 1; j >= i; j--) retire(allRows.get(j), hovered);
@@ -321,7 +333,7 @@ final class SongSelectCarousel {
         row.motionX = horizontalTarget(row.entry, row.motionY, row == hovered);
         row.motionY = targetY(row, hovered);
         row.separationY = row.logicalY - row.motionY;
-        row.resident = false;
+        resident(row, false);
     }
     /** Recover relative displacement from a visible neighbour, with the native 200-unit X cap. */
     private void reenter(Row row, Row anchor, Row hovered) {

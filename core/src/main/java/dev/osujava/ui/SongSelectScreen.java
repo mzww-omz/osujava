@@ -541,7 +541,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         carousel.emphasize(browser.selectedKey());
         if (advance) carousel.advance(delta, hit == null ? null : hit.key(), input != null && input.rightScrolling());
         List<SongSelectRow> result = new ArrayList<>();
-        for (SongSelectCarousel.Row entry : carousel.rows()) {
+        for (int i = carousel.activeStart(); i < carousel.activeEnd(); i++) {
+            SongSelectCarousel.Row entry = carousel.allRows().get(i);
             if (!carousel.presents(entry)) continue;
             float y = carousel.renderY(entry, top);
             // Resident buffer rows may have artwork extending beyond their body into the viewport.
@@ -629,10 +630,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void advanceRowColours(float delta) {
         double frameMs = Float.isFinite(delta) ? Math.max(0, delta * 1000.0) : 0;
         rowColourTimeMs += frameMs;
-        var residents = java.util.Collections.newSetFromMap(new IdentityHashMap<SongSelectCarousel.Row, Boolean>());
-        for (var row : carousel.allRows()) {
-            if (!row.resident || !row.entry.visible()) continue;
-            residents.add(row);
+        for (var row : carousel.residentRows()) {
             var entry = row.entry;
             var model = browser.row(entry.key());
             SongSelectRowColours.base(rowBaseColour, entry.header(), model.expanded,
@@ -643,19 +641,17 @@ public final class SongSelectScreen extends ScreenAdapter {
                     model.state.ordinal(), Color.rgba8888(rowBaseColour), entry.key().equals(browser.focusKey()),
                     entry.key().equals(carousel.hoverKey()), (long) rowColourTimeMs, (int) frameMs);
         }
-        rowColours.keySet().retainAll(residents);
+        rowColours.keySet().retainAll(carousel.residentRows());
     }
 
     private void advanceRowStars(float delta) {
         long now = (long) rowColourTimeMs;
         int frameMs = Float.isFinite(delta) ? (int) Math.max(0, delta * 1000.0) : 0;
-        var residents = java.util.Collections.newSetFromMap(new IdentityHashMap<SongSelectCarousel.Row, Boolean>());
         var asset = skin == null ? null : skin.get(Image.STAR);
         boolean cropped = croppedStars();
         int width = asset == null ? 40 : (int) asset.logicalWidth();
-        for (var row : carousel.allRows()) {
-            if (!row.resident || !row.entry.visible() || row.entry.header()) continue;
-            residents.add(row);
+        for (var row : carousel.residentRows()) {
+            if (row.entry.header()) continue;
             boolean created = !rowStars.containsKey(row);
             var state = rowStars.computeIfAbsent(row, ignored -> new RowStars());
             var model = browser.row(row.entry.key());
@@ -668,7 +664,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 state.animation = null;
             }
         }
-        rowStars.keySet().retainAll(residents);
+        rowStars.keySet().removeIf(row -> row.entry.header() || !carousel.residentRows().contains(row));
     }
 
     private boolean croppedStars() {
@@ -678,17 +674,14 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private void advanceRowForeground(float delta) {
-        var residents = java.util.Collections.newSetFromMap(new IdentityHashMap<SongSelectCarousel.Row, Boolean>());
         int frameMs = Float.isFinite(delta) ? (int) Math.max(0, delta * 1000.0) : 0;
-        for (var row : carousel.allRows()) {
-            if (!row.resident || !row.entry.visible()) continue;
-            residents.add(row);
+        for (var row : carousel.residentRows()) {
             boolean created = !rowForeground.containsKey(row);
             rowForeground.computeIfAbsent(row, ignored -> new SongSelectForegroundAnimation()).update(
                     browser.row(row.entry.key()).state.ordinal(), created && row.instantSprites,
                     (long) rowColourTimeMs, frameMs);
         }
-        rowForeground.keySet().retainAll(residents);
+        rowForeground.keySet().retainAll(carousel.residentRows());
     }
 
     /** Resource lookup and score projection happen before any drawing. */
