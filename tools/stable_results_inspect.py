@@ -27,6 +27,8 @@ def main():
     parser.add_argument("assembly", type=Path)
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--types", nargs="+", type=token, metavar="TOKEN")
+    group.add_argument("--enum-values", nargs="+", type=token, metavar="TOKEN",
+                       help="Read declared Int32 enum constants; never resolve strings/resources")
     group.add_argument("--methods", nargs="+", type=token, metavar="TOKEN")
     group.add_argument("--refs", nargs="+", type=token, metavar="TOKEN")
     group.add_argument("--ranking-locations", action="store_true")
@@ -63,6 +65,21 @@ def main():
             return f"{number:08x} {name}"
         # Deliberately do not resolve user strings or resource tokens.
         return f"{number:08x}"
+
+    if args.enum_values:
+        constants = {c.Parent.row_index: int.from_bytes(c.Value.value, "little", signed=True)
+                     for c in tables.Constant.rows
+                     if c.Parent.table.name == "Field" and c.Type == 8 and len(c.Value.value) == 4}
+        for value in args.enum_values:
+            target = row(tables.TypeDef, value, 2)
+            base = getattr(target.Extends, "row", None)
+            if str(getattr(base, "TypeName", "")) != "Enum" or str(getattr(base, "TypeNamespace", "")) != "System":
+                parser.error(f"type is not an enum: {value:08x}")
+            print(f"ENUM {value:08x} {target.TypeNamespace}.{target.TypeName}")
+            for field in target.FieldList:
+                if field.row_index in constants:
+                    print(f"{0x4000000 + field.row_index:08x} {field.row.Name}={constants[field.row_index]}")
+        return
 
     if args.methods:
         for value in args.methods:
