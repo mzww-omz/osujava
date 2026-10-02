@@ -156,7 +156,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
                 for (String name : List.of("empty", "single", "three", "many", "SS", "S", "A", "B", "C", "D",
                         "numbers", "numbers-bottom", "sibling", "no-score", "group", "search", "long", "unicode", "fallback", "bundled-fallback",
-                        "high-only", "scroll-top", "scroll-middle", "scroll-bottom", "selected", "wheel-hover", "transitions",
+                        "high-only", "scroll-top", "scroll-middle", "scroll-bottom", "selected", "wheel-hover", "transitions", "resize", "oversized-score",
                         "large-0", "large-10", "large-100", "large-1000"))
                     scenes.add(new Scene(size[0],size[1],size[2],"phase4-" + name));
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
@@ -234,6 +234,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (int[] size : new int[][]{{1365,768,1},{1366,768,1},{1367,768,1},{1152,768,1},{1153,768,1},{1280,720,2}})
                     for (String name : List.of("overlap", "transparent-back", "odd-hd", "short-top", "animated-back"))
                         scenes.add(new Scene(size[0],size[1],size[2],"parity-"+name));
+            } else if (phase.equals("audit")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
+                    for (String name : List.of("repair-empty", "repair-single", "greylooks-expanded-many-last",
+                            "greylooks-collapse-many", "greylooks-scroll-reverse", "phase2-long-english", "phase2-japanese",
+                            "phase2-missing-thumbnail", "phase3-search-none", "phase4-empty", "phase4-single", "phase4-many",
+                            "phase4-wheel-hover", "phase4-oversized-score", "phase4-resize", "phasechrome-giant",
+                            "phasechrome-transparent", "phase5a-state-save-reload"))
+                        scenes.add(new Scene(size[0],size[1],size[2],name));
             } else if (phase.equals("configured")) {
                 scenes.clear();
                 scenes.add(new Scene(Integer.getInteger("osujava.songSelectWidth", 1280),
@@ -557,9 +566,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     @Override public void render() {
         Scene scene = scenes.get(index);
         Graphics actualGraphics = Gdx.graphics; Input actualInput = Gdx.input;
+        int[] display = {scene.width, scene.height};
         Gdx.graphics = (Graphics) Proxy.newProxyInstance(Graphics.class.getClassLoader(),new Class[]{Graphics.class},(p,m,a) -> switch(m.getName()) {
-            case "getWidth" -> scene.width; case "getHeight" -> scene.height;
-            case "getBackBufferWidth" -> scene.width * scene.density; case "getBackBufferHeight" -> scene.height * scene.density;
+            case "getWidth" -> display[0]; case "getHeight" -> display[1];
+            case "getBackBufferWidth" -> display[0] * scene.density; case "getBackBufferHeight" -> display[1] * scene.density;
             default -> m.invoke(actualGraphics,a);
         });
         InputProcessor[] processor = {null};
@@ -701,6 +711,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             resolver = SkinAssetResolver.withBundledDefault(output.resolve("fixtures/"+scene.name),null);
         if (scene.name.startsWith("parity-"))
             resolver = SkinAssetResolver.withBundledDefault(output.resolve("fixtures/"+scene.name),null);
+        if (scene.name.equals("phase4-oversized-score")) {
+            try {
+                Path dir = Files.createDirectories(output.resolve("fixtures/oversized-score"));
+                compositionImage(dir, "menu-button-background", 2000, 800, scene.density, Color.WHITE);
+                resolver = SkinAssetResolver.withBundledDefault(dir, null);
+            } catch (Exception e) { throw new RuntimeException(e); }
+        }
         var assets = scene.name.startsWith("phasechrome-current") || scene.name.equals("phasechrome-custom") ? null : new SongSelectSkinAssets(resolver);
         String preferredSet = scene.name.equals("greylooks-first-item") || scene.name.startsWith("keyboard-") ? "set0"
                 : scene.name.equals("greylooks-last-item") ? "set6"
@@ -932,6 +949,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 } finally { rendered.dispose(); }
             }
             capture(fb,name);
+            if (scene.name.startsWith("phase4-")) assertScoreClipping(screen, layout, fb);
+            if (scene.name.equals("phase4-resize")) exerciseScoreResize(screen, scene, display, fb);
             if (scene.name.startsWith("phase3-focus-")) {
                 // The generic pointer checks below target the playable row. Focus deliberately
                 // leaves that row behind, so explicitly restore selection before those checks.
@@ -2000,6 +2019,67 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     private ScoreBrowserModel scoreBrowser(SongSelectScreen screen) {
         try { var f=SongSelectScreen.class.getDeclaredField("scores"); f.setAccessible(true); return (ScoreBrowserModel)f.get(screen); }
         catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+    }
+    /** Exercise the production background pass with a sentinel outside every row clip. */
+    private void assertScoreClipping(SongSelectScreen screen, UiLayout layout, FrameBuffer fb) {
+        var renderer = (SongSelectRenderer) screenField(screen, "renderer");
+        Gdx.gl.glClearColor(1, 0, 1, 1);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        try {
+            var draw = SongSelectRenderer.class.getDeclaredMethod("drawScoreBackgrounds", UiLayout.class);
+            draw.setAccessible(true); draw.invoke(renderer, layout);
+        } catch (ReflectiveOperationException e) { throw new RuntimeException(e); }
+        if (Gdx.gl.glIsEnabled(GL20.GL_SCISSOR_TEST)) throw new AssertionError("Score pass retained scissor state");
+        var pixels = Pixmap.createFromFrameBuffer(0, 0, fb.getWidth(), fb.getHeight());
+        var bounds = screen.scoreBounds(layout);
+        try {
+            for (int slot = 0; slot < bounds.capacity(); slot++) {
+                float y = bounds.rowY(slot), centre = y + bounds.rowHeight() / 2;
+                for (float[] sample : new float[][]{{bounds.x()-2, centre}, {bounds.x()+bounds.width()+2, centre},
+                        {bounds.x()+bounds.width()/2, y-2}, {bounds.x()+bounds.width()/2, y+bounds.rowHeight()+2}}) {
+                    int px = Math.round(sample[0] * pixels.getWidth() / layout.width());
+                    int py = Math.round(sample[1] * pixels.getHeight() / layout.height());
+                    if (px >= 0 && px < pixels.getWidth() && py >= 0 && py < pixels.getHeight()
+                            && pixels.getPixel(px, py) != Color.rgba8888(Color.MAGENTA))
+                        throw new AssertionError("Score artwork escaped row clip: " + slot + " at " + px + "," + py);
+                }
+            }
+        } finally { pixels.dispose(); }
+        screen.render(0);
+    }
+
+    private void exerciseScoreResize(SongSelectScreen screen, Scene scene, int[] display, FrameBuffer original) {
+        var scores = scoreBrowser(screen);
+        var target = scores.target();
+        scores.select(1); var selected = scores.selected();
+        original.end();
+        try {
+            for (int[] size : new int[][]{{1024,768}, {1280,800}, {1920,1080}, {1280,720}}) {
+                display[0] = size[0]; display[1] = size[1];
+                var layout = UiLayout.fromPixels(size[0], size[1]);
+                var resized = new FrameBuffer(Pixmap.Format.RGBA8888, size[0]*scene.density, size[1]*scene.density, false);
+                try {
+                    screen.resize(size[0],size[1]); scores.scroll(10000);
+                    resized.begin();
+                    for (int frame = 0; frame < 24; frame++) {
+                        screen.render(1f/60); assertRenderedBounds(screen, layout); transitionFrames++;
+                    }
+                    var bounds = screen.scoreBounds(layout);
+                    if (!Objects.equals(target, scores.target()) || !Objects.equals(selected, scores.selected())
+                            || scores.first() != Math.max(0, scores.rows().size()-bounds.capacity()))
+                        throw new AssertionError("Resize lost score target, selection or scroll clamp");
+                    if (bounds.x()+bounds.width()+ScoreBrowserBounds.COLUMN_GAP
+                            > SongSelectMetrics.wheelLeft(layout.width(),layout.height())+.001f)
+                        throw new AssertionError("Resize overlapped ranking and carousel");
+                    assertScoreClipping(screen, layout, resized);
+                    capture(resized, scene.width+"x"+scene.height+"-"+scene.density+"x-resize-to-"+size[0]+"x"+size[1]);
+                    resized.end();
+                } finally { resized.dispose(); }
+            }
+        } finally {
+            display[0] = scene.width; display[1] = scene.height;
+            screen.resize(scene.width,scene.height); original.begin(); screen.render(0);
+        }
     }
     private void assertScoreTarget(SongSelectScreen screen) {
         try {

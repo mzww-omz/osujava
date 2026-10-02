@@ -78,6 +78,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private boolean showThumbnails() { return legacyThumbnailPreview || skin == null || skin.thumbnailsEnabled(); }
     private final SongBrowserModel browser;
     private final ScoreBrowserModel scores;
+    private final SongSelectScoreHover scoreHover = new SongSelectScoreHover();
     private final SongSelectScoreSnapshot scoreSnapshot;
     private final SongBrowserControls controls = new SongBrowserControls();
     private List<SongBrowserModel.Row> browserRows = List.of();
@@ -275,7 +276,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 inactiveText,
                 toolbox,
                 new SongSelectRenderer.BrowserView(browser.sort(), browser.group(), browser.visibleSets().size()),
-                new SongSelectRenderer.ScoreView(scores.rows(), scores.first(), scores.selected()),
+                new SongSelectRenderer.ScoreView(scores.rows(), scores.first(), scores.selected(), scoreHover.snapshot()),
                 controls,
                 sets,
                 visibleRows,
@@ -431,6 +432,9 @@ public final class SongSelectScreen extends ScreenAdapter {
         backgroundFade = Math.min(1, backgroundFade + Math.max(0, delta) / .22f);
         viewState.hover.advance(delta, toolbox.open() || importing || outgoing.pending() ? null
                 : SongSelectAction.bottom(px,py,bottomLayout));
+        var rankingBounds = scoreBounds(layout);
+        scoreHover.advance(delta, scores.rows(), scores.first(), rankingBounds.capacity(),
+                toolbox.open() || controls.open() || importing || outgoing.pending() ? -1 : rankingBounds.slot(px, py));
         return true;
     }
 

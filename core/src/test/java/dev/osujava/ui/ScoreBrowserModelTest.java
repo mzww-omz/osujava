@@ -52,7 +52,7 @@ class ScoreBrowserModelTest {
     @Test void scoreBoundsExcludeCarouselChromeCookieAndGaps() {
         var l=new dev.osujava.ui.theme.UiLayout(1280,720,1); var b=ScoreBrowserBounds.of(l);
         assertTrue(b.contains(40,360)); assertFalse(b.contains(800,360)); assertFalse(b.contains(40,40));
-        assertFalse(b.contains(40,600)); assertEquals(-1,b.slot(40,b.top()-65));
+        assertFalse(b.contains(40,600)); assertEquals(-1,b.slot(40,b.top()-b.rowHeight()-(b.rowPitch()-b.rowHeight())/2));
         assertTrue(b.rowY(b.capacity()-1)>=b.bottom());
     }
 }

@@ -40,7 +40,7 @@ final class SongSelectRenderer {
     private boolean renderedTopProcedural, renderedBottomProcedural;
     private Frame frame;
     record BrowserView(SongBrowserModel.Sort sort, SongBrowserModel.Group group, int visibleCount) { }
-    record ScoreView(List<ScoreBrowserModel.Row> rows, int first, java.util.UUID selected) { }
+    record ScoreView(List<ScoreBrowserModel.Row> rows, int first, java.util.UUID selected, SongSelectScoreHover.Snapshot hover) { }
     record Frame(
         SongSelectSkinAssets skin,
         Color activeText,
@@ -116,9 +116,7 @@ final class SongSelectRenderer {
             view.box(thumb.x(),thumb.y(),thumb.width(),thumb.height(),0,UiTheme.TEXT);
             view.endShapes();
         }
-        view.beginText();
         drawScoreBackgrounds(layout);
-        view.endText();
         // Artwork can exceed the content reservation; retain the authored canvas inside the viewport.
         Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
         try {
@@ -145,15 +143,28 @@ final class SongSelectRenderer {
         frame.controls.drawShapes(view,layout.width(),layout.height(),frame.skin);
         if (frame.searchActive || !frame.search.isEmpty()) view.box(frame.searchX, layout.height() - 80, frame.searchW, 25, 0, LEFT);
         view.box(18, frame.chromeContent.rankingHeaderTop() - 28, frame.scoreBounds.width(), 28, 0, TOP);
-        drawScoreShapes(layout, px, py);
         if (frame.toastSeconds > 0) view.box(18, frame.bottom + 12, Math.min(450, layout.width() * .42f), 35, 0, BOTTOM);
         view.endShapes();
+        Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
+        try {
+            chromeClip(layout, frame.scoreBounds.clip());
+            view.beginShapes();
+            drawScoreShapes();
+            view.endShapes();
+        } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
         // Stable metadata (.79) and scores precede selection artwork (.95/.96).
         // A selection-mode canvas may include opaque upper chrome, not just buttons.
         view.beginText();
         drawMetadata(layout);
         drawRanking(layout);
         view.endText();
+        Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
+        try {
+            chromeClip(layout, frame.scoreBounds.clip());
+            view.beginText();
+            drawScoreRows();
+            view.endText();
+        } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
         // Composite artwork may extend above the control reservation. Only the viewport
         // clips decoration; the bounded input geometry remains independent.
         Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
@@ -316,31 +327,37 @@ final class SongSelectRenderer {
                 19, layout.height() - 103, w, .63f, UiTheme.MUTED);
     }
 
-    private void drawScoreShapes(UiLayout layout, float px, float py) {
+    private void drawScoreShapes() {
         var bounds = frame.scoreBounds;
         if (frame.scores.rows().isEmpty()) view.box(bounds.x(),bounds.top()-64,bounds.width(),64,0,LEFT);
         for (int slot = 0; slot < bounds.capacity() && frame.scores.first() + slot < frame.scores.rows().size(); slot++) {
             var row = frame.scores.rows().get(frame.scores.first() + slot);
             boolean selected = row.score().playId().equals(frame.scores.selected());
-            boolean hover = !frame.toolbox.open() && bounds.slot(px, py) == slot;
-            if (!has(Image.MENU_BUTTON_BACKGROUND)) view.box(bounds.x(), bounds.rowY(slot), bounds.width(), ScoreBrowserBounds.HEIGHT, 0,
-                    selected ? SIBLING : hover ? TOP : LEFT);
-            if (selected) view.box(bounds.x(), bounds.rowY(slot), 3, ScoreBrowserBounds.HEIGHT, 0, UiTheme.ACCENT);
+            if (!has(Image.MENU_BUTTON_BACKGROUND)) view.box(bounds.x(), bounds.rowY(slot), bounds.width(), bounds.rowHeight(), 0,
+                    selected ? SIBLING : actionTint.set(0, 0, 0, frame.scores.hover.alpha(slot)));
+            if (selected) view.box(bounds.x(), bounds.rowY(slot), 3 * bounds.scale(), bounds.rowHeight(), 0, UiTheme.ACCENT);
         }
+        var thumb = bounds.thumb(frame.scores.first(), frame.scores.rows().size());
+        if (thumb.height() > 0) view.box(thumb.x(), thumb.y(), thumb.width(), thumb.height(), 0, UiTheme.MUTED);
     }
 
     private void drawScoreBackgrounds(UiLayout layout) {
         if (!has(Image.MENU_BUTTON_BACKGROUND)) return;
         var bounds = frame.scoreBounds;
-        for (int slot = 0; slot < bounds.capacity() && frame.scores.first() + slot < frame.scores.rows().size(); slot++) {
-            var row = frame.scores.rows().get(frame.scores.first() + slot);
-            boolean selected = row.score().playId().equals(frame.scores.selected());
-            boolean hovered = !frame.toolbox.open() && bounds.slot(frame.pointerX, frame.pointerY) == slot;
-            // Stable 060013b4: CentreLeft origin and scalar .55, independent of PNG alpha.
-            var artwork = SongSelectArtwork.card(bounds.x(), bounds.rowY(slot) + ScoreBrowserBounds.HEIGHT / 2,
-                    layout.height(), .55f, frame.skin.get(Image.MENU_BUTTON_BACKGROUND));
-            skinImage(Image.MENU_BUTTON_BACKGROUND, artwork, actionTint.set(0, 0, 0, selected || hovered ? .6f : .3f));
-        }
+        Gdx.gl.glEnable(GL20.GL_SCISSOR_TEST);
+        try {
+            for (int slot = 0; slot < bounds.capacity() && frame.scores.first() + slot < frame.scores.rows().size(); slot++) {
+                var row = frame.scores.rows().get(frame.scores.first() + slot);
+                boolean selected = row.score().playId().equals(frame.scores.selected());
+                // Stable 060013b4: CentreLeft origin and scalar .55, independent of PNG alpha.
+                var artwork = SongSelectArtwork.card(bounds.x(), bounds.rowY(slot) + bounds.rowHeight() / 2,
+                        layout.height(), .55f, frame.skin.get(Image.MENU_BUTTON_BACKGROUND));
+                chromeClip(layout, bounds.rowClip(slot));
+                view.beginText();
+                skinImage(Image.MENU_BUTTON_BACKGROUND, artwork, actionTint.set(0, 0, 0, selected ? .6f : frame.scores.hover.alpha(slot)));
+                view.endText();
+            }
+        } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
     }
 
     private void drawRanking(UiLayout layout) {
@@ -355,17 +372,6 @@ final class SongSelectRenderer {
                     ? "Local score storage unavailable" : "No local scores";
             view.textSmooth(message, 28, bounds.top() - 24, bounds.width() - 20, .72f, UiTheme.MUTED);
         }
-        for (int slot = 0; slot < bounds.capacity() && frame.scores.first() + slot < frame.scores.rows().size(); slot++) {
-            var row = frame.scores.rows().get(frame.scores.first() + slot);
-            float y = bounds.rowY(slot), x = bounds.x();
-            view.textSmooth(Integer.toString(frame.scores.first()+slot+1),x+5,y+28,24,.65f,UiTheme.TEXT);
-            rowRenderer.drawGrade(row.score().grade(), x + 30, y + 13, 44, 38, UiTheme.TEXT, UiTheme.TEXT);
-            float textX = x + 82, width = bounds.width() - 92;
-            view.textSmoothBold(row.value(), textX, y + 44, width * .62f, .94f, UiTheme.TEXT);
-            view.textSmooth(row.accuracy(), textX + width * .64f, y + 44, width * .36f, .82f, UiTheme.TEXT);
-            view.textSmooth(row.combo(), textX, y + 25, width, .73f, UiTheme.TEXT);
-            view.textSmooth(row.date(), textX, y + 8, width, .59f, UiTheme.MUTED);
-        }
         if (frame.scores.rows().size() > bounds.capacity()) view.textSmooth(
                 (frame.scores.first() + 1) + "–" + Math.min(frame.scores.rows().size(), frame.scores.first() + bounds.capacity()) + " / " + frame.scores.rows().size(),
                 28, bounds.bottom() - 17, bounds.width() - 20, .60f, UiTheme.MUTED);
@@ -376,5 +382,24 @@ final class SongSelectRenderer {
         BeatmapDifficulty diff = frame.selectedDifficulty;
         if (diff != null && !frame.supportedMode)
             view.textSmooth("This mode cannot be played yet", 22, frame.bottom + 25, layout.width() * .31f - 20, UiTheme.META, UiTheme.ERROR);
+    }
+
+    private void drawScoreRows() {
+        var bounds = frame.scoreBounds;
+        float scale = bounds.scale();
+        for (int slot = 0; slot < bounds.capacity() && frame.scores.first() + slot < frame.scores.rows().size(); slot++) {
+            var row = frame.scores.rows().get(frame.scores.first() + slot);
+            float y = bounds.rowY(slot), x = bounds.x();
+            view.textCenteredVertically(Integer.toString(frame.scores.first() + slot + 1),
+                    x + 4 * scale, y + bounds.rowHeight() / 2, 22 * scale, .62f * scale, UiTheme.TEXT, false);
+            rowRenderer.drawGrade(row.score().grade(), x + 28 * scale, y + 5 * scale,
+                    32 * scale, 35 * scale, UiTheme.TEXT, UiTheme.TEXT);
+            float textX = x + 70 * scale, width = Math.max(0, bounds.width() - 82 * scale);
+            view.textCenteredVertically(row.value(), textX, y + 35 * scale, width, .88f * scale, UiTheme.TEXT, true);
+            view.textCenteredVertically(row.combo(), textX, y + 19 * scale, width * .4f, .66f * scale, UiTheme.TEXT, false);
+            view.textCenteredVertically(row.accuracy(), textX + width * .4f, y + 19 * scale,
+                    width * .6f, .66f * scale, UiTheme.TEXT, false);
+            view.textCenteredVertically(row.date(), textX, y + 6 * scale, width, .53f * scale, UiTheme.MUTED, false);
+        }
     }
 }

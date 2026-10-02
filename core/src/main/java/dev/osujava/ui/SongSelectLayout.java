@@ -33,7 +33,8 @@ final class SongSelectLayout {
                 new Rect(left, chrome.bottom(), ui.width() - left, chrome.carouselTop() - chrome.bottom()),
                 new Rect(18, ui.height() - 112, ui.width() * .52f - 28, 112),
                 new Rect(ui.width() * .64f - 16, ui.height() - 80, ui.width() * .36f, 25),
-                new ScoreBrowserBounds(18, chrome.bottom() + 48, ScoreBrowserBounds.columnWidth(ui), chrome.rankingHeaderTop() - 64));
+                new ScoreBrowserBounds(ScoreBrowserBounds.LEFT, chrome.bottom() + 48, ScoreBrowserBounds.columnWidth(ui),
+                        chrome.rankingHeaderTop() - 64, ui.height() / 720));
     }
 
     static RowGeometry row(SongSelectRow row, int index, float targetX, float targetY,
