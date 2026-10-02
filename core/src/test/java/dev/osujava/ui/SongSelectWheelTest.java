@@ -87,8 +87,9 @@ class SongSelectWheelTest {
         } finally { screen.dispose(); }
     }
     @Test void scoreScrollAndCarouselTargetsAreIndependentAndDifficultyRefreshIsImmediate() throws Exception {
-        var a = new BeatmapDifficulty("Song","Artist","Creator","Easy",0,"","",DifficultySettings.defaults(),List.of(),List.of(),null,null,java.nio.file.Path.of("easy.osu"));
-        var b = new BeatmapDifficulty("Song","Artist","Creator","Hard",0,"","",DifficultySettings.defaults(),List.of(),List.of(),null,null,java.nio.file.Path.of("hard.osu"));
+        var objects = List.of(new dev.osujava.beatmap.HitObject(0,0,1000,dev.osujava.beatmap.HitObject.Type.CIRCLE,1,0));
+        var a = new BeatmapDifficulty("Song","Artist","Creator","Easy",0,"","",DifficultySettings.defaults(),List.of(),objects,null,null,java.nio.file.Path.of("easy.osu"));
+        var b = new BeatmapDifficulty("Song","Artist","Creator","Hard",0,"","",DifficultySettings.defaults(),List.of(),objects,null,null,java.nio.file.Path.of("hard.osu"));
         library.add(new BeatmapSet("fixture","Song","Artist","Creator",null,null,List.of(a,b),List.of()));
         var game=game();
         var identity=dev.osujava.score.DifficultyIdentity.of("fixture",a);

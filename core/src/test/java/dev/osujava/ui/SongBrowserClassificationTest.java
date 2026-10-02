@@ -39,11 +39,26 @@ class SongBrowserClassificationTest {
                 "Both end in second 100: the existing textual tie-break applies");
     }
     @ParameterizedTest @CsvSource({"59.99,0–<60 BPM","60,60–<120 BPM","119.99,60–<120 BPM",
-            "120,120–<180 BPM","179.99,120–<180 BPM","180,180–<240 BPM","240,240–<300 BPM","300,300+ BPM"})
+            "120,120–<180 BPM","179.99,120–<180 BPM","180,180–<240 BPM","240,240–<300 BPM","300.01,>300 BPM"})
     void bpmBoundariesUseRawUnroundedMaximum(double bpm,String label) {
         var browser = new SongBrowserModel(List.of(set("A",chart("chart",bpm,100000))));
         browser.group(SongBrowserModel.Group.BPM);
         assertEquals(label,browser.row(browser.selectedKey()).parent.label);
+    }
+    @Test void exactThreeHundredHasNoNativeBpmGroupAndSelectionRepairsWithinTheSet() {
+        var boundary = chart("boundary",300,100000); var above = chart("above",300.01,100000);
+        var browser = new SongBrowserModel(List.of(set("A",boundary,above)));
+        browser.group(SongBrowserModel.Group.BPM);
+        assertSame(above,browser.selectedDifficulty());
+        assertNull(browser.row(SongBrowserModel.rowKey("A",SongBrowserModel.difficultyId(boundary))));
+        assertEquals(1,browser.row(browser.selectedKey()).parent.matchingChildren);
+        browser.group(SongBrowserModel.Group.NONE); browser.select("A",0);
+        assertSame(boundary,browser.selectedDifficulty());
+        var alone = new SongBrowserModel(List.of(set("A",boundary)));
+        alone.group(SongBrowserModel.Group.BPM);
+        assertTrue(alone.visibleSets().isEmpty()); assertTrue(alone.entries().isEmpty());
+        assertNull(alone.selectedDifficulty());
+        alone.group(SongBrowserModel.Group.NONE); assertSame(boundary,alone.selectedDifficulty());
     }
     @ParameterizedTest @CsvSource({"59999,Under 1 minute","60000,1–<2 minutes","119999,1–<2 minutes",
             "120000,2–<3 minutes","180000,3–<4 minutes","240000,4–<5 minutes","300000,5–<10 minutes","600000,10+ minutes"})

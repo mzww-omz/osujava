@@ -74,9 +74,9 @@ class SongBrowserModelTest {
         var model = new SongBrowserModel(List.of(set("a","A","","",99,119999),set("b","B","","",100,120000),
                 set("c","C","","",149,239999),set("d","D","","",300,600000),set("e","E","","",0,-1)));
         model.group(SongBrowserModel.Group.BPM);
-        assertEquals(List.of("0–<60 BPM","60–<120 BPM","120–<180 BPM","300+ BPM"),headers(model));
+        assertEquals(List.of("0–<60 BPM","60–<120 BPM","120–<180 BPM"),headers(model));
         model.group(SongBrowserModel.Group.LENGTH);
-        assertEquals(List.of("2–<3 minutes","4–<5 minutes","10+ minutes","Unknown length"),headers(model));
+        assertEquals(List.of("2–<3 minutes","4–<5 minutes","10+ minutes"),headers(model));
     }
     private List<String> headers(SongBrowserModel m) { return m.entries().stream().filter(e -> e.kind() == SongBrowserModel.Kind.GROUP_HEADER).map(SongBrowserModel.Entry::label).toList(); }
     @ParameterizedTest @ValueSource(strings={"Zulu", "alpha extra", "ALPHA EXTRA", "Beta Zulu 星", "  Beta Zulu  ", "", "   "})
@@ -135,7 +135,7 @@ class SongBrowserModelTest {
     }
     @Test void libraryRefreshPreservesQuerySortGroupAndDifficultyPathAcrossReorder() {
         var base = fixture().getFirst(); var first = base.difficulties().getFirst();
-        var second = new BeatmapDifficulty(first.title(),first.artist(),first.creator(),"Hard",0,"","",null,List.of(),List.of(),null,null,Path.of("a/hard.osu"));
+        var second = new BeatmapDifficulty(first.title(),first.artist(),first.creator(),"Hard",0,"","",null,List.of(),first.hitObjects(),null,null,Path.of("a/hard.osu"));
         var model = new SongBrowserModel(List.of(new BeatmapSet("a",base.title(),base.artist(),base.creator(),null,null,List.of(first,second),List.of())));
         model.select("a",1); var original = model.selection(); model.search("Zulu"); model.sort(SongBrowserModel.Sort.BPM); model.group(SongBrowserModel.Group.LENGTH);
         model.library(List.of(new BeatmapSet("a",base.title(),base.artist(),base.creator(),null,null,List.of(second,first),List.of()),fixture().get(1)));

@@ -272,6 +272,14 @@ final class SongBrowserModel {
     private boolean matches(BeatmapSet set, BeatmapDifficulty difficulty) {
         return matchingDifficulties.getOrDefault(set.id(), List.of()).contains(difficulty);
     }
+    private boolean classified(BeatmapDifficulty difficulty) {
+        if (group == Group.LENGTH) return difficulty.timingStatistics().lengthMs() >= 0;
+        if (group != Group.BPM) return true;
+        double bpm = maximumBpm(difficulty);
+        // 060032b2 uses [lower,upper), while 0600329d uses strictly >300.
+        // Exactly 300 has no native Group; preserve that boundary instead of inventing one.
+        return bpm >= 0 && bpm != 300;
+    }
     private BeatmapSet find(Selection selected) {
         return selected == null ? null : visibleById.get(selected.setId());
     }
@@ -279,7 +287,8 @@ final class SongBrowserModel {
         var query = new SongBrowserQuery(search);
         Map<String, List<BeatmapDifficulty>> matching = new HashMap<>();
         for (var item : library) {
-            var matches = item.difficulties().stream().filter(query::matches).map(SongBrowserQuery.Document::difficulty).toList();
+            var matches = item.difficulties().stream().filter(query::matches).map(SongBrowserQuery.Document::difficulty)
+                    .filter(this::classified).toList();
             if (!matches.isEmpty()) matching.put(item.set().id(), matches);
         }
         matchingDifficulties = Map.copyOf(matching);
@@ -299,6 +308,7 @@ final class SongBrowserModel {
         // retain identity after the matching records, but cannot determine their order/family.
         Comparator<Chart> finalOrdering = ordering;
         orderedCharts = library.stream().flatMap(i -> i.set.difficulties().stream().map(d -> new Chart(i,d)))
+                .filter(c -> classified(c.difficulty))
                 .sorted(Comparator.comparing((Chart c) -> !matches(c.item.set,c.difficulty)).thenComparing(finalOrdering)).toList();
         visible = orderedCharts.stream().filter(c -> matches(c.item.set,c.difficulty)).map(c -> c.item.set).distinct().toList();
         Map<String, BeatmapSet> nextById = new HashMap<>();
@@ -406,13 +416,11 @@ final class SongBrowserModel {
             case CREATOR -> initial(chart.difficulty.creator());
             case BPM -> {
                 double bpm = maximumBpm(chart.difficulty);
-                if (!Double.isFinite(bpm) || bpm < 0) yield new Bucket(Integer.MAX_VALUE, "Unknown BPM");
                 int band = (int)Math.min(5,bpm/60);
-                yield new Bucket(band,band == 5 ? "300+ BPM" : band*60 + "–<" + (band+1)*60 + " BPM");
+                yield new Bucket(band,band == 5 ? ">300 BPM" : band*60 + "–<" + (band+1)*60 + " BPM");
             }
             case LENGTH -> {
                 int length = chart.difficulty.timingStatistics().lengthMs();
-                if (length < 0) yield new Bucket(Integer.MAX_VALUE,"Unknown length");
                 int band = length < 60000 ? 0 : length < 120000 ? 1 : length < 180000 ? 2
                         : length < 240000 ? 3 : length < 300000 ? 4 : length < 600000 ? 5 : 6;
                 yield new Bucket(band,new String[]{"Under 1 minute","1–<2 minutes","2–<3 minutes",
