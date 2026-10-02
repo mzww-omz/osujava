@@ -8,6 +8,7 @@ phase 7以降の番号はphase 6時点で付与した実装単位で、当初か
 2026-10-02追補: [1:1比較台帳](songselect-one-to-one-gap-ledger-20261002.md)に画面・Skin・データ・入力・時間の差と条件別の受入基準を整理した。
 [Skin・ビジュアル調査](songselect-visual-skin-audit-20261002.md)の画像・IL根拠と併せて使用する。
 phaseの実装完了と実機の1:1合格は別に管理し、行内compositionの完了を画面全体へ拡張しない。
+[実装計画](songselect-one-to-one-implementation-plan-20261002.md)に、分類修正からビジュアル優先で進む順序、変更単位、依存、検証先を記載した。
 
 **phase 10を進める。難易度検索とmetadata保持に続き、BPM／length／drain／mode検索と詳細欄の時間統計を対応した。次はSort／Groupの分類条件と残りの検索fieldへ進む。** ユーザーの進行方針に従い、8bの未完了項目は後段へ繰り越す。
 8bを完了扱いにはしないが、そこに留まって追加調査を続けることをphase 9以降の前提にはしない。
