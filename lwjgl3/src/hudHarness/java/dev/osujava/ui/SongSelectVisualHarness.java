@@ -2169,6 +2169,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         capture(fb, name);
         var report = new StringBuilder("window=" + scene.width + "x" + scene.height + " density=" + scene.density
                 + " time=" + time + "\n");
+        report.append("locale=").append(Locale.getDefault().toLanguageTag())
+                .append(" java=").append(System.getProperty("java.version"))
+                .append(" font=SmoothUiFont(AWT logical SansSerif, oversample=2)\n");
         report.append("elapsed=").append(screenField(screen,"seconds"))
                 .append(" backProbe=").append(scene.name.equals("parity-animated-back") ? "update(0.5),update(0)" : "none").append("\n");
         var sampledBack = (SongSelectSkinAssets.SkinTexture)screenField(screen,"backFrame");
@@ -2242,6 +2245,18 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 default -> { }
             }
         }
+        final java.security.MessageDigest digest;
+        try { digest = java.security.MessageDigest.getInstance("SHA-256"); }
+        catch (java.security.NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
+        var manifest = new StringBuilder();
+        Path root = output.resolve("fixtures");
+        try (var files = Files.walk(root)) {
+            for (var path : files.filter(Files::isRegularFile)
+                    .filter(p -> root.relativize(p).getName(0).toString().startsWith("parity-")).sorted().toList())
+                manifest.append(HexFormat.of().formatHex(digest.digest(Files.readAllBytes(path))))
+                        .append("  ").append(root.relativize(path)).append('\n');
+        }
+        Files.writeString(output.resolve("parity-fixtures.sha256"),manifest);
     }
     private void parityImage(Path dir, String name, int width, int height, Color colour) {
         var pixels = new Pixmap(width,height,Pixmap.Format.RGBA8888);
