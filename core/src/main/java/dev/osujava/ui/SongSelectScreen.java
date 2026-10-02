@@ -688,31 +688,27 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void prepareRowPresentations(float delta) {
         long now = (long) rowColourTimeMs;
         int frameMs = Float.isFinite(delta) ? (int) Math.max(0, delta * 1000.0) : 0;
-        var foreground = new java.util.HashMap<String, SongSelectForegroundAnimation>();
-        rowForeground.forEach((row, animation) -> foreground.put(row.entry.key(), animation));
         var paths = new java.util.HashSet<Path>();
         var thumbnailRows = new java.util.HashSet<String>();
         if (backgroundPath != null) paths.add(backgroundPath);
         if (showThumbnails()) for (var row : visibleRows) {
             if (row.setIndex() < 0 || row.revealAmount() < .01f) continue;
             var content = rowContent.get(browser.row(row.key()).difficulty);
-            if (content.thumbnail() != null && foreground.get(row.key()).requestThumbnail(now)) {
+            if (content.thumbnail() != null && rowForeground.get(carousel.row(row.key())).requestThumbnail(now)) {
                 paths.add(content.thumbnail());
                 thumbnailRows.add(row.key());
             }
         }
         thumbnails.prepare(paths);
-        var colours = new java.util.HashMap<String, Integer>();
-        rowColours.forEach((row, animation) -> colours.put(row.entry.key(), animation.rgba()));
-        var stars = new java.util.HashMap<String, SongSelectStarAnimation.Snapshot>();
-        rowStars.forEach((row, state) -> stars.put(row.entry.key(), state.animation == null
-                ? SongSelectStarAnimation.Snapshot.EMPTY : state.animation.snapshot()));
         var result = new ArrayList<SongSelectRowRenderer.Presentation>(visibleRows.size());
         for (var row : visibleRows) {
+            var resident = carousel.row(row.key());
+            var animation = rowForeground.get(resident);
+            int colour = rowColours.get(resident).rgba();
             if (row.setIndex() < 0) {
                 boolean containsSelection = groupContainsSelection(row.key());
                 result.add(new SongSelectRowRenderer.Presentation(row, null, false, null, null, rowGeometry(row, false, false), containsSelection,
-                        colours.get(row.key()), SongSelectStarAnimation.Snapshot.EMPTY, foreground.get(row.key()).snapshot()));
+                        colour, SongSelectStarAnimation.Snapshot.EMPTY, animation.snapshot()));
                 continue;
             }
             var set = sets.get(row.setIndex());
@@ -722,12 +718,13 @@ public final class SongSelectScreen extends ScreenAdapter {
             var best = scoreSnapshot.best(set, diff);
             boolean played = row.difficultyIndex() < 0 ? scoreSnapshot.played(set) : best != null;
             var texture = thumbnailRows.contains(row.key()) ? thumbnails.resident(content.thumbnail()) : null;
-            var animation = foreground.get(row.key());
             if (texture != null) animation.thumbnailLoaded(now, frameMs);
+            var starState = rowStars.get(resident);
+            var stars = starState.animation == null ? SongSelectStarAnimation.Snapshot.EMPTY : starState.animation.snapshot();
             boolean gradeImage = best != null && skin != null && skin.get(SongSelectRowRenderer.gradeImage(best.grade())) != null;
             result.add(new SongSelectRowRenderer.Presentation(row, content, played, best == null ? null : best.grade(),
                     texture, rowGeometry(row, gradeImage, content.mode() > 0),
-                    false, colours.get(row.key()), stars.get(row.key()), animation.snapshot()));
+                    false, colour, stars, animation.snapshot()));
         }
         rowPresentations = List.copyOf(result);
     }

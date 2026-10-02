@@ -48,6 +48,7 @@ final class SongSelectCarousel {
 
     List<Row> rows() { return rows; }
     List<Row> allRows() { return allRows; }
+    Row row(String key) { return byKey.get(key); }
     java.util.Set<Row> residentRows() { return residentView; }
     int activeStart() { return activeStart; }
     int activeEnd() { return activeEnd; }
