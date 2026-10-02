@@ -6,8 +6,12 @@ import java.util.Comparator;
 import java.util.Objects;
 import java.util.UUID;
 
-/** Immutable final gameplay snapshot. No invented player, mods, replay or fail fields. */
-public record LocalScore(UUID playId, DifficultyIdentity difficulty, long playedAt, ScoreState result, ScoreDetails details) {
+/** Immutable final gameplay snapshot. Uncollected context and outcome remain unknown. */
+public record LocalScore(UUID playId, DifficultyIdentity difficulty, long playedAt, ScoreState result, ScoreDetails details,
+                         PlayContext context) {
+    public LocalScore(UUID playId, DifficultyIdentity difficulty, long playedAt, ScoreState result, ScoreDetails details) {
+        this(playId,difficulty,playedAt,result,details,null);
+    }
     public LocalScore(UUID playId, DifficultyIdentity difficulty, long playedAt, ScoreState result) {
         this(playId, difficulty, playedAt, result, ScoreDetails.LEGACY);
     }
@@ -19,6 +23,7 @@ public record LocalScore(UUID playId, DifficultyIdentity difficulty, long played
     public LocalScore {
         Objects.requireNonNull(playId); Objects.requireNonNull(difficulty); Objects.requireNonNull(result);
         Objects.requireNonNull(details);
+        if (context != null && !context.matches(details)) throw new IllegalArgumentException("Score context differs from result source");
         if (playedAt < 0 || result.score() < 0 || result.combo() < 0 || result.maxCombo() < result.combo()
                 || result.count300() < 0 || result.count100() < 0 || result.count50() < 0 || result.misses() < 0
                 || !Double.isFinite(result.accuracy()) || result.accuracy() < 0 || result.accuracy() > 1)
@@ -32,6 +37,6 @@ public record LocalScore(UUID playId, DifficultyIdentity difficulty, long played
 
     public LocalScore forStorage() {
         ScoreDetails stored = details.forStorage();
-        return stored == details ? this : new LocalScore(playId, difficulty, playedAt, result, stored);
+        return stored == details ? this : new LocalScore(playId, difficulty, playedAt, result, stored, context);
     }
 }

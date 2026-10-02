@@ -40,6 +40,7 @@ public class OsuJavaGame extends Game {
     private SmoothUiFont smoothFont;
     private BeatmapLibrary library;
     private LocalScoreStore localScores = new LocalScoreStore();
+    private dev.osujava.score.LocalPlayer localPlayer;
     private BeatmapArchiveImporter importer;
     private OsuRuleset osuRuleset;
     private final AudioVolumes audioVolumes = new AudioVolumes();
@@ -109,6 +110,8 @@ public class OsuJavaGame extends Game {
         library = new BeatmapLibrary(new PropertiesBeatmapLibraryStorage(libraryRoot));
         importer = new BeatmapArchiveImporter(libraryRoot);
         localScores = new LocalScoreStore(localDataRoot().resolve("scores"));
+        localPlayer = dev.osujava.score.LocalPlayerProfile.load(localDataRoot().resolve("player.properties"),
+                System.getProperty("osujava.playerName"));
         osuRuleset = new OsuRuleset();
         navigate(new MainMenuScreen(this));
     }
@@ -158,6 +161,7 @@ public class OsuJavaGame extends Game {
     public SmoothUiFont smoothFont() { return smoothFont; }
 
     public LocalScoreStore localScores() { return localScores; }
+    public dev.osujava.score.LocalPlayer localPlayer() { return localPlayer; }
 
     public BeatmapLibrary library() {
         return library;

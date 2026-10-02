@@ -135,9 +135,10 @@ public final class ResultsScreen extends ScreenAdapter {
         draw(Image.RETRY, layout.width(), 360, 1, 1, 1, .5f);
         if (values.perfect()) draw(Image.PERFECT, layout.perfectX(), 430, 1, animation.item(8, false), .5f, .5f);
         draw(Image.TITLE, layout.width() - 20, 0, 1, 1, 1, 0);
-        text(set.artist() + " - " + set.title() + " [" + difficulty.version() + "]", 5, 5, layout.width() - 165, .75f);
-        text("Beatmap by " + set.creator(), 5, 20, layout.width() - 165, .6f);
-        text(date + (snapshot.runMode() == GameplayRunMode.DEBUG_AUTO ? "  AUTO / DEBUG" : ""), 5, 34, layout.width() - 165, .6f);
+        headerText(set.artist() + " - " + set.title() + " [" + difficulty.version() + "]", 5, 5, layout.width() - 165, .75f);
+        headerText("Beatmap by " + set.creator(), 5, 20, layout.width() - 165, .6f);
+        headerText(values.provenance() + " · " + date + (snapshot.runMode() == GameplayRunMode.DEBUG_AUTO ? "  AUTO / DEBUG" : ""),
+                5, 34, layout.width() - 165, .6f);
         draw(Image.BACK, 0, 480, 1, 1, 0, 1);
         game.batch().end();
         drawTimingTooltip();
@@ -193,6 +194,9 @@ public final class ResultsScreen extends ScreenAdapter {
     private void text(String value, float left, float top, float width, float scale) {
         game.font().getData().setScale(scale);
         game.font().draw(game.batch(), value, left, 480 - top, 0, value.length(), width, Align.left, false, "...");
+    }
+    private void headerText(String value, float left, float top, float width, float scale) {
+        view.textCenteredVertically(value,left,480-top-6,width,scale,Color.WHITE,false);
     }
     @Override public void dispose() { backdrop.close(); if (skin != null) { skin.dispose(); skin = null; } }
     private void goRetry() { outgoing.request(() -> game.navigate(new GameplayScreen(game, set, difficulty, snapshot.runMode()))); }

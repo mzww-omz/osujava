@@ -7,6 +7,8 @@ import dev.osujava.gameplay.JudgementWindows;
 import dev.osujava.ruleset.Ruleset;
 
 public final class OsuRuleset implements Ruleset {
+    /** Bump when saved gameplay/replay semantics change, independently of calculator versions. */
+    public static final String VERSION = "osu-java-standard-1";
     @Override
     public String id() {
         return "osu";

@@ -3,6 +3,10 @@ package dev.osujava.ui;
 import dev.osujava.score.LocalScore;
 import dev.osujava.score.ResultsSnapshot;
 import dev.osujava.score.DifficultyIdentity;
+import dev.osujava.score.PlayContext;
+import dev.osujava.score.ScoreDetails;
+import dev.osujava.beatmap.BeatmapContentKey;
+import dev.osujava.ruleset.osu.OsuRuleset;
 import java.util.UUID;
 import java.time.Instant;
 
@@ -44,6 +48,7 @@ public final class GameplayScreen extends ScreenAdapter {
     private final GameplayCompletion completion;
     private final GameplaySession session;
     private final GameplayRunMode runMode;
+    private final PlayContext playContext;
     private final UUID playId = UUID.randomUUID();
     private boolean resultFinalized;
     private final DebugAutoPlayer autoPlayer;
@@ -72,6 +77,8 @@ public final class GameplayScreen extends ScreenAdapter {
         this.set = set;
         this.difficulty = difficulty;
         this.runMode = runMode;
+        this.playContext = new PlayContext(BeatmapContentKey.of(difficulty),difficulty.mode(),game.osuRuleset().id(),
+                OsuRuleset.VERSION,ScoreDetails.SCORE_V1,java.util.List.of(),game.localPlayer(),runMode);
         this.skinAssets = new OsuSkinAssets(game.skinDirectory(), game.skinFallbackDirectory());
         this.renderer = new GameplayRenderer(game, GameplayVisualConfig.defaults(), skinAssets);
         this.cursorRenderer = new GameplayCursorRenderer(skinAssets);
@@ -163,11 +170,11 @@ public final class GameplayScreen extends ScreenAdapter {
         if (autoPlayer != null) autoPlayer.afterSessionUpdate();
         if (completion.ready(state) && !resultFinalized) {
             resultFinalized = true;
-            var snapshot = new ResultsSnapshot(state.score(), session.resultDetails(), Instant.now().toEpochMilli(), runMode, false);
+            var snapshot = new ResultsSnapshot(state.score(), session.resultDetails(), Instant.now().toEpochMilli(), runMode, false, playContext);
             var identity = DifficultyIdentity.of(set.id(), difficulty);
             if (identity != null && runMode == GameplayRunMode.MANUAL)
                 game.localScores().save(new LocalScore(playId, identity,
-                        snapshot.playedAt(), snapshot.score(), snapshot.details()), runMode);
+                        snapshot.playedAt(), snapshot.score(), snapshot.details(),playContext), runMode);
             game.navigate(new ResultsScreen(game, set, difficulty, snapshot));
             return;
         }

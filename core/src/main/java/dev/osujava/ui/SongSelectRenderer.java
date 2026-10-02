@@ -399,10 +399,11 @@ final class SongSelectRenderer {
                     32 * scale, 35 * scale, UiTheme.TEXT, UiTheme.TEXT);
             float textX = x + 70 * scale, width = Math.max(0, bounds.width() - 82 * scale);
             view.textCenteredVertically(row.value(), textX, y + 35 * scale, width, .88f * scale, UiTheme.TEXT, true);
-            view.textCenteredVertically(row.combo(), textX, y + 19 * scale, width * .4f, .66f * scale, UiTheme.TEXT, false);
-            view.textCenteredVertically(row.accuracy(), textX + width * .4f, y + 19 * scale,
+            view.textCenteredVertically(row.provenance(),textX,y + 25 * scale,width,.49f * scale,UiTheme.MUTED,false);
+            view.textCenteredVertically(row.combo(), textX, y + 15 * scale, width * .4f, .66f * scale, UiTheme.TEXT, false);
+            view.textCenteredVertically(row.accuracy(), textX + width * .4f, y + 15 * scale,
                     width * .6f, .66f * scale, UiTheme.TEXT, false);
-            view.textCenteredVertically(row.date(), textX, y + 6 * scale, width, .53f * scale, UiTheme.MUTED, false);
+            view.textCenteredVertically(row.date(), textX, y + 5 * scale, width, .43f * scale, UiTheme.MUTED, false);
         }
     }
 }

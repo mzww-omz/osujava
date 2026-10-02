@@ -8,9 +8,9 @@ import java.util.*;
 
 /** Difficulty-scoped selection/scrolling; no beatmap filtering or GL responsibilities. */
 public final class ScoreBrowserModel {
-    public record Row(LocalScore score, String value, String accuracy, String combo, String date, boolean verified) {
+    public record Row(LocalScore score, String value, String accuracy, String combo, String date, boolean verified, String provenance) {
         public Row(LocalScore score, String value, String accuracy, String combo, String date) {
-            this(score,value,accuracy,combo,date,false);
+            this(score,value,accuracy,combo,date,false,"");
         }
     }
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.ROOT)
@@ -49,7 +49,8 @@ public final class ScoreBrowserModel {
     private static Row row(LocalScore s, boolean verified) {
         return new Row(s,String.format(Locale.ROOT,"%,d",s.result().score()),
                 String.format(Locale.ROOT,"%.2f%%",s.result().accuracy()*100),s.result().maxCombo()+"x",
-                DATE.format(Instant.ofEpochMilli(s.playedAt())) + (verified ? "" : " · content unverified"),verified);
+                DATE.format(Instant.ofEpochMilli(s.playedAt())) + (verified ? "" : " · content unverified"),verified,
+                ScoreContextPresentation.of(s.context(),s.details()));
     }
     public List<Row> rows() { return rows; }
     public UUID selected() { return selected; }
