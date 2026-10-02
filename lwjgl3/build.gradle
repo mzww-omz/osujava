@@ -154,6 +154,8 @@ tasks.register('songSelectVisualHarness', JavaExec) {
     systemProperty 'java.awt.headless', 'true'
     args project.findProperty('songSelectOutput') ?: '/tmp/osujava-songselect'
     systemProperty 'osujava.songSelectPhase', project.findProperty('songSelectPhase') ?: 'all'
+    systemProperty 'osujava.selectionProfile', project.findProperty('selectionProfile') ?: 'false'
+    systemProperty 'osujava.selectionProfileLongText', project.findProperty('selectionLong') ?: 'false'
     for (def option : ['Case', 'Width', 'Height', 'Density', 'SelectedSet', 'SelectedDifficulty', 'Scroll', 'Search', 'Hover', 'Time', 'Action']) {
         def name = "songSelect${option}"
         if (project.hasProperty(name)) systemProperty "osujava.${name}", project.property(name)

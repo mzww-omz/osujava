@@ -13,6 +13,44 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SongSelectNavigationTest {
+    @Test void changingSetReusesUnchangedEntriesAndTheOrderedCarouselRows() throws Exception {
+        open("Alpha", 0); screen.resize(1280, 720); settle();
+        var before = List.copyOf((List<?>) field("carouselEntries"));
+        var orderedRows = carousel().allRows();
+        screen.previewSelection(1, 1);
+        var after = (List<?>) field("carouselEntries");
+        assertSame(orderedRows, carousel().allRows());
+        assertNotSame(before.get(0), after.get(0)); // Alpha representative collapses.
+        assertNotSame(before.get(3), after.get(3)); // Beta hidden difficulty opens.
+        assertSame(before.get(4), after.get(4)); // Gamma metadata/state is unchanged.
+        assertSame(before.get(5), after.get(5));
+        assertEquals(-1, ((SongSelectCarousel.Entry) after.get(0)).difficultyIndex());
+        assertFalse(((SongSelectCarousel.Entry) after.get(1)).visible());
+        assertTrue(((SongSelectCarousel.Entry) after.get(3)).visible());
+        screen.resize(1920, 1080);
+        assertSame(after.get(4), ((List<?>) field("carouselEntries")).get(4));
+        screen.browserSearch("difficulty=hard", false);
+        assertTrue(carousel().rows().stream().allMatch(r -> r.entry.difficultyIndex() == 1));
+        screen.browserSearch("", false);
+        screen.browserMode(SongBrowserModel.Sort.TITLE, SongBrowserModel.Group.ARTIST);
+        assertTrue(carousel().allRows().stream().anyMatch(r -> r.entry.header()));
+    }
+    @Test void confirmingFocusedGroupWithArrowRefreshesCarouselWithoutChangingPlayableSelection() throws Exception {
+        open("Beta", 0); screen.resize(1280, 720);
+        screen.browserMode(SongBrowserModel.Sort.TITLE, SongBrowserModel.Group.CREATOR);
+        var browser = (SongBrowserModel) field("browser");
+        var selection = browser.selection();
+        shift = true; key(Input.Keys.ENTER); shift = false; // Close selected difficulty's parent.
+        assertEquals(1, carousel().rows().size());
+        key(Input.Keys.UP); // Focus the only group without changing the playable selection.
+        assertNotNull(browser.focusKey());
+        assertTrue(browser.row(browser.focusKey()).group());
+        key(Input.Keys.RIGHT); // moveSet confirms focus; selectedSet is unchanged.
+        assertEquals(selection, browser.selection());
+        assertEquals(5, carousel().rows().size()); // Header, selected family's two difficulties, two representatives.
+        assertTrue(carousel().allRows().stream().anyMatch(r -> r.entry.key().equals(browser.selectedKey()) && r.entry.visible()));
+        assertFalse(((UiNavigation) field("outgoing")).pending());
+    }
     private Input oldInput;
     private InputProcessor processor;
     private final BeatmapLibrary library = new BeatmapLibrary();

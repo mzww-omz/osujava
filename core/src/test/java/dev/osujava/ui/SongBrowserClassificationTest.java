@@ -117,4 +117,25 @@ class SongBrowserClassificationTest {
         assertSame(fast,browser.selectedDifficulty());
         assertEquals(key,browser.selectedKey());
     }
+    @Test void reusedRowStructureKeepsPerGroupFamilySizesAndRefreshesThemAfterSearch() {
+        var slow = chart("slow",90,100000); var fast = chart("fast",240,180000);
+        var sibling = chart("sibling",250,190000);
+        var browser = new SongBrowserModel(List.of(set("A",slow,fast,sibling),set("B",chart("other",310,100000))));
+        browser.group(SongBrowserModel.Group.BPM);
+        var fastRow = browser.row(SongBrowserModel.rowKey("A",SongBrowserModel.difficultyId(fast)));
+        var slowRow = browser.row(SongBrowserModel.rowKey("A",SongBrowserModel.difficultyId(slow)));
+        for (String query : List.of("","difficulty!=sibling","")) {
+            browser.search(query);
+            var rows = browser.rows();
+            browser.selectSet("B");
+            browser.toggleGroup(fastRow.parent.key);
+            assertSame(rows,browser.rows(),"Selection and group activation preserve the row projection");
+            assertEquals(query.isEmpty() ? SongBrowserModel.RowState.COLLAPSED : SongBrowserModel.RowState.SINGLETON,
+                    fastRow.state,"Classification changes replace the cached family sizes");
+            browser.toggleGroup(slowRow.parent.key);
+            assertSame(rows,browser.rows());
+            assertEquals(SongBrowserModel.RowState.SINGLETON,slowRow.state,
+                    "The same Set's other BPM group has its own singleton family");
+        }
+    }
 }

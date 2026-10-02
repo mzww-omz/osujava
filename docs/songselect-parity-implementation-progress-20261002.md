@@ -273,3 +273,20 @@ dispatcherの候補順・入力寿命、同じ許可fontの測定、preview/復�
 | `2dd1f82bd41ae0fc05188f77cc743f0ebb177c6e` | fix: match Song Select Play tab identities and sort coupling |
 | `cf07afbedf7b997f3995529b5af8cff432312e61` | tools: inspect declared stable enum constants without resource decoding |
 | `417fc9cd449a8c976a732b09aa77f51682a4e6d4` | test: record Song Select parity fixture hashes and capture environment |
+
+## push時のリモート統合
+
+push時、origin/mainの`bfcbcbb`（性能改善・既定window 1280×720等）をmergeした。
+行構造の再利用と難易度単位分類を両立するため、family件数を再構築時に保存し、
+選択／Group activation時に再利用する。検索変更／解除で再計算されること、
+同Setの別Groupが独立したsingletonを保持することを回帰テストした。
+
+統合後のGradle build成功。core **128 suites / 1,240 tests**、desktop **2 suites / 4 tests**、
+failure/error/skip 0。`parity-visual` **30 scenes / 30 PNG**と`browser-contracts`
+**28 scenes / 28 PNG / 112 transition frames**、navigation/disposalが成功した。
+自作Skinの30 PNGはmerge前の同sceneとSHA-256が全件一致した。
+これはJava側の統合回帰であり、stable実機との比較ではない。
+
+ログ: `/tmp/osujava-push-merge-build-20261002.log`、
+`/tmp/osujava-push-merge-parity-20261002.log`、`/tmp/osujava-push-merge-browser-20261002.log`。
+先の実装commit一覧・画像は`97b8912`時点の記録として保持する。

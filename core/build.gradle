@@ -26,3 +26,11 @@ tasks.named('test') {
     dependsOn tasks.named('jar')
     systemProperty 'osujava.coreJar', tasks.named('jar').get().archiveFile.get().asFile.absolutePath
 }
+
+tasks.register('songSelectPerformanceProbe', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.osujava.ui.SongSelectPerformanceProbe'
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+    jvmArgs '-Xms512m', '-Xmx512m'
+}

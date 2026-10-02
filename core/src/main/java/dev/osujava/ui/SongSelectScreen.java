@@ -81,6 +81,8 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final SongSelectScoreSnapshot scoreSnapshot;
     private final SongBrowserControls controls = new SongBrowserControls();
     private List<SongBrowserModel.Row> browserRows = List.of();
+    private List<SongBrowserModel.Entry> browserEntries = List.of();
+    private List<SongSelectCarousel.Entry> carouselEntries = List.of();
     private Map<String, String> groupLabels = Map.of();
     // Transient display indices only; browser identities are authoritative.
     private List<BeatmapSet> sets;
@@ -552,7 +554,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         carousel.emphasize(browser.selectedKey());
         if (advance) carousel.advance(delta, hit == null ? null : hit.key(), input != null && input.rightScrolling());
         List<SongSelectRow> result = new ArrayList<>();
-        for (SongSelectCarousel.Row entry : carousel.rows()) {
+        for (int i = carousel.activeStart(); i < carousel.activeEnd(); i++) {
+            SongSelectCarousel.Row entry = carousel.allRows().get(i);
             if (!carousel.presents(entry)) continue;
             float y = carousel.renderY(entry, top);
             // Resident buffer rows may have artwork extending beyond their body into the viewport.
@@ -571,26 +574,45 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void updateContent(UiLayout layout) {
         float height = SongSelectMetrics.rowHeight(layout.height());
         float viewportHeight = top - bottom;
-        if (contentDirty || browserRows != browser.rows() || contentWidth != layout.width() || contentViewportHeight != viewportHeight || contentRowHeight != height) {
-            List<SongSelectCarousel.Entry> entries = new ArrayList<>();
-            Map<String, String> labels = new java.util.HashMap<>();
-            Map<String, Integer> indices = new java.util.HashMap<>();
-            for (int i = 0; i < sets.size(); i++) indices.put(sets.get(i).id(), i);
-            for (var row : browser.rows()) {
-                boolean expanded = row.state.ordinal() >= SongBrowserModel.RowState.EXPANDED.ordinal();
-                if (row.group()) {
-                    entries.add(new SongSelectCarousel.Entry(row.key, -1, -2, row.key, expanded, row.visible()));
-                    int count = row.matchingChildren;
-                    labels.put(row.key, row.label + " (" + count + (count == 1 ? " beatmap)" : " beatmaps)"));
-                } else {
-                    int i = indices.get(row.set.id());
-                    int j = row.state == SongBrowserModel.RowState.COLLAPSED ? -1 : row.set.difficulties().indexOf(row.difficulty);
-                    entries.add(new SongSelectCarousel.Entry(row.key, i, j, row.set.id(), expanded, row.visible()));
+        if (contentDirty || browserRows != browser.rows() || browserEntries != browser.entries()
+                || contentWidth != layout.width() || contentViewportHeight != viewportHeight || contentRowHeight != height) {
+            if (browserRows != browser.rows()) {
+                List<SongSelectCarousel.Entry> entries = new ArrayList<>();
+                Map<String, String> labels = new java.util.HashMap<>();
+                Map<String, Integer> indices = new java.util.HashMap<>();
+                for (int i = 0; i < sets.size(); i++) indices.put(sets.get(i).id(), i);
+                for (var row : browser.rows()) {
+                    boolean expanded = row.state.ordinal() >= SongBrowserModel.RowState.EXPANDED.ordinal();
+                    if (row.group()) {
+                        entries.add(new SongSelectCarousel.Entry(row.key, -1, -2, row.key, expanded, row.visible()));
+                        int count = row.matchingChildren;
+                        labels.put(row.key, row.label + " (" + count + (count == 1 ? " beatmap)" : " beatmaps)"));
+                    } else {
+                        int i = indices.get(row.set.id());
+                        int j = row.state == SongBrowserModel.RowState.COLLAPSED ? -1 : row.set.difficulties().indexOf(row.difficulty);
+                        entries.add(new SongSelectCarousel.Entry(row.key, i, j, row.set.id(), expanded, row.visible()));
+                    }
+                }
+                groupLabels = Map.copyOf(labels);
+                carouselEntries = entries;
+            } else {
+                // Selection/group state changes preserve order, set indices and metadata.
+                // Only the old/new family changes its immutable carousel entries.
+                for (int i = 0; i < browser.rows().size(); i++) {
+                    var row = browser.rows().get(i);
+                    var previous = carouselEntries.get(i);
+                    boolean expanded = row.state.ordinal() >= SongBrowserModel.RowState.EXPANDED.ordinal();
+                    int difficulty = row.group() ? -2 : row.state == SongBrowserModel.RowState.COLLAPSED ? -1
+                            : previous.difficultyIndex() >= 0 ? previous.difficultyIndex() : row.set.difficulties().indexOf(row.difficulty);
+                    if (previous.expanded() != expanded || previous.visible() != row.visible()
+                            || previous.difficultyIndex() != difficulty)
+                        carouselEntries.set(i, new SongSelectCarousel.Entry(previous.key(), previous.setIndex(), difficulty,
+                                previous.familyKey(), expanded, row.visible()));
                 }
             }
-            groupLabels = Map.copyOf(labels);
             browserRows = browser.rows();
-            carousel.content(entries, viewportHeight, height, SongSelectMetrics.rowPitch(layout.height()),
+            browserEntries = browser.entries();
+            carousel.content(carouselEntries, viewportHeight, height, SongSelectMetrics.rowPitch(layout.height()),
                     selectedRowKey(), layout.height(), top);
             contentDirty = false;
             contentWidth = layout.width(); contentViewportHeight = viewportHeight; contentRowHeight = height;
@@ -640,10 +662,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private void advanceRowColours(float delta) {
         double frameMs = Float.isFinite(delta) ? Math.max(0, delta * 1000.0) : 0;
         rowColourTimeMs += frameMs;
-        var residents = java.util.Collections.newSetFromMap(new IdentityHashMap<SongSelectCarousel.Row, Boolean>());
-        for (var row : carousel.allRows()) {
-            if (!row.resident || !row.entry.visible()) continue;
-            residents.add(row);
+        for (var row : carousel.residentRows()) {
             var entry = row.entry;
             var model = browser.row(entry.key());
             SongSelectRowColours.base(rowBaseColour, entry.header(), model.expanded,
@@ -654,19 +673,17 @@ public final class SongSelectScreen extends ScreenAdapter {
                     model.state.ordinal(), Color.rgba8888(rowBaseColour), entry.key().equals(browser.focusKey()),
                     entry.key().equals(carousel.hoverKey()), (long) rowColourTimeMs, (int) frameMs);
         }
-        rowColours.keySet().retainAll(residents);
+        rowColours.keySet().retainAll(carousel.residentRows());
     }
 
     private void advanceRowStars(float delta) {
         long now = (long) rowColourTimeMs;
         int frameMs = Float.isFinite(delta) ? (int) Math.max(0, delta * 1000.0) : 0;
-        var residents = java.util.Collections.newSetFromMap(new IdentityHashMap<SongSelectCarousel.Row, Boolean>());
         var asset = skin == null ? null : skin.get(Image.STAR);
         boolean cropped = croppedStars();
         int width = asset == null ? 40 : (int) asset.logicalWidth();
-        for (var row : carousel.allRows()) {
-            if (!row.resident || !row.entry.visible() || row.entry.header()) continue;
-            residents.add(row);
+        for (var row : carousel.residentRows()) {
+            if (row.entry.header()) continue;
             boolean created = !rowStars.containsKey(row);
             var state = rowStars.computeIfAbsent(row, ignored -> new RowStars());
             var model = browser.row(row.entry.key());
@@ -679,7 +696,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 state.animation = null;
             }
         }
-        rowStars.keySet().retainAll(residents);
+        rowStars.keySet().removeIf(row -> row.entry.header() || !carousel.residentRows().contains(row));
     }
 
     private boolean croppedStars() {
@@ -689,48 +706,41 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private void advanceRowForeground(float delta) {
-        var residents = java.util.Collections.newSetFromMap(new IdentityHashMap<SongSelectCarousel.Row, Boolean>());
         int frameMs = Float.isFinite(delta) ? (int) Math.max(0, delta * 1000.0) : 0;
-        for (var row : carousel.allRows()) {
-            if (!row.resident || !row.entry.visible()) continue;
-            residents.add(row);
+        for (var row : carousel.residentRows()) {
             boolean created = !rowForeground.containsKey(row);
             rowForeground.computeIfAbsent(row, ignored -> new SongSelectForegroundAnimation()).update(
                     browser.row(row.entry.key()).state.ordinal(), created && row.instantSprites,
                     (long) rowColourTimeMs, frameMs);
         }
-        rowForeground.keySet().retainAll(residents);
+        rowForeground.keySet().retainAll(carousel.residentRows());
     }
 
     /** Resource lookup and score projection happen before any drawing. */
     private void prepareRowPresentations(float delta) {
         long now = (long) rowColourTimeMs;
         int frameMs = Float.isFinite(delta) ? (int) Math.max(0, delta * 1000.0) : 0;
-        var foreground = new java.util.HashMap<String, SongSelectForegroundAnimation>();
-        rowForeground.forEach((row, animation) -> foreground.put(row.entry.key(), animation));
         var paths = new java.util.HashSet<Path>();
         var thumbnailRows = new java.util.HashSet<String>();
         if (backgroundPath != null) paths.add(backgroundPath);
         if (showThumbnails()) for (var row : visibleRows) {
             if (row.setIndex() < 0 || row.revealAmount() < .01f) continue;
             var content = rowContent.get(browser.row(row.key()).difficulty);
-            if (content.thumbnail() != null && foreground.get(row.key()).requestThumbnail(now)) {
+            if (content.thumbnail() != null && rowForeground.get(carousel.row(row.key())).requestThumbnail(now)) {
                 paths.add(content.thumbnail());
                 thumbnailRows.add(row.key());
             }
         }
         thumbnails.prepare(paths);
-        var colours = new java.util.HashMap<String, Integer>();
-        rowColours.forEach((row, animation) -> colours.put(row.entry.key(), animation.rgba()));
-        var stars = new java.util.HashMap<String, SongSelectStarAnimation.Snapshot>();
-        rowStars.forEach((row, state) -> stars.put(row.entry.key(), state.animation == null
-                ? SongSelectStarAnimation.Snapshot.EMPTY : state.animation.snapshot()));
         var result = new ArrayList<SongSelectRowRenderer.Presentation>(visibleRows.size());
         for (var row : visibleRows) {
+            var resident = carousel.row(row.key());
+            var animation = rowForeground.get(resident);
+            int colour = rowColours.get(resident).rgba();
             if (row.setIndex() < 0) {
                 boolean containsSelection = groupContainsSelection(row.key());
                 result.add(new SongSelectRowRenderer.Presentation(row, null, false, null, null, rowGeometry(row, false, false), containsSelection,
-                        colours.get(row.key()), SongSelectStarAnimation.Snapshot.EMPTY, foreground.get(row.key()).snapshot()));
+                        colour, SongSelectStarAnimation.Snapshot.EMPTY, animation.snapshot()));
                 continue;
             }
             var set = sets.get(row.setIndex());
@@ -740,12 +750,13 @@ public final class SongSelectScreen extends ScreenAdapter {
             var best = scoreSnapshot.best(set, diff);
             boolean played = row.difficultyIndex() < 0 ? scoreSnapshot.played(set) : best != null;
             var texture = thumbnailRows.contains(row.key()) ? thumbnails.resident(content.thumbnail()) : null;
-            var animation = foreground.get(row.key());
             if (texture != null) animation.thumbnailLoaded(now, frameMs);
+            var starState = rowStars.get(resident);
+            var stars = starState.animation == null ? SongSelectStarAnimation.Snapshot.EMPTY : starState.animation.snapshot();
             boolean gradeImage = best != null && skin != null && skin.get(SongSelectRowRenderer.gradeImage(best.grade())) != null;
             result.add(new SongSelectRowRenderer.Presentation(row, content, played, best == null ? null : best.grade(),
                     texture, rowGeometry(row, gradeImage, content.mode() > 0),
-                    false, colours.get(row.key()), stars.get(row.key()), animation.snapshot()));
+                    false, colour, stars, animation.snapshot()));
         }
         rowPresentations = List.copyOf(result);
     }

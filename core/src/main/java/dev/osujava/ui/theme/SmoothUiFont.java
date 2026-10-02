@@ -21,6 +21,7 @@ public final class SmoothUiFont implements AutoCloseable {
     private static final int LIMIT = 256;
     private final LinkedHashMap<String, Label> labels = new LinkedHashMap<>(300, .75f, true);
     private final LinkedHashMap<String, String> fittedLabels = new LinkedHashMap<>(300, .75f, true);
+    private final LinkedHashMap<String, UiTextFit.Measurement> measurements = new LinkedHashMap<>(300, .75f, true);
     private final Map<Integer, Font> fonts = new HashMap<>();
 
     private record Label(Texture texture, float width, float height, float descent) { }
@@ -45,12 +46,12 @@ public final class SmoothUiFont implements AutoCloseable {
                       float scale, Color color, int align, boolean bold, boolean centeredVertically) {
         if (text == null || text.isEmpty() || maxWidth <= 0) return;
         int size = Math.max(10, Math.round(17 * scale * OVERSAMPLE));
-        Font font = fonts.computeIfAbsent(size * 2 + (bold ? 1 : 0), key -> new Font("SansSerif", bold ? Font.BOLD : Font.PLAIN, size));
         int fitWidth = Math.max(0, (int) Math.floor(maxWidth * OVERSAMPLE) - 4);
-        String fitKey = size + ":" + bold + ":" + fitWidth + ":" + text;
-        String fitted = fittedLabels.computeIfAbsent(fitKey, unused -> UiTextFit.fit(text, font, fitWidth));
+        String fitted = fitLabel(text, size, bold, fitWidth);
         if (fitted.isEmpty()) return;
-        Label label = labels.computeIfAbsent(size + ":" + bold + ":" + fitted, ignored -> rasterize(fitted, font));
+        String labelKey = size + ":" + bold + ":" + fitted;
+        Label label = labels.get(labelKey);
+        if (label == null) { label = rasterize(fitted, fonts.get(size * 2 + (bold ? 1 : 0))); labels.put(labelKey, label); }
         float drawX = align == Align.center ? x + (maxWidth - label.width()) / 2
                 : align == Align.right ? x + maxWidth - label.width() : x;
         batch.setColor(color);
@@ -61,7 +62,26 @@ public final class SmoothUiFont implements AutoCloseable {
             eldest.getValue().texture().dispose();
             labels.remove(eldest.getKey());
         }
-        if (fittedLabels.size() > 512) fittedLabels.remove(fittedLabels.entrySet().iterator().next().getKey());
+    }
+
+    /** GL-free cache path, also used to verify scale/style changes and bounded residency. */
+    String fitLabel(String text, int size, boolean bold, int fitWidth) {
+        Font font = fonts.computeIfAbsent(size * 2 + (bold ? 1 : 0), key -> new Font("SansSerif", bold ? Font.BOLD : Font.PLAIN, size));
+        String fitKey = size + ":" + bold + ":" + fitWidth + ":" + text;
+        String fitted = fittedLabels.get(fitKey);
+        if (fitted == null) {
+            String sourceKey = size + ":" + bold + ":" + text;
+            var measure = measurements.get(sourceKey);
+            if (measure == null) {
+                measure = new UiTextFit.Measurement(text, font);
+                measurements.put(sourceKey, measure);
+                if (measurements.size() > 512) measurements.remove(measurements.entrySet().iterator().next().getKey());
+            }
+            fitted = measure.fit(fitWidth);
+            fittedLabels.put(fitKey, fitted);
+            if (fittedLabels.size() > 512) fittedLabels.remove(fittedLabels.entrySet().iterator().next().getKey());
+        }
+        return fitted;
     }
 
     private Label rasterize(String text, Font font) {
@@ -84,10 +104,7 @@ public final class SmoothUiFont implements AutoCloseable {
         graphics.drawString(text, 2, 2 + metrics.getAscent());
         graphics.dispose();
         Pixmap pixels = new Pixmap(width, height, Pixmap.Format.RGBA8888);
-        for (int y = 0; y < height; y++) for (int x = 0; x < width; x++) {
-            int argb = image.getRGB(x, y);
-            pixels.drawPixel(x, y, (argb << 8) | ((argb >>> 24) & 0xff));
-        }
+        copyLabelPixels(image, pixels.getPixels());
         Texture texture = new Texture(pixels);
         texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
         pixels.dispose();
@@ -95,10 +112,20 @@ public final class SmoothUiFont implements AutoCloseable {
                 (descent + 2) / (float) OVERSAMPLE);
     }
 
+    /** Our dense TYPE_INT_ARGB images are not premultiplied. Upload the identical RGBA bytes
+     * without a JNI Pixmap.drawPixel call for every label pixel. */
+    static void copyLabelPixels(BufferedImage image, java.nio.ByteBuffer pixels) {
+        int[] argb = ((java.awt.image.DataBufferInt) image.getRaster().getDataBuffer()).getData();
+        pixels.clear(); pixels.order(java.nio.ByteOrder.BIG_ENDIAN);
+        for (int value : argb) pixels.putInt((value << 8) | ((value >>> 24) & 0xff));
+        pixels.flip();
+    }
+
     @Override public void close() {
         for (Label label : labels.values()) label.texture().dispose();
         labels.clear();
         fittedLabels.clear();
+        measurements.clear();
         fonts.clear();
     }
 }
