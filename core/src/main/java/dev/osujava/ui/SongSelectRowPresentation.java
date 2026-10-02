@@ -20,7 +20,7 @@ final class SongSelectRowPresentation {
     static Content content(BeatmapSet set, BeatmapDifficulty difficulty, OptionalDouble rating) {
         boolean child = difficulty != null;
         Path background = child && difficulty.backgroundPath() != null ? difficulty.backgroundPath() : set.backgroundPath();
-        return new Content(set.title(), set.artist() + " // "
+        return new Content(child ? difficulty.title() : set.title(), (child ? difficulty.artist() : set.artist()) + " // "
                 + (child ? difficulty.creator() : set.creator()),
                 child ? difficulty.version() : "",
                 background, Stars.of(child ? rating : OptionalDouble.empty()),

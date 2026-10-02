@@ -87,6 +87,7 @@ class SongSelectRowPresentationTest {
         assertEquals("", parent.detail());
         assertFalse(parent.stars().present());
         var child = SongSelectRowPresentation.content(set, set.difficulties().getFirst(), OptionalDouble.of(5));
+        assertEquals("Title",child.title(),"A representative keeps its difficulty's metadata even when the Set summary differs");
         assertEquals("Artist // Difficulty mapper", child.byline()); assertEquals("Difficulty 0", child.detail());
         assertEquals(set.backgroundPath(), child.thumbnail()); assertTrue(child.stars().present());
     }

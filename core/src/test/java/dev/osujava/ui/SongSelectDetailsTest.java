@@ -5,6 +5,17 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SongSelectDetailsTest {
+    @Test void selectedDifficultyOwnsTitleArtistAndMapperInsteadOfTheSetSummary() {
+        var selected = SongBrowserModelTest.set("a","Selected title","Selected artist","Selected mapper",120,100000)
+                .difficulties().getFirst();
+        var set = new dev.osujava.beatmap.BeatmapSet("a","Set title","Set artist","Set mapper",null,null,
+                java.util.List.of(selected),java.util.List.of());
+        var details = SongSelectDetails.of(set,selected,SongSelectRowPresentation.Stars.of(OptionalDouble.empty()));
+        assertEquals("Selected artist - Selected title [Extra 星]",details.title());
+        assertEquals("Mapped by Selected mapper",details.mapper());
+        var row = SongSelectRowPresentation.content(set,selected,OptionalDouble.empty());
+        assertEquals("Selected title",row.title()); assertEquals("Selected artist // Selected mapper",row.byline());
+    }
     @Test void selectedMetadataUsesLibraryEndTimeAndNeverInventsStars() {
         var set = SongBrowserModelTest.set("a", "夜の星", "Artist", "Mapper", 180, 65000);
         var absent = SongSelectRowPresentation.Stars.of(OptionalDouble.empty());

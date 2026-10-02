@@ -8,7 +8,7 @@ import java.util.Locale;
 /** Immutable selected metadata, built only when the selected Library objects change. */
 record SongSelectDetails(String title, String mapper, String summary, String stats, String status) {
     static SongSelectDetails of(BeatmapSet set, BeatmapDifficulty diff, SongSelectRowPresentation.Stars rating) {
-        String title = set.artist() + " - " + set.title() + " [" + diff.version() + "]";
+        String title = diff.artist() + " - " + diff.title() + " [" + diff.version() + "]";
         String mapper = "Mapped by " + diff.creator();
         long circles = diff.hitObjects().stream().filter(o -> o.type() == HitObject.Type.CIRCLE).count();
         long sliders = diff.hitObjects().stream().filter(o -> o.type() == HitObject.Type.SLIDER).count();
