@@ -8,7 +8,8 @@ import dev.osujava.score.ScoreDetails;
 import dev.osujava.beatmap.BeatmapContentKey;
 import dev.osujava.ruleset.osu.OsuRuleset;
 import java.util.UUID;
-import java.time.Instant;
+import dev.osujava.gameplay.GameplayAttempt;
+import dev.osujava.score.LocalPlayHistory;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.ScreenAdapter;
@@ -50,6 +51,7 @@ public final class GameplayScreen extends ScreenAdapter {
     private final GameplayRunMode runMode;
     private final PlayContext playContext;
     private final UUID playId = UUID.randomUUID();
+    private final GameplayAttempt attempt;
     private boolean resultFinalized;
     private final DebugAutoPlayer autoPlayer;
     private final GameplayRenderer renderer;
@@ -79,6 +81,8 @@ public final class GameplayScreen extends ScreenAdapter {
         this.runMode = runMode;
         this.playContext = new PlayContext(BeatmapContentKey.of(difficulty),difficulty.mode(),game.osuRuleset().id(),
                 OsuRuleset.VERSION,ScoreDetails.SCORE_V1,java.util.List.of(),game.localPlayer(),runMode);
+        this.attempt = new GameplayAttempt(game.playHistory(),playId,DifficultyIdentity.of(set.id(),difficulty),
+                playContext.content(),runMode,game.wallClock());
         this.skinAssets = new OsuSkinAssets(game.skinDirectory(), game.skinFallbackDirectory());
         this.renderer = new GameplayRenderer(game, GameplayVisualConfig.defaults(), skinAssets);
         this.cursorRenderer = new GameplayCursorRenderer(skinAssets);
@@ -131,8 +135,10 @@ public final class GameplayScreen extends ScreenAdapter {
         this.clock = selectedClock;
         this.notice = audioNotice;
         this.session = new CursorTrackingSession(game.osuRuleset().createSession(difficulty, clock), clock, cursorVisual);
-        this.input = new GameplayInputProcessor(session, () -> game.navigate(
-                new SongSelectScreen(game, set.id(), set.difficulties().indexOf(difficulty))),
+        this.input = new GameplayInputProcessor(session, () -> {
+            attempt.finish(LocalPlayHistory.Outcome.ABORTED);
+            game.navigate(new SongSelectScreen(game, set.id(), set.difficulties().indexOf(difficulty)));
+        },
                 runMode == GameplayRunMode.MANUAL);
         this.autoPlayer = runMode == GameplayRunMode.DEBUG_AUTO
                 ? new DebugAutoPlayer(difficulty, clock, session) : null;
@@ -141,6 +147,7 @@ public final class GameplayScreen extends ScreenAdapter {
 
     @Override
     public void show() {
+        attempt.start();
         Gdx.input.setInputProcessor(input);
         cursorVisibility.show();
         resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
@@ -170,7 +177,8 @@ public final class GameplayScreen extends ScreenAdapter {
         if (autoPlayer != null) autoPlayer.afterSessionUpdate();
         if (completion.ready(state) && !resultFinalized) {
             resultFinalized = true;
-            var snapshot = new ResultsSnapshot(state.score(), session.resultDetails(), Instant.now().toEpochMilli(), runMode, false, playContext);
+            var snapshot = new ResultsSnapshot(state.score(), session.resultDetails(), game.wallClock().millis(), runMode, false, playContext);
+            attempt.finish(Boolean.FALSE.equals(snapshot.details().passed()) ? LocalPlayHistory.Outcome.FAILED : LocalPlayHistory.Outcome.COMPLETED);
             var identity = DifficultyIdentity.of(set.id(), difficulty);
             if (identity != null && runMode == GameplayRunMode.MANUAL)
                 game.localScores().save(new LocalScore(playId, identity,
