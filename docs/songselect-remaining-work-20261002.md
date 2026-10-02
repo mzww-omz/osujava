@@ -46,6 +46,8 @@ barの完全な寸法・色・animation・dispatcher順と一致したとの主�
 
 優先度はSong Selectの違和感・入力影響順。確認できない仕様は計測を先に行う。
 backend依存の項目をUIだけ有効にしない。他mode Gameplay等の全実装へ作業範囲を拡大しない。
+R06/R07/R08の実装順・保存互換・受入条件は
+[ローカルbackend改善計画](songselect-backend-improvement-plan-20261002.md)を参照。計画段階であり実装済みではない。
 
 | ID / 優先度 / 分類 | 現在の差異・根拠 | 次の具体的作業と終了判定 |
 | --- | --- | --- |
