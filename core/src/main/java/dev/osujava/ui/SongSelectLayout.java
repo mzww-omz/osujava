@@ -3,7 +3,7 @@ package dev.osujava.ui;
 import dev.osujava.skin.SongSelectSkinAssets;
 import dev.osujava.ui.theme.UiLayout;
 
-/** Pure logical geometry. Window/framebuffer density and PNG dimensions never define row hitboxes. */
+/** Pure logical geometry. Row input shares the rendered skin canvas, within the browser viewport. */
 final class SongSelectLayout {
     private static final float EMPTY_WIDTH = 420, EMPTY_HEIGHT = 66, EMPTY_SIDE_MARGIN = 16;
     record Rect(float x, float y, float width, float height) {
@@ -54,7 +54,9 @@ final class SongSelectLayout {
     static RowGeometry row(SongSelectRow row, int index, float targetX, float targetY,
                            float width, float bottom, float top, boolean thumbnails, boolean grade, boolean mode, boolean cropped) {
         var body = new Rect(row.x(), row.y(), row.width(), row.height());
-        var clip = body.intersect(new Rect(0, bottom, width, top - bottom));
+        var canvas = row.interaction();
+        var clip = new Rect(canvas.x(), canvas.y(), canvas.width(), canvas.height())
+                .intersect(new Rect(0, bottom, width, top - bottom));
         var text = SongSelectRowPresentation.geometry(row.width(), row.height(), width - row.x(), thumbnails,
                 row.difficultyIndex() >= 0, cropped, mode, grade);
         var thumbnail = new Rect(row.x() + text.thumbnailX(), row.y() + text.thumbnailY(), text.thumbnailWidth(), text.thumbnailHeight());

@@ -219,7 +219,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     scenes.add(new Scene(size[0],size[1],size[2],"phase5a-state-" + state));
             }
             for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2}})
-                for (String name : List.of("repair-empty", "repair-single", "repair-low-fps"))
+                for (String name : List.of("repair-empty", "repair-single", "repair-low-fps", "repair-row-hit", "repair-row-hit-narrow"))
                     scenes.add(new Scene(size[0], size[1], size[2], name));
             String phase = System.getProperty("osujava.songSelectPhase", "all");
             if (phase.equals("case")) {
@@ -237,7 +237,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             } else if (phase.equals("audit")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
-                    for (String name : List.of("repair-empty", "repair-single", "greylooks-expanded-many-last",
+                    for (String name : List.of("repair-empty", "repair-single", "repair-row-hit", "repair-row-hit-narrow", "greylooks-expanded-many-last",
                             "greylooks-collapse-many", "greylooks-scroll-reverse", "phase2-long-english", "phase2-japanese",
                             "phase2-missing-thumbnail", "phase3-search-none", "phase4-empty", "phase4-single", "phase4-many",
                             "phase4-wheel-hover", "phase4-oversized-score", "phase4-resize", "phase4-partial-palette", "phasechrome-giant",
@@ -595,7 +595,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern") || scene.name.equals("phase3-large-library") || scene.name.startsWith("phase4-large") || scene.name.startsWith("phase5a-state-large")) ? 1000 : 7;
         if (scene.name.equals("phase3-focus-page") || scene.name.startsWith("lifecycle-") || scene.name.startsWith("keyboard-")) setCount = 24;
         if (scene.name.equals("repair-empty")) setCount = 0;
-        if (scene.name.equals("repair-single")) setCount = 1;
+        if (scene.name.equals("repair-single") || scene.name.startsWith("repair-row-hit")) setCount = 1;
         boolean phase2 = scene.name.startsWith("phase2");
         var ratings = new IdentityHashMap<BeatmapDifficulty, OptionalDouble>();
         for (int i = 0; i < setCount; i++) {
@@ -635,7 +635,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 };
             }
             List<BeatmapDifficulty> diffs = new ArrayList<>();
-            int difficultyCount = (scene.name.equals("repair-single") || scene.name.equals("greylooks-expanded-single") || scene.name.equals("phase2-single")) ? 1
+            int difficultyCount = (scene.name.equals("repair-single") || scene.name.startsWith("repair-row-hit") || scene.name.equals("greylooks-expanded-single") || scene.name.equals("phase2-single")) ? 1
                     : (scene.name.contains("many") && i == 3) ? 16 : 4;
             for (int difficulty = 0; difficulty < difficultyCount; difficulty++) {
                 var diff = new BeatmapDifficulty(title,artist,mapper,version + (difficulty + 1),0,"","",DifficultySettings.defaults(),
@@ -716,6 +716,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             try {
                 Path dir = Files.createDirectories(output.resolve("fixtures/oversized-score"));
                 compositionImage(dir, "menu-button-background", 2000, 800, scene.density, Color.WHITE);
+                resolver = SkinAssetResolver.withBundledDefault(dir, null);
+            } catch (Exception e) { throw new RuntimeException(e); }
+        }
+        if (scene.name.startsWith("repair-row-hit")) {
+            try {
+                Path dir = Files.createDirectories(output.resolve("fixtures/" + scene.name));
+                Files.writeString(dir.resolve("skin.ini"), "[General]\nVersion: 2.2\n");
+                compositionImage(dir, "menu-button-background", scene.name.endsWith("narrow") ? 80 : 700,
+                        117, scene.density, Color.WHITE);
                 resolver = SkinAssetResolver.withBundledDefault(dir, null);
             } catch (Exception e) { throw new RuntimeException(e); }
         }
@@ -820,6 +829,29 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 tapKey(processor[0], Input.Keys.ESCAPE);
                 screen.render(.3f);
                 if (destination[0] == null) throw new AssertionError("Back did not leave small Library");
+                fb.end(); advanceScene(); return;
+            }
+            if (scene.name.startsWith("repair-row-hit")) {
+                var rows = ((List<?>) screenField(screen, "visibleRows")).stream().map(SongSelectRow.class::cast).toList();
+                var row = rows.stream().filter(SongSelectRow::selected).findFirst().orElseThrow();
+                var canvas = row.interaction();
+                var expected = SongSelectArtwork.row(row.x(), row.y(), row.width(), row.height(),
+                        assets.get(SongSelectSkinAssets.Image.MENU_BUTTON_BACKGROUND));
+                if (!canvas.equals(expected) || canvas.height() <= row.height())
+                    throw new AssertionError("Rendered row canvas and production input bounds differ");
+                float hitX = canvas.x() + 10, hitY = row.y() - 10;
+                if (!row.contains(hitX, hitY) || hitY <= canvas.y())
+                    throw new AssertionError("Artwork outside the navigation body is not clickable");
+                if (scene.name.endsWith("narrow") && row.contains(canvas.x() + canvas.width() + 1, row.y() + row.height() / 2))
+                    throw new AssertionError("Hitbox stretches past a narrow custom canvas");
+                capture(fb, name);
+                pointer[0] = Math.round(hitX * layout.scale());
+                pointer[1] = scene.height - Math.round(hitY * layout.scale());
+                clicked[0] = true; pressed[0] = true; screen.render(.016f);
+                clicked[0] = false; pressed[0] = false; screen.render(.016f);
+                transitionFrames += 2;
+                if (!((dev.osujava.ui.theme.UiNavigation)screenField(screen,"outgoing")).pending())
+                    throw new AssertionError("Release on rendered artwork did not request gameplay");
                 fb.end(); advanceScene(); return;
             }
             if (scene.name.equals("repair-low-fps")) {

@@ -5,7 +5,17 @@ import java.util.List;
 /** Immutable shared drawing/input geometry. Coordinates have already incorporated all motion. */
 record SongSelectRow(int setIndex, int difficultyIndex, String header, boolean selected, boolean sibling,
                      float x, float y, float width, float height, float hoverAmount, float revealAmount,
-                     int logicalIndex, float targetX, float targetY, String key, boolean groupExpanded, float focusAmount) {
+                     int logicalIndex, float targetX, float targetY, String key, boolean groupExpanded, float focusAmount,
+                     SongSelectChrome.Bounds interaction) {
+    SongSelectRow {
+        if (interaction == null) interaction = new SongSelectChrome.Bounds(x, y, width, height);
+    }
+    SongSelectRow(int setIndex, int difficultyIndex, String header, boolean selected, boolean sibling,
+                  float x, float y, float width, float height, float hoverAmount, float revealAmount,
+                  int logicalIndex, float targetX, float targetY, String key, boolean groupExpanded, float focusAmount) {
+        this(setIndex, difficultyIndex, header, selected, sibling, x, y, width, height,
+                hoverAmount, revealAmount, logicalIndex, targetX, targetY, key, groupExpanded, focusAmount, null);
+    }
     SongSelectRow(int setIndex, int difficultyIndex, String header, boolean selected, boolean sibling,
                   float x, float y, float width, float height, float hoverAmount, float revealAmount,
                   int logicalIndex, float targetX, float targetY, String key, boolean groupExpanded) {
@@ -30,7 +40,8 @@ record SongSelectRow(int setIndex, int difficultyIndex, String header, boolean s
     }
     boolean boundsContain(float px, float py) {
         // Native top-left rectangle includes left/top and excludes right/bottom; Java Y is up.
-        return px >= x && px < x + width && py > y && py <= y + height;
+        return px >= interaction.x() && px < interaction.x() + interaction.width()
+                && py > interaction.y() && py <= interaction.y() + interaction.height();
     }
 
     static boolean inViewport(float x, float y, float width, float bottom, float top) {
@@ -39,8 +50,9 @@ record SongSelectRow(int setIndex, int difficultyIndex, String header, boolean s
 
     static SongSelectRow hit(List<SongSelectRow> rows, float x, float y, float bottom, float top) {
         if (y <= bottom || y >= top) return null;
-        // Existing input approximation; native sprite hit/depth arbitration is deferred to phase 8b.
-        // This priority is independent of the browser-order draw pass.
+        // Existing arbitration: native negative creation-depth priority and full-opacity
+        // hover acquisition must be applied together, including sprite lifetime across re-sort.
+        // Geometry already shares the rendered background canvas.
         for (var row : rows) if (row.selected && row.contains(x, y)) return row;
         for (int i = rows.size() - 1; i >= 0; i--) if (rows.get(i).contains(x, y)) return rows.get(i);
         return null;

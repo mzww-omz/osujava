@@ -41,4 +41,36 @@ class SongSelectArtworkTest {
             }
         }
     }
+
+    @Test void rowHitUsesNativeCanvasInsteadOfNavigationPitchAtEveryScaleAndDensity() {
+        for (float scale : new float[]{1, 768f / 720, 800f / 720, 1.5f}) {
+            var sd = SongSelectArtwork.row(100, 200, 900, 72 * scale, texture(700, 117, 1));
+            var hd = SongSelectArtwork.row(100, 200, 900, 72 * scale, texture(1401, 235, 2));
+            assertEquals(sd, hd); // Odd HD pixels are cropped by integer logical dimensions.
+            var row = new SongSelectRow(0, 0, "", true, false, 100, 200, 900, 72 * scale,
+                    0, 1, 0, 100, 200, "row", false, 0, sd);
+            assertTrue(sd.height() > row.height());
+            assertTrue(row.contains(sd.x(), sd.y() + sd.height()), "Native top-left edge is included");
+            assertFalse(row.contains(sd.x(), sd.y()), "Native bottom edge is excluded");
+            assertFalse(row.contains(sd.x() + sd.width(), 236 * scale));
+            assertTrue(row.contains(150, sd.y() + 1), "Visible artwork outside navigation body is clickable");
+            var geometry = SongSelectLayout.row(row, 0, 100, 200, 1000, 210, 260, false, false);
+            assertEquals(Math.min(sd.width(), 900), geometry.hit().width(), .001);
+            assertEquals(210, geometry.hit().y());
+            assertEquals(50, geometry.hit().height());
+            assertNull(SongSelectRow.hit(java.util.List.of(row), 150, 209, 210, 260));
+        }
+    }
+
+    @Test void narrowAndMissingRowArtKeepTheirActualBoundsIncludingZeroLogicalHdSize() {
+        var small = SongSelectArtwork.row(100, 200, 900, 72, texture(80, 300, 1));
+        assertEquals(75, small.width());
+        assertEquals(281.25f, small.height());
+        var missing = SongSelectArtwork.row(100, 200, 900, 72, null);
+        assertEquals(new SongSelectChrome.Bounds(100, 200, 900, 72), missing);
+        var zero = SongSelectArtwork.row(100, 200, 900, 72, texture(1, 1, 2));
+        var row = new SongSelectRow(0, 0, "", true, false, 100, 200, 900, 72,
+                0, 1, 0, 100, 200, "row", false, 0, zero);
+        assertFalse(row.contains(100, 236));
+    }
 }

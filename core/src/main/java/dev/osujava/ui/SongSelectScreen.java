@@ -564,9 +564,12 @@ public final class SongSelectScreen extends ScreenAdapter {
             int setIndex = entry.entry.setIndex(), diffIndex = entry.entry.difficultyIndex();
             boolean selected = setIndex == selectedSetIndex && diffIndex == selectedDifficultyIndex;
             var target = carousel.targetPosition(entry.logicalIndex, layout.width(), top);
+            float x = carousel.renderX(entry, layout.width()), height = carousel.rowHeight(), width = rowWidth(layout);
+            var background = skin == null ? null : skin.get(Image.MENU_BUTTON_BACKGROUND);
             result.add(new SongSelectRow(setIndex, diffIndex, groupLabels.get(entry.entry.key()), selected, setIndex == selectedSetIndex && !selected,
-                    carousel.renderX(entry, layout.width()), y, rowWidth(layout), carousel.rowHeight(), entry.hoverAmount, selected ? 1 : entry.revealAmount * entry.revealAmount, entry.logicalIndex, target[0], target[1], entry.entry.key(),
-                    browser.row(entry.entry.key()).group() && browser.row(entry.entry.key()).expanded, entry.focusAmount));
+                    x, y, width, height, entry.hoverAmount, selected ? 1 : entry.revealAmount * entry.revealAmount, entry.logicalIndex, target[0], target[1], entry.entry.key(),
+                    browser.row(entry.entry.key()).group() && browser.row(entry.entry.key()).expanded, entry.focusAmount,
+                    SongSelectArtwork.row(x, y, width, height, background)));
         }
         return result;
     }
