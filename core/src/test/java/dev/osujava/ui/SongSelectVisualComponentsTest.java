@@ -46,12 +46,6 @@ class SongSelectVisualComponentsTest {
         assertTrue(start.height() >= 18 && start.height() < 552);
         assertEquals(end,SongSelectScrollbar.thumb(1280,84,636,4000,3000));
     }
-    @Test void contrastRepairOnlyTouchesDarkTextOnSelectedBundledArtwork() {
-        assertTrue(SongSelectRowRenderer.fallbackWash(true,true,Color.BLACK));
-        assertFalse(SongSelectRowRenderer.fallbackWash(true,false,Color.BLACK));
-        assertFalse(SongSelectRowRenderer.fallbackWash(false,true,Color.BLACK));
-        assertFalse(SongSelectRowRenderer.fallbackWash(true,true,Color.WHITE));
-    }
     @Test void focusedRowBrightensEachRgbByteByFortyPercentWithoutChangingAlpha() {
         var tint = new Color(35 / 255f, 143 / 255f, 240 / 255f, .37f);
         SongSelectRowColours.focusTint(tint, 1);

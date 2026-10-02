@@ -2120,6 +2120,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     throw new AssertionError("Back must precede green selection artwork: " + Integer.toHexString(colour));
             } finally { pixel.dispose(); }
         }
+        if (scene.name.startsWith("parity-")) {
+            var pixel = Pixmap.createFromFrameBuffer(Math.round(490 * scene.height/768f * scene.density),
+                    Math.round(40 * scene.height/768f * scene.density),1,1);
+            try {
+                int colour = pixel.getPixel(0,0);
+                if ((colour >>> 24 & 255) < 240 || (colour >>> 16 & 255) < 240 || (colour >>> 8 & 255) < 240)
+                    throw new AssertionError("Options normal artwork must retain its white tint: " + Integer.toHexString(colour));
+            } finally { pixel.dispose(); }
+        }
         capture(fb, name);
         var report = new StringBuilder("window=" + scene.width + "x" + scene.height + " density=" + scene.density
                 + " time=" + time + "\n");

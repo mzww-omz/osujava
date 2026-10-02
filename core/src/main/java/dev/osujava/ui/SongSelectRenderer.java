@@ -195,12 +195,10 @@ final class SongSelectRenderer {
         var debug = frame.bottomLayout.debug;
         boolean auxiliaryAboveArtwork = status.y() >= frame.bottom;
         boolean unsupported = frame.selectedDifficulty != null && !frame.supportedMode;
-        if (!auxiliaryAboveArtwork || frame.toastSeconds <= 0 && !unsupported) {
+        if (Boolean.getBoolean("osujava.debugUi") && (!auxiliaryAboveArtwork || frame.toastSeconds <= 0 && !unsupported)) {
             view.textSmooth(frame.browser.visibleCount() + " / " + frame.sets.size() + " local sets",status.x(),status.y()+8,status.width(),.60f,UiTheme.MUTED);
             view.textSmooth("F6  DEBUG AUTO",debug.x(),debug.y()+5,debug.width(),.50f,UiTheme.MUTED);
         }
-        if (!frame.toolbox.open() && frame.bottomLayout.control(Selection.OPTIONS).interaction().contains(px,py))
-            view.textSmooth("Beatmap Options unavailable",frame.bottomLayout.control(Selection.OPTIONS).slot().x(),frame.bottom+14,220,.62f,UiTheme.MUTED);
         if (frame.toastSeconds > 0) view.textSmooth(frame.toast, 27, frame.bottom + 34, Math.min(430, layout.width() * .4f), UiTheme.META, frame.toastColor);
         view.endText();
         frame.controls.drawMenu(view, layout.width(), layout.height(), frame.browser,px,py);
@@ -279,9 +277,8 @@ final class SongSelectRenderer {
 
     private void drawSelection(Selection action, boolean hover) {
         var geometry = frame.bottomLayout.control(action);
-        boolean enabled = selectionEnabled(action);
-        float brightness = enabled ? 1 : .54f;
-        actionTint.set(brightness,brightness,brightness,hover ? frame.hoverAppearance.alpha(action) : 1);
+        // Capability feedback is handled by the action; normal native artwork is white.
+        actionTint.set(1,1,1,hover ? frame.hoverAppearance.alpha(action) : 1);
         skinImage(hover ? action.hover : action.normal,
                 (hover ? geometry.hover() : geometry.normal()).image(),actionTint);
     }

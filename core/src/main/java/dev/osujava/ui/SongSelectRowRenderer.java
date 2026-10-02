@@ -77,14 +77,6 @@ final class SongSelectRowRenderer {
             view.endShapes();
             view.beginText();
         }
-        // The bundled default is dark artwork. Keep an authored text colour, but provide
-        // a light selected surface when that text is dark. Never wash custom skin artwork.
-        var background = has(Image.MENU_BUTTON_BACKGROUND) ? style.skin().get(Image.MENU_BUTTON_BACKGROUND) : null;
-        if (fallbackWash(row.selected() || row.group() && row.groupExpanded(), background != null && background.file().classpathResource() != null, style.activeText())) {
-            batch.setColor(1,1,1,.86f * row.revealAmount() * item.foreground().baseOpacity());
-            batch.draw(style.fill(),x,y,row.width(),row.height());
-            batch.setColor(Color.WHITE);
-        }
         if (row.group()) {
             Color text = row.groupExpanded() ? style.activeText() : style.inactiveText();
             primaryTint.set(text == null ? UiTheme.TEXT : text);
@@ -116,9 +108,7 @@ final class SongSelectRowRenderer {
         view.endText();
     }
 
-    static boolean fallbackWash(boolean selected, boolean bundled, Color text) {
-        return selected && bundled && .2126f * text.r + .7152f * text.g + .0722f * text.b < .35f;
-    }
+
 
     private Color textColour(SongSelectRow row) {
         return row.selected() ? style.activeText() : style.inactiveText() != null ? style.inactiveText() : UiTheme.TEXT;
