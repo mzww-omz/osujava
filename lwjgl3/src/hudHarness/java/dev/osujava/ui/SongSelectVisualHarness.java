@@ -584,6 +584,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         var ratings = new IdentityHashMap<BeatmapDifficulty, OptionalDouble>();
         for (int i = 0; i < setCount; i++) {
             String title = setCount > 7 ? String.format(Locale.ROOT,"Local song %03d",i) : "Local song " + i;
+            if (Boolean.getBoolean("osujava.selectionProfileLongText"))
+                title += " 夜空の彼方への冒険 — The Never Ending Journey Across the Constellations".repeat(5);
             if (scene.name.equals("phase2-long-set") && i == 2)
                 title = "Local song 2 — A Very Long English Title with Unicode 星の旅人 that extends beyond the row";
             String mapper = "Harness", version = "Difficulty ";
@@ -2318,6 +2320,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 name,model.rows().size(),total / 600.0 / 1_000_000,maximum / 1_000_000.0);
     }
     private void profileRender(SongSelectScreen screen, String name) {
+        if (Boolean.getBoolean("osujava.selectionProfile")) profileSelection(screen, name);
         long total = 0, maximum = 0;
         for (int frame = 0; frame < 240; frame++) {
             long start = System.nanoTime(); screen.render(1f / 60); long elapsed = System.nanoTime() - start;
@@ -2325,6 +2328,37 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         }
         System.out.printf(Locale.ROOT, "Idle render CPU submission %s: mean %.3f ms, max %.3f ms (180 samples, shared artwork)%n",
                 name, total / 180.0 / 1_000_000, maximum / 1_000_000.0);
+    }
+
+    /** Opt-in cold set activation + animated frames, rather than averaging events into idle. */
+    private void profileSelection(SongSelectScreen screen, String name) {
+        long[] activation = new long[40], firstFrame = new long[40], selectionFrame = new long[40], animation = new long[40 * 23];
+        var thread = (com.sun.management.ThreadMXBean) java.lang.management.ManagementFactory.getThreadMXBean();
+        long allocated = 0;
+        for (int sample = -10; sample < 40; sample++) {
+            int set = 100 + (sample + 10) * 2;
+            long bytes = thread.getThreadAllocatedBytes(Thread.currentThread().threadId());
+            long start = System.nanoTime(); screen.previewSelection(set, 0); long event = System.nanoTime() - start;
+            for (int frame = 0; frame < 24; frame++) {
+                start = System.nanoTime(); screen.render(1f / 60); long duration = System.nanoTime() - start;
+                if (sample >= 0) {
+                    if (frame == 0) { firstFrame[sample] = duration; selectionFrame[sample] = event + duration; }
+                    else animation[sample * 23 + frame - 1] = duration;
+                }
+            }
+            if (sample >= 0) {
+                activation[sample] = event;
+                allocated += thread.getThreadAllocatedBytes(Thread.currentThread().threadId()) - bytes;
+            }
+        }
+        for (var stage : java.util.Map.of("activation", activation, "first-frame", firstFrame,
+                "selection-frame", selectionFrame, "animation", animation).entrySet()) {
+            var samples = stage.getValue(); java.util.Arrays.sort(samples);
+            System.out.printf(Locale.ROOT, "Selection profile %s %s: mean %.3f ms, p95 %.3f ms, max %.3f ms%n",
+                    name, stage.getKey(), java.util.Arrays.stream(samples).average().orElseThrow() / 1e6,
+                    samples[samples.length * 95 / 100] / 1e6, samples[samples.length - 1] / 1e6);
+        }
+        System.out.printf(Locale.ROOT, "Selection profile allocation: %.0f bytes/activation+24 frames%n", allocated / 40.0);
     }
 
     /** Production draw snapshots must exactly match Carousel output even during overlapping motion. */
