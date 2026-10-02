@@ -9,6 +9,39 @@ import org.junit.jupiter.params.provider.ValueSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 class UiTextFitTest {
+    @ParameterizedTest @ValueSource(strings = {
+            "Long AVATAR title with kerning and ligatures ffi fi fl",
+            "夜空の彼方への冒険 — A Very Long Unicode Song Title 👩‍🚀 é",
+            "별빛 아래 우리들의 이야기 — 夜空中最亮的星", "ééé👩‍🚀👩‍🚀✦∞"})
+    void cachedMeasurementMatchesOriginalAlgorithmAsWidthShrinksAndExpands(String text) {
+        for (int style : new int[]{Font.PLAIN, Font.BOLD, Font.ITALIC}) {
+            Font font = new Font("SansSerif", style, 34);
+            var measurement = new UiTextFit.Measurement(text, font);
+            for (int step = 0; step < 200; step++) {
+                float width = (step * 157 % 501) + .25f;
+                assertEquals(originalFit(text, font, width), measurement.fit(width));
+            }
+            assertEquals("", measurement.fit(0));
+            assertEquals(text, measurement.fit(10000));
+        }
+    }
+    /** Pre-cache implementation retained as the compatibility oracle. */
+    private String originalFit(String text, Font font, float width) {
+        if (width <= 0) return "";
+        if (font.getStringBounds(text, context).getWidth() <= width) return text;
+        String suffix = "…";
+        if (font.getStringBounds(suffix, context).getWidth() > width) return "";
+        var ends = new java.util.ArrayList<Integer>(); ends.add(0);
+        var matcher = Pattern.compile("\\X").matcher(text);
+        while (matcher.find()) ends.add(matcher.end());
+        int low = 0, high = ends.size() - 1;
+        while (low < high) {
+            int mid = (low + high + 1) / 2;
+            if (font.getStringBounds(text.substring(0, ends.get(mid)) + suffix, context).getWidth() <= width) low = mid;
+            else high = mid - 1;
+        }
+        return text.substring(0, ends.get(low)) + suffix;
+    }
     private final Font font = new Font("SansSerif", Font.BOLD, 34);
     private final FontRenderContext context = new FontRenderContext(null, true, true);
     @ParameterizedTest @ValueSource(strings = {
