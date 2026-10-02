@@ -261,12 +261,14 @@ final class SongSelectRenderer {
         var asset = frame.skin.get(Image.TOP);
         var bounds = SongSelectChrome.top(layout.width(), layout.height(), asset);
         var texture = asset.texture();
-        // Extend one edge column, not a repeating 20-pixel decoration. Sampling the
-        // column centre avoids linear filtering pulling neighbouring artwork into it.
-        if (bounds.width() < layout.width()) {
-            float u = 1 - .5f / texture.getWidth();
-            batch.draw(texture, bounds.width(), bounds.y(), layout.width() - bounds.width(), bounds.height(), u, 1, u, 0);
+        var extension = SongSelectChrome.topExtension(layout.width(),layout.height(),Gdx.graphics.getWidth(),asset);
+        if (extension != null) {
+            var strip = extension.bounds();
+            batch.setColor(Color.WHITE);
+            batch.draw(texture,strip.x(),strip.y(),strip.width(),strip.height(),
+                    extension.u(),asset.cropV2(),extension.u2(),0);
         }
+        // Native inserts the equal-depth extension before the original top sprite.
         skinImage(Image.TOP, bounds, Color.WHITE);
     }
 

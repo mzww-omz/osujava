@@ -231,7 +231,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         Integer.getInteger("osujava.songSelectDensity", 1), name));
             } else if (phase.equals("parity-visual")) {
                 scenes.clear();
-                for (int[] size : new int[][]{{1366,768,1},{1152,768,1},{1153,768,1},{1280,720,2}})
+                for (int[] size : new int[][]{{1365,768,1},{1366,768,1},{1367,768,1},{1152,768,1},{1153,768,1},{1280,720,2}})
                     for (String name : List.of("overlap", "transparent-back", "odd-hd", "short-top"))
                         scenes.add(new Scene(size[0],size[1],size[2],"parity-"+name));
             } else if (phase.equals("configured")) {
@@ -2135,6 +2135,14 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 int colour = pixel.getPixel(0,0);
                 if ((colour >>> 16 & 255) < 240 || (colour >>> 8 & 255) > 15)
                     throw new AssertionError("Odd HD sentinel column must be cropped: " + Integer.toHexString(colour));
+            } finally { pixel.dispose(); }
+        }
+        if (scene.name.equals("parity-short-top")) {
+            var pixel = Pixmap.createFromFrameBuffer(Math.round(scene.width*.4f*scene.density),
+                    Math.round((scene.height-28)*scene.density),1,1);
+            try {
+                if ((pixel.getPixel(0,0) >>> 8 & 255) > 100)
+                    throw new AssertionError("Short top must not stretch its edge across the viewport");
             } finally { pixel.dispose(); }
         }
         capture(fb, name);

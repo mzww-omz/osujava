@@ -28,6 +28,18 @@ class SongSelectChromeTest {
             assertEquals(height, SongSelectChrome.top(1280,height,texture(1366,768,1)).height());
         }
     }
+    @Test void topExtensionUsesDisplayGateAndFixedCropColumnIncludingHd() {
+        var sd = texture(1366,90,1); var hd = texture(2733,181,2);
+        for (int width : new int[]{1000,1365,1366}) assertNull(SongSelectChrome.topExtension(width,768,width,sd));
+        var first = SongSelectChrome.topExtension(1367,768,1367,sd);
+        assertEquals(1365,first.bounds().x()); assertEquals(2,first.bounds().width());
+        assertEquals(678,first.bounds().y()); assertEquals(1365f/1366,first.u()); assertEquals(1,first.u2());
+        var high = SongSelectChrome.topExtension(1280,720,1920,hd);
+        assertEquals(910,high.bounds().x());
+        assertEquals(555*720f/768,high.bounds().width());
+        assertEquals(2730f/2733,high.u()); assertEquals(2732f/2733,high.u2());
+        assertNull(SongSelectChrome.topExtension(1920,1080,1920,texture(1,1,2)));
+    }
     @Test void contentStaysOutsideVisibleChromeWhileHeaderControlsKeepTheirOwnArea() {
         var greylooks = SongSelectChrome.content(720,149*720f/768,83*720f/768,90*720f/768);
         assertTrue(greylooks.rankingHeaderTop() < 720-149*720f/768);

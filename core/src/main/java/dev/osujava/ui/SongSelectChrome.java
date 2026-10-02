@@ -11,6 +11,7 @@ final class SongSelectChrome {
     static final float MAX_TOP_FRACTION = .40f, MAX_BOTTOM_FRACTION = .30f;
     private SongSelectChrome() { }
     record Bounds(float x, float y, float width, float height) { }
+    record TopExtension(Bounds bounds, float u, float u2) { }
     record Content(float rankingHeaderTop, float carouselTop, float bottom) { }
     static Content content(float width, float height, SongSelectSkinAssets skin) {
         float scale = height / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
@@ -48,5 +49,15 @@ final class SongSelectChrome {
         float scale = height / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
         return new Bounds(0, height - asset.logicalHeight() * scale,
                 asset.logicalWidth() * scale, asset.logicalHeight() * scale);
+    }
+    /** 0600136e: display width gate/position; 060040af/b1: logical crop -> physical UV. */
+    static TopExtension topExtension(float width, float height, int windowWidth, SongSelectSkinAssets.SkinTexture asset) {
+        if (windowWidth <= 1366 || asset.logicalWidth() <= 0 || asset.logicalHeight() <= 0) return null;
+        float scale = height / SongSelectMetrics.LEGACY_CANVAS_HEIGHT;
+        var bounds = new Bounds(1365f * width / windowWidth,height - asset.logicalHeight() * scale,
+                (windowWidth - 1365) * scale,asset.logicalHeight() * scale);
+        float u = 1365f * asset.density() / asset.texture().getWidth();
+        float u2 = 1366f * asset.density() / asset.texture().getWidth();
+        return new TopExtension(bounds,u,u2);
     }
 }
