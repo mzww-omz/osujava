@@ -69,6 +69,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 }
             }
             Files.createDirectories(output.resolve("fixtures/empty"));
+            createParityFixtures();
             for (String mode : List.of("scale", "crop")) {
                 Path dir = Files.createDirectories(output.resolve("fixtures/foreground-" + mode));
                 Files.writeString(dir.resolve("skin.ini"), "[General]\nVersion: " + (mode.equals("scale") ? "2.2" : "1") + "\n");
@@ -228,6 +229,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 scenes.add(new Scene(Integer.getInteger("osujava.songSelectWidth", 1280),
                         Integer.getInteger("osujava.songSelectHeight", 720),
                         Integer.getInteger("osujava.songSelectDensity", 1), name));
+            } else if (phase.equals("parity-visual")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1366,768,1},{1152,768,1},{1153,768,1},{1280,720,2}})
+                    for (String name : List.of("overlap", "transparent-back", "odd-hd", "short-top"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"parity-"+name));
             } else if (phase.equals("configured")) {
                 scenes.clear();
                 scenes.add(new Scene(Integer.getInteger("osujava.songSelectWidth", 1280),
@@ -691,6 +697,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         if (scene.name.startsWith("phase5a")) resolver = toolboxResolver(scene.name,greylooks);
         if (scene.name.equals("star-animation-old-default-background"))
             resolver = SkinAssetResolver.withBundledDefault(output.resolve("fixtures/"+scene.name),null);
+        if (scene.name.startsWith("parity-"))
+            resolver = SkinAssetResolver.withBundledDefault(output.resolve("fixtures/"+scene.name),null);
         var assets = scene.name.startsWith("phasechrome-current") || scene.name.equals("phasechrome-custom") ? null : new SongSelectSkinAssets(resolver);
         String preferredSet = scene.name.equals("greylooks-first-item") || scene.name.startsWith("keyboard-") ? "set0"
                 : scene.name.equals("greylooks-last-item") ? "set6"
@@ -709,7 +717,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             screen.legacyThumbnailPreview(scene.name.equals("phase25-legacy-b") || scene.name.startsWith("foreground-"));
             screen.resize(scene.width,scene.height);
             fb.begin();
-            if (scene.name.equals("configured")) {
+            if (scene.name.equals("configured") || scene.name.startsWith("parity-")) {
                 captureConfigured(screen, scene, fb, pointer, processor[0], assets);
                 fb.end(); advanceScene(); return;
             }
@@ -2101,18 +2109,31 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         int steps = (int) Math.ceil(time * 120);
         for (int step = 0; step < steps; step++) screen.render(Math.min(1f / 120, time - step / 120f));
         screen.render(0);
-        String name = scene.width + "x" + scene.height + "-" + scene.density + "x-configured";
+        String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
         capture(fb, name);
         var report = new StringBuilder("window=" + scene.width + "x" + scene.height + " density=" + scene.density
                 + " time=" + time + "\n");
         for (var image : SongSelectSkinAssets.Image.values()) {
             var asset = assets.get(image);
             report.append(image.basename).append(" provider=").append(assets.provider(image));
-            if (asset != null) report.append(" density=").append(asset.density()).append(" source=").append(asset.file().path());
+            if (asset != null) report.append(" density=").append(asset.density()).append(" source=").append(asset.file().path())
+                    .append(" physical=").append(asset.texture().getWidth()).append('x').append(asset.texture().getHeight())
+                    .append(" logical=").append(asset.logicalWidth()).append('x').append(asset.logicalHeight());
             report.append("\n");
         }
         report.append("skinVersion=").append(assets.configuration().legacyVersion()).append("\n");
         report.append("legacySelectionAnchors=").append(assets.legacySelectionAnchors()).append("\n");
+        var browser = (SongBrowserModel) screenField(screen,"browser");
+        report.append("selection=").append(browser.selection()).append(" focus=").append(browser.focusKey())
+                .append(" query=").append(browser.search()).append(" sort=").append(browser.sort())
+                .append(" group=").append(browser.group()).append("\n");
+        report.append("input action=").append(System.getProperty("osujava.songSelectAction","none"))
+                .append(" hover=").append(Arrays.toString(hover)).append(" steps=").append(steps).append(" hz=120\n");
+        report.append("tabs=").append(SongBrowserControls.tabCount(layout.width(),layout.height())).append("\n");
+        var geometry = SongSelectToolboxLayout.create(layout.width(),layout.height(),assets);
+        report.append("back=").append(geometry.backImage).append(" hit=").append(geometry.backInteraction).append("\n");
+        for (var action : SongSelectSkinAssets.Selection.values())
+            report.append(action).append('=').append(geometry.control(action)).append("\n");
         for (var row : screen.rowGeometrySnapshot()) report.append(row).append("\n");
         try { Files.writeString(output.resolve(name + ".txt"), report); }
         catch (java.io.IOException e) { throw new RuntimeException(e); }
@@ -2123,6 +2144,37 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         PixmapIO.writePNG(Gdx.files.absolute(output.resolve(name + ".png").toString()),capture,-1,true);
         capture.dispose();
         captures++;
+    }
+
+    /** Authored test colours, never exported native assets. Baselines record Java, not parity. */
+    private void createParityFixtures() throws java.io.IOException {
+        for (String name : List.of("overlap","transparent-back","odd-hd","short-top")) {
+            Path dir = Files.createDirectories(output.resolve("fixtures/parity-"+name));
+            Files.writeString(dir.resolve("skin.ini"),"[General]\nVersion: 2.2\n[Colours]\nSongSelectActiveText: 0,0,0\nSongSelectInactiveText: 255,255,255\n");
+            for (String image : List.of("songselect-top","songselect-bottom","menu-back","cursor","cursortrail","cursormiddle","star2"))
+                parityImage(dir,image,1,1,Color.CLEAR);
+            for (var action : SongSelectSkinAssets.Selection.values()) {
+                parityImage(dir,action.normal.basename,(int)action.logicalWidth,90,
+                        action == SongSelectSkinAssets.Selection.MODE ? Color.GREEN : Color.WHITE);
+                parityImage(dir,action.hover.basename,1,1,Color.CLEAR);
+            }
+            switch (name) {
+                case "overlap" -> parityImage(dir,"menu-back",400,150,Color.RED);
+                case "odd-hd" -> {
+                    parityImage(dir,"selection-mode@2x",185,181,Color.GREEN);
+                    parityImage(dir,"menu-back@2x",545,183,Color.RED);
+                }
+                case "short-top" -> parityImage(dir,"songselect-top",100,90,Color.BLUE);
+                default -> { }
+            }
+        }
+    }
+    private void parityImage(Path dir, String name, int width, int height, Color colour) {
+        var pixels = new Pixmap(width,height,Pixmap.Format.RGBA8888);
+        try {
+            pixels.setColor(colour); pixels.fill();
+            PixmapIO.writePNG(Gdx.files.absolute(dir.resolve(name+".png").toString()),pixels);
+        } finally { pixels.dispose(); }
     }
     private void closeBrowserMenu(SongSelectScreen screen) {
         try { var f = SongSelectScreen.class.getDeclaredField("controls"); f.setAccessible(true); ((SongBrowserControls)f.get(screen)).close(); }
