@@ -55,6 +55,7 @@ class SongSelectNavigationTest {
     private InputProcessor processor;
     private final BeatmapLibrary library = new BeatmapLibrary();
     private final dev.osujava.score.LocalScoreStore localScores = new dev.osujava.score.LocalScoreStore();
+    private dev.osujava.score.LocalPlayHistory playHistory = new dev.osujava.score.LocalPlayHistory();
     private SongSelectScreen screen;
     private int importRequests;
     private boolean shift, control, alt, pointerPressed, pointerClicked, rightPressed, rightClicked, middlePressed;
@@ -144,11 +145,53 @@ class SongSelectNavigationTest {
             @Override public BeatmapLibrary library() { return library; }
             @Override public OsuRuleset osuRuleset() { return new OsuRuleset(); }
             @Override public dev.osujava.score.LocalScoreStore localScores() { return localScores; }
+            @Override public dev.osujava.score.LocalPlayHistory playHistory() { return playHistory; }
         };
         screen = new SongSelectScreen(game,set,difficulty,null,ignored -> testRating); screen.show();
     }
     private Object field(String name) throws Exception {
         var field = SongSelectScreen.class.getDeclaredField(name); field.setAccessible(true); return field.get(screen);
+    }
+
+    @Test void manualHistoryRefreshesRecentSearchAndCancelsOldPressWithoutMarkingACompletedScore() throws Exception {
+        long hash=1;
+        for(var set:library.all()) {
+            var diffs=new java.util.ArrayList<BeatmapDifficulty>();
+            for(var d:set.difficulties()) diffs.add(new BeatmapDifficulty(d.title(),d.artist(),d.creator(),d.version(),d.mode(),
+                    d.audioFilename(),d.backgroundFilename(),d.settings(),d.timingPoints(),d.hitObjects(),d.audioPath(),d.backgroundPath(),
+                    Path.of(set.id(),d.version()+".osu"),d.previewTimeMs(),new BeatmapPlayData(List.of(),0,String.format("%064x",hash++),"")));
+            library.add(new BeatmapSet(set.id(),set.title(),set.artist(),set.creator(),set.audioPath(),set.backgroundPath(),diffs,set.assets()));
+        }
+        open("Beta",0); screen.resize(1280,720); settle();
+        screen.browserMode(SongBrowserModel.Sort.RECENT,SongBrowserModel.Group.RECENT); settle();
+        var browser=(SongBrowserModel)field("browser"); var selected=browser.selection(); var diff=browser.selectedDifficulty();
+        assertEquals("Never Played",browser.rows().getFirst().label);
+        pointAtRow(1,0); pointerPressed=pointerClicked=true; updatePointer(1280,720,.016f);
+        assertNotNull(((SongSelectInputController)field("input")).pressedKey());
+        var id=java.util.UUID.randomUUID();
+        playHistory.start(id,dev.osujava.score.DifficultyIdentity.of("Beta",diff),BeatmapContentKey.of(diff),
+                System.currentTimeMillis(),dev.osujava.gameplay.GameplayRunMode.MANUAL);
+        pointerClicked=false; updatePointer(1280,720,.016f);
+        assertNull(((SongSelectInputController)field("input")).pressedKey());
+        pointerPressed=false; updatePointer(1280,720,.016f);
+        assertFalse(((UiNavigation)field("outgoing")).pending()); assertEquals(selected,browser.selection());
+        assertEquals("Today",browser.rows().getFirst().label);
+        assertNull(((SongSelectScoreSnapshot)field("scoreSnapshot")).best(browser.selectedSet(),diff));
+        screen.browserSearch("unplayed=",false);
+        assertTrue(browser.rows().stream().filter(r -> !r.group() && !r.excluded).noneMatch(r -> r.difficulty==diff));
+        screen.browserSearch("",false); assertEquals(selected,browser.selection());
+        var rows=browser.rows(); for(int frame=0;frame<60;frame++) updatePointer(1280,720,.016f); assertSame(rows,browser.rows());
+    }
+
+    @Test void historyReadFailureIsVisibleAndDoesNotRewriteDamagedRecords(@org.junit.jupiter.api.io.TempDir Path root) throws Exception {
+        var future=root.resolve(java.util.UUID.randomUUID()+".properties"); java.nio.file.Files.writeString(future,"schemaVersion=2\nfuture=true\n");
+        byte[] bytes=java.nio.file.Files.readAllBytes(future);
+        playHistory=new dev.osujava.score.LocalPlayHistory(root); open("Beta",0);
+        assertEquals("Some play history records could not be read.",field("toast"));
+        assertArrayEquals(bytes,java.nio.file.Files.readAllBytes(future)); screen.dispose();
+        var blocked=root.resolve("blocked"); java.nio.file.Files.writeString(blocked,"file");
+        playHistory=new dev.osujava.score.LocalPlayHistory(blocked); open("Beta",0);
+        assertEquals("Play history could not be saved or read.",field("toast"));
     }
     private void setField(String name, Object value) throws Exception {
         var field = SongSelectScreen.class.getDeclaredField(name); field.setAccessible(true); field.set(screen,value);

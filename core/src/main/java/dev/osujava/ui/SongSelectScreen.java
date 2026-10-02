@@ -89,6 +89,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final SongSelectScoreHover scoreHover = new SongSelectScoreHover();
     private final ScoreBrowserScroll scoreScroll = new ScoreBrowserScroll();
     private final SongSelectScoreSnapshot scoreSnapshot;
+    private final SongBrowserActivity activity;
     private List<BeatmapSet> librarySource;
     private final SongBrowserControls controls = new SongBrowserControls();
     private List<SongBrowserModel.Row> browserRows = List.of();
@@ -148,6 +149,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         renderer = new SongSelectRenderer(view, game.batch(), rowRenderer, playCookie);
         librarySource = game.library().all();
         browser = new SongBrowserModel(librarySource);
+        activity = new SongBrowserActivity(game.library(),game.playHistory(),game.localScores(),game.wallClock());
+        activity.refresh(); browser.activity(activity.facts(),game.wallClock());
         scores = new ScoreBrowserModel(game.localScores());
         scoreSnapshot = new SongSelectScoreSnapshot(game.localScores());
         sets = browser.librarySets();
@@ -240,6 +243,10 @@ public final class SongSelectScreen extends ScreenAdapter {
             audio = new SongSelectAudio(skin.resolver(), file -> Gdx.audio.newSound(file.handle()), game.audioVolumes());
             sound(SongSelectAudio.Cue.EXPAND);
         }
+        if(game.playHistory().status()==dev.osujava.score.LocalPlayHistory.Status.UNAVAILABLE)
+            showToast("Play history could not be saved or read.",UiTheme.ERROR);
+        else if(game.playHistory().status()==dev.osujava.score.LocalPlayHistory.Status.PARTIAL)
+            showToast("Some play history records could not be read.",UiTheme.MUTED);
     }
 
     private boolean scrollAtPointer(float amount) {
@@ -336,10 +343,13 @@ public final class SongSelectScreen extends ScreenAdapter {
     /** Input, model synchronization, animation and resource preparation precede drawing. */
     private boolean update(UiLayout layout, float delta) {
         var source = game.library().all();
-        if (!importing && source != librarySource) {
-            librarySource = source;
+        boolean libraryChanged = !importing && source != librarySource;
+        boolean activityChanged = !importing && activity.refresh();
+        if (libraryChanged || activityChanged) {
             cancelInput();
-            browser.library(source);
+            if(libraryChanged) browser.library(source);
+            librarySource = source;
+            browser.activity(activity.facts(),game.wallClock());
             syncBrowser(true);
         }
         wheelInput.dispatch();
@@ -997,6 +1007,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 if (failure != null) { showToast("Import failed: " + failure, UiTheme.ERROR); return; }
                 librarySource = game.library().all();
                 browser.library(librarySource);
+                activity.refresh(); browser.activity(activity.facts(),game.wallClock());
                 browser.select(finished.beatmapSet().id(), 0);
                 syncBrowser(true);
                 String message = existing ? "Already imported: " : "Imported: ";

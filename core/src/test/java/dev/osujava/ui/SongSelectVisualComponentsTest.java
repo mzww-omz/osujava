@@ -53,8 +53,7 @@ class SongSelectVisualComponentsTest {
             assertTrue(controls.click(b.x()+2,b.y()+2,1280,720,browser,requests::add));
             assertEquals(SongBrowserModel.Group.BPM,browser.group());
         }
-        assertEquals(List.of(SongBrowserControls.Tab.DIFFICULTY,SongBrowserControls.Tab.RECENT,
-                SongBrowserControls.Tab.COLLECTIONS),requests);
+        assertEquals(List.of(SongBrowserControls.Tab.DIFFICULTY,SongBrowserControls.Tab.COLLECTIONS),requests);
     }
     @Test void artistAndCreatorTabsCoupleSortButNoGroupingPreservesIt() {
         var browser = new SongBrowserModel(List.of()); var controls = new SongBrowserControls();

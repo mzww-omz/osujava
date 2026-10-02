@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
+import java.time.*;
+import java.util.function.Function;
 
 /** Compiled local predicates over one difficulty. No I/O, rating calculation or browser state. */
 final class SongBrowserQuery {
@@ -25,13 +27,20 @@ final class SongBrowserQuery {
     }
 
     // Common stable field syntax. Unsupported fields/malformed terms remain literal searches;
-    // date, score, mode conversion and rating predicates belong to later phase 10 work.
+    // Official server dates, mode conversion and rating still require actual sources.
     private static final Pattern FIELD = Pattern.compile("^([a-z]+)(==|!=|<=|>=|=|<|>)(.*)$");
     private static final Pattern NUMBER = Pattern.compile("[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)");
     private final List<Predicate<Document>> predicates;
+    private final Function<BeatmapDifficulty,SongBrowserActivity.Facts> activity;
+    private final long now;
+    private final ZoneId zone;
 
     SongBrowserQuery(String query) {
-        predicates = tokens(normalize(query)).stream().map(SongBrowserQuery::compile).toList();
+        this(query,d -> SongBrowserActivity.Facts.UNKNOWN,Clock.systemDefaultZone());
+    }
+    SongBrowserQuery(String query, Function<BeatmapDifficulty,SongBrowserActivity.Facts> activity, Clock clock) {
+        this.activity=activity; now=clock.millis(); zone=clock.getZone();
+        predicates = tokens(normalize(query)).stream().map(this::compile).toList();
     }
 
     boolean matches(Document document) { return predicates.stream().allMatch(p -> p.test(document)); }
@@ -61,11 +70,27 @@ final class SongBrowserQuery {
         return List.copyOf(result);
     }
 
-    private static Predicate<Document> compile(String token) {
+    private Predicate<Document> compile(String token) {
         var field = FIELD.matcher(token);
         if (field.matches()) {
             String name = field.group(1), operator = field.group(2), value = field.group(3);
             boolean equal = operator.equals("=") || operator.equals("==");
+            if (name.equals("unplayed") && value.isEmpty()) return d -> activity.apply(d.difficulty()).lastPlayedAt()==null;
+            if (name.equals("played") && NUMBER.matcher(value).matches()) {
+                double days=Double.parseDouble(value);
+                if(Double.isFinite(days)) return d -> {
+                    var facts=activity.apply(d.difficulty());
+                    return facts.lastPlayedAt()!=null && compare(facts.daysSincePlayed(now),operator,days);
+                };
+            }
+            // Local extension: import calendar date, not an official creation/ranked date.
+            if (name.equals("added")) try {
+                long date=LocalDate.parse(value).toEpochDay();
+                return d -> {
+                    var time=activity.apply(d.difficulty()).addedAt();
+                    return time!=null && compare(Instant.ofEpochMilli(time).atZone(zone).toLocalDate().toEpochDay(),operator,date);
+                };
+            } catch(DateTimeException ignored) { }
             // 06001405–1408 compare Contains to (operator == '='); other operators invert it.
             Predicate<Document> text = switch (name) {
                 case "title" -> d -> d.title().contains(value);

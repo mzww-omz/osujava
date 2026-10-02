@@ -15,7 +15,7 @@ final class SongBrowserControls {
         ALL("No grouping",SongBrowserModel.Group.NONE), DIFFICULTY("By Difficulty",null),
         ARTIST("By Artist",SongBrowserModel.Group.ARTIST,SongBrowserModel.Sort.ARTIST),
         CREATOR("By Creator",SongBrowserModel.Group.CREATOR,SongBrowserModel.Sort.CREATOR),
-        RECENT("Recently Played",null), COLLECTIONS("Collections",null);
+        RECENT("Recently Played",SongBrowserModel.Group.RECENT,SongBrowserModel.Sort.RECENT), COLLECTIONS("Collections",null);
         final String label;
         final SongBrowserModel.Group group;
         final SongBrowserModel.Sort sort;

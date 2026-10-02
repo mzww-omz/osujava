@@ -4,16 +4,18 @@ import dev.osujava.beatmap.*;
 import java.text.Normalizer;
 import java.util.*;
 import java.util.random.RandomGenerator;
+import java.time.*;
+import java.time.temporal.ChronoUnit;
 
 /** GL-free browser. Rebuilds only on state changes; identities never use display indices. */
 final class SongBrowserModel {
     enum Sort {
-        TITLE("Title"), ARTIST("Artist"), CREATOR("Creator"), BPM("BPM"), LENGTH("Length");
+        TITLE("Title"), ARTIST("Artist"), CREATOR("Creator"), BPM("BPM"), LENGTH("Length"), RECENT("Last Played"), ADDED("Date Added");
         final String label;
         Sort(String label) { this.label = label; }
     }
     enum Group {
-        NONE("No Grouping"), ARTIST("Artist"), CREATOR("Creator"), BPM("BPM"), LENGTH("Length");
+        NONE("No Grouping"), ARTIST("Artist"), CREATOR("Creator"), BPM("BPM"), LENGTH("Length"), RECENT("Recently Played");
         final String label;
         Group(String label) { this.label = label; }
     }
@@ -63,6 +65,14 @@ final class SongBrowserModel {
     private Group group = Group.NONE;
     private final Deque<Selection> history = new ArrayDeque<>();
     private final RandomGenerator random;
+    private Map<BeatmapDifficulty,SongBrowserActivity.Facts> activity=Map.of();
+    private Clock wallClock=Clock.systemDefaultZone();
+    private LocalDate today;
+    void activity(Map<BeatmapDifficulty,SongBrowserActivity.Facts> next, Clock clock) {
+        if(activity==next && wallClock==clock) return;
+        activity=next; wallClock=clock; rebuild();
+    }
+    private SongBrowserActivity.Facts facts(BeatmapDifficulty diff) { return activity.getOrDefault(diff,SongBrowserActivity.Facts.UNKNOWN); }
 
     SongBrowserModel(List<BeatmapSet> sets) { this(sets, RandomGenerator.getDefault()); }
     SongBrowserModel(List<BeatmapSet> sets, RandomGenerator random) { this.random = random; library(sets); }
@@ -285,7 +295,8 @@ final class SongBrowserModel {
         return selected == null ? null : visibleById.get(selected.setId());
     }
     private void rebuild() {
-        var query = new SongBrowserQuery(search);
+        today=LocalDate.now(wallClock);
+        var query = new SongBrowserQuery(search,this::facts,wallClock);
         Map<String, List<BeatmapDifficulty>> matching = new HashMap<>();
         for (var item : library) {
             var matches = item.difficulties().stream().filter(query::matches).map(SongBrowserQuery.Document::difficulty)
@@ -301,6 +312,8 @@ final class SongBrowserModel {
             case CREATOR -> Comparator.comparing(c -> c.fields.get(2));
             case BPM -> Comparator.comparingDouble(c -> maximumBpm(c.difficulty));
             case LENGTH -> Comparator.comparingInt(c -> c.difficulty.timingStatistics().lengthSeconds());
+            case RECENT -> Comparator.comparing((Chart c) -> facts(c.difficulty).lastPlayedAt(),Comparator.nullsLast(Comparator.reverseOrder()));
+            case ADDED -> Comparator.comparing((Chart c) -> facts(c.difficulty).addedAt(),Comparator.nullsLast(Comparator.reverseOrder()));
         };
         Comparator<Chart> ordering = primary.thenComparing(secondary);
         if (group != Group.NONE) ordering = Comparator.comparing((Chart c) -> bucket(c).order())
@@ -423,6 +436,12 @@ final class SongBrowserModel {
             case NONE -> new Bucket(0, "");
             case ARTIST -> initial(chart.difficulty.artist());
             case CREATOR -> initial(chart.difficulty.creator());
+            case RECENT -> {
+                var time=facts(chart.difficulty).lastPlayedAt();
+                long age=time==null ? Long.MAX_VALUE : Math.max(0,ChronoUnit.DAYS.between(Instant.ofEpochMilli(time).atZone(wallClock.getZone()).toLocalDate(),today));
+                int band=age==0 ? 0 : age==1 ? 1 : age<7 ? 2 : time!=null ? 3 : 4;
+                yield new Bucket(band,new String[]{"Today","Yesterday","Last 7 Days","Older","Never Played"}[band]);
+            }
             case BPM -> {
                 double bpm = maximumBpm(chart.difficulty);
                 int band = (int)Math.min(5,bpm/60);

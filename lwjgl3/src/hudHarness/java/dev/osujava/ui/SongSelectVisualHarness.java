@@ -243,6 +243,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                             "phase4-wheel-hover", "phase4-oversized-score", "phase4-resize", "phase4-partial-palette", "phasechrome-giant",
                             "phasechrome-transparent", "phase5a-state-save-reload"))
                         scenes.add(new Scene(size[0],size[1],size[2],name));
+            } else if (phase.equals("history-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
+                    for (String state : List.of("recent", "unplayed", "saved", "lifecycle"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"phase4-history-"+state));
             } else if (phase.equals("backend-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
@@ -607,7 +612,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     : (int)a[0] == Input.Buttons.RIGHT ? rightPressed[0] : (int)a[0] == Input.Buttons.MIDDLE && middlePressed[0];
             default -> m.getReturnType() == boolean.class ? false : m.getReturnType() == int.class ? 0 : null;
         });
-        var library = new BeatmapLibrary();
+        var wallClock=java.time.Clock.fixed(java.time.Instant.parse("2026-10-02T12:00:00Z"),java.time.ZoneOffset.UTC);
+        var library = new BeatmapLibrary(null,wallClock);
         int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern") || scene.name.equals("phase3-large-library") || scene.name.startsWith("phase4-large") || scene.name.startsWith("phase5a-state-large")) ? 1000 : 7;
         if (scene.name.equals("phase3-focus-page") || scene.name.startsWith("lifecycle-") || scene.name.startsWith("keyboard-")) setCount = 24;
         if (scene.name.equals("repair-empty")) setCount = 0;
@@ -681,6 +687,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 : new dev.osujava.score.LocalScoreStore();
         if (scene.name.startsWith("phase4")) populateScores(localScores, library, scene.name);
         if (scene.name.startsWith("phase5a")) populatePlayed(localScores,library,scene.name);
+        var playHistory = scene.name.startsWith("phase4-history-")
+                ? new dev.osujava.score.LocalPlayHistory(output.resolve("history/"+scene.width+"x"+scene.height+"-"+scene.density+"-"+scene.name))
+                : new dev.osujava.score.LocalPlayHistory();
+        if(scene.name.startsWith("phase4-history-")) populateHistory(playHistory,localScores,library,wallClock,scene.name);
         Screen[] destination = {null};
         dev.osujava.score.LocalPlayer[] player = {null};
         var game = new OsuJavaGame(null,null) {
@@ -692,6 +702,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             @Override public BeatmapLibrary library() { return library; }
             @Override public dev.osujava.score.LocalScoreStore localScores() { return localScores; }
             @Override public dev.osujava.score.LocalPlayer localPlayer() { return player[0]; }
+            @Override public dev.osujava.score.LocalPlayHistory playHistory() { return playHistory; }
+            @Override public java.time.Clock wallClock() { return wallClock; }
             @Override public Path skinDirectory() { return scene.name.equals("phasechrome-custom") ? customSkin
                     : scene.name.startsWith("phasechrome-current") ? Path.of("core/src/main/resources/skins/default").toAbsolutePath() : null; }
             @Override public Path skinFallbackDirectory() { return scene.name.equals("phasechrome-custom") ? null : output.resolve("fixtures/latest"); }
@@ -789,6 +801,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseGroupCards(screen, scene.name, pointer, clicked, pressed, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if(scene.name.startsWith("phase4-history-")) {
+                exerciseHistory(screen,scene,game,playHistory,localScores,library,pointer,clicked,pressed,layout,fb,name,destination);
+                fb.end(); advanceScene(); return;
+            }
             if (scene.name.startsWith("phase4-backend-")) {
                 exerciseBackend(screen,scene,game,library,localScores,player,pointer,clicked,pressed,layout,fb,name,destination);
                 fb.end(); advanceScene(); return;
@@ -2095,6 +2111,95 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
     private Path backendScoreDirectory(Scene scene) {
         return output.resolve("backend-scores/"+scene.width+"x"+scene.height+"-"+scene.density+"x-"+scene.name);
     }
+    private void populateHistory(dev.osujava.score.LocalPlayHistory history, dev.osujava.score.LocalScoreStore scores,
+                                 BeatmapLibrary library, java.time.Clock clock, String name) {
+        var sets=library.all();
+        if(name.endsWith("saved")) {
+            var set=sets.stream().filter(s -> s.id().equals("set3")).findFirst().orElseThrow(); var diff=set.difficulties().get(1);
+            scores.save(new dev.osujava.score.LocalScore(new UUID(7,1),dev.osujava.score.DifficultyIdentity.of(set.id(),diff),
+                    clock.millis()-3600000,new dev.osujava.gameplay.ScoreState(100000,100,100,100,0,0,0,1),scoreDetails(diff)),
+                    dev.osujava.gameplay.GameplayRunMode.MANUAL);
+            return;
+        }
+        for(int[] fixture:new int[][]{{3,1,0},{3,0,1},{0,1,10}}) {
+            var set=sets.stream().filter(s -> s.id().equals("set"+fixture[0])).findFirst().orElseThrow(); var diff=set.difficulties().get(fixture[1]);
+            var id=new UUID(7,fixture[0]*512L+fixture[1]+10);
+            long started=clock.millis()-fixture[2]*86400000L-60000;
+            history.start(id,dev.osujava.score.DifficultyIdentity.of(set.id(),diff),dev.osujava.beatmap.BeatmapContentKey.of(diff),
+                    started,dev.osujava.gameplay.GameplayRunMode.MANUAL);
+            history.finish(id,started+1000,fixture[2]==0 ? dev.osujava.score.LocalPlayHistory.Outcome.ABORTED
+                    : fixture[2]==1 ? dev.osujava.score.LocalPlayHistory.Outcome.COMPLETED : dev.osujava.score.LocalPlayHistory.Outcome.FAILED);
+        }
+    }
+    private void exerciseHistory(SongSelectScreen screen, Scene scene, OsuJavaGame game,
+                                 dev.osujava.score.LocalPlayHistory history, dev.osujava.score.LocalScoreStore scores,
+                                 BeatmapLibrary library, int[] pointer, boolean[] clicked, boolean[] pressed,
+                                 UiLayout layout, FrameBuffer fb, String name, Screen[] destination) {
+        var browser=(SongBrowserModel)screenField(screen,"browser"); var selection=browser.selection();
+        var diff=browser.selectedDifficulty(); var set=browser.selectedSet();
+        var tab=SongBrowserControls.tabBounds(layout.width(),layout.height(),SongBrowserControls.Tab.RECENT.ordinal());
+        pointer[0]=Math.round((tab.x()+tab.width()/2)*layout.scale());
+        pointer[1]=scene.height-Math.round((tab.y()+tab.height()/2)*layout.scale());
+        clicked[0]=pressed[0]=true; screen.render(1f/60); clicked[0]=pressed[0]=false; screen.render(1f/60);
+        if(browser.group()!=SongBrowserModel.Group.RECENT || browser.sort()!=SongBrowserModel.Sort.RECENT || !selection.equals(browser.selection()))
+            throw new AssertionError("Recently Played tab did not preserve chart selection");
+        if(!browser.rows().getFirst().group() || !browser.rows().getFirst().label.equals("Today"))
+            throw new AssertionError("Manual history/saved score not classified as Today");
+        if(!scene.name.endsWith("saved") && ((SongSelectScoreSnapshot)screenField(screen,"scoreSnapshot")).best(set,diff)!=null)
+            throw new AssertionError("An aborted attempt invented a completed score");
+        pointer[0]=40; pointer[1]=scene.height/2;
+        for(int frame=0;frame<24;frame++) { screen.render(1f/60); transitionFrames++; }
+        assertRenderedBounds(screen,layout); assertScoreClipping(screen,layout,fb); capture(fb,name);
+        if(scene.name.endsWith("unplayed")) {
+            screen.browserSearch("unplayed=",false);
+            for(var row:browser.rows()) if(!row.group() && !row.excluded) {
+                var key=dev.osujava.beatmap.BeatmapContentKey.of(row.difficulty);
+                if(history.lastPlayed(key)!=null || !scores.query(key).isEmpty()) throw new AssertionError("Unplayed search retained a played difficulty");
+            }
+        } else {
+            screen.browserSearch("played<1",false);
+            if(browser.visibleSets().size()!=1 || browser.selectedDifficulty()!=diff) throw new AssertionError("Played days predicate lost current chart");
+        }
+        for(int frame=0;frame<60;frame++) { screen.render(1f/60); transitionFrames++; assertRenderedBounds(screen,layout); }
+        var selectedRows=((List<?>)screenField(screen,"visibleRows")).stream().map(SongSelectRow.class::cast);
+        float top=(float)screenField(screen,"top"), bottom=(float)screenField(screen,"bottom");
+        if(selectedRows.noneMatch(row -> row.key().equals(browser.selectedKey()) && row.y()<top && row.y()+row.height()>bottom))
+            throw new AssertionError("History search left the selected row outside the carousel viewport");
+        capture(fb,name+"-search");
+        screen.browserSearch("",false);
+        screen.browserSearch("added=2026-10-02",false);
+        if(browser.visibleSets().size()!=library.all().size()) throw new AssertionError("Added date search discarded a known import date");
+        screen.browserSearch("",false);
+        if(!selection.equals(browser.selection())) throw new AssertionError("History/date search did not restore selection");
+        var rows=browser.rows(); for(int frame=0;frame<12;frame++) { screen.render(1f/60); transitionFrames++; }
+        if(rows!=browser.rows()) throw new AssertionError("Idle activity rebuilt browser rows");
+        if(scene.name.endsWith("saved") && history.revision()!=0) throw new AssertionError("Saved score fallback fabricated an attempt");
+        if(scene.name.endsWith("lifecycle")) {
+            long before=history.revision(), scoreRevision=scores.revision();
+            tapKey(Gdx.input.getInputProcessor(),Input.Keys.ENTER);
+            ((UiNavigation)screenField(screen,"outgoing")).advance(.2f);
+            if(!(destination[0] instanceof GameplayScreen gameplay)) throw new AssertionError("History fixture could not start gameplay");
+            destination[0]=null;
+            try {
+                var field=GameplayScreen.class.getDeclaredField("playId"); field.setAccessible(true); var id=(UUID)field.get(gameplay);
+                if(history.attempt(id)!=null) throw new AssertionError("Constructing gameplay recorded a play");
+                gameplay.show(); gameplay.show();
+                if(history.revision()!=before+1 || history.attempt(id).outcome()!=dev.osujava.score.LocalPlayHistory.Outcome.UNKNOWN)
+                    throw new AssertionError("Showing manual gameplay did not record exactly one start");
+                Gdx.input.getInputProcessor().keyDown(Input.Keys.ESCAPE);
+                if(!(destination[0] instanceof SongSelectScreen) || history.attempt(id).outcome()!=dev.osujava.score.LocalPlayHistory.Outcome.ABORTED)
+                    throw new AssertionError("Escape did not record abort before returning to Song Select");
+                var reopened=new dev.osujava.score.LocalPlayHistory(output.resolve("history/"+scene.width+"x"+scene.height+"-"+scene.density+"-"+scene.name));
+                if(!history.attempt(id).equals(reopened.attempt(id))) throw new AssertionError("Abort was lost on restart");
+            } catch(ReflectiveOperationException e) { throw new RuntimeException(e); }
+            finally { gameplay.dispose(); if(destination[0]!=null) { destination[0].dispose(); destination[0]=null; } }
+            long manualRevision=history.revision();
+            var debug=new GameplayScreen(game,set,diff,dev.osujava.gameplay.GameplayRunMode.DEBUG_AUTO);
+            try { debug.show(); debug.render(0); }
+            finally { debug.dispose(); }
+            if(history.revision()!=manualRevision || scores.revision()!=scoreRevision) throw new AssertionError("Debug Auto or abort saved a score/attempt");
+        }
+    }
     private void populateBackendScores(dev.osujava.score.LocalScoreStore store, BeatmapLibrary library, String name) {
         var set = library.all().stream().filter(b -> b.id().equals("set3")).findFirst().orElseThrow();
         var diff = set.difficulties().get(1);
@@ -2178,6 +2283,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         finally { gameplay.dispose(); }
     }
     private void populateScores(dev.osujava.score.LocalScoreStore store, BeatmapLibrary library, String name) {
+        if(name.startsWith("phase4-history-")) return;
         if (name.startsWith("phase4-backend-")) { populateBackendScores(store,library,name); return; }
         var set = library.all().stream().filter(b -> b.id().equals("set3")).findFirst().orElseThrow();
         int count = name.equals("phase4-empty") || name.equals("phase4-large-0") ? 0
