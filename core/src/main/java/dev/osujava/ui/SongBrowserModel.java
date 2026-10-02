@@ -41,8 +41,10 @@ final class SongBrowserModel {
     // Last directly activated Group anchors scrolling without replacing the playable selection.
     private String groupTargetKey, focusKey;
     private boolean revealSelection = true;
-    private record Indexed(BeatmapSet set, List<String> fields, double bpm, double length,
+    private record Indexed(BeatmapSet set, List<String> fields,
                            List<SongBrowserQuery.Document> difficulties) { }
+    private record Chart(Indexed item, BeatmapDifficulty difficulty) { }
+    private List<Chart> orderedCharts = List.of();
     private record Bucket(int order, String label) { }
     static final int HISTORY_LIMIT = 64;
     private List<Indexed> library = List.of();
@@ -63,12 +65,7 @@ final class SongBrowserModel {
     void library(List<BeatmapSet> sets) {
         library = sets.stream().map(set -> {
             List<String> fields = List.of(normalize(set.title()), normalize(set.artist()), normalize(set.creator()));
-            double bpm = set.difficulties().stream().flatMap(d -> d.timingPoints().stream())
-                    .filter(p -> p.uninherited() && p.beatLength() > 0 && Double.isFinite(p.beatLength()))
-                    .mapToDouble(p -> 60000 / p.beatLength()).filter(Double::isFinite).max().orElse(Double.NaN);
-            double length = set.difficulties().stream().filter(d -> !d.hitObjects().isEmpty())
-                    .mapToDouble(SongBrowserModel::objectSpan).filter(Double::isFinite).max().orElse(Double.NaN);
-            return new Indexed(set, fields, bpm, length,
+            return new Indexed(set, fields,
                     set.difficulties().stream().map(SongBrowserQuery.Document::of).toList());
         }).toList();
         snapshot = sets.stream().sorted(Comparator.comparing((BeatmapSet s) -> normalize(s.title()))
@@ -76,10 +73,14 @@ final class SongBrowserModel {
         rebuild();
     }
     List<BeatmapSet> librarySets() { return snapshot; }
-    private static double objectSpan(BeatmapDifficulty d) {
-        double first = d.hitObjects().stream().mapToDouble(HitObject::timeMs).filter(Double::isFinite).min().orElse(Double.NaN);
-        double last = d.hitObjects().stream().mapToDouble(HitObject::endTimeMs).filter(Double::isFinite).max().orElse(Double.NaN);
-        return Math.max(0, last - first);
+    /** 06003c95: raw maximum BPM, independently of the rounded common BPM search field. */
+    private static double maximumBpm(BeatmapDifficulty difficulty) {
+        if (difficulty.timingPoints().isEmpty()) return 0;
+        double minimumBeat = 5000;
+        for (var point : difficulty.timingPoints())
+            if (point.uninherited() && Double.isFinite(point.beatLength()) && point.beatLength() < minimumBeat)
+                minimumBeat = point.beatLength();
+        return minimumBeat == 0 ? 0 : 60000 / minimumBeat;
     }
     List<BeatmapSet> visibleSets() { return visible; }
     List<Entry> entries() { return entries; }
@@ -280,17 +281,22 @@ final class SongBrowserModel {
         matchingDifficulties = Map.copyOf(matching);
         Comparator<Indexed> secondary = Comparator.comparing((Indexed i) -> i.fields.get(0))
                 .thenComparing(i -> i.fields.get(1)).thenComparing(i -> i.fields.get(2)).thenComparing(i -> i.set.id());
-        Comparator<Indexed> primary = switch (sort) {
-            case TITLE -> secondary;
-            case ARTIST -> Comparator.comparing(i -> i.fields.get(1));
-            case CREATOR -> Comparator.comparing(i -> i.fields.get(2));
-            case BPM -> Comparator.comparingDouble(i -> i.bpm);
-            case LENGTH -> Comparator.comparingDouble(i -> i.length);
+        Comparator<Chart> primary = switch (sort) {
+            case TITLE -> Comparator.comparing(Chart::item, secondary);
+            case ARTIST -> Comparator.comparing(c -> c.item.fields.get(1));
+            case CREATOR -> Comparator.comparing(c -> c.item.fields.get(2));
+            case BPM -> Comparator.comparingDouble(c -> maximumBpm(c.difficulty));
+            case LENGTH -> Comparator.comparingInt(c -> c.difficulty.timingStatistics().lengthSeconds());
         };
-        Comparator<Indexed> ordering = primary.thenComparing(secondary);
-        if (group != Group.NONE) ordering = Comparator.comparing((Indexed i) -> bucket(i).order())
-                .thenComparing(i -> bucket(i).label()).thenComparing(ordering);
-        visible = library.stream().filter(i -> matchingDifficulties.containsKey(i.set.id())).sorted(ordering).map(Indexed::set).toList();
+        Comparator<Chart> ordering = primary.thenComparing(Chart::item, secondary);
+        if (group != Group.NONE) ordering = Comparator.comparing((Chart c) -> bucket(c).order())
+                .thenComparing(c -> bucket(c).label()).thenComparing(ordering);
+        // Sort difficulty records before taking the unique Set projection. Unmatched charts
+        // retain identity after the matching records, but cannot determine their order/family.
+        Comparator<Chart> finalOrdering = ordering;
+        orderedCharts = library.stream().flatMap(i -> i.set.difficulties().stream().map(d -> new Chart(i,d)))
+                .sorted(Comparator.comparing((Chart c) -> !matches(c.item.set,c.difficulty)).thenComparing(finalOrdering)).toList();
+        visible = orderedCharts.stream().filter(c -> matches(c.item.set,c.difficulty)).map(c -> c.item.set).distinct().toList();
         Map<String, BeatmapSet> nextById = new HashMap<>();
         for (var item : visible) nextById.put(item.id(), item);
         visibleById = Map.copyOf(nextById);
@@ -308,38 +314,37 @@ final class SongBrowserModel {
     private void expand() {
         Map<String, Row> retained = new LinkedHashMap<>();
         Map<String, List<Row>> children = new LinkedHashMap<>();
-        Map<String, Indexed> indexed = new HashMap<>();
-        for (var item : library) indexed.put(item.set.id(), item);
-        // Matching sets follow browser order. Excluded rows remain at the end, with state 0.
-        List<BeatmapSet> ordered = new ArrayList<>(visible);
-        for (var item : library) if (!visibleById.containsKey(item.set.id())) ordered.add(item.set);
-        for (var set : ordered) {
-            var matching = matchingDifficulties.getOrDefault(set.id(), List.of());
+        Row representative = null;
+        Map<String, Integer> familySizes = new HashMap<>();
+        for (var chart : orderedCharts) {
+            var set = chart.item.set;
+            var difficulty = chart.difficulty;
             Row parent = null;
             if (group != Group.NONE) {
-                Bucket bucket = bucket(indexed.get(set.id()));
+                Bucket bucket = bucket(chart);
                 String key = "group:" + group + ":" + bucket.label();
                 parent = retained.get(key);
                 if (parent == null) {
                     parent = rowsByKey.computeIfAbsent(key, Row::new);
-                    parent.label = bucket.label();
-                    parent.matchingChildren = 0;
-                    retained.put(key, parent);
-                    children.put(key, new ArrayList<>());
+                    parent.label = bucket.label(); parent.matchingChildren = 0;
+                    retained.put(key, parent); children.put(key, new ArrayList<>());
                 }
-                parent.matchingChildren += matching.size();
+                if (matches(set,difficulty)) parent.matchingChildren++;
             }
-            Row representative = null;
-            for (var difficulty : set.difficulties()) {
-                String key = rowKey(set.id(), difficultyId(difficulty));
-                Row row = rowsByKey.computeIfAbsent(key, Row::new);
-                row.set = set; row.difficulty = difficulty; row.parent = parent;
-                row.excluded = !matching.contains(difficulty);
-                if (representative == null && !row.excluded) representative = row;
-                row.representative = row.excluded ? null : representative;
-                retained.put(key, row);
-                if (parent != null) children.get(parent.key).add(row);
+            String key = rowKey(set.id(),difficultyId(difficulty));
+            Row row = rowsByKey.computeIfAbsent(key, Row::new);
+            row.set = set; row.difficulty = difficulty; row.parent = parent;
+            row.excluded = !matches(set,difficulty);
+            if (!row.excluded) {
+                // 06003257: a Group or a change of the preceding non-excluded family
+                // starts a new representative; non-adjacent records must not merge.
+                if (representative == null || representative.parent != parent || !representative.set.id().equals(set.id()))
+                    representative = row;
+                familySizes.merge(representative.key,1,Integer::sum);
             }
+            row.representative = row.excluded ? null : representative;
+            retained.put(key,row);
+            if (parent != null) children.get(parent.key).add(row);
         }
         Row selected = retained.get(selectedKey());
         if (revealSelection || openGroupKey != null && !retained.containsKey(openGroupKey)) {
@@ -362,7 +367,7 @@ final class SongBrowserModel {
                 boolean sameSet = selected != null && row.set.id().equals(selected.set.id());
                 row.state = row.excluded || row.parent != null && !row.parent.expanded ? RowState.HIDDEN
                         : row == selected ? RowState.SELECTED : sameSet ? RowState.EXPANDED
-                        : matchingDifficulties.getOrDefault(row.set.id(), List.of()).size() == 1 ? RowState.SINGLETON
+                        : row.representative != null && familySizes.getOrDefault(row.representative.key, 0) == 1 ? RowState.SINGLETON
                         : row == row.representative ? RowState.COLLAPSED : RowState.HIDDEN;
             }
             if (!row.visible()) continue;
@@ -390,21 +395,24 @@ final class SongBrowserModel {
         }
         return true;
     }
-    private Bucket bucket(Indexed item) {
+    private Bucket bucket(Chart chart) {
         return switch (group) {
             case NONE -> new Bucket(0, "");
-            case ARTIST -> initial(item.set.artist());
-            case CREATOR -> initial(item.set.creator());
+            case ARTIST -> initial(chart.difficulty.artist());
+            case CREATOR -> initial(chart.difficulty.creator());
             case BPM -> {
-                if (Double.isNaN(item.bpm)) yield new Bucket(Integer.MAX_VALUE, "Unknown BPM");
-                int band = (int)Math.min(6, item.bpm / 50);
-                yield new Bucket(band, band == 6 ? "300+ BPM" : band * 50 + "–<" + (band + 1) * 50 + " BPM");
+                double bpm = maximumBpm(chart.difficulty);
+                if (!Double.isFinite(bpm) || bpm < 0) yield new Bucket(Integer.MAX_VALUE, "Unknown BPM");
+                int band = (int)Math.min(5,bpm/60);
+                yield new Bucket(band,band == 5 ? "300+ BPM" : band*60 + "–<" + (band+1)*60 + " BPM");
             }
             case LENGTH -> {
-                if (Double.isNaN(item.length)) yield new Bucket(Integer.MAX_VALUE, "Unknown length");
-                double minutes = item.length / 60000;
-                int band = minutes < 2 ? 0 : minutes < 4 ? 1 : minutes < 6 ? 2 : minutes < 10 ? 3 : 4;
-                yield new Bucket(band, new String[]{"Under 2 minutes", "2–<4 minutes", "4–<6 minutes", "6–<10 minutes", "10+ minutes"}[band]);
+                int length = chart.difficulty.timingStatistics().lengthMs();
+                if (length < 0) yield new Bucket(Integer.MAX_VALUE,"Unknown length");
+                int band = length < 60000 ? 0 : length < 120000 ? 1 : length < 180000 ? 2
+                        : length < 240000 ? 3 : length < 300000 ? 4 : length < 600000 ? 5 : 6;
+                yield new Bucket(band,new String[]{"Under 1 minute","1–<2 minutes","2–<3 minutes",
+                        "3–<4 minutes","4–<5 minutes","5–<10 minutes","10+ minutes"}[band]);
             }
         };
     }

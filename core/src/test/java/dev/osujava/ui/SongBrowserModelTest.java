@@ -39,15 +39,15 @@ class SongBrowserModelTest {
         var model = new SongBrowserModel(List.of(set("z","X","B","A",120,1000),set("a","x","A","B",120,1000),set("b","X","A","A",120,1000)));
         assertEquals(List.of("b","a","z"),ids(model));
     }
-    @Test void numericSortUsesAllDifficultiesAndUnknownsLast() {
+    @Test void numericSortUsesDifficultyRecordsAndNativeZeroOrNegativeDefaults() {
         var low = set("a","A","Artist","Mapper",90,60000);
         var high = set("b","B","Artist","Mapper",240,180000);
         var multi = new BeatmapSet("multi","Multi","Artist","Mapper",null,null,
                 List.of(low.difficulties().getFirst(),high.difficulties().getFirst()),List.of());
         var model = new SongBrowserModel(List.of(multi, low, set("unknown","Unknown","","",0,-1)));
-        model.sort(SongBrowserModel.Sort.BPM); assertEquals(List.of("a","multi","unknown"),ids(model));
-        model.sort(SongBrowserModel.Sort.LENGTH); assertEquals(List.of("a","multi","unknown"),ids(model));
-        model.select("multi",0); model.sort(SongBrowserModel.Sort.BPM); assertEquals(List.of("a","multi","unknown"),ids(model));
+        model.sort(SongBrowserModel.Sort.BPM); assertEquals(List.of("unknown","a","multi"),ids(model));
+        model.sort(SongBrowserModel.Sort.LENGTH); assertEquals(List.of("unknown","a","multi"),ids(model));
+        model.select("multi",0); model.sort(SongBrowserModel.Sort.BPM); assertEquals(List.of("unknown","a","multi"),ids(model));
     }
     @ParameterizedTest @EnumSource(SongBrowserModel.Group.class)
     void groupEntriesHaveHeadersAndPreserveAllSets(SongBrowserModel.Group group) {
@@ -74,9 +74,9 @@ class SongBrowserModelTest {
         var model = new SongBrowserModel(List.of(set("a","A","","",99,119999),set("b","B","","",100,120000),
                 set("c","C","","",149,239999),set("d","D","","",300,600000),set("e","E","","",0,-1)));
         model.group(SongBrowserModel.Group.BPM);
-        assertEquals(List.of("50–<100 BPM","100–<150 BPM","300+ BPM","Unknown BPM"),headers(model));
+        assertEquals(List.of("0–<60 BPM","60–<120 BPM","120–<180 BPM","300+ BPM"),headers(model));
         model.group(SongBrowserModel.Group.LENGTH);
-        assertEquals(List.of("Under 2 minutes","2–<4 minutes","10+ minutes","Unknown length"),headers(model));
+        assertEquals(List.of("2–<3 minutes","4–<5 minutes","10+ minutes","Unknown length"),headers(model));
     }
     private List<String> headers(SongBrowserModel m) { return m.entries().stream().filter(e -> e.kind() == SongBrowserModel.Kind.GROUP_HEADER).map(SongBrowserModel.Entry::label).toList(); }
     @ParameterizedTest @ValueSource(strings={"Zulu", "alpha extra", "ALPHA EXTRA", "Beta Zulu 星", "  Beta Zulu  ", "", "   "})

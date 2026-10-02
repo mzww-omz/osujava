@@ -150,13 +150,13 @@ class SongBrowserSearchIntegrationTest {
         assertEquals(SongBrowserModel.RowState.HIDDEN,insane.state);
         browser.search("difficulty=hard"); assertEquals(SongBrowserModel.RowState.SINGLETON,hard.state);
         browser.group(SongBrowserModel.Group.ARTIST);
-        assertEquals(List.of(1,1),browser.rows().stream().filter(r -> r.group()).map(r -> r.matchingChildren).toList());
+        assertEquals(List.of(2),browser.rows().stream().filter(r -> r.group()).map(r -> r.matchingChildren).toList());
         browser.selectSet(first.id()); assertSame(first.difficulties().get(1),browser.selectedDifficulty());
         browser.select(first.id(),0); assertSame(first.difficulties().get(1),browser.selectedDifficulty(),"Excluded rows cannot be selected");
         browser.moveSet(1); assertEquals(second.id(),browser.selectedSet().id());
         assertEquals("Hard",browser.selectedDifficulty().version());
         browser.search(""); assertSame(easy,browser.row(easy.key)); assertSame(easy,hard.representative);
-        assertEquals(List.of(3,3),browser.rows().stream().filter(r -> r.group()).map(r -> r.matchingChildren).toList());
+        assertEquals(List.of(6),browser.rows().stream().filter(r -> r.group()).map(r -> r.matchingChildren).toList());
     }
 
     @Test void randomAndHistoryNeverSelectAnExcludedDifficultyAndClearRestoresSelection() throws Exception {
