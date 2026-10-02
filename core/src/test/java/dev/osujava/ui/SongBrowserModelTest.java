@@ -177,7 +177,9 @@ class SongBrowserModelTest {
 
     @Test void relativeNavigationCrossesSetBoundaryAtLastOrFirstDifficulty() {
         var first = fixture().getFirst();
-        var extra = fixture().get(1).difficulties().getFirst();
+        var base = first.difficulties().getFirst();
+        var extra = new BeatmapDifficulty(base.title(),base.artist(),base.creator(),"Second",0,"","",base.settings(),
+                base.timingPoints(),base.hitObjects(),null,null,Path.of("a/second.osu"));
         var multiple = new BeatmapSet(first.id(), first.title(), first.artist(), first.creator(),
                 null, null, List.of(first.difficulties().getFirst(), extra), List.of());
         var model = new SongBrowserModel(List.of(multiple, fixture().get(2)));

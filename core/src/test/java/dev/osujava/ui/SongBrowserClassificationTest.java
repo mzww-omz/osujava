@@ -6,6 +6,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SongBrowserClassificationTest {
@@ -17,6 +18,19 @@ class SongBrowserClassificationTest {
     }
     private BeatmapSet set(String id, BeatmapDifficulty... charts) {
         return new BeatmapSet(id,id,"Artist","Mapper",null,null,List.of(charts),List.of());
+    }
+    @ParameterizedTest @EnumSource(value=SongBrowserModel.Sort.class,names={"TITLE","ARTIST","CREATOR"})
+    void textualSortUsesDifficultyMetadataInsteadOfTheSetSummary(SongBrowserModel.Sort sort) {
+        var base = chart("base",120,100000);
+        var alpha = new BeatmapDifficulty("Alpha","Alpha","Alpha","alpha",0,"","",null,
+                base.timingPoints(),base.hitObjects(),null,null,Path.of("alpha.osu"));
+        var zebra = new BeatmapDifficulty("Zebra","Zebra","Zebra","zebra",0,"","",null,
+                base.timingPoints(),base.hitObjects(),null,null,Path.of("zebra.osu"));
+        var z = new BeatmapSet("Z","Zebra","Zebra","Zebra",null,null,List.of(alpha),List.of());
+        var a = new BeatmapSet("A","Alpha","Alpha","Alpha",null,null,List.of(zebra),List.of());
+        var browser = new SongBrowserModel(List.of(a,z)); browser.sort(sort);
+        assertEquals(List.of("Z","A"),browser.visibleSets().stream().map(BeatmapSet::id).toList());
+        assertSame(alpha,browser.rows().getFirst().difficulty);
     }
     @Test void numericSortAndRepresentativeUseMatchingChartsInsteadOfTheMaximumOfASet() {
         var slow = chart("slow",90,100000); var fast = chart("fast",240,180000);

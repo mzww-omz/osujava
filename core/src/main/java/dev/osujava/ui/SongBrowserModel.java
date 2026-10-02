@@ -41,9 +41,12 @@ final class SongBrowserModel {
     // Last directly activated Group anchors scrolling without replacing the playable selection.
     private String groupTargetKey, focusKey;
     private boolean revealSelection = true;
-    private record Indexed(BeatmapSet set, List<String> fields,
-                           List<SongBrowserQuery.Document> difficulties) { }
-    private record Chart(Indexed item, BeatmapDifficulty difficulty) { }
+    private record Indexed(BeatmapSet set, List<SongBrowserQuery.Document> difficulties) { }
+    private record Chart(Indexed item, BeatmapDifficulty difficulty, List<String> fields) {
+        Chart(Indexed item, BeatmapDifficulty difficulty) {
+            this(item,difficulty,List.of(normalize(difficulty.title()),normalize(difficulty.artist()),normalize(difficulty.creator())));
+        }
+    }
     private List<Chart> orderedCharts = List.of();
     private record Bucket(int order, String label) { }
     static final int HISTORY_LIMIT = 64;
@@ -63,11 +66,8 @@ final class SongBrowserModel {
     SongBrowserModel(List<BeatmapSet> sets) { this(sets, RandomGenerator.getDefault()); }
     SongBrowserModel(List<BeatmapSet> sets, RandomGenerator random) { this.random = random; library(sets); }
     void library(List<BeatmapSet> sets) {
-        library = sets.stream().map(set -> {
-            List<String> fields = List.of(normalize(set.title()), normalize(set.artist()), normalize(set.creator()));
-            return new Indexed(set, fields,
-                    set.difficulties().stream().map(SongBrowserQuery.Document::of).toList());
-        }).toList();
+        library = sets.stream().map(set -> new Indexed(set,
+                set.difficulties().stream().map(SongBrowserQuery.Document::of).toList())).toList();
         snapshot = sets.stream().sorted(Comparator.comparing((BeatmapSet s) -> normalize(s.title()))
                 .thenComparing(s -> normalize(s.artist())).thenComparing(s -> normalize(s.creator())).thenComparing(BeatmapSet::id)).toList();
         rebuild();
@@ -292,16 +292,16 @@ final class SongBrowserModel {
             if (!matches.isEmpty()) matching.put(item.set().id(), matches);
         }
         matchingDifficulties = Map.copyOf(matching);
-        Comparator<Indexed> secondary = Comparator.comparing((Indexed i) -> i.fields.get(0))
-                .thenComparing(i -> i.fields.get(1)).thenComparing(i -> i.fields.get(2)).thenComparing(i -> i.set.id());
+        Comparator<Chart> secondary = Comparator.comparing((Chart c) -> c.fields.get(0))
+                .thenComparing(c -> c.fields.get(1)).thenComparing(c -> c.fields.get(2)).thenComparing(c -> c.item.set.id());
         Comparator<Chart> primary = switch (sort) {
-            case TITLE -> Comparator.comparing(Chart::item, secondary);
-            case ARTIST -> Comparator.comparing(c -> c.item.fields.get(1));
-            case CREATOR -> Comparator.comparing(c -> c.item.fields.get(2));
+            case TITLE -> secondary;
+            case ARTIST -> Comparator.comparing(c -> c.fields.get(1));
+            case CREATOR -> Comparator.comparing(c -> c.fields.get(2));
             case BPM -> Comparator.comparingDouble(c -> maximumBpm(c.difficulty));
             case LENGTH -> Comparator.comparingInt(c -> c.difficulty.timingStatistics().lengthSeconds());
         };
-        Comparator<Chart> ordering = primary.thenComparing(Chart::item, secondary);
+        Comparator<Chart> ordering = primary.thenComparing(secondary);
         if (group != Group.NONE) ordering = Comparator.comparing((Chart c) -> bucket(c).order())
                 .thenComparing(c -> bucket(c).label()).thenComparing(ordering);
         // Sort difficulty records before taking the unique Set projection. Unmatched charts
