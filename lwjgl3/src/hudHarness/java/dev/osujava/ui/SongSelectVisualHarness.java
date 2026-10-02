@@ -298,11 +298,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
                     for (String name : List.of("threshold", "right", "context", "chord"))
                         scenes.add(new Scene(size[0],size[1],size[2],"pointer-" + name));
-            } else if (phase.equals("activation-contracts")) {
+            } else if (phase.equals("activation-contracts") || phase.equals("row-input-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
                     for (String name : List.of("left", "right", "middle"))
-                        scenes.add(new Scene(size[0],size[1],size[2],"activation-" + name));
+                        scenes.add(new Scene(size[0],size[1],size[2],
+                                (phase.equals("row-input-contracts") ? "activation-canvas-" : "activation-") + name));
             } else if (phase.equals("drag-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1920,1080,1},{1280,720,2},{1024,768,1}})
@@ -719,7 +720,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 resolver = SkinAssetResolver.withBundledDefault(dir, null);
             } catch (Exception e) { throw new RuntimeException(e); }
         }
-        if (scene.name.startsWith("repair-row-hit")) {
+        if (scene.name.startsWith("repair-row-hit") || scene.name.startsWith("activation-canvas-")) {
             try {
                 Path dir = Files.createDirectories(output.resolve("fixtures/" + scene.name));
                 Files.writeString(dir.resolve("skin.ini"), "[General]\nVersion: 2.2\n");
@@ -1640,9 +1641,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         pointerRow(screen, 2, -1, pointer, layout, scene.height);
         clicked[0] = pressed[0] = !middleCase && !rightCase;
         middle[0] = middleCase; right[0] = rightCase;
-        screen.render(0); transitionFrames++;
+        screen.render(scene.name.startsWith("activation-canvas-") ? .016f : 0); transitionFrames++;
         clicked[0] = pressed[0] = middle[0] = right[0] = false;
-        screen.render(0); transitionFrames++;
+        screen.render(scene.name.startsWith("activation-canvas-") ? .016f : 0); transitionFrames++;
         if (pending(screen) || !browser(screen).selectedSet().id().equals("set2"))
             throw new AssertionError("First release must expand the Set without playing");
         capture(fb, name + "-expanded");
