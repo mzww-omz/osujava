@@ -1,5 +1,7 @@
 # B04: ローカルCollectionsとBeatmap Options
 
+Options入口の配置・6項目dialog・animationは後続の[selector修復記録](songselect-selectors-20261003.md)を参照。Collection backend/manager内の操作は本書の実装を維持する。
+
 2026-10-03、開始HEAD `2292fdd`。[backend改善計画](songselect-backend-improvement-plan-20261002.md)のB04を実装した。
 完全ローカル、Java 21/libGDX/LWJGL3、Importer / Gameplay / Renderer / Ruleset / GameClockの責務分離を維持する。
 アプリへのネットワーク接続・公式asset抽出/再配布は追加していない。

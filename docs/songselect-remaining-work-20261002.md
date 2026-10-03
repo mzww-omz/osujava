@@ -8,6 +8,9 @@ stableとの完全一致は未達成。
 2026-10-03：B05のNM circle/spinner・検証済みlegacy curve Slider星計算とDifficulty UIを接続済み。
 対応範囲・数値検証・次のsource品質/timing作業は[B05実装記録](songselect-backend-difficulty-20261003.md)を参照。
 
+2026-10-03：Mode/Mods/Optionsの旧band/入口をstableの縦flyout・3段Mods・6項目Optionsへ修復。
+[selector修復・検証記録](songselect-selectors-20261003.md)を参照。未対応の機能は無効のままです。
+
 ## 前回閉じた実装漏れ
 
 | 問題 | 修復・設計判断 | 回帰確認 |
@@ -64,7 +67,7 @@ B04（local Collections CRUD・membership・Collections tab/Group・Manage Colle
 | R04 / P1 / 追加観測 | Back/下部buttonのraw hover矩形、透明部分のhit、静的/連番provider競合、壊れたHD時の探索停止を修復済み。INI owner/mask、音alias、focus時の連番時計は未確定 | nativeと同期した異寸法連番・focus/復帰の比較でframe/crop/hit/時計を確認。INI・音のownerを独立に確定。旧台帳V08–V13参照 |
 | R05 / P1 / 追加観測 | metadata typography/font metrics、全frame合成。AWTとnative GDIの差、独自5行構成、Greylooks fallbackと公式defaultの差 | 再配布可能な同一font/skinでLatin/CJK/結合文字・長文を720/800/768高で比較。baseline・省略・影・originを測定して調整。公式素材の抽出で埋めない |
 | R06 / P1 / backend依存 | B05でNM v6+ circle/spinnerとv8+検証済みlegacy curve Slider星を独立計算・永続cacheから供給済み。未検証path/timing/処理上限超過/他mode/pre-v6/Mods/範囲外設定はunknown。本当のranked statusはlocal sourceなし | Linear/Bezier/Perfect/Catmull/mixedのpath/nested/lazy cursorは照合済み。HitObject skip情報は伝播済み。次はsetting/timingのsource品質、SV丸め/NaN/同時刻timing、pre-v8 tick距離、実大規模libraryでのwork budget評価。stable実機の数値照合も未実施。ranked statusは実metadataがある場合のみ接続 |
-| R07 / P1 / backend依存 | Recently Playedと日時検索はB03、Collections tab/GroupとOptionsのcollection管理はB04で接続済み。B05のDifficulty tab/sort/group/stars検索も接続済み。通常Mods/他mode、譜面/score削除等は未実装 | 次はB05 source品質/timingと大規模処理上限の検証。管理拡張はB09。Recently Played境界とnative collection manager/editorの寸法・animationは追加観測 |
+| R07 / P1 / backend依存 | Recently Playedと日時検索はB03、Collections tab/GroupとOptionsのcollection管理はB04で接続済み。B05のDifficulty tab/sort/group/stars検索も接続済み。Mode/Mods/Optionsの入口の配置・dialog animationは修復済み。通常Mods/他mode、譜面/score削除等は未実装 | 次はB05 source品質/timingと大規模処理上限の検証。管理拡張はB09。Recently Played境界とnative collection manager/editorの寸法・animationは追加観測 |
 | R08 / P2 / 観測・backend依存 | 新規scoreのplayer/Mods/rulesetをschema 3へ保存しranking/Resultsへ接続済み。現GameplayはNMのみ、旧scoreの未収集情報はunknown。replay、score native座標/grade配置/managerの全比較、barのnative形状・連続scroll・track操作は未完了 | score専用native managerを0/1/多数/選択/hoverで比較。通常ModsはB07、実replayはB08で収集後に接続。carousel barとscore barを分けて寸法/hit/scrollを検証。旧V17/V18 |
 | R09 / P2 / 追加観測 | 同frameの選曲/音声更新と、失敗音源の選択変更時のみ1回再試行を修復済み。同一audio pathの健康なstreamは継続。別PreviewTime、未指定seek=0、loop/focus/Gameplay復帰のnative契約は未確定 | 同一音源で別PreviewTime、失敗後再選択、focus/minimize、Gameplay短時間往復を観測。位置・再生/停止・fade・再試行をfake Music testへ落とす。旧T01/T02 |
 | R10 / P2 / layout方針 | chromeの安全上限とrow scissorはnativeとの差。極端なportraitではscore幅0で非表示になる | 正常skinのnative clipと巨大/異常skinの安全方針を区別。portraitを対応対象にする場合は専用レイアウト方針とresize回帰を追加 |
@@ -77,15 +80,17 @@ R03は共通resolverへの影響が広いため、option/display/reloadの未確
 
 ## Asset / dead code 状況
 
-[全面棚卸し](songselect-full-audit-20261002.md#skin-asset棚卸し)の48画像・12音声の分類を継続。
-新たな画像loadや削除はない。ranking barはproceduralの既存要素を入力へ接続した。
+[全面棚卸し](songselect-full-audit-20261002.md#skin-asset棚卸し)の49画像・12音声の分類を継続。
+selector修復で既存の`selection-mod-scorev2`（SD/@2x）を追加接続。公式素材の追加はない。ranking barはproceduralの既存要素を入力へ接続した。
 online/replay/silver gradeは実データ・機能がないため意図的に未接続。
-新規scoreの明示local playerと既知NMはB02で文字表示へ接続。通常Modsの効果・iconはB07まで未接続。
+新規scoreの明示local playerと既知NMはB02で文字表示へ接続。通常ModsのGameplay効果・score欄iconはB07まで未接続。selector内のiconは表示する。
 `star2`の透明fallback、独自mode glyph、missing grade/star/chrome fallbackを維持。
 旧body scan等のobsolete削除は前回対応済み。今回、Backのalpha map/getter/連番ごとのPixmap再decodeを削除。
 Selectionのalpha範囲は画像診断に使用するがinputには使用しない。画像・音の使用分類は維持する。
 
 ## 最新の検証・commit
+
+Mode/Mods/Optionsは[selector修復記録](songselect-selectors-20261003.md)に最新のbuild・GL harness・commitを記録。
 
 [backend実装進捗](songselect-backend-progress-20261002.md)と
 [B03履歴・日時の実装記録](songselect-backend-history-20261002.md)、

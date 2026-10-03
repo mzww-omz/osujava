@@ -1,5 +1,7 @@
 # Song Select Phase 5A
 
+2026-10-03更新: 本書の旧flat band/Options未接続の記述は当時の履歴です。現在は[stable selector修復記録](songselect-selectors-20261003.md)を参照してください。
+
 Native toolbox placement was subsequently audited and corrected in [the placement follow-up](songselect-placement.md), with a complete SD/HD/margin/provider inventory. The verification counts below describe the original Phase 5A run.
 
 ## References and inventory

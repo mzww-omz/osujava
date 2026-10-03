@@ -60,7 +60,7 @@ AssetResolver / Toolbox / ScoreBrowser / LocalScoreStore / Preview / Audio / thu
 
 ## skin asset棚卸し
 
-画像48名すべてのconsumer、SD/HD実寸、整数logical寸法、providerを
+画像49名（2026-10-03にScoreV2を追加接続）のconsumer、SD/HD実寸、整数logical寸法、providerを
 [一覧TSV](songselect-full-audit-assets-20261002.tsv)へ記録した。
 @2xは各provider内で先に探し、current→configured fallback→bundled。
 CURSOR_MIDDLEだけはcursorのproviderへ結合する既存契約を維持する。
@@ -73,7 +73,7 @@ Menu背景のalpha scan削除は、top/Back/selectionの必要なalpha測定を�
 | 1 使用中: 下操作 | `selection-mode/mods/random/options`と各`-over` |
 | 1 使用中: 上操作・装飾 | `selection-tab`, `star2`, `cursor`, `cursortrail`, 条件付き`cursormiddle` |
 | 1 使用中: mode family | `mode-osu/taiko/fruits/mania`、各`-small`、各`-med`: 拍装飾、下部/行、selector |
-| 1 使用中: Mods selector | `selection-mod-nofail/easy/halftime/hidden/hardrock/suddendeath/doubletime/flashlight/relax/relax2/spunout/autoplay`。UI画像は使用するがGameplay有効化は不可 |
+| 1 使用中: Mods selector | `selection-mod-nofail/easy/halftime/hidden/hardrock/suddendeath/doubletime/flashlight/relax/relax2/spunout/autoplay/scorev2`。UI画像は使用するがGameplay有効化は不可 |
 | 2 意図的に未使用 | `rank-forum`等のonline機能、silver grade（visibility Modsがない）、replay/player/avatar/mods-score欄。`menu-background`はSong Select loader対象外でローカル譜面背景を使う。Results/HUD用の大きいranking画像やscore digit画像もこの一覧の対象外。不要なloadを追加しない |
 | 3 実装漏れ | loaderにあるが一切描画先がない画像は0。既存rankingとgrade等を新規実装扱いにはしない。hoverの時間変化とindicator、shared clipの接続漏れを修復 |
 | 4 fallbackのみ | bundledの12 mode画像はmissing/1px placeholderから生成glyphへ置換。custom画像があればそれを使用。欠損starは生成星、gradeは文字、chrome/buttonsはprocedural代替。bundled `star2`は透明1pxなので装飾が見えない。customの透明replacementは意図を尊重 |

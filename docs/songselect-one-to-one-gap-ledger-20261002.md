@@ -60,7 +60,7 @@ Quota懸念を受け、今回もWine等の起動検証は行っていない。
 | V18 / 差確定・未確定 | Java score barは幅3×scale、最小thumb18×scale。既存thumbへのdrag入力は接続済み。carousel barを含むnative形状/連続scroll/track契約は未確定 | carouselとscoreを別々に、0/少数/多数、端/中間位置でbar geometryとdrag操作を比較 |
 | V19 / 差確定・未確定 | Java Cookieは生成ロゴと独自のbeat/hover/pressed半径、bottom限定hit | 自作の許可素材でorigin、動く境界、重なり、click範囲を比較。公式ロゴ抽出で差を隠さない |
 | V20 / 未確定 | 背景の暗化・切替、粒子、拍同期、入退場の全native経路は閉じていない | 同一音源・背景、静止/選択変更/無音/連打でphase、fade曲線、合成順を比較。Javaの.22秒fade等は当面の値として扱う |
-| V21 / 差確定・機能依存 | Java Mode/Modsは独自の帯・tile・Unavailable表示。通常Modsはactive空、toggleはfalse。Optionsは案内のみ | native selectorのgeometry/時間/キー/close/状態適用を比較。実機能と外観を別の完了項目にする |
+| V21 / 部分対応・機能依存 | 2026-10-03: Mode縦flyout、Mods3段とReset/Close、Options6色付き項目を接続。native dialog幅/pitch/交互OutBounce/遅延/closeを反映。詳細は[selector修復記録](songselect-selectors-20261003.md)。通常Mods・他modeとOptions 2–5は無効 | native実機とのfont/影/ボタン色・hover/音・Mode寸法とanimationの同期比較。Collection manager内部は独自UI。実機能はB07/B09と分離して継続 |
 | V22 / 部分対応 | local/debug案内をdebugUi設定に限定し、Options hoverの常設Unavailable文字を除去。Import・生成Cookie・未対応操作後の案内は残る | 通常比較画面の余分な文字・矩形とローカル機能の差を記録。診断表示を別条件として扱う |
 
 ### 通常SelectPlayのtab構成と境界（実装後）

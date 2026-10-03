@@ -53,7 +53,7 @@ java -jar lwjgl3/build/libs/osujava-0.1.0-all.jar
 | 文字入力 / `Backspace` | 検索 / 検索文字の削除 |
 | 検索中の `Enter` / `Escape` | 検索入力を終了 |
 | `F2` / `Shift+F2` | 検索結果内のRandom / 前のRandom選択へ戻る |
-| `F1` / `F3` | Modsの未対応一覧 / Optionsの未対応案内 |
+| `F1` / `F3` | Mods選択画面 / Beatmap Options（未対応操作は無効） |
 | `F6` | 開発確認用Debug Autoを開始 |
 
 右側の譜面一覧はホイールや行のドラッグでスクロールできます。ホイールは選択を変えず、スクロールバーは位置を示します。右上のGroup / SortではArtist、Creator、BPM、Lengthによる分類・並べ替えができ、SortにはTitleもあります。選択した譜面のローカル音声をプレビュー再生します。
@@ -185,6 +185,7 @@ Song Selectは `SongBrowserModel` が検索・分類・選択、Input関連ク�
 - NoModのScoreV1、Geki / Katu、入力誤差統計を実装していますが、stableとの全体的な1:1互換は未達です。Spinner物理・加点、判定の時系列処理などに残る差があります。
 - HP drain・fail判定は未実装で、実プレイのHP・pass・RPM記録は未収集です。HPグラフは実データがある場合だけ描画する構造です。
 - 星評価はNM standardのv6以降のcircle/spinnerと、v8以降の検証済みLinear/Bezier/Perfect/Catmull/mixed Sliderに対応し、Difficulty tab/sort/groupと `stars` 検索へ接続しています。HitObject行のskipがあるchart、未検証path/timing・処理上限超過・Mods等のchartは星なしです。[対応範囲と検証](docs/songselect-backend-difficulty-20261003.md)を参照してください。
+- Modeは左下の縦型メニュー、Modsは3段の全画面ダイアログ、Optionsは6項目の番号付きダイアログを表示します。開閉・hover・アニメーションと入力領域を共有し、未対応項目は無効です。[stable調査・検証記録](docs/songselect-selectors-20261003.md)を参照してください。
 - ModsのGameplay効果、Replay記録・再生と `.osr` Import / Export、Editor、taiko / catch / maniaのGameplayは未実装です。Optionsはlocal Collection管理に対応し、譜面/score削除等は未対応です。
 - 現譜面の順位は内容hashが一致したローカルscoreを対象とし、hashなしの旧scoreは未検証legacy行として扱います。異なる採点方式・条件の順位分離は未完了です。
 
