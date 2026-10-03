@@ -34,3 +34,16 @@ tasks.register('songSelectPerformanceProbe', JavaExec) {
     javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
     jvmArgs '-Xms512m', '-Xmx512m'
 }
+
+// Opt-in hashed-source worker/cache publication measurement; never launched by build/test.
+tasks.register('localDifficultyPerformanceProbe', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.osujava.difficulty.LocalDifficultyPerformanceProbe'
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+    jvmArgs '-Xms512m', '-Xmx512m'
+    for (def option : ['Count', 'Duplicates', 'TimeoutSeconds']) {
+        def name = "difficultyProbe${option}"
+        if (project.hasProperty(name)) systemProperty "osujava.${name}", project.property(name)
+    }
+}
