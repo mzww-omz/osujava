@@ -10,8 +10,10 @@
 [skills/evaluators](https://github.com/ppy/osu/tree/4e96853c7543f80a1b822ccd381943c7377543d7/osu.Game.Rulesets.Osu/Difficulty)
 を根拠に独立実装する。現行2026のalgorithm、またはstableの全譜面との同値は主張しない。
 
-初期対応は **NM、mode 0、format v6以降、circle/spinnerのみ、CS/AR/OD 0–10、StackLeniency 0–1**。
-Slider・他mode・pre-v6・未検証の範囲はUNSUPPORTEDとして数値を供給しない。
+現在は **NM、mode 0、CS/AR/OD 0–10、StackLeniency 0–1**。
+format v6以降のcircle/spinnerに加え、**v8以降の検証済みLinear Slider**を含むchartへ拡張した。
+未検証のcurve/settings/timing・他mode・pre-v6はchart全体をUNSUPPORTEDとして数値を供給しない。
+Linearの具体的範囲と追加検証は後述「Linear Sliderへの拡張」を参照。
 計算済み空chartはSUCCESSの0星、1object chartはreferenceの非zero値を保持する。
 PENDING/UNSUPPORTED/FAILEDは星なし。object数/BPMだけの疑似星は導入しない。
 
@@ -27,16 +29,16 @@ interruptはcancelとして扱い、失敗ratingに変換しない。
 ## Reference再生成とテスト
 
 [oracle説明](../tools/difficulty-reference/README.md)の手順で公開C#処理を一時directoryに取得し、
-自作12fixtureの値を生成した。stable asset抽出なし。app/build/testのnetwork接続なし。
+自作24fixtureの値を生成した。stable asset抽出なし。app/build/testのnetwork接続なし。
 通常JUnitはcheck-in済み値だけを使用する。
 
 許容差は比較前に固定した。star/aim/speedはabsolute 1e-9、object/sectionはabsolute 1e-7＋relative 1e-9、
 stack高さは完全一致。empty/single/pair/three/jumps/stream/rhythm/simultaneous/stacks/spinner/gaps/
-fractional settings/coordinatesについて一致した。
+fractional settings/coordinatesと、後述する12種のLinear fixtureについて一致した。
 
 ## 残件
 
-- Slider path、tick/repeat/tail、lazy cursor/travel/minimum jumpの公開reference中間値と照合して対応を拡張する。
+- 次はBezier/perfect/Catmull/mixed segmentのpathと、未検証のtiming/tick境界をoracleから拡張する。Linearの中間値は照合済み。
 - pre-v6 stacking、範囲外settings、Mods別計算の検証。
 - stable実機での数値比較、Difficulty group境界・NM/Mod適用範囲の観測。
 - 全B05受入はslider fixture等を含む。circle/spinnerの照合だけでB05全体完了とはしない。
@@ -90,7 +92,7 @@ Sort/Group/searchがratingに依存しなければbrowserをrebuildしない。
 比較用ratingはrebuild時にchartごと1回取得し、sortの全比較ごとのprovider取得/boxingを避ける。
 図形/文字の既存viewport reservation・row hitbox・chrome z-orderを変更していない。
 
-## 最終検証と変更ファイル
+## 初期circle/spinner対応時の検証と変更ファイル（履歴）
 
 - `./gradlew build`: SUCCESS。core **145 suites / 1,386 tests**、lwjgl3 **2 suites / 4 tests**。
   failure/error/skip 0。最終log `/tmp/osujava-b05-final-build.log`。
@@ -135,10 +137,10 @@ commit:
 
 ## 次の作業に渡す未完了項目
 
-1. **Sliderを含むchartは全体がUNSUPPORTED**。circle部分だけを計算して混合chartの星を作らない。
-   oracleのSlider adapterを本物の公開path/defaults/nested/timingに拡張し、linear/Bezier/perfect/Catmull、
-   SV/timing変更、repeat/tick/tail、stack、lazy end/travel/minimum jumpを中間値から照合する。
-   Javaの既存SliderPath/Timing/EventGeneratorは、契約が一致する部分だけ再利用する。
+1. **検証済みLinear以外のSliderを含むchartは全体がUNSUPPORTED**。circle部分だけを計算しない。
+   次はBezier/perfect/Catmull/mixed segmentsのfloat path approximationを公開frameworkと照合する。
+   その後、SV丸め境界、NaNによるtick無効化、同時刻timing/nested event、pre-v8 tick距離、
+   zero-length/極小Slider、範囲外settingsを検証する。既存Gameplay pathの倍精度近似をそのままratingへ使わない。
 2. pre-v6 stacking、CS/AR/OD範囲外、StackLeniency範囲外、他mode、Mods別calculatorは未対応。
    Mod cache keyは用意したが現在の要求はNMだけ。通常Modsの効果/HP/rate audioはB06/B07で別に実装する。
 3. 公開C# subsetとの一致を検証したが、stable b20230727.9での数値照合、decoder/legacy allowance差、
@@ -151,3 +153,69 @@ commit:
 6. B06 HP/fail、B07通常Mods、B08 replay、B09削除/退避/復旧は未着手のまま。
    official ranked status、online ranking、Bancho/API接続は対象外。
    B03/B04と既存Results layout/font等の具体的残件は統合残件台帳を参照する。
+
+## Linear Sliderへの拡張（開始HEAD `834df09`）
+
+独立した[LinearSliderPreprocessing](../core/src/main/java/dev/osujava/difficulty/LinearSliderPreprocessing.java)を追加した。
+float polyline、累積距離と期待長への短縮/延長、末尾重複時の延長抑止、repeat終点を実装する。
+tick/repeatとlegacy tailを時刻順に扱い、lazy cursor/travel/timeとminimum jumpをCalculatorへ供給する。
+Modern stackingのSlider終端・負のstack、aimのtravel/velocity bonus、speedのtravel距離、
+rhythmのSlider境界補正も接続した。元chartを変更せず、worker内でのみ実行する。
+
+根拠は同じpinの[Slider defaults/nested objects](https://github.com/ppy/osu/blob/4e96853c7543f80a1b822ccd381943c7377543d7/osu.Game.Rulesets.Osu/Objects/Slider.cs)、
+[SliderPath](https://github.com/ppy/osu/blob/4e96853c7543f80a1b822ccd381943c7377543d7/osu.Game/Rulesets/Objects/SliderPath.cs)、
+[events](https://github.com/ppy/osu/blob/4e96853c7543f80a1b822ccd381943c7377543d7/osu.Game/Rulesets/Objects/SliderEventGenerator.cs)、
+[control point lookup](https://github.com/ppy/osu/blob/4e96853c7543f80a1b822ccd381943c7377543d7/osu.Game/Beatmaps/ControlPoints/ControlPointInfo.cs)。
+公開path/events/stack/preprocessing/evaluator/skillはoracleで変更せず実行する。
+Linear approximationはidentity、frameworkのbindable/cache等はfixture adapter。
+Slider defaultsとnestedへの接続はwrapperであり、完全な公開decoderやstable実機の検証とは区別する。
+
+観測・照合で確定した点:
+
+- Legacy tailは`max(start + duration / 2, end - 36ms)`の時刻だが位置は実Slider終点。
+  遅いtickがそれを越える場合、lazy travel timeはsorted nested listの最後を使う。
+- Repeatが偶数spanなら終点はhead。headだけのstack判定ではnegative stackを再現できない。
+- NMの最大follow radiusはfloatの`50 * 2.4f`で、decimal 120へ置換すると中間値がずれる。
+- Nested位置は`(unstacked head + relative path) + stack offset`。
+  `stacked head + relative path`とのfloat丸め差もfixtureで検出・修正した。
+- 最初のred line以前でもTimingPointAtは最初のred lineを使い、red line皆無なら1000msを使う。
+  SVは当該時刻以前のdifficulty pointを使うため、このfallbackと分けて扱う。
+
+現時点のLinear受入条件:
+
+- v8以降、single typed Linear segment（複数control pointのpolylineは対応）、距離>0、最大100,000px。
+- SliderMultiplier 0.4–3.6、TickRate 0.5–8。finiteで時刻がstrictly increasingなtimingのみ。
+  red beat length 6–60,000ms。SVは0.1–10にclamp後、0.01刻みに既に一致する値のみ。
+- 同時刻のnested eventは未検証でunknown。NaN tick無効化、SVの丸め境界、同時刻red/greenは未対応。
+- chart全体でcontrol point/span/tick/nested/timing処理のbudget 100,000。Slider durationも6時間以内。
+  元の20,000objects / 2,000,000stack比較制限を維持。過大repeatは整数加算前に拒否し、interruptを伝播する。
+
+計算keyはalgorithm `osu-java-nm-20220902-2` / preprocessing `linear-slider-f32-v8-1`。
+旧versionのUNSUPPORTED Slider cacheを再利用せず、旧fileは保持して新versionへ計算・保存する。
+旧UNSUPPORTED→新SUCCESS→warm再利用を実workerの回帰testで確認した。
+
+追加fixtureはlinear-basic/repeat/polyline/sv/stacks/late-tick/duplicate/no-timing/rhythm/single/spinner/future-timing。
+合計24fixtureで星・aim/speed・stack・object/section値、path距離/位置、nested時刻/位置、lazy end/travel、
+minimum jumpを既存の許容差のまま照合した。Java出力を見て許容差を緩めていない。
+
+今回の検証:
+
+- `./gradlew build`: SUCCESS。core **145 suites / 1,401 tests**、lwjgl3 **2 suites / 4 tests**、failure/error/skip 0。
+  log `/tmp/osujava-linear-build.log`。
+- `difficulty-contracts`: **12 scenes / 96 PNG / 4,344操作frame**。実workerによるLinear表示・分類・検索、
+  未対応Bezierのunknown、known zero、旧fixtureとLinearのwarm再表示を確認。
+  Greylooks/fallback/HD-only × 16:9・16:10・4:3・density 2。log `/tmp/osujava-linear-gl-final.log`、
+  captures `/tmp/osujava-linear-gl-final/`。画像の4:3 Greylooksと2x fallbackも目視確認。
+- Renderer/input/Gameplayの変更はない。今回は星計算とdifficulty描画suiteを実行し、
+  前段のcollections/backend/audit全suiteの再実行はしていない。
+
+次の数値検証時には、既存parserが破損HitObject行をskipする情報をrating側へ渡す方法も検討する。
+現在のcalculatorはparse後modelだけを受け取り、元fileのskip履歴を知れない。
+壊れた行を含むraw fileと完全な正常fileの同値は本fixture suiteの検証対象外。
+
+Linear拡張のcommit:
+
+- `0990ff4` — `feat(difficulty): verify linear slider preprocessing and NM strains`
+- `bd63944` — `test(song-select): cover linear ratings and warm cache visuals`
+
+本記録・README・計画・残件台帳の更新は別のdocs commit。

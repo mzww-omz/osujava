@@ -1,6 +1,6 @@
 # Song Selectを完成させるローカルbackend改善計画
 
-2026-10-02、調査基準HEAD `0a1f02b`。2026-10-03時点でB01/B02/B03/B04を実装済み。B05はNM circle/spinner計算とUI接続まで実装済み。
+2026-10-02、調査基準HEAD `0a1f02b`。2026-10-03時点でB01/B02/B03/B04を実装済み。B05はNM circle/spinnerと検証済みLinear Sliderの計算・UI接続まで実装済み。
 実装範囲・検証・未完了事項は[backend実装進捗](songselect-backend-progress-20261002.md)と
 [B03履歴・日時の実装記録](songselect-backend-history-20261002.md)、
 [B04Collections/Optionsの実装記録](songselect-backend-collections-20261003.md)、
