@@ -9,6 +9,8 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -73,16 +75,18 @@ class LocalDifficultyServiceTest {
             assertEquals(failed,service.result(bad));assertEquals(DifficultyResult.Status.SUCCESS,service.result(repaired).status());
         }
     }
-    @Test void verifiedVelocityRoundingInvalidatesPreviousUnsupportedCacheAndWarmsSuccessfully() throws Exception {
+    @ParameterizedTest
+    @CsvSource({"timing-sv-rounding,legacy-curves-f32-v8-3", "timing-coincident-rg,legacy-curves-f32-v8-4"})
+    void verifiedTimingInvalidatesPreviousUnsupportedCacheAndWarmsSuccessfully(String fixture, String previousVersion) throws Exception {
         var parser=new BeatmapFileParser();
         BeatmapDifficulty chart;
-        try(var in=getClass().getResourceAsStream("/difficulty/reference-20220902/timing-sv-rounding.osu")) {
+        try(var in=getClass().getResourceAsStream("/difficulty/reference-20220902/"+fixture+".osu")) {
             assertNotNull(in);
-            chart=parser.parse(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8),"timing-sv-rounding.osu").difficulty();
+            chart=parser.parse(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8),fixture+".osu").difficulty();
         }
-        var old=new DifficultyKey(BeatmapContentKey.of(chart),List.of(),StandardDifficultyCalculator.ALGORITHM_VERSION,"legacy-curves-f32-v8-3");
+        var old=new DifficultyKey(BeatmapContentKey.of(chart),List.of(),StandardDifficultyCalculator.ALGORITHM_VERSION,previousVersion);
         var cache=new DifficultyCache(directory);
-        cache.save(old,DifficultyResult.unsupported("Slider velocity precision boundary is not verified"));
+        cache.save(old,DifficultyResult.unsupported("Timing preprocessing is not verified"));
         byte[] previous=Files.readAllBytes(cache.path(old));
         DifficultyResult calculated;
         try(var service=new LocalDifficultyService(directory)) {

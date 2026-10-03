@@ -44,7 +44,7 @@ class StandardDifficultyCalculatorTest {
     }
     // Fixed before comparing results. Stars/skill ratings: 1e-9 absolute;
     // per-object and section values: 1e-7 absolute + 1e-9 relative (single-precision geometry).
-    static Stream<String> fixtures() { return Stream.of("empty","single","pair","three","jumps","stream","rhythm","simultaneous","stacks","spinner","gaps","fractional","linear-basic","linear-repeat","linear-polyline","linear-sv","linear-stacks","linear-late-tick","linear-duplicate","linear-no-timing","linear-rhythm","linear-single","linear-spinner","linear-future-timing","curve-bezier","curve-bezier-segments","curve-bezier-high-degree","curve-perfect","curve-perfect-major","curve-perfect-fallback","curve-catmull","curve-catmull-duplicates","curve-mixed","curve-stacks","curve-fractional-controls","curve-loop","curve-catmull-v128","curve-perfect-reverse","timing-sv-rounding","timing-sv-clamp"); }
+    static Stream<String> fixtures() { return Stream.of("empty","single","pair","three","jumps","stream","rhythm","simultaneous","stacks","spinner","gaps","fractional","linear-basic","linear-repeat","linear-polyline","linear-sv","linear-stacks","linear-late-tick","linear-duplicate","linear-no-timing","linear-rhythm","linear-single","linear-spinner","linear-future-timing","curve-bezier","curve-bezier-segments","curve-bezier-high-degree","curve-perfect","curve-perfect-major","curve-perfect-fallback","curve-catmull","curve-catmull-duplicates","curve-mixed","curve-stacks","curve-fractional-controls","curve-loop","curve-catmull-v128","curve-perfect-reverse","timing-sv-rounding","timing-sv-clamp","timing-coincident-rg","timing-coincident-gr","timing-coincident-multiple"); }
     private String source(String name,String extension) throws IOException {
         try(var in=getClass().getResourceAsStream("/difficulty/reference-20220902/"+name+extension)) {
             assertNotNull(in);return new String(in.readAllBytes(),StandardCharsets.UTF_8);
@@ -104,7 +104,6 @@ class StandardDifficultyCalculatorTest {
                 header+"100,100,1000,2,0,L|100:100,1,100",
                 header+"100,100,1000,2,0,L|200:100,2,7",
                 header+"100,100,1000,2,0,L|200:100,1,100001",
-                header.replace("[HitObjects]","0,-50,4,0,0,100,0,0\n[HitObjects]")+"100,100,1000,2,0,L|200:100,1,100",
                 header.replace("[HitObjects]","500,NaN,4,0,0,100,0,0\n[HitObjects]")+"100,100,1000,2,0,L|200:100,1,100");
         var parser=new BeatmapFileParser();var calculator=new StandardDifficultyCalculator();
         for(String text:sources) {

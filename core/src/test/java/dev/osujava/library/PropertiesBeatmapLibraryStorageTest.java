@@ -2,6 +2,7 @@ package dev.osujava.library;
 
 import dev.osujava.beatmap.BeatmapSet;
 import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -73,6 +74,24 @@ class PropertiesBeatmapLibraryStorageTest {
         assertEquals(dev.osujava.beatmap.BeatmapParseIssues.NONE,repaired.parseIssues());
         assertNotEquals(restored.playData().sha256(),repaired.playData().sha256());
         assertEquals(dev.osujava.difficulty.DifficultyResult.Status.SUCCESS,new dev.osujava.difficulty.StandardDifficultyCalculator().calculate(repaired).status());
+    }
+    @Test void reorderedTimingIsUnsupportedAfterImportRestartAndBecomesKnownAfterSourceRepair() throws Exception {
+        Path root=tempDir.resolve("timing-order-library"),source=tempDir.resolve("reordered.osu");
+        String text="osu file format v14\n[Metadata]\nTitle:Reordered\nBeatmapSetID:125\n[TimingPoints]\n0,500\n1000,-50,4,0,0,100,0,0\n500,-100,4,0,0,100,0,0\n[HitObjects]\n100,100,2000,2,0,L|300:100,1,200\n";
+        Files.writeString(source,text);
+        var imported=new BeatmapArchiveImporter(root).importFile(source);
+        assertTrue(imported.warnings().isEmpty());
+        new PropertiesBeatmapLibraryStorage(root).save(imported.beatmapSet());
+        var restored=new PropertiesBeatmapLibraryStorage(root).load().getFirst().difficulties().getFirst();
+        assertTrue(restored.parseIssues().timingOrderChanged());assertFalse(restored.parseIssues().any());
+        var calculator=new dev.osujava.difficulty.StandardDifficultyCalculator();
+        assertEquals(dev.osujava.difficulty.DifficultyResult.Status.UNSUPPORTED,calculator.calculate(restored).status());
+        assertTrue(calculator.calculate(restored).reason().contains("Reordered source timing"));
+        Files.writeString(restored.beatmapPath(),text.replace("1000,-50,4,0,0,100,0,0\n500,-100,4,0,0,100,0,0","500,-100,4,0,0,100,0,0\n1000,-50,4,0,0,100,0,0"));
+        var repaired=new PropertiesBeatmapLibraryStorage(root).load().getFirst().difficulties().getFirst();
+        assertFalse(repaired.parseIssues().timingOrderChanged());
+        assertNotEquals(restored.playData().sha256(),repaired.playData().sha256());
+        assertEquals(dev.osujava.difficulty.DifficultyResult.Status.SUCCESS,calculator.calculate(repaired).status());
     }
     @TempDir
     Path tempDir;

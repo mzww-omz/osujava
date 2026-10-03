@@ -111,7 +111,7 @@ public final class BeatmapFileParser {
                 audioFilename, backgroundFilename, settings, timingPoints, parsedObjects.objects(), null, null, null, integer(general.get("previewtime"), -1),
                 new BeatmapMetadata(titleUnicode, artistUnicode, value(metadata, "source", ""), value(metadata, "tags", ""),
                         integer(metadata.get("beatmapid"), -1), beatmapSetId), statistics, playData, parsedObjects.skippedCount(),
-                new BeatmapParseIssues(invalidSettings(difficultyValues, general), parsedTiming.invalidCount(), parsedObjects.correctedCount()));
+                new BeatmapParseIssues(invalidSettings(difficultyValues, general), parsedTiming.invalidCount(), parsedObjects.correctedCount(), parsedTiming.orderChanged()));
         return new BeatmapFile(formatVersion, title, titleUnicode, artist, artistUnicode, creator,
                 beatmapSetId, difficulty);
     }
@@ -131,11 +131,13 @@ public final class BeatmapFileParser {
         throw new BeatmapParseException("Missing osu file format header in " + sourceName);
     }
 
-    private record ParsedTiming(List<TimingPoint> points, int invalidCount) { }
+    private record ParsedTiming(List<TimingPoint> points, int invalidCount, boolean orderChanged) { }
 
     private ParsedTiming parseTimingPoints(List<String> lines) {
         List<TimingPoint> points = new ArrayList<>();
         int invalidCount = 0;
+        boolean orderChanged = false;
+        double previousTime = Double.NEGATIVE_INFINITY;
         for (String line : lines) {
             String[] fields = line.split(",", -1);
             if (fields.length < 2) { invalidCount++; continue; }
@@ -146,12 +148,15 @@ public final class BeatmapFileParser {
                 invalid |= i == 6 ? !(v.equals("0") || v.equals("1")) : !validInteger(v);
             }
             if (invalid) invalidCount++;
-            points.add(new TimingPoint(decimal(fields[0], 0), decimal(fields[1], 0),
+            var point = new TimingPoint(decimal(fields[0], 0), decimal(fields[1], 0),
                     integer(field(fields, 2), 4), integer(field(fields, 3), 0), integer(field(fields, 4), 0),
-                    integer(field(fields, 5), 100), bool(field(fields, 6), true), integer(field(fields, 7), 0)));
+                    integer(field(fields, 5), 100), bool(field(fields, 6), true), integer(field(fields, 7), 0));
+            orderChanged |= point.timeMs() < previousTime;
+            previousTime = point.timeMs();
+            points.add(point);
         }
         points.sort(Comparator.comparingDouble(TimingPoint::timeMs));
-        return new ParsedTiming(points, invalidCount);
+        return new ParsedTiming(points, invalidCount, orderChanged);
     }
 
     private int invalidSettings(Map<String, String> difficulty, Map<String, String> general) {

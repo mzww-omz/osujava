@@ -14,6 +14,8 @@ import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.nio.file.Files;
 import java.util.List;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -91,6 +93,16 @@ class BeatmapFileParserTest {
         var chart=parser.parse("osu file format v14\n[HitObjects]\n256,192,1000,8,0,500\n256,192,2000,8,bad,500\n256,192,3000,8,0,3000", "spinner.osu").difficulty();
         assertEquals(new BeatmapParseIssues(0,0,1),chart.parseIssues());assertEquals(1,chart.skippedHitObjectCount());
         assertEquals(2,chart.hitObjects().size());assertEquals(1000,chart.hitObjects().getFirst().endTimeMs());
+    }
+    @Test void sourceTimingReorderingIsPreservedWithoutChangingTolerantValuesOrMarkingDamage() throws Exception {
+        var source="osu file format v14\n[TimingPoints]\n0,500\n1000,-50,4,0,0,100,0,0\n500,-100,4,0,0,100,0,0";
+        var chart=parser.parse(source,"reordered.osu").difficulty();
+        assertTrue(chart.parseIssues().timingOrderChanged());assertFalse(chart.parseIssues().any());
+        assertEquals(List.of(0.0,500.0,1000.0),chart.timingPoints().stream().map(TimingPoint::timeMs).toList());
+        assertTrue(chart.withAssets(null,null).parseIssues().timingOrderChanged());
+        assertTrue(chart.withAssets(null,null,Path.of("moved.osu")).parseIssues().timingOrderChanged());
+        var coincident=parser.parse(source.replace("500,-100","1000,-100"),"coincident.osu").difficulty();
+        assertFalse(coincident.parseIssues().timingOrderChanged());
     }
     private final BeatmapFileParser parser = new BeatmapFileParser();
 

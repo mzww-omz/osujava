@@ -167,12 +167,13 @@ final class SliderPreprocessing {
         Slider[] result=new Slider[chart.hitObjects().size()];
         if(chart.hitObjects().stream().noneMatch(o->o.type()==HitObject.Type.SLIDER)) return result;
         if(chart.settings().formatVersion()<8) throw new Unsupported("Pre-v8 slider tick distance is not verified");
+        if(chart.parseIssues().timingOrderChanged()) throw new Unsupported("Reordered source timing is not verified");
         var timing=chart.timingPoints();
         if(timing.size()>MAX_WORK) throw new Unsupported("Timing point work limit exceeded");
         double previous=Double.NEGATIVE_INFINITY;
         for(var p:timing) {
-            if(!Double.isFinite(p.timeMs()) || !Double.isFinite(p.beatLength()) || p.timeMs()<=previous)
-                throw new Unsupported("Non-finite or coincident slider timing points are not verified");
+            if(!Double.isFinite(p.timeMs()) || !Double.isFinite(p.beatLength()) || p.timeMs()<previous)
+                throw new Unsupported("Non-finite or reversed slider timing points are not verified");
             previous=p.timeMs();
             if(p.uninherited() && (p.beatLength()<6 || p.beatLength()>60000)) throw new Unsupported("Beat length outside verified range");
         }
@@ -182,8 +183,15 @@ final class SliderPreprocessing {
         for(int i=0;i<result.length;i++) {
             var object=chart.hitObjects().get(i);
             while(point<timing.size() && timing.get(point).timeMs()<=object.timeMs()) {
-                budget.spend();var p=timing.get(point++);
-                if(p.uninherited()) beat=p.beatLength();
+                double time=timing.get(point).timeMs();TimingPoint red=null,green=null;
+                do {
+                    budget.spend();var candidate=timing.get(point++);
+                    if(candidate.uninherited()) { if(red==null) red=candidate; }
+                    else green=candidate;
+                } while(point<timing.size() && timing.get(point).timeMs()==time);
+                // Within a contiguous source batch: first red sets BPM, last green overrides SV.
+                if(red!=null) beat=red.beatLength();
+                var p=green!=null?green:red;
                 double raw=p.beatLength()<0?100/-p.beatLength():1;
                 // Pinned Slider velocity uses nearest 0.01 after clamping, with ties to even.
                 sv=Math.clamp(raw,.1,10);
