@@ -39,9 +39,11 @@ foreach (var file in Directory.GetFiles(args[0],"*.osu").Order()) {
         o.Scale=scale;o.TimePreempt=(float)(ar>5?1200-150*(ar-5):1800-120*ar);o.HitWindows.Window=(type&8)!=0?0:80-6*od;
         if(o is Slider slider) {
             // Stream/object conversion and nested creation still use a fixture wrapper.
-            // NaN/pre-v8 timing acceptance awaits its own regression unit.
-            if(beatmap.BeatmapInfo.BeatmapVersion<8 || timing.Any(t=>!double.IsFinite(t.time)||!double.IsFinite(t.beat)))
-                throw new NotSupportedException("Oracle slider timing requires v8+ and finite source values: "+file);
+            // Only inherited beat-length NaN is valid; the actual decoder also rejects red-line NaN.
+            // Pre-v8 tick-distance behaviour still awaits its own regression unit.
+            if(beatmap.BeatmapInfo.BeatmapVersion<8 || timing.Any(t=>!double.IsFinite(t.time)
+                || (!double.IsFinite(t.beat) && !(double.IsNaN(t.beat) && !t.red))))
+                throw new NotSupportedException("Oracle slider timing requires v8+, finite timestamps and finite or inherited-NaN beat lengths: "+file);
             var controls=new FixturePathDecoder{FormatVersion=beatmap.BeatmapInfo.BeatmapVersion}.Decode(p[5],o.Position);
             slider.Path=new osu.Game.Rulesets.Objects.SliderPath(controls,double.Parse(p[7]));
             slider.RepeatCount=int.Parse(p[6])-1;
@@ -85,7 +87,11 @@ foreach (var file in Directory.GetFiles(args[0],"*.osu").Order()) {
     for(int i=0;i<beatmap.HitObjects.Count;i++) if(beatmap.HitObjects[i] is Slider slider) {
         // Trigger lazy calculation for a lone / first slider as well, without feeding skills.
         if(slider.LazyEndPosition==null) _=new OsuDifficultyHitObject(slider,new HitCircle{Scale=scale,StartTime=slider.StartTime-100},null,1,new(),0);
-        if(Path.GetFileName(file).StartsWith("timing-"))output.Add("sliderTiming."+i+"="+string.Join(",",sliderTiming[slider].Select(fmt)));
+        if(Path.GetFileName(file).StartsWith("timing-")) {
+            string facts=string.Join(",",sliderTiming[slider].Select(fmt));
+            if(Path.GetFileName(file).StartsWith("timing-nan-"))facts+=","+(slider.GenerateTicks?"1":"0");
+            output.Add("sliderTiming."+i+"="+facts);
+        }
         output.Add("slider."+i+"="+string.Join(",",new[]{slider.Path.Distance,slider.SpanDuration,slider.EndTime,slider.EndPosition.X,slider.EndPosition.Y,slider.LazyTravelTime,slider.LazyTravelDistance,slider.LazyEndPosition!.Value.X,slider.LazyEndPosition!.Value.Y}.Select(fmt)));
         for(int j=0;j<slider.NestedHitObjects.Count;j++) {var n=(OsuHitObject)slider.NestedHitObjects[j];output.Add($"nested.{i}.{j}="+string.Join(",",new[]{n.StartTime,n.StackedPosition.X,n.StackedPosition.Y,n is SliderRepeat?1d:0d}.Select(fmt)));}
         output.Add("path."+i+"="+string.Join(",",new[]{0d,.25,.5,.75,1}.SelectMany(t=>{var v=slider.Path.PositionAt(t);return new[]{(double)v.X,v.Y};}).Select(fmt)));

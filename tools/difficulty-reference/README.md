@@ -31,8 +31,9 @@ pinned `ConvertHitObjectParser`, extracts its four complete private path-convers
 changing their bodies, and compiles them in a fixture wrapper. This exercises integer control-coordinate
 conversion, implicit duplicate segments, explicit mixed boundaries, perfect-curve fallback and legacy
 Catmull rules using actual public methods. The public licence headers/sources stay in the temporary
-directory and are not shipped with the application. Fixture `Parsing` only handles finite values within
-the declared coordinate range; these tests do not emulate malformed source parsing.
+directory and are not shipped with the application. Fixture coordinate `Parsing` only handles finite
+values within the declared coordinate range. Timing parsing also permits inherited beat-length NaN
+for the verified tick-disable encoding; these tests do not emulate malformed source parsing.
 
 Minimal bindable/cache/vector/model adapters supply fixture contracts. Unused Lagrange helpers throw.
 The wrapper wires nested objects, legacy tail offset 36ms and nested StartTime sorting. SV is now evaluated by the unchanged public
@@ -58,17 +59,20 @@ its base method adapter is empty because circle scale/preempt/windows are suppli
 `TimingAdapters.cs` supplies unrelated sample metadata, type/serialization/editor dependencies and
 an unbound runtime container. Audio/sample playback, framework serialization, editor snapping,
 full stream parsing, hitobject conversion and nested creation are not decoder verification claims.
-NaN tick-generation assignment is wired from the real legacy point to the real slider-default method,
-but NaN fixture acceptance remains disabled pending a separate regression unit.
+Inherited NaN tick-generation assignment runs from the real legacy point to the real slider-default
+method. It retains raw/rounded SV 1 while disabling ticks (`TickDistance=Infinity`); the public
+`SliderEventGenerator` still produces head, repeats and the legacy last tick. An ordinary inherited
+point or red-line reset can re-enable ticks, even when SV is unchanged, through real redundancy checks.
 
 For an isolated regeneration or byte comparison, `--fixtures /path/to/fixture-copy` writes only the
-chosen directory instead of the checked-in resource directory. Slider fixtures with NaN/nonfinite timing
-or pre-v8 format are explicitly rejected before emitting results. The oracle accepts coincident and
+chosen directory instead of the checked-in resource directory. Slider fixtures with nonfinite timestamps,
+infinite beat lengths, red-line NaN or pre-v8 format are explicitly rejected before emitting results.
+The oracle accepts coincident and
 out-of-order finite timing in source order using the actual public processing; Java's supported subset
 is documented separately and still rejects source that was reordered by its parser.
 The temporary public sources are removed after compilation/execution.
 
-43 self-authored fixtures cover circles/spinners and Linear plus Bezier, perfect, Catmull and mixed paths.
+45 self-authored fixtures cover circles/spinners and Linear plus Bezier, perfect, Catmull and mixed paths.
 The 14 added curve fixtures cover higher-degree Bezier, implicit duplicate segments, loops, minor/major
 arcs in both directions, collinear/perfect fallback, fractional encoded coordinates, legacy/v128 Catmull duplication,
 positive/negative stacks and shared mixed boundaries. The previous 24 oracle files remain byte-identical.
@@ -88,7 +92,12 @@ at and immediately after four shared timing timestamps, including the first-red 
 all points. All previous 40 `.properties` files remain byte-identical after connecting the actual
 timing decoder/control-point lookup and slider defaults.
 
-NaN timing, coincident nested events, pre-v8 tick-distance multipliers,
+Two `timing-nan-{repeat,priority}` fixtures verify inherited NaN tick suppression and recovery,
+repeat survival, and NaN/finite-green priority within coincident red/green batches.
+Only these two fixtures append a fifth `sliderTiming` fact: `GenerateTicks` as 0 or 1.
+All previous 43 `.properties` files remain byte-identical; their existing timing facts keep four columns.
+
+Coincident nested events, pre-v8 tick-distance multipliers,
 degree-specific B-spline and resource-limit cases remain outside the verified subset. Java rejects these
 charts rather than substituting facts. Limits include 64 controls per non-linear subcurve, 32 Bezier
 subdivision levels and 100,000 total preprocessing work units; curve-heavy charts can exceed that budget.

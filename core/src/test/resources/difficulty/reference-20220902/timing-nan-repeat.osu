@@ -1,0 +1,28 @@
+osu file format v14
+[General]
+Mode:0
+StackLeniency:0.7
+[Metadata]
+Title:timing-nan-repeat
+Artist:Local fixture
+Creator:osu-java tests
+Version:NM inherited NaN reference
+[Difficulty]
+CircleSize:4
+OverallDifficulty:8
+ApproachRate:9
+SliderMultiplier:1.4
+SliderTickRate:2
+[TimingPoints]
+0,500,4,0,0,100,1,0
+900,NaN,4,0,0,100,0,0
+4000,-50,4,0,0,100,0,0
+6000,400,4,0,0,100,1,0
+6000,NaN,4,0,0,100,0,0
+8000,-100,4,0,0,100,0,0
+[HitObjects]
+100,100,1000,2,0,L|420:260,2,350
+400,260,4100,2,0,L|100:100,2,350
+100,100,6000,2,0,L|420:260,2,350
+400,260,8100,2,0,L|100:100,2,350
+300,200,11100,1,0
