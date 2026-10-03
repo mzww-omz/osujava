@@ -36,6 +36,7 @@ namespace osu.Game.Rulesets.Objects {
 namespace osu.Game.Rulesets.Osu.Mods { public static class OsuModHidden { public const double FADE_OUT_DURATION_MULTIPLIER=.3; } }
 namespace osu.Game.Rulesets.Osu.Objects {
     public class OsuHitObject : osu.Game.Rulesets.Objects.HitObject {
+        protected virtual void ApplyDefaultsToSelf(osu.Game.Beatmaps.ControlPoints.ControlPointInfo info,osu.Game.Beatmaps.IBeatmapDifficultyInfo difficulty) { }
         public osuTK.Vector2 Position;
         public virtual osuTK.Vector2 EndPosition => Position;
         private int height; public virtual int StackHeight { get=>height; set=>height=value; }
@@ -49,6 +50,12 @@ namespace osu.Game.Rulesets.Osu.Objects {
     public class Spinner : OsuHitObject { }
     public class SliderRepeat : OsuHitObject { }
     public partial class Slider : OsuHitObject {
+        public const double BASE_SCORING_DISTANCE=100;
+        public double Velocity { get; private set; }
+        public double TickDistance { get; private set; }
+        public bool GenerateTicks { get; set; }=true;
+        public double TickDistanceMultiplier=1;
+        public void ApplyFixtureDefaults(osu.Game.Beatmaps.ControlPoints.ControlPointInfo info,osu.Game.Beatmaps.IBeatmapDifficultyInfo difficulty)=>ApplyDefaultsToSelf(info,difficulty);
         public double LazyTravelTime,SpanDuration;
         public float LazyTravelDistance;
         public osuTK.Vector2? LazyEndPosition;
@@ -67,7 +74,7 @@ namespace osu.Game.Beatmaps {
     public class BeatmapProcessor { protected IBeatmap Beatmap; public BeatmapProcessor(IBeatmap b) { Beatmap=b; } public virtual void PostProcess() { } }
 }
 
-namespace Newtonsoft.Json { public class JsonIgnoreAttribute:Attribute { } public class JsonConstructorAttribute:Attribute { } }
+namespace Newtonsoft.Json { public class JsonIgnoreAttribute:Attribute { } public class JsonPropertyAttribute:Attribute { } public class JsonConstructorAttribute:Attribute { } }
 namespace osu.Framework.Caching { public class Cached { public bool IsValid; public void Invalidate()=>IsValid=false; public void Validate()=>IsValid=true; } }
 namespace osu.Framework.Bindables {
     public interface IBindable<T> { IBindable<T> GetBoundCopy(); }
@@ -92,7 +99,9 @@ namespace osu.Framework.Bindables {
         public Bindable<T> GetUnboundCopy() { var copy=CreateInstance();CopyTo(copy);return copy; }
         public virtual string ToString(string? format,IFormatProvider provider)=>Convert.ToString(Value,provider)??"";
     }
-    public class BindableList<T>:List<T> { public event System.Collections.Specialized.NotifyCollectionChangedEventHandler? CollectionChanged; public new void AddRange(IEnumerable<T> items) { foreach(var i in items) { Add(i);CollectionChanged?.Invoke(this,new(System.Collections.Specialized.NotifyCollectionChangedAction.Add,i)); } } }
+    public interface IBindableList<T>:IReadOnlyList<T> { }
+    public class BindableBool:Bindable<bool> { public BindableBool(bool value=false):base(value) { } }
+    public class BindableList<T>:List<T>,IBindableList<T> { public event System.Collections.Specialized.NotifyCollectionChangedEventHandler? CollectionChanged; public new void AddRange(IEnumerable<T> items) { foreach(var i in items) { Add(i);CollectionChanged?.Invoke(this,new(System.Collections.Specialized.NotifyCollectionChangedAction.Add,i)); } } }
 }
 namespace osu.Game.Rulesets.Objects.Types { public enum PathType { Linear,PerfectCurve,Catmull,Bezier } }
 namespace osu.Game.Rulesets.Objects { public class PathControlPoint { public osuTK.Vector2 Position; public Types.PathType? Type; public event Action? Changed; public PathControlPoint() {} public PathControlPoint(osuTK.Vector2 p,Types.PathType? t) { Position=p;Type=t; } } }
@@ -106,24 +115,13 @@ namespace osu.Framework.Utils {
     }
 }
 namespace osu.Framework.Graphics.Primitives { public struct RectangleF { public static RectangleF Empty=>new(); public RectangleF(float x,float y,float w,float h) {} } }
-namespace osu.Game.IO { public static class Parsing { public const double MAX_COORDINATE_VALUE=100_000; public static double ParseDouble(string s,double max) { double v=double.Parse(s); if(!double.IsFinite(v) || Math.Abs(v)>max) throw new NotSupportedException(); return v; } } }
+namespace osu.Game.IO { public static class Parsing { public const double MAX_COORDINATE_VALUE=100_000; public static int ParseInt(string s)=>int.Parse(s); public static double ParseDouble(string s,bool allowNaN=false) { double v=double.Parse(s); if(double.IsInfinity(v)||(!allowNaN&&double.IsNaN(v))) throw new NotSupportedException(); return v; } public static double ParseDouble(string s,double max) { double v=double.Parse(s); if(!double.IsFinite(v) || Math.Abs(v)>max) throw new NotSupportedException(); return v; } } }
 namespace osu.Game.Beatmaps.Formats { public static class LegacyBeatmapEncoder { public const int FIRST_LAZER_VERSION=128; } }
 
 namespace osu.Framework.Utils {
     public static class Validation {
-        public static bool IsSupportedBindableNumberType<T>()=>typeof(T)==typeof(double);
+        public static bool IsSupportedBindableNumberType<T>()=>typeof(T)==typeof(double)||typeof(T)==typeof(int);
     }
 }
 namespace osuTK.Graphics { public struct Color4 { } }
-namespace osu.Game.Graphics { public class OsuColour { public osuTK.Graphics.Color4 Lime1=>new(); } }
-namespace osu.Game.Beatmaps.ControlPoints {
-    public class ControlPoint : IEquatable<ControlPoint> {
-        public double Time;
-        public virtual osuTK.Graphics.Color4 GetRepresentingColour(osu.Game.Graphics.OsuColour colours)=>new();
-        public virtual bool IsRedundant(ControlPoint? other)=>false;
-        public virtual void CopyFrom(ControlPoint other)=>Time=other.Time;
-        public virtual bool Equals(ControlPoint? other)=>other!=null && GetType()==other.GetType() && Time==other.Time;
-        public override bool Equals(object? other)=>other is ControlPoint point && Equals(point);
-        public override int GetHashCode()=>HashCode.Combine(Time,GetType());
-    }
-}
+namespace osu.Game.Graphics { public class OsuColour { public osuTK.Graphics.Color4 Lime1=>new(); public osuTK.Graphics.Color4 Yellow=>new(); public osuTK.Graphics.Color4 Orange1=>new(); public osuTK.Graphics.Color4 Purple=>new(); public osuTK.Graphics.Color4 Pink=>new(); } }

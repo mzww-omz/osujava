@@ -21,11 +21,13 @@ foreach (var file in Directory.GetFiles(args[0],"*.osu").Order()) {
     var beatmap=new Beatmap<OsuHitObject>();
     beatmap.BeatmapInfo.BeatmapVersion=int.Parse(lines[0].Split('v')[1]);
     beatmap.BeatmapInfo.StackLeniency=(float)setting("StackLeniency",.7);
+    var timingRows=new List<string>();
     var timing=new List<(double time,double beat,bool red)>(); bool timingSection=false;
     foreach(var line in lines) {
         if(line.StartsWith("[")) { timingSection=line=="[TimingPoints]";continue; }
-        if(timingSection && line.Length>0) {var t=line.Split(',');timing.Add((double.Parse(t[0]),double.Parse(t[1]),t.Length<7 || t[6]=="1"));}
+        if(timingSection && line.Length>0) {timingRows.Add(line);var t=line.Split(',');timing.Add((double.Parse(t[0]),double.Parse(t[1]),t.Length<7 || t[6]=="1"));}
     }
+    var controlPoints=new FixtureTimingDecoder().Decode(timingRows);
     var sliderTiming=new Dictionary<Slider,double[]>();
     bool parsing=false;
     foreach(var line in lines) {
@@ -36,21 +38,22 @@ foreach (var file in Directory.GetFiles(args[0],"*.osu").Order()) {
         o.Position=new Vector2(float.Parse(p[0]),float.Parse(p[1]));o.StartTime=double.Parse(p[2]);o.EndTime=(type&8)!=0?double.Parse(p[5]):o.StartTime;
         o.Scale=scale;o.TimePreempt=(float)(ar>5?1200-150*(ar-5):1800-120*ar);o.HitWindows.Window=(type&8)!=0?0:80-6*od;
         if(o is Slider slider) {
-            // Timing selection/defaults are still a fixture wrapper. Reject cases requiring the
-            // complete legacy decoder rather than publishing a hand-written expected result.
-            if(beatmap.BeatmapInfo.BeatmapVersion<8 || timing.Any(t=>!double.IsFinite(t.time)||!double.IsFinite(t.beat))
-                || timing.Zip(timing.Skip(1),(a,b)=>b.time<=a.time).Any(invalid=>invalid))
-                throw new NotSupportedException("Oracle slider timing requires v8+, finite source values and strictly increasing timestamps: "+file);
+            // Stream/object conversion and nested creation still use a fixture wrapper.
+            // NaN/pre-v8 timing acceptance awaits its own regression unit.
+            if(beatmap.BeatmapInfo.BeatmapVersion<8 || timing.Any(t=>!double.IsFinite(t.time)||!double.IsFinite(t.beat)))
+                throw new NotSupportedException("Oracle slider timing requires v8+ and finite source values: "+file);
             var controls=new FixturePathDecoder{FormatVersion=beatmap.BeatmapInfo.BeatmapVersion}.Decode(p[5],o.Position);
             slider.Path=new osu.Game.Rulesets.Objects.SliderPath(controls,double.Parse(p[7]));
             slider.RepeatCount=int.Parse(p[6])-1;
-            double beat=timing.Any(t=>t.red)?timing.First(t=>t.red).beat:1000,sv=1;
-            foreach(var t in timing.Where(t=>t.time<=o.StartTime)) {if(t.red)beat=Math.Clamp(t.beat,6,60000);sv=new LegacyDifficultyControlPoint(0,t.beat){SliderVelocity=t.beat<0?100/-t.beat:1}.SliderVelocity;}
+            var timingPoint=controlPoints.TimingPointAt(o.StartTime);
+            var difficultyPoint=controlPoints.DifficultyPointAt(o.StartTime);
+            double beat=timingPoint.BeatLength,sv=difficultyPoint.SliderVelocity;
             slider.SliderVelocity=sv;
-            double scoringDistance=100*Math.Clamp(setting("SliderMultiplier",1.4),.4,3.6)*slider.SliderVelocity;
-            double velocity=scoringDistance/beat;
+            slider.GenerateTicks=difficultyPoint is not LegacyDifficultyControlPoint legacy || legacy.GenerateTicks;
+            slider.ApplyFixtureDefaults(controlPoints,new FixtureDifficulty(
+                Math.Clamp(setting("SliderMultiplier",1.4),.4,3.6),Math.Clamp(setting("SliderTickRate",1),.5,8)));
+            double velocity=slider.Velocity,tickDistance=slider.TickDistance;
             slider.SpanDuration=slider.Path.Distance/velocity;o.EndTime=o.StartTime+(slider.RepeatCount+1)*slider.SpanDuration;
-            double tickDistance=scoringDistance/Math.Clamp(setting("SliderTickRate",1),.5,8);
             sliderTiming[slider]=new[]{beat,sv,slider.SliderVelocity,tickDistance};
             foreach(var e in SliderEventGenerator.Generate(o.StartTime,slider.SpanDuration,velocity,tickDistance,slider.Path.Distance,slider.RepeatCount+1,36)) {
                 if(e.Type==SliderEventType.Tail)continue;
@@ -82,7 +85,7 @@ foreach (var file in Directory.GetFiles(args[0],"*.osu").Order()) {
     for(int i=0;i<beatmap.HitObjects.Count;i++) if(beatmap.HitObjects[i] is Slider slider) {
         // Trigger lazy calculation for a lone / first slider as well, without feeding skills.
         if(slider.LazyEndPosition==null) _=new OsuDifficultyHitObject(slider,new HitCircle{Scale=scale,StartTime=slider.StartTime-100},null,1,new(),0);
-        if(Path.GetFileName(file).StartsWith("timing-sv-"))output.Add("sliderTiming."+i+"="+string.Join(",",sliderTiming[slider].Select(fmt)));
+        if(Path.GetFileName(file).StartsWith("timing-"))output.Add("sliderTiming."+i+"="+string.Join(",",sliderTiming[slider].Select(fmt)));
         output.Add("slider."+i+"="+string.Join(",",new[]{slider.Path.Distance,slider.SpanDuration,slider.EndTime,slider.EndPosition.X,slider.EndPosition.Y,slider.LazyTravelTime,slider.LazyTravelDistance,slider.LazyEndPosition!.Value.X,slider.LazyEndPosition!.Value.Y}.Select(fmt)));
         for(int j=0;j<slider.NestedHitObjects.Count;j++) {var n=(OsuHitObject)slider.NestedHitObjects[j];output.Add($"nested.{i}.{j}="+string.Join(",",new[]{n.StartTime,n.StackedPosition.X,n.StackedPosition.Y,n is SliderRepeat?1d:0d}.Select(fmt)));}
         output.Add("path."+i+"="+string.Join(",",new[]{0d,.25,.5,.75,1}.SelectMany(t=>{var v=slider.Path.PositionAt(t);return new[]{(double)v.X,v.Y};}).Select(fmt)));
