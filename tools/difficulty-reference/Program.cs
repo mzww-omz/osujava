@@ -34,10 +34,8 @@ foreach (var file in Directory.GetFiles(args[0],"*.osu").Order()) {
         o.Position=new Vector2(float.Parse(p[0]),float.Parse(p[1]));o.StartTime=double.Parse(p[2]);o.EndTime=(type&8)!=0?double.Parse(p[5]):o.StartTime;
         o.Scale=scale;o.TimePreempt=(float)(ar>5?1200-150*(ar-5):1800-120*ar);o.HitWindows.Window=(type&8)!=0?0:80-6*od;
         if(o is Slider slider) {
-            var controls=p[5].Split('|');if(controls[0]!="L") throw new NotSupportedException();
-            var points=new List<Vector2>{Vector2.Zero};
-            foreach(var c in controls.Skip(1)) {var xy=c.Split(':');points.Add(new Vector2(float.Parse(xy[0]),float.Parse(xy[1]))-o.Position);}
-            slider.Path=new osu.Game.Rulesets.Objects.SliderPath(PathType.Linear,points.ToArray(),double.Parse(p[7]));
+            var controls=new FixturePathDecoder{FormatVersion=beatmap.BeatmapInfo.BeatmapVersion}.Decode(p[5],o.Position);
+            slider.Path=new osu.Game.Rulesets.Objects.SliderPath(controls,double.Parse(p[7]));
             slider.RepeatCount=int.Parse(p[6])-1;
             double beat=timing.Any(t=>t.red)?timing.First(t=>t.red).beat:1000,sv=1;
             foreach(var t in timing.Where(t=>t.time<=o.StartTime)) {if(t.red)beat=Math.Clamp(t.beat,6,60000);sv=Math.Round(Math.Clamp(t.beat<0?100/-t.beat:1,.1,10)/.01)*.01;}
@@ -48,7 +46,7 @@ foreach (var file in Directory.GetFiles(args[0],"*.osu").Order()) {
                 if(e.Type==SliderEventType.Tail)continue;
                 OsuHitObject nested=e.Type==SliderEventType.Repeat?new SliderRepeat():new HitCircle();
                 nested.StartTime=e.Time;nested.EndTime=e.Time;nested.Scale=scale;nested.HitWindows.Window=80-6*od;
-                nested.Position=e.Type==SliderEventType.LegacyLastTick?slider.EndPosition:o.Position+slider.Path.PositionAt(e.PathProgress);
+                nested.Position=e.Type==SliderEventType.Head?o.Position:e.Type==SliderEventType.LegacyLastTick?slider.EndPosition:o.Position+slider.Path.PositionAt(e.PathProgress);
                 slider.NestedHitObjects.Add(nested);
                 if(e.Type==SliderEventType.Head)slider.HeadCircle=(HitCircle)nested;
                 if(e.Type==SliderEventType.LegacyLastTick)slider.TailCircle=(HitCircle)nested;

@@ -6,11 +6,11 @@ import java.util.*;
 import java.util.concurrent.CancellationException;
 
 /** Pure NM calculation, independently implemented against the pinned 20220902 public reference.
- * v6+ circles/spinners and verified v8+ Linear sliders are accepted.
+ * v6+ circles/spinners and verified v8+ legacy slider curves are accepted.
  * See docs/songselect-backend-difficulty-20261003.md for numerical scope and provenance. */
 public final class StandardDifficultyCalculator {
-    public static final String ALGORITHM_VERSION = "osu-java-nm-20220902-2";
-    public static final String PREPROCESS_VERSION = "linear-slider-f32-v8-1";
+    public static final String ALGORITHM_VERSION = "osu-java-nm-20220902-3";
+    public static final String PREPROCESS_VERSION = "legacy-curves-f32-v8-1";
     public static final int MAX_OBJECTS = 20_000;
     private static final int MAX_STACK_COMPARISONS = 2_000_000;
     private static final long MAX_SPAN_MS = 6 * 60 * 60 * 1000L;
@@ -54,9 +54,9 @@ public final class StandardDifficultyCalculator {
         float preempt=(float)(ar>5 ? 1200-150*(ar-5) : 1800-120*ar);
         // Public reference uses a float product for the stack threshold and float positions.
         float threshold=preempt*(float)settings.stackLeniency();
-        LinearSliderPreprocessing.Slider[] sliders;
-        try { sliders=LinearSliderPreprocessing.prepare(chart); }
-        catch(LinearSliderPreprocessing.Unsupported e) { return rejected(DifficultyResult.unsupported(e.getMessage())); }
+        SliderPreprocessing.Slider[] sliders;
+        try { sliders=SliderPreprocessing.prepare(chart); }
+        catch(SliderPreprocessing.Unsupported e) { return rejected(DifficultyResult.unsupported(e.getMessage())); }
         int[] heights=new int[count]; float[] x=new float[count], y=new float[count];
         for(int i=0;i<count;i++) { x[i]=(float)source.get(i).x(); y[i]=(float)source.get(i).y(); }
         float[] endX=x.clone(),endY=y.clone();double[] endTime=new double[count];
@@ -107,7 +107,7 @@ public final class StandardDifficultyCalculator {
                     n.minimumTime=Math.max(25,n.strainTime-Math.max(25,sliders[i-1].lazyTime));
                     var tail=sliders[i-1].nestedPosition(sliders[i-1].endRelative,heights[i-1]*scale*-6.4f);
                     float tailJump=length(tail.x()-x[i],tail.y()-y[i])*distanceScale;
-                    n.minimumJump=Math.max(0,Math.min(n.distance-(LinearSliderPreprocessing.MAX_SLIDER_RADIUS-LinearSliderPreprocessing.ASSUMED_SLIDER_RADIUS),tailJump-LinearSliderPreprocessing.MAX_SLIDER_RADIUS));
+                    n.minimumJump=Math.max(0,Math.min(n.distance-(SliderPreprocessing.MAX_SLIDER_RADIUS-SliderPreprocessing.ASSUMED_SLIDER_RADIUS),tailJump-SliderPreprocessing.MAX_SLIDER_RADIUS));
                 }
                 if(i>1 && !spinner(source,i-2)) {
                     float ax=cursorX[i-2]-x[i-1],ay=cursorY[i-2]-y[i-1],bx=x[i]-cursorX[i-1],by=y[i]-cursorY[i-1];

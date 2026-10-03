@@ -5,7 +5,7 @@ import java.util.*;
 import java.util.concurrent.CancellationException;
 
 /** NM difficulty-only float geometry. Gameplay keeps its own path and event contract. */
-final class LinearSliderPreprocessing {
+final class SliderPreprocessing {
     static final int MAX_WORK = 100_000;
     // Preserve float products: MAX_SLIDER_RADIUS is slightly greater than decimal 120.
     static final float MAX_SLIDER_RADIUS = 50*2.4f;
@@ -22,6 +22,8 @@ final class LinearSliderPreprocessing {
         boolean same(Vec b) { return b!=null && x==b.x && y==b.y; }
         Vec plus(Vec b) { return new Vec(x+b.x,y+b.y); }
         Vec minus(Vec b) { return new Vec(x-b.x,y-b.y); }
+        Vec divided(float n) { return new Vec(x/n,y/n); }
+        float squaredLength() { return x*x+y*y; }
         Vec times(float n) { return new Vec(x*n,y*n); }
         float length() { return (float)Math.sqrt(x*x+y*y); }
     }
@@ -30,19 +32,33 @@ final class LinearSliderPreprocessing {
         final List<Vec> points = new ArrayList<>();
         final List<Double> cumulative = new ArrayList<>();
         final double distance;
-        Path(HitObject object,Budget budget) {
+        Path(HitObject object,int formatVersion,Budget budget) {
             SliderData data=object.sliderData();
-            if(data==null || data.segments().size()!=1 || data.curveType()!=SliderData.CurveType.LINEAR)
-                throw new Unsupported("Only single-segment Linear slider paths are verified");
+            if(data==null) throw new Unsupported("Missing slider path");
             Vec head=new Vec((float)object.x(),(float)object.y());
             Vec previousControl=null,lastControl=null;
-            for(var p:data.segments().getFirst().controlPoints()) {
-                budget.spend();
-                if(!Double.isFinite(p.x()) || !Double.isFinite(p.y()) || Math.abs(p.x())>100_000 || Math.abs(p.y())>100_000)
-                    throw new Unsupported("Slider control point outside verified range");
-                Vec v=new Vec((float)p.x(),(float)p.y()).minus(head);
-                previousControl=lastControl;lastControl=v;
-                if(points.isEmpty() || !points.getLast().same(v)) points.add(v);
+            // SliderPath emits the first typed vertex as a singleton subpath before the next segment.
+            if(data.segments().getFirst().curveType()!=SliderData.CurveType.CATMULL) points.add(new Vec(0,0));
+            for(int segment=0;segment<data.segments().size();segment++) {
+                var source=data.segments().get(segment);var controls=new ArrayList<Vec>();
+                if(segment==0) {
+                    var first=source.controlPoints().getFirst();
+                    if(!new Vec((float)first.x(),(float)first.y()).same(head)) throw new Unsupported("Slider control path does not start at its head");
+                }
+                int from=segment==0?0:1; // Parser carries the previous segment's endpoint at index zero.
+                if(source.controlPoints().size()<=from) throw new Unsupported("Empty typed slider segment");
+                for(int i=from;i<source.controlPoints().size();i++) {
+                    budget.spend();Vec v=segment==0 && i==0?new Vec(0,0):relative(source.controlPoints().get(i),head);
+                    previousControl=lastControl;lastControl=v;controls.add(v);
+                }
+                boolean borrowed=segment+1<data.segments().size();
+                // The first encoded point after the next type marker terminates this segment too.
+                if(borrowed) {
+                    var next=data.segments().get(segment+1).controlPoints();
+                    if(next.size()<2) throw new Unsupported("Empty typed slider segment");
+                    controls.add(relative(next.get(1),head));
+                }
+                SliderPathApproximator.append(source.curveType(),controls,borrowed,formatVersion,points,budget);
             }
             double calculated=0;cumulative.add(0.0);
             for(int i=1;i<points.size();i++) { calculated+=points.get(i).minus(points.get(i-1)).length();cumulative.add(calculated); }
@@ -64,10 +80,15 @@ final class LinearSliderPreprocessing {
                     cumulative.add(expected);
                 }
             }
-            if(!points.getFirst().same(new Vec(0,0))) throw new Unsupported("Slider path does not start at its head");
             for(Vec point:points) if(!Float.isFinite(point.x) || !Float.isFinite(point.y))
                 throw new Unsupported("Non-finite slider path");
             distance=cumulative.getLast();
+        }
+        private static Vec relative(BeatmapPoint p,Vec head) {
+            if(!Double.isFinite(p.x()) || !Double.isFinite(p.y()) || Math.abs(p.x())>100_000 || Math.abs(p.y())>100_000)
+                throw new Unsupported("Slider control point outside verified range");
+            // The pinned legacy path decoder truncates encoded coordinates before subtracting the head.
+            return new Vec((int)p.x(),(int)p.y()).minus(head);
         }
         Vec at(double progress) {
             double d=Math.clamp(progress,0,1)*distance;
@@ -89,7 +110,7 @@ final class LinearSliderPreprocessing {
         double lazyTime;
         Slider(HitObject object,double beatLength,double sv,BeatmapDifficulty chart,Budget budget) {
             head=new Vec((float)object.x(),(float)object.y());
-            path=new Path(object,budget);repeats=object.sliderData().repeatCount();
+            path=new Path(object,chart.settings().formatVersion(),budget);repeats=object.sliderData().repeatCount();
             if(repeats>=MAX_WORK || path.distance<=0) throw new Unsupported("Degenerate or excessive-repeat slider is not verified");
             double multiplier=chart.settings().sliderMultiplier(),tickRate=chart.settings().sliderTickRate();
             if(!Double.isFinite(multiplier) || multiplier<.4 || multiplier>3.6 || !Double.isFinite(tickRate) || tickRate<.5 || tickRate>8)
@@ -99,7 +120,7 @@ final class LinearSliderPreprocessing {
             if(!Double.isFinite(end) || end-start>6*60*60*1000L) throw new Unsupported("Slider duration exceeds verified range");
             double tickDistance=Math.min(scoringDistance/tickRate,path.distance);
             endRelative=path.at((repeats+1)%2);
-            budget.spend();nested.add(new Nested(start,path.at(0),false));
+            budget.spend();nested.add(new Nested(start,new Vec(0,0),false));
             for(int span=0;span<=repeats;span++) {
                 budget.spend();boolean reversed=span%2==1;double spanStart=start+span*spanDuration;
                 var ticks=new ArrayList<Nested>();

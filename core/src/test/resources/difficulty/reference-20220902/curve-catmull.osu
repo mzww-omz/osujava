@@ -1,0 +1,24 @@
+osu file format v14
+[General]
+Mode:0
+StackLeniency:0.7
+[Metadata]
+Title:curve-catmull
+Artist:Local fixture
+Creator:osu-java tests
+Version:NM curve reference
+[Difficulty]
+CircleSize:5
+OverallDifficulty:8
+ApproachRate:9
+SliderMultiplier:1.4
+SliderTickRate:1
+[TimingPoints]
+0,500,4,0,0,100,1,0
+[HitObjects]
+80,80,1000,1,0
+80,80,1200,2,0,C|180:300|320:60|440:280,1,650
+440,280,3800,1,0
+80,300,4000,2,0,C|300:100|440:320,2,480
+80,80,7700,1,0
+440,320,7900,1,0

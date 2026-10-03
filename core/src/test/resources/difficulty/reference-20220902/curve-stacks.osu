@@ -1,0 +1,26 @@
+osu file format v14
+[General]
+Mode:0
+StackLeniency:0.7
+[Metadata]
+Title:curve-stacks
+Artist:Local fixture
+Creator:osu-java tests
+Version:NM curve reference
+[Difficulty]
+CircleSize:5
+OverallDifficulty:8
+ApproachRate:9
+SliderMultiplier:1.4
+SliderTickRate:1
+[TimingPoints]
+0,500,4,0,0,100,1,0
+[HitObjects]
+100,100,1000,1,0
+100,100,1100,2,0,B|200:20|300:100,1,230
+300,100,1925,1,0
+300,100,2000,1,0
+100,300,2300,2,0,P|200:200|300:300,2,310
+100,300,4520,1,0
+100,300,4600,2,0,C|200:200|300:300,1,310
+440,100,5900,1,0

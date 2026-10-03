@@ -1,0 +1,24 @@
+osu file format v14
+[General]
+Mode:0
+StackLeniency:0.7
+[Metadata]
+Title:curve-bezier
+Artist:Local fixture
+Creator:osu-java tests
+Version:NM curve reference
+[Difficulty]
+CircleSize:5
+OverallDifficulty:8
+ApproachRate:9
+SliderMultiplier:1.4
+SliderTickRate:1
+[TimingPoints]
+0,500,4,0,0,100,1,0
+[HitObjects]
+100,100,1000,1,0
+100,100,1200,2,0,B|300:20|450:250,1,420
+450,250,2900,1,0
+80,300,3100,2,0,B|400:320|300:80|450:100,2,380
+80,80,6100,1,0
+450,320,6300,1,0

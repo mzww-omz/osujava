@@ -13,7 +13,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class StandardDifficultyCalculatorTest {
     // Fixed before comparing results. Stars/skill ratings: 1e-9 absolute;
     // per-object and section values: 1e-7 absolute + 1e-9 relative (single-precision geometry).
-    static Stream<String> fixtures() { return Stream.of("empty","single","pair","three","jumps","stream","rhythm","simultaneous","stacks","spinner","gaps","fractional","linear-basic","linear-repeat","linear-polyline","linear-sv","linear-stacks","linear-late-tick","linear-duplicate","linear-no-timing","linear-rhythm","linear-single","linear-spinner","linear-future-timing"); }
+    static Stream<String> fixtures() { return Stream.of("empty","single","pair","three","jumps","stream","rhythm","simultaneous","stacks","spinner","gaps","fractional","linear-basic","linear-repeat","linear-polyline","linear-sv","linear-stacks","linear-late-tick","linear-duplicate","linear-no-timing","linear-rhythm","linear-single","linear-spinner","linear-future-timing","curve-bezier","curve-bezier-segments","curve-bezier-high-degree","curve-perfect","curve-perfect-major","curve-perfect-fallback","curve-catmull","curve-catmull-duplicates","curve-mixed","curve-stacks","curve-fractional-controls","curve-loop","curve-catmull-v128","curve-perfect-reverse"); }
     private String source(String name,String extension) throws IOException {
         try(var in=getClass().getResourceAsStream("/difficulty/reference-20220902/"+name+extension)) {
             assertNotNull(in);return new String(in.readAllBytes(),StandardCharsets.UTF_8);
@@ -38,13 +38,13 @@ class StandardDifficultyCalculatorTest {
             var f=inspected.objects().get(i);
             series(expected.getProperty("object."+i),List.of(f.strainTime(),f.distance(),f.angle(),f.aim(),f.speed(),f.rhythm(),f.travelDistance(),f.travelTime(),f.minimumJumpDistance(),f.minimumJumpTime()));
         }
-        var sliders=LinearSliderPreprocessing.prepare(chart);
+        var sliders=SliderPreprocessing.prepare(chart);
         float scale=(1f-.7f*((float)chart.settings().circleSize()-5)/5)/2;
         for(int i=0;i<sliders.length;i++) if(sliders[i]!=null) {
             var slider=sliders[i];var object=chart.hitObjects().get(i);
             float offset=inspected.heights().get(i)*scale*-6.4f;
             slider.cursor(offset,64*scale);
-            var end=new LinearSliderPreprocessing.Vec((float)object.x(),(float)object.y()).plus(slider.endRelative);
+            var end=new SliderPreprocessing.Vec((float)object.x(),(float)object.y()).plus(slider.endRelative);
             series(expected.getProperty("slider."+i),List.of(slider.path.distance,slider.spanDuration,slider.end,(double)end.x(),(double)end.y(),slider.lazyTime,(double)slider.lazyDistance,(double)slider.lazy.x(),(double)slider.lazy.y()));
             assertEquals((int)expected.keySet().stream().filter(k->k.toString().startsWith("nested."+chart.hitObjects().indexOf(object)+".")).count(),slider.nested.size());
             for(int j=0;j<slider.nested.size();j++) {
@@ -60,7 +60,7 @@ class StandardDifficultyCalculatorTest {
     }
     @Test void unsupportedMapsRemainUnknownRatherThanAHeuristicRating() throws Exception {
         var parser=new BeatmapFileParser();
-        for(String source : List.of("osu file format v5\n[HitObjects]\n100,100,1000,1,0", "osu file format v14\n[General]\nMode:1\n[HitObjects]\n100,100,1000,1,0", "osu file format v14\n[HitObjects]\n100,100,1000,2,0,B|150:200|200:100,1,100")) {
+        for(String source : List.of("osu file format v5\n[HitObjects]\n100,100,1000,1,0", "osu file format v14\n[General]\nMode:1\n[HitObjects]\n100,100,1000,1,0", "osu file format v14\n[HitObjects]\n100,100,1000,2,0,B2|150:200|200:100,1,100")) {
             var result=new StandardDifficultyCalculator().calculate(parser.parse(source,"fixture.osu").difficulty());
             assertEquals(DifficultyResult.Status.UNSUPPORTED,result.status());assertTrue(result.rating().isEmpty());
         }
@@ -91,6 +91,25 @@ class StandardDifficultyCalculatorTest {
         String text=source("linear-basic",".osu").replace("L|456:192,1,200","L|456:192,500,10000").replace("SliderTickRate:1","SliderTickRate:8");
         var result=new StandardDifficultyCalculator().calculate(new BeatmapFileParser().parse(text,"budget.osu").difficulty());
         assertEquals(DifficultyResult.Status.UNSUPPORTED,result.status());assertTrue(result.reason().contains("work limit"),result.reason());
+    }
+    @Test void excessiveCurveControlsAndSubdivisionWorkStayBounded() throws Exception {
+        var parser=new BeatmapFileParser();var calculator=new StandardDifficultyCalculator();
+        for(var type:List.of("B","C")) {
+            var path=new StringBuilder(type);
+            for(int n=0;n<65;n++) path.append('|').append(n*5).append(':').append(n%2==0?0:300);
+            var chart=parser.parse("osu file format v14\n[HitObjects]\n100,100,1000,2,0,"+path+",1,400","controls.osu").difficulty();
+            var result=calculator.calculate(chart);assertEquals(DifficultyResult.Status.UNSUPPORTED,result.status());assertTrue(result.reason().contains("control point limit"),result.reason());
+        }
+        var path=new StringBuilder("B");
+        for(int n=0;n<63;n++) path.append('|').append(n%2==0?100000:-100000).append(':').append(n%3==0?100000:-100000);
+        var result=calculator.calculate(parser.parse("osu file format v14\n[HitObjects]\n100,100,1000,2,0,"+path+",1,1000","work.osu").difficulty());
+        assertEquals(DifficultyResult.Status.UNSUPPORTED,result.status());assertTrue(result.reason().contains("work limit"),result.reason());
+        assertEquals(DifficultyResult.Status.SUCCESS,calculator.calculate(parser.parse(source("curve-bezier",".osu"),"valid.osu").difficulty()).status());
+    }
+    @Test void invalidExplicitCurveSegmentIsUnknownWithoutChangingTheGameplayModel() throws Exception {
+        var parser=new BeatmapFileParser();var chart=parser.parse("osu file format v14\n[HitObjects]\n100,100,1000,2,0,B|200:200|L,1,400","empty-segment.osu").difficulty();
+        assertEquals(1,chart.hitObjects().size());assertEquals(2,chart.hitObjects().getFirst().sliderData().segments().size());
+        var result=new StandardDifficultyCalculator().calculate(chart);assertEquals(DifficultyResult.Status.UNSUPPORTED,result.status());assertTrue(result.rating().isEmpty());
     }
     private dev.osujava.beatmap.BeatmapDifficulty withObjects(dev.osujava.beatmap.BeatmapDifficulty base,List<dev.osujava.beatmap.HitObject> objects) {
         return new dev.osujava.beatmap.BeatmapDifficulty(base.title(),base.artist(),base.creator(),base.version(),base.mode(),base.audioFilename(),base.backgroundFilename(),

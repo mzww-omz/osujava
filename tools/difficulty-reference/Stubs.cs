@@ -1,4 +1,4 @@
-// Fixture-only adapters: linear path approximation is the identity; unverified curves throw.
+// Fixture-only adapters: framework curve approximation runs unchanged; adapters supply model primitives.
 namespace osuTK {
     public struct Vector2 {
         public float X, Y;
@@ -10,6 +10,9 @@ namespace osuTK {
         public static bool operator !=(Vector2 a,Vector2 b) => !(a==b);
         public override bool Equals(object? o) => o is Vector2 v && this==v;
         public override int GetHashCode() => HashCode.Combine(X,Y);
+        public float LengthSquared => X*X+Y*Y;
+        public static Vector2 operator *(float b,Vector2 a) => a*b;
+        public static Vector2 operator /(Vector2 a,float b) => new(a.X/b,a.Y/b);
         public float Length => (float)Math.Sqrt(X*X+Y*Y);
         public static Vector2 operator +(Vector2 a,Vector2 b) => new(a.X+b.X,a.Y+b.Y);
         public static Vector2 operator -(Vector2 a,Vector2 b) => new(a.X-b.X,a.Y-b.Y);
@@ -21,7 +24,7 @@ namespace osuTK {
     }
 }
 namespace osu.Framework.Graphics { public static class Vector2Extensions { public static float Distance(osuTK.Vector2 a,osuTK.Vector2 b) => (a-b).Length; } }
-namespace osu.Framework.Utils { public static class Interpolation { public static double Lerp(double a,double b,double t) => a+(b-a)*t; } }
+namespace osu.Framework.Utils { public static class Interpolation { public static double[] BarycentricWeights(ReadOnlySpan<osuTK.Vector2> p)=>throw new NotSupportedException(); public static double BarycentricLagrange(ReadOnlySpan<osuTK.Vector2> p,double[] w,float x)=>throw new NotSupportedException(); public static double Lerp(double a,double b,double t) => a+(b-a)*t; } }
 namespace osu.Game.Rulesets.Mods { public class Mod { } }
 namespace osu.Game.Rulesets.Scoring {
     public enum HitResult { Great }
@@ -72,13 +75,14 @@ namespace osu.Framework.Bindables {
     public class BindableList<T>:List<T> { public event System.Collections.Specialized.NotifyCollectionChangedEventHandler? CollectionChanged; public new void AddRange(IEnumerable<T> items) { foreach(var i in items) { Add(i);CollectionChanged?.Invoke(this,new(System.Collections.Specialized.NotifyCollectionChangedAction.Add,i)); } } }
 }
 namespace osu.Game.Rulesets.Objects.Types { public enum PathType { Linear,PerfectCurve,Catmull,Bezier } }
-namespace osu.Game.Rulesets.Objects { public class PathControlPoint { public osuTK.Vector2 Position; public Types.PathType? Type; public event Action? Changed; public PathControlPoint(osuTK.Vector2 p,Types.PathType? t) { Position=p;Type=t; } } }
+namespace osu.Game.Rulesets.Objects { public class PathControlPoint { public osuTK.Vector2 Position; public Types.PathType? Type; public event Action? Changed; public PathControlPoint() {} public PathControlPoint(osuTK.Vector2 p,Types.PathType? t) { Position=p;Type=t; } } }
 namespace osu.Framework.Utils {
-    public static class Precision { public static bool AlmostEquals(double a,double b)=>Math.Abs(a-b)<=1e-7; }
-    public static class PathApproximator {
-        public static List<osuTK.Vector2> ApproximateLinear(ReadOnlySpan<osuTK.Vector2> p)=>p.ToArray().ToList();
-        public static List<osuTK.Vector2> ApproximateCircularArc(ReadOnlySpan<osuTK.Vector2> p)=>throw new NotSupportedException();
-        public static List<osuTK.Vector2> ApproximateCatmull(ReadOnlySpan<osuTK.Vector2> p)=>throw new NotSupportedException();
-        public static List<osuTK.Vector2> ApproximateBezier(ReadOnlySpan<osuTK.Vector2> p)=>throw new NotSupportedException();
+    public static class Precision {
+        public static bool AlmostEquals(double a,double b)=>Math.Abs(a-b)<=1e-7;
+        public static bool AlmostEquals(float a,float b)=>Math.Abs(a-b)<=1e-3f;
+        public static bool DefinitelyBigger(double a,double b)=>a-1e-7>b;
     }
 }
+namespace osu.Framework.Graphics.Primitives { public struct RectangleF { public static RectangleF Empty=>new(); public RectangleF(float x,float y,float w,float h) {} } }
+namespace osu.Game.IO { public static class Parsing { public const double MAX_COORDINATE_VALUE=100_000; public static double ParseDouble(string s,double max) { double v=double.Parse(s); if(!double.IsFinite(v) || Math.Abs(v)>max) throw new NotSupportedException(); return v; } } }
+namespace osu.Game.Beatmaps.Formats { public static class LegacyBeatmapEncoder { public const int FIRST_LAZER_VERSION=128; } }
