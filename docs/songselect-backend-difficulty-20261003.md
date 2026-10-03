@@ -11,9 +11,9 @@
 を根拠に独立実装する。現行2026のalgorithm、またはstableの全譜面との同値は主張しない。
 
 現在は **NM、mode 0、CS/AR/OD 0–10、StackLeniency 0–1**。
-format v6以降のcircle/spinnerに加え、**v8以降の検証済みLinear Slider**を含むchartへ拡張した。
-未検証のcurve/settings/timing・他mode・pre-v6はchart全体をUNSUPPORTEDとして数値を供給しない。
-Linearの具体的範囲と追加検証は後述「Linear Sliderへの拡張」を参照。
+format v6以降のcircle/spinnerに加え、**v8以降の検証済みLinear/Bezier/Perfect/Catmull/mixed Slider**を含むchartへ拡張した。
+未検証のpath/settings/timing・他mode・pre-v6はchart全体をUNSUPPORTEDとして数値を供給しない。
+現在の具体的範囲は後述「曲線Sliderへの拡張」を参照。Linear段階の記録は履歴として保持する。
 計算済み空chartはSUCCESSの0星、1object chartはreferenceの非zero値を保持する。
 PENDING/UNSUPPORTED/FAILEDは星なし。object数/BPMだけの疑似星は導入しない。
 
@@ -29,19 +29,19 @@ interruptはcancelとして扱い、失敗ratingに変換しない。
 ## Reference再生成とテスト
 
 [oracle説明](../tools/difficulty-reference/README.md)の手順で公開C#処理を一時directoryに取得し、
-自作24fixtureの値を生成した。stable asset抽出なし。app/build/testのnetwork接続なし。
+自作38fixtureの値を生成した。stable asset抽出なし。app/build/testのnetwork接続なし。
 通常JUnitはcheck-in済み値だけを使用する。
 
 許容差は比較前に固定した。star/aim/speedはabsolute 1e-9、object/sectionはabsolute 1e-7＋relative 1e-9、
 stack高さは完全一致。empty/single/pair/three/jumps/stream/rhythm/simultaneous/stacks/spinner/gaps/
-fractional settings/coordinatesと、後述する12種のLinear fixtureについて一致した。
+fractional settings/coordinates、12種のLinear fixtureと14種のcurve fixtureについて一致した。
 
 ## 残件
 
-- 次はBezier/perfect/Catmull/mixed segmentのpathと、未検証のtiming/tick境界をoracleから拡張する。Linearの中間値は照合済み。
+- Linear/Bezier/Perfect/Catmull/mixed pathの中間値は照合済み。次はSV丸め・NaN・同時刻timing/nested・pre-v8 tick距離を拡張する。
 - pre-v6 stacking、範囲外settings、Mods別計算の検証。
 - stable実機での数値比較、Difficulty group境界・NM/Mod適用範囲の観測。
-- 全B05受入はslider fixture等を含む。circle/spinnerの照合だけでB05全体完了とはしない。
+- B05はcurveを含むfixtureまで対応済みだが、timing境界・stable実機・大規模cold/cache計測を残すため全体完了とはしない。
 
 ## Workerとcache
 
@@ -137,10 +137,11 @@ commit:
 
 ## 次の作業に渡す未完了項目
 
-1. **検証済みLinear以外のSliderを含むchartは全体がUNSUPPORTED**。circle部分だけを計算しない。
-   次はBezier/perfect/Catmull/mixed segmentsのfloat path approximationを公開frameworkと照合する。
-   その後、SV丸め境界、NaNによるtick無効化、同時刻timing/nested event、pre-v8 tick距離、
-   zero-length/極小Slider、範囲外settingsを検証する。既存Gameplay pathの倍精度近似をそのままratingへ使わない。
+1. **未検証のtiming/pathや処理上限を超えるchartは全体がUNSUPPORTED**。circle部分だけを計算しない。
+   common legacy curve（Linear/Bezier/Perfect/Catmull/mixed）は対応・照合済み。
+   次はSV丸め境界、NaNによるtick無効化、同時刻timing/nested event、pre-v8 tick距離、
+   degree-specific B-spline、zero-length/極小Slider、範囲外settingsを検証する。
+   曲線の多い実譜面は100,000work budgetを超える場合がある。cold実測から上限を評価する。
 2. pre-v6 stacking、CS/AR/OD範囲外、StackLeniency範囲外、他mode、Mods別calculatorは未対応。
    Mod cache keyは用意したが現在の要求はNMだけ。通常Modsの効果/HP/rate audioはB06/B07で別に実装する。
 3. 公開C# subsetとの一致を検証したが、stable b20230727.9での数値照合、decoder/legacy allowance差、
@@ -154,9 +155,9 @@ commit:
    official ranked status、online ranking、Bancho/API接続は対象外。
    B03/B04と既存Results layout/font等の具体的残件は統合残件台帳を参照する。
 
-## Linear Sliderへの拡張（開始HEAD `834df09`）
+## Linear Sliderへの拡張（開始HEAD `834df09`、履歴）
 
-独立した[LinearSliderPreprocessing](../core/src/main/java/dev/osujava/difficulty/LinearSliderPreprocessing.java)を追加した。
+独立した`LinearSliderPreprocessing`（現在の[SliderPreprocessing](../core/src/main/java/dev/osujava/difficulty/SliderPreprocessing.java)）を追加した。
 float polyline、累積距離と期待長への短縮/延長、末尾重複時の延長抑止、repeat終点を実装する。
 tick/repeatとlegacy tailを時刻順に扱い、lazy cursor/travel/timeとminimum jumpをCalculatorへ供給する。
 Modern stackingのSlider終端・負のstack、aimのtravel/velocity bonus、speedのtravel距離、
@@ -181,7 +182,7 @@ Slider defaultsとnestedへの接続はwrapperであり、完全な公開decoder
 - 最初のred line以前でもTimingPointAtは最初のred lineを使い、red line皆無なら1000msを使う。
   SVは当該時刻以前のdifficulty pointを使うため、このfallbackと分けて扱う。
 
-現時点のLinear受入条件:
+Linear段階の受入条件（現在の拡張は次節）:
 
 - v8以降、single typed Linear segment（複数control pointのpolylineは対応）、距離>0、最大100,000px。
 - SliderMultiplier 0.4–3.6、TickRate 0.5–8。finiteで時刻がstrictly increasingなtimingのみ。
@@ -190,7 +191,7 @@ Slider defaultsとnestedへの接続はwrapperであり、完全な公開decoder
 - chart全体でcontrol point/span/tick/nested/timing処理のbudget 100,000。Slider durationも6時間以内。
   元の20,000objects / 2,000,000stack比較制限を維持。過大repeatは整数加算前に拒否し、interruptを伝播する。
 
-計算keyはalgorithm `osu-java-nm-20220902-2` / preprocessing `linear-slider-f32-v8-1`。
+この段階の計算keyはalgorithm `osu-java-nm-20220902-2` / preprocessing `linear-slider-f32-v8-1`。
 旧versionのUNSUPPORTED Slider cacheを再利用せず、旧fileは保持して新versionへ計算・保存する。
 旧UNSUPPORTED→新SUCCESS→warm再利用を実workerの回帰testで確認した。
 
@@ -217,5 +218,70 @@ Linear拡張のcommit:
 
 - `0990ff4` — `feat(difficulty): verify linear slider preprocessing and NM strains`
 - `bd63944` — `test(song-select): cover linear ratings and warm cache visuals`
+
+本記録・README・計画・残件台帳の更新は別のdocs commit。
+
+## 曲線Sliderへの拡張（開始HEAD `363ee06`）
+
+[SliderPathApproximator](../core/src/main/java/dev/osujava/difficulty/SliderPathApproximator.java)を独立実装し、
+[SliderPreprocessing](../core/src/main/java/dev/osujava/difficulty/SliderPreprocessing.java)に接続した。
+Gameplayの倍精度path・Importerのsegment model・Renderer・入力を変更せず、worker内の難易度前処理だけで変換する。
+BezierのDe Casteljau適応分割、Catmull-Romのfloat多項式、floatの円弧中心/半径とsamplingを実装した。
+既存のpath長補正・nested/lazy cursor・stack・strain計算を共有する。
+
+追加の根拠は同じosu! versionが依存するframework `2023.815.0`、
+commit `3365c86f769cb0ed84a10c5c96313a73e552dc2d` の
+[PathApproximator](https://github.com/ppy/osu-framework/blob/3365c86f769cb0ed84a10c5c96313a73e552dc2d/osu.Framework/Utils/PathApproximator.cs)、
+[CircularArcProperties](https://github.com/ppy/osu-framework/blob/3365c86f769cb0ed84a10c5c96313a73e552dc2d/osu.Framework/Utils/CircularArcProperties.cs)と、
+[legacy path decoding](https://github.com/ppy/osu/blob/4e96853c7543f80a1b822ccd381943c7377543d7/osu.Game/Rulesets/Objects/Legacy/ConvertHitObjectParser.cs)。
+oracleは公開frameworkの2 fileを変更せず実行する。path conversionの4 private methodも本文を変更せず
+一時wrapperへ取り出して実行する。Slider defaults/timingとvector等はfixture adapterのままで、
+完全な公開decoderやstable実機の再現とは主張しない。app/build/testはnetwork不要。
+
+判明・修正した契約:
+
+- Bezierは2階差分のfloat flatnessと0.25 toleranceで適応分割する。端点だけを足す近似では中間値が一致しない。
+- Catmullは50分割、最終端の次の点は外挿する。legacy v128未満では途中の重複点をsegment区切りにしない。
+- Perfectは3点以外ならBezier、collinearならLinear。minor/major arcとfloat centre/radiusを照合した。
+- 曲線の最初のtyped vertexはpublic SliderPathで単独出力される（Catmullは単独subpathが空）。
+  これを欠くと円弧始点の丸めを含む微小segmentが失われ、path/jumpの値がずれる。比較で発見・修正した。
+- Encoded control座標はintへtruncateしてからheadを引く。fractional control fixtureで確認した。
+- mixed pathの型記号後の最初のencoded pointは、前segmentの終点と次segmentの始点を共有する。
+  JavaのImporter modelは異なる表現なので、難易度側だけでこの契約へ変換する。
+
+現在の受入はv8+のLinear/Bezier/Perfect/Catmullと明示mixed、implicit duplicate区切り。
+距離/setting/timingのLinear段階の制限を維持する。non-linear subcurveはcontrol 64点まで、
+Bezierはdepth 32まで。既存100,000work budgetにsubdivision/flatness/出力も数え、過大curveをunknownへ戻す。
+2,000,000stack比較・20,000objects・6時間制限とcancel伝播も維持する。多数curveでbudgetを超える場合もある。
+未検証のpath/settings/timingを含むchart全体に星を捏造しない。
+
+計算keyはalgorithm `osu-java-nm-20220902-3` / preprocessing `legacy-curves-f32-v8-1`。
+旧Linear-only versionのBezier UNSUPPORTED cacheを保持して新versionで計算し、warm再利用を回帰testで確認した。
+
+追加14fixtureはcurve-bezier/bezier-segments/bezier-high-degree/perfect/perfect-major/perfect-fallback/
+catmull/catmull-duplicates/catmull-v128/mixed/stacks/fractional-controls/loop/perfect-reverse。
+**計38fixture**で星/skill・stack・path/nested/lazy/jump・object/sectionを同じ許容差で照合した。
+既存24oracle fileはbyte単位で変更なし。星だけが近いという判定にはしていない。
+
+今回の検証:
+
+- `./gradlew build`: SUCCESS。core **145 suites / 1,418 tests**、lwjgl3 **2 suites / 4 tests**、failure/error/skip 0。
+  log `/tmp/osujava-curves-build.log`。
+- 実workerで旧Linear-only cache移行→SUCCESS→warm再利用、過大control/subdivision、空typed segmentを回帰test化。
+- `difficulty-contracts`: **12 scenes / 156 PNG / 7,044操作frame**。
+  Bezier/Perfect/Catmull/mixedの星・selected情報、Difficulty分類/検索、Bezier warm再表示、
+  未対応degree-specific B-splineのunknown、known zero、従来Linearを確認。
+  Greylooks/fallback/HD-only × 16:9・16:10・4:3・density 2。log `/tmp/osujava-curves-gl.log`、
+  captures `/tmp/osujava-curves-gl/`。4:3 Greylooks円弧と2x fallback mixedの画像も目視確認した。
+- 今回Renderer/input/Gameplayの変更はなく、前段のcollections/backend/audit全suiteは再実行していない。
+
+残件の優先順は、parseでskipされたHitObjectの状態をratingへ伝えること、SV/同時刻/NaN/tick境界の
+reference拡張、実大規模libraryのcold/warm計測とwork budget評価、stable実機比較。
+degree-specific B-spline、pre-v6、通常Mods・HP/fail・replay・管理拡張も未完了のまま。
+
+曲線拡張のcommit:
+
+- `67fc1e5` — `feat(difficulty): verify legacy slider curves against pinned reference`
+- `b1d1c23` — `test(song-select): cover curve ratings and cached reopening`
 
 本記録・README・計画・残件台帳の更新は別のdocs commit。

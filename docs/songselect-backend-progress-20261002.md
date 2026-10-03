@@ -115,15 +115,15 @@ HP/failは未実装で、COMPLETEDはsession終端だけを表す。次はB04 lo
 F3/右クリック/下部OptionsからManage Collectionsを接続した。Date Addedの方向もwikiに合わせ修正した。
 最新の検証・commit・残件は[B04実装記録](songselect-backend-collections-20261003.md)を参照。
 core 142 suites / 1,353 tests、lwjgl3 2 suites / 4 tests、GL 160 scenes / 440報告PNGが成功。
-B05はNM circle/spinner・検証済みLinear Slider、worker/cache、星/情報/Difficulty tab/sort/group/searchまで接続済み。
-[B05実装記録](songselect-backend-difficulty-20261003.md)に対応範囲と未完了のcurve/timing等を明示した。
+B05はNM circle/spinner・検証済みlegacy curve Slider、worker/cache、星/情報/Difficulty tab/sort/group/searchまで接続済み。
+[B05実装記録](songselect-backend-difficulty-20261003.md)に対応範囲と未検証のpath/timing等を明示した。
 
 | 残件 | 次の具体的な実装 |
 | --- | --- |
-| B00数値reference固定 | B05の公開2023 commitと20220902 version、許容差、自作24fixtureを固定・照合済み。curve/未検証timing/B06 HPのreferenceは次段階で拡張 |
+| B00数値reference固定 | B05の公開2023 commitと20220902 version、許容差、自作38fixtureを固定・照合済み。未検証path/timing/B06 HPのreferenceは次段階で拡張 |
 | B03 history / addedAt — 実装済み | nativeの小数日丸め/group境界は追加観測が必要。現在は明示したlocal分類。詳細はB03実装記録 |
 | B04 Collections / Options — 実装済み | native managerの厳密な寸法/editor/animationは未比較。local CRUDと既存UIへの接続は完了。管理操作の拡張はB09 |
-| B05 star / Difficulty — 部分実装 | NM v6+ circle/spinnerとv8+検証済みLinearは計算・cache・UI接続済み。次はBezier/perfect/Catmull/mixed pathとSV/NaN/同時刻timing/pre-v8 tick距離、pre-v6/Mods、stable実機の数値照合。未検証chartはunknown |
+| B05 star / Difficulty — 部分実装 | NM v6+ circle/spinnerとv8+検証済みlegacy curveは計算・cache・UI接続済み。次はparser skip情報、SV/NaN/同時刻timing/pre-v8 tick距離、実大規模work budget評価、pre-v6/Mods、stable実機の数値照合。未検証chartはunknown |
 | B06 HP / fail | 実HP/終端を収集する。Resultsは既にpassed=falseのF表示に対応済みで、追加すべき中心はGameplayの計算・収集 |
 | B07通常Mods | NF→HR、後にEZ/HD/rate系。保存用listができたこととModの効果実装を混同しない。銀gradeは実Mod対応後 |
 | B08 replay | 実入力記録と再実行。保存成功した記録だけをscoreへ参照として接続する |
@@ -157,3 +157,9 @@ aim/speed/rhythmを拡張した。自作24fixtureの中間値まで照合し、�
 今回buildはcore 145 suites / 1,401 tests、lwjgl3 2 suites / 4 tests、failure/error/skip 0。
 今回GLはdifficulty-contracts 12 scenes / 96 PNG / 4,344操作frame。前段の128 scenesとは合算しない。
 具体的範囲・次に必要なcurve/timing・parser skip情報の残件は[B05記録](songselect-backend-difficulty-20261003.md)を参照。
+
+2026-10-03、開始HEAD `363ee06`からBezier/Perfect/Catmull/mixed Sliderに対応した。
+公開framework pinと公開path-decoding methodをoracleに追加し、計38fixtureの中間値まで一致。
+今回buildはcore 145 suites / 1,418 tests、lwjgl3 2 suites / 4 tests、failure/error/skip 0。
+GL difficulty-contractsは12 scenes / 156 PNG / 7,044操作frame。次はparser skip情報・timing境界・
+実大規模work budget評価・stable実機照合。詳細は[B05記録](songselect-backend-difficulty-20261003.md)を参照。
