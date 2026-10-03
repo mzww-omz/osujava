@@ -243,6 +243,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                             "phase4-wheel-hover", "phase4-oversized-score", "phase4-resize", "phase4-partial-palette", "phasechrome-giant",
                             "phasechrome-transparent", "phase5a-state-save-reload"))
                         scenes.add(new Scene(size[0],size[1],size[2],name));
+            } else if (phase.equals("collections-contracts")) {
+                scenes.clear();
+                for (int[] size : new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
+                    for (String state : List.of("manager", "many", "missing", "empty"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"phase4-collections-"+state));
             } else if (phase.equals("history-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
@@ -691,6 +696,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 ? new dev.osujava.score.LocalPlayHistory(output.resolve("history/"+scene.width+"x"+scene.height+"-"+scene.density+"-"+scene.name))
                 : new dev.osujava.score.LocalPlayHistory();
         if(scene.name.startsWith("phase4-history-")) populateHistory(playHistory,localScores,library,wallClock,scene.name);
+        var collections=scene.name.startsWith("phase4-collections-")
+                ? new dev.osujava.collection.LocalCollectionStore(output.resolve("collections/"+scene.width+"x"+scene.height+"-"+scene.density+"-"+scene.name+".properties"))
+                : new dev.osujava.collection.LocalCollectionStore();
+        if(scene.name.startsWith("phase4-collections-")) populateCollections(collections,library,scene.name);
         Screen[] destination = {null};
         dev.osujava.score.LocalPlayer[] player = {null};
         var game = new OsuJavaGame(null,null) {
@@ -703,6 +712,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             @Override public dev.osujava.score.LocalScoreStore localScores() { return localScores; }
             @Override public dev.osujava.score.LocalPlayer localPlayer() { return player[0]; }
             @Override public dev.osujava.score.LocalPlayHistory playHistory() { return playHistory; }
+            @Override public dev.osujava.collection.LocalCollectionStore collections() { return collections; }
             @Override public java.time.Clock wallClock() { return wallClock; }
             @Override public Path skinDirectory() { return scene.name.equals("phasechrome-custom") ? customSkin
                     : scene.name.startsWith("phasechrome-current") ? Path.of("core/src/main/resources/skins/default").toAbsolutePath() : null; }
@@ -723,8 +733,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "phasechrome-tall" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/tall"), greylooks);
             case "phasechrome-present" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/present"), greylooks);
             case "phasechrome-transparent" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/transparent"), greylooks);
-            case "phase4-fallback", "phase3-fallback" -> new SkinAssetResolver(output.resolve("fixtures/empty"));
-            case "phase4-high-only" -> new SkinAssetResolver(output.resolve("fixtures/high-only"));
+            case "phase4-fallback", "phase3-fallback", "phase4-collections-empty" -> new SkinAssetResolver(output.resolve("fixtures/empty"));
+            case "phase4-high-only", "phase4-collections-missing" -> new SkinAssetResolver(output.resolve("fixtures/high-only"));
             case "phase4-bundled-fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), null);
             case "phase4-partial-palette" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/star-high"), null);
             case "phase3-modern" -> new SkinAssetResolver(output.resolve("fixtures/latest"));
@@ -801,6 +811,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseGroupCards(screen, scene.name, pointer, clicked, pressed, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if(scene.name.startsWith("phase4-collections-")) {
+                exerciseCollections(screen,scene,collections,library,pointer,clicked,pressed,layout,fb,name);
+                fb.end(); advanceScene(); return;
+            }
             if(scene.name.startsWith("phase4-history-")) {
                 exerciseHistory(screen,scene,game,playHistory,localScores,library,pointer,clicked,pressed,layout,fb,name,destination);
                 fb.end(); advanceScene(); return;
@@ -1078,9 +1092,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for (int key : new int[]{Input.Keys.UP,Input.Keys.DOWN,Input.Keys.PAGE_UP,Input.Keys.PAGE_DOWN,Input.Keys.LEFT,Input.Keys.RIGHT,Input.Keys.F2})
                 if (!tapKey(processor[0], key)) throw new AssertionError("Key lost: " + name + " / " + key);
             screen.render(.05f);
-            pointer[0] = Math.round((layout.width() - 100) * layout.scale());
-            pointer[1] = Math.round(45 * layout.scale());
-            clicked[0] = true; screen.render(0); clicked[0] = false;
+            var searchBounds=((SongSelectLayout.Snapshot)screenField(screen,"layoutSnapshot")).search();
+            pointer[0]=Math.round((searchBounds.x()+searchBounds.width()/2)*layout.scale());
+            pointer[1]=scene.height-Math.round((searchBounds.y()+searchBounds.height()/2)*layout.scale());
+            clicked[0]=pressed[0]=true; screen.render(0); clicked[0]=pressed[0]=false; screen.render(0);
+            if(!Boolean.TRUE.equals(screenField(screen,"searchActive"))) throw new AssertionError("Search hitbox lost focus: "+name);
             for (char c : (setCount > 7 ? "Local song 002" : "Local song 2").toCharArray()) if (!processor[0].keyTyped(c)) throw new AssertionError("Search lost: " + name);
             tapKey(processor[0], Input.Keys.ENTER);
             var randomBounds = toolboxLayout(screen).control(SongSelectSkinAssets.Selection.RANDOM).interaction();
@@ -1772,7 +1788,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             capture(fb, name + "-pressed");
             rightPressed[0] = false; screen.render(0); transitionFrames++;
             if (!other.entry.key().equals(browser.selectedKey()) || pending(screen)
-                    || !"Beatmap Options unavailable in this version.".equals(screenField(screen, "toast")))
+                    || !((SongSelectCollections)screenField(screen,"collectionManager")).open())
                 throw new AssertionError("Right release did not select and request Options");
             assertRenderedBounds(screen, layout); capture(fb, name + "-released");
             return;
@@ -1781,13 +1797,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             clicked[0] = true; pressed[0] = true; rightPressed[0] = true;
             screen.render(.02f); transitionFrames++; clicked[0] = false;
             rightPressed[0] = false; screen.render(.02f); transitionFrames++;
-            if (pending(screen) || !"Beatmap Options unavailable in this version.".equals(screenField(screen, "toast")))
+            if (pending(screen) || !((SongSelectCollections)screenField(screen,"collectionManager")).open())
                 throw new AssertionError("Mixed-button release played instead of requesting Options");
             capture(fb, name + "-right-released");
             float before = model.scrollOffset();
             pointer[1] -= 30; screen.render(.02f); transitionFrames++;
-            if (Math.abs(model.scrollOffset() - before - 30 / layout.scale()) > .01)
-                throw new AssertionError("Right release stopped left drag");
+            if (Math.abs(model.scrollOffset() - before) > .01)
+                throw new AssertionError("Options modal leaked a left drag");
             assertRenderedBounds(screen, layout); capture(fb, name + "-left-held");
             pressed[0] = false; screen.render(0); transitionFrames++;
             if (pending(screen)) throw new AssertionError("Candidate committed twice");
@@ -1798,6 +1814,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if (((SongSelectInputController) screenField(screen, "input")).rightScrolling())
                 throw new AssertionError("Right press on row started scrolling");
             rightPressed[0] = false; screen.render(0);
+            tapKey(Gdx.input.getInputProcessor(),Input.Keys.ESCAPE);
             pointer[0] = Math.round(250f * scene.height / 480); pointer[1] = Math.round(235f * scene.height / 480);
             rightClicked[0] = true; rightPressed[0] = true; screen.render(0); rightClicked[0] = false;
             for (int stage = 0; stage < 3; stage++) {
@@ -2108,6 +2125,80 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         System.out.printf(Locale.ROOT,"Toolbox difficulty switch %s: mean %.3f ms, p95 %.3f ms, max %.3f ms%n",name,
                 Arrays.stream(switches).average().orElseThrow()/1e6,switches[94]/1e6,switches[99]/1e6);
     }
+    private void populateCollections(dev.osujava.collection.LocalCollectionStore store,BeatmapLibrary library,String state) {
+        if(state.endsWith("empty")) return;
+        var set=library.all().stream().filter(s -> s.id().equals("set3")).findFirst().orElseThrow(); var diff=set.difficulties().get(1);
+        var member=new dev.osujava.collection.LocalCollectionStore.Member(dev.osujava.beatmap.BeatmapContentKey.of(diff),dev.osujava.score.DifficultyIdentity.of(set.id(),diff));
+        for(int i=0;i<(state.endsWith("many") ? 20 : 2);i++) {
+            var c=store.create(state.endsWith("many") ? i==0 ? "Collection 00 "+"夜".repeat(65)+"🌟" : String.format("Collection %02d 夜の星",i) : "Practice 夜の星");
+            if(c==null) throw new AssertionError("Collection fixture rejected: "+store.error()); store.add(c.id(),List.of(member));
+            if(state.endsWith("missing")) store.add(c.id(),List.of(new dev.osujava.collection.LocalCollectionStore.Member(
+                    new dev.osujava.beatmap.BeatmapContentKey("a".repeat(64),0),new dev.osujava.score.DifficultyIdentity("removed","removed.osu"))));
+        }
+    }
+    private void collectionClick(SongSelectScreen screen,SongSelectCollections.Button button,int[] pointer,boolean[] clicked,boolean[] pressed,UiLayout layout,int height) {
+        var b=SongSelectCollections.bounds(layout,button);
+        pointer[0]=Math.round((b.x()+b.width()/2)*layout.scale()); pointer[1]=height-Math.round((b.y()+b.height()/2)*layout.scale());
+        clicked[0]=pressed[0]=true; screen.render(1f/60); transitionFrames++; clicked[0]=pressed[0]=false; screen.render(1f/60); transitionFrames++;
+    }
+    private void exerciseCollections(SongSelectScreen screen,Scene scene,dev.osujava.collection.LocalCollectionStore store,BeatmapLibrary library,
+                                     int[] pointer,boolean[] clicked,boolean[] pressed,UiLayout layout,FrameBuffer fb,String name) {
+        var input=Gdx.input.getInputProcessor(); var manager=(SongSelectCollections)screenField(screen,"collectionManager");
+        var browser=(SongBrowserModel)screenField(screen,"browser"); var identity=browser.selection(); var diff=browser.selectedDifficulty();
+        tapKey(input,Input.Keys.F3); screen.render(1f/60); transitionFrames++;
+        if(manager.snapshot().mode()!=SongSelectCollections.Mode.OPTIONS) throw new AssertionError("F3 did not open Beatmap Options"); capture(fb,name+"-options");
+        tapKey(input,Input.Keys.NUM_1); input.keyTyped('1'); screen.render(1f/60); transitionFrames++;
+        if(!"".equals(screenField(screen,"search")) || manager.snapshot().mode()!=SongSelectCollections.Mode.MANAGE) throw new AssertionError("Options shortcut leaked to search");
+        capture(fb,name+"-manager");
+        if(scene.name.endsWith("many")) { input.scrolled(0,1); screen.render(1f/60); transitionFrames++; if(manager.snapshot().page()!=1) throw new AssertionError("Collection paging did not consume wheel"); capture(fb,name+"-page2"); }
+        if(scene.name.endsWith("missing")) {
+            if(manager.snapshot().missing()!=1) throw new AssertionError("Missing member not retained");
+            collectionClick(screen,SongSelectCollections.Button.MISSING,pointer,clicked,pressed,layout,scene.height);
+            if(manager.snapshot().missing()!=0) throw new AssertionError("Explicit missing removal failed");
+        }
+        collectionClick(screen,SongSelectCollections.Button.CREATE,pointer,clicked,pressed,layout,scene.height);
+        for(char ch:"夜の星 🌟 Practice".toCharArray()) input.keyTyped(ch); screen.render(1f/60); transitionFrames++; capture(fb,name+"-editor");
+        collectionClick(screen,SongSelectCollections.Button.SAVE,pointer,clicked,pressed,layout,scene.height);
+        var id=manager.snapshot().selected();
+        if(!"夜の星 🌟 Practice".equals(store.find(id).name())) throw new AssertionError("Unicode collection name lost");
+        collectionClick(screen,SongSelectCollections.Button.DIFFICULTY,pointer,clicked,pressed,layout,scene.height);
+        if(store.find(id).members().size()!=1 || !manager.snapshot().difficultyIncluded()) throw new AssertionError("Difficulty registration failed");
+        collectionClick(screen,SongSelectCollections.Button.SET,pointer,clicked,pressed,layout,scene.height);
+        if(store.find(id).members().size()!=browser.selectedSet().difficulties().size() || !manager.snapshot().setIncluded()) throw new AssertionError("Set registration failed");
+        collectionClick(screen,SongSelectCollections.Button.RENAME,pointer,clicked,pressed,layout,scene.height);
+        for(char ch:" +".toCharArray()) input.keyTyped(ch); collectionClick(screen,SongSelectCollections.Button.SAVE,pointer,clicked,pressed,layout,scene.height);
+        if(!store.find(id).name().endsWith(" +")) throw new AssertionError("Rename changed collection identity");
+        collectionClick(screen,SongSelectCollections.Button.CLOSE,pointer,clicked,pressed,layout,scene.height);
+        if(pending(screen) || manager.open()) throw new AssertionError("Close leaked to underlying navigation");
+        if(SongBrowserControls.tabCount(layout.width(),layout.height())==6) {
+            var b=SongBrowserControls.tabBounds(layout.width(),layout.height(),SongBrowserControls.Tab.COLLECTIONS.ordinal());
+            pointer[0]=Math.round((b.x()+b.width()/2)*layout.scale()); pointer[1]=scene.height-Math.round((b.y()+b.height()/2)*layout.scale());
+            clicked[0]=pressed[0]=true; screen.render(1f/60); clicked[0]=pressed[0]=false; screen.render(1f/60); transitionFrames+=2;
+        } else {
+            var b=SongBrowserControls.groupBounds(layout.width(),layout.height());
+            pointer[0]=Math.round((b.x()+60)*layout.scale()); pointer[1]=scene.height-Math.round((b.y()+12)*layout.scale());
+            clicked[0]=pressed[0]=true; screen.render(1f/60); clicked[0]=pressed[0]=false; screen.render(1f/60);
+            pointer[1]=scene.height-Math.round((b.y()-SongBrowserModel.Group.COLLECTIONS.ordinal()*26-13)*layout.scale());
+            clicked[0]=pressed[0]=true; screen.render(1f/60); clicked[0]=pressed[0]=false; screen.render(1f/60); transitionFrames+=4;
+        }
+        pointer[0]=40; pointer[1]=scene.height/2;
+        for(int i=0;i<60;i++) { screen.render(1f/60); transitionFrames++; assertRenderedBounds(screen,layout); }
+        if(browser.group()!=SongBrowserModel.Group.COLLECTIONS || !identity.equals(browser.selection())) throw new AssertionError("Collection Group lost playable identity");
+        var copies=browser.rows().stream().filter(r -> !r.group() && r.difficulty==diff).toList();
+        if(copies.size()!=(scene.name.endsWith("empty") ? 1 : scene.name.endsWith("many") ? 21 : 3)) throw new AssertionError("Duplicate membership did not create distinct rows");
+        capture(fb,name+"-carousel"); screen.browserSearch("difficulty=does-not-exist",false); screen.render(1f/60); transitionFrames++;
+        if(browser.selectedDifficulty()!=null) throw new AssertionError("Collection search did not intersect membership"); capture(fb,name+"-no-match");
+        screen.browserSearch("",false); screen.render(1f/60); transitionFrames++; if(!identity.equals(browser.selection())) throw new AssertionError("Search clear lost identity");
+        var file=output.resolve("collections/"+scene.width+"x"+scene.height+"-"+scene.density+"-"+scene.name+".properties");
+        var reopened=new dev.osujava.collection.LocalCollectionStore(file); if(!store.all().equals(reopened.all())) throw new AssertionError("Collection restart lost data");
+        var rows=browser.rows(); var snapshot=manager.snapshot(); for(int i=0;i<12;i++) { screen.render(1f/60); transitionFrames++; }
+        if(rows!=browser.rows() || snapshot!=manager.snapshot()) throw new AssertionError("Idle collections rebuilt layout/presentation");
+        tapKey(input,Input.Keys.F3); tapKey(input,Input.Keys.NUM_1); collectionClick(screen,SongSelectCollections.Button.DELETE,pointer,clicked,pressed,layout,scene.height);
+        if(store.find(id)==null) throw new AssertionError("Delete did not require confirmation"); capture(fb,name+"-delete");
+        collectionClick(screen,SongSelectCollections.Button.CONFIRM,pointer,clicked,pressed,layout,scene.height);
+        if(store.find(id)!=null || library.size()!=7) throw new AssertionError("Delete changed library or failed");
+        tapKey(input,Input.Keys.ESCAPE); screen.render(1f/60); transitionFrames++;
+    }
     private Path backendScoreDirectory(Scene scene) {
         return output.resolve("backend-scores/"+scene.width+"x"+scene.height+"-"+scene.density+"x-"+scene.name);
     }
@@ -2283,7 +2374,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         finally { gameplay.dispose(); }
     }
     private void populateScores(dev.osujava.score.LocalScoreStore store, BeatmapLibrary library, String name) {
-        if(name.startsWith("phase4-history-")) return;
+        if(name.startsWith("phase4-history-") || name.startsWith("phase4-collections-")) return;
         if (name.startsWith("phase4-backend-")) { populateBackendScores(store,library,name); return; }
         var set = library.all().stream().filter(b -> b.id().equals("set3")).findFirst().orElseThrow();
         int count = name.equals("phase4-empty") || name.equals("phase4-large-0") ? 0
