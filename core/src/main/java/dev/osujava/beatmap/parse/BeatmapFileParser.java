@@ -108,7 +108,7 @@ public final class BeatmapFileParser {
         BeatmapDifficulty difficulty = new BeatmapDifficulty(title, artist, creator, version, mode,
                 audioFilename, backgroundFilename, settings, timingPoints, parsedObjects.objects(), null, null, null, integer(general.get("previewtime"), -1),
                 new BeatmapMetadata(titleUnicode, artistUnicode, value(metadata, "source", ""), value(metadata, "tags", ""),
-                        integer(metadata.get("beatmapid"), -1), beatmapSetId), statistics, playData);
+                        integer(metadata.get("beatmapid"), -1), beatmapSetId), statistics, playData, parsedObjects.skippedCount());
         return new BeatmapFile(formatVersion, title, titleUnicode, artist, artistUnicode, creator,
                 beatmapSetId, difficulty);
     }
@@ -141,14 +141,15 @@ public final class BeatmapFileParser {
         return points;
     }
 
-    private record ParsedObjects(List<HitObject> objects, int firstStartMs, int lastStartMs, int lastEndMs) { }
+    private record ParsedObjects(List<HitObject> objects, int firstStartMs, int lastStartMs, int lastEndMs, int skippedCount) { }
 
     private ParsedObjects parseHitObjects(List<String> lines) {
         List<HitObject> objects = new ArrayList<>();
         int firstStartMs = -1, lastStartMs = -1, lastEndMs = -1;
+        int skippedCount = 0;
         for (String line : lines) {
             String[] fields = line.split(",", -1);
-            if (fields.length < 5) continue;
+            if (fields.length < 5) { skippedCount++; continue; }
             try {
                 double x = Double.parseDouble(fields[0].trim());
                 double y = Double.parseDouble(fields[1].trim());
@@ -178,10 +179,11 @@ public final class BeatmapFileParser {
                 }
             } catch (IllegalArgumentException ignored) {
                 // Invalid objects are skipped so one damaged line does not discard a whole set.
+                skippedCount++;
             }
         }
         objects.sort(Comparator.comparingLong(HitObject::timeMs));
-        return new ParsedObjects(objects, firstStartMs, lastStartMs, lastEndMs);
+        return new ParsedObjects(objects, firstStartMs, lastStartMs, lastEndMs, skippedCount);
     }
 
     private long breakDuration(List<String> lines) {

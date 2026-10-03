@@ -3,6 +3,8 @@ package dev.osujava.library;
 import dev.osujava.beatmap.BeatmapSet;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -14,9 +16,42 @@ import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PropertiesBeatmapLibraryStorageTest {
+    @ParameterizedTest
+    @ValueSource(booleans = {false, true})
+    void parserOmissionsSurviveImportAndRestartAndAreRecomputedAfterRepair(boolean archive) throws Exception {
+        Path root = tempDir.resolve("partial-library");
+        String valid = "osu file format v14\n[Metadata]\nTitle:Partial\nBeatmapSetID:123\n[HitObjects]\n100,100,1000,1,0\n";
+        Path source = tempDir.resolve(archive ? "partial.osz" : "partial.osu");
+        if (archive) {
+            try (var zip = new ZipOutputStream(Files.newOutputStream(source), StandardCharsets.UTF_8)) {
+                put(zip, "nested/partial.osu", valid + "damaged\n");
+                put(zip, "valid.osu", valid.replace("Title:Partial", "Title:Valid"));
+            }
+        } else Files.writeString(source, valid + "damaged\n");
+        var imported = new BeatmapArchiveImporter(root).importFile(source);
+        assertEquals(1, imported.warnings().size());
+        assertTrue(imported.warnings().getFirst().contains("Skipped 1 invalid HitObject"));
+        var damaged = imported.beatmapSet().difficulties().stream().filter(d -> d.title().equals("Partial")).findFirst().orElseThrow();
+        assertEquals(1, damaged.hitObjects().size());
+        assertEquals(1, damaged.skippedHitObjectCount());
+        var storage = new PropertiesBeatmapLibraryStorage(root);
+        storage.save(imported.beatmapSet());
+        var restored = new PropertiesBeatmapLibraryStorage(root).load().getFirst().difficulties().stream()
+                .filter(d -> d.title().equals("Partial")).findFirst().orElseThrow();
+        assertEquals(1, restored.skippedHitObjectCount());
+        var calculator = new dev.osujava.difficulty.StandardDifficultyCalculator();
+        assertEquals(dev.osujava.difficulty.DifficultyResult.Status.FAILED, calculator.calculate(restored).status());
+        Files.writeString(restored.beatmapPath(), valid);
+        var repaired = new PropertiesBeatmapLibraryStorage(root).load().getFirst().difficulties().stream()
+                .filter(d -> d.title().equals("Partial")).findFirst().orElseThrow();
+        assertEquals(0, repaired.skippedHitObjectCount());
+        assertEquals(dev.osujava.difficulty.DifficultyResult.Status.SUCCESS, calculator.calculate(repaired).status());
+        assertNotEquals(restored.playData().sha256(), repaired.playData().sha256());
+    }
     @TempDir
     Path tempDir;
 

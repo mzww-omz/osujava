@@ -11,6 +11,19 @@ import org.junit.jupiter.params.provider.MethodSource;
 import static org.junit.jupiter.api.Assertions.*;
 
 class StandardDifficultyCalculatorTest {
+    @Test void parserOmissionsNeverProducePartialStarsOrKnownZero() throws Exception {
+        var parser = new BeatmapFileParser();
+        var calculator = new StandardDifficultyCalculator();
+        for (String valid : List.of("", "100,100,1000,1,0\n")) {
+            var chart = parser.parse("osu file format v14\n[HitObjects]\n" + valid + "damaged\n", "partial.osu").difficulty();
+            var inspection = calculator.inspect(chart);
+            assertEquals(DifficultyResult.Status.FAILED, inspection.result().status());
+            assertTrue(inspection.result().rating().isEmpty());
+            assertTrue(inspection.result().reason().contains("Parser skipped 1"));
+            assertTrue(inspection.objects().isEmpty());
+        }
+        assertEquals(0, calculator.calculate(parser.parse("osu file format v14\n[HitObjects]\n", "empty.osu").difficulty()).stars());
+    }
     // Fixed before comparing results. Stars/skill ratings: 1e-9 absolute;
     // per-object and section values: 1e-7 absolute + 1e-9 relative (single-precision geometry).
     static Stream<String> fixtures() { return Stream.of("empty","single","pair","three","jumps","stream","rhythm","simultaneous","stacks","spinner","gaps","fractional","linear-basic","linear-repeat","linear-polyline","linear-sv","linear-stacks","linear-late-tick","linear-duplicate","linear-no-timing","linear-rhythm","linear-single","linear-spinner","linear-future-timing","curve-bezier","curve-bezier-segments","curve-bezier-high-degree","curve-perfect","curve-perfect-major","curve-perfect-fallback","curve-catmull","curve-catmull-duplicates","curve-mixed","curve-stacks","curve-fractional-controls","curve-loop","curve-catmull-v128","curve-perfect-reverse"); }

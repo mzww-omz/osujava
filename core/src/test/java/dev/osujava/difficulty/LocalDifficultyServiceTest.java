@@ -21,6 +21,35 @@ class LocalDifficultyServiceTest {
     private List<BeatmapSet> sets(BeatmapDifficulty... charts) { return List.of(new BeatmapSet("set","Map","A","C",null,null,List.of(charts),List.of())); }
     private void until(BooleanSupplier condition) { assertTimeoutPreemptively(Duration.ofSeconds(10),()->{ while(!condition.getAsBoolean()) Thread.sleep(1); }); }
     private void finished(LocalDifficultyService service,int size) { until(()->{service.drain();return service.diagnostics().published()==size;}); }
+    @Test void parserOmissionsInvalidateOldPartialRatingAndPersistUntilTheSourceIsRepaired() throws Exception {
+        var parser = new BeatmapFileParser();
+        String valid = "osu file format v14\n[HitObjects]\n100,100,1000,1,0\n";
+        var damaged = parser.parse(valid + "damaged\n", "partial.osu").difficulty();
+        var old = new DifficultyKey(BeatmapContentKey.of(damaged), List.of(), "osu-java-nm-20220902-3", "legacy-curves-f32-v8-1");
+        var cache = new DifficultyCache(directory);
+        cache.save(old, new StandardDifficultyCalculator().calculate(parser.parse(valid, "valid.osu").difficulty()));
+        byte[] previous = Files.readAllBytes(cache.path(old));
+        DifficultyResult failed;
+        try (var service = new LocalDifficultyService(directory)) {
+            service.library(sets(damaged)); finished(service, 1); failed = service.result(damaged);
+            assertEquals(DifficultyResult.Status.FAILED, failed.status());
+            assertTrue(failed.rating().isEmpty());
+        }
+        assertArrayEquals(previous, Files.readAllBytes(cache.path(old)));
+        var moved = damaged.withAssets(null, null, Path.of("moved.osu"));
+        try (var service = new LocalDifficultyService(directory, d->{fail("Warm parse failure must be cached");return VALUE;},
+                StandardDifficultyCalculator.ALGORITHM_VERSION, StandardDifficultyCalculator.PREPROCESS_VERSION)) {
+            service.library(sets(moved)); finished(service, 1); assertEquals(failed, service.result(moved));
+        }
+        var repaired = parser.parse(valid, "partial.osu").difficulty();
+        assertNotEquals(BeatmapContentKey.of(damaged), BeatmapContentKey.of(repaired));
+        try (var service = new LocalDifficultyService(directory)) {
+            service.library(sets(damaged)); finished(service, 1);
+            service.library(sets(repaired)); finished(service, 1);
+            assertEquals(DifficultyResult.Status.SUCCESS, service.result(repaired).status());
+            assertTrue(service.result(repaired).rating().isPresent());
+        }
+    }
     @Test void frameMethodsDoNoCalculationAndContentDuplicatesShareOneResultAndCache() throws Exception {
         var first=chart(100);var copy=first.withAssets(null,null,Path.of("moved.osu"));
         var calls=new AtomicInteger();var thread=new AtomicReference<Thread>();Thread ui=Thread.currentThread();

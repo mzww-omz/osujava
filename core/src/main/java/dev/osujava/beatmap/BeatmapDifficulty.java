@@ -21,7 +21,21 @@ public record BeatmapDifficulty(
         int previewTimeMs,
         BeatmapMetadata metadata,
         BeatmapTimingStatistics timingStatistics,
-        BeatmapPlayData playData) {
+        BeatmapPlayData playData,
+        // Non-comment source rows omitted by the tolerant HitObject parser; retained across asset resolution.
+        int skippedHitObjectCount) {
+
+    /** Programmatically constructed charts have no parser omissions unless explicitly supplied. */
+    public BeatmapDifficulty(String title, String artist, String creator, String version, int mode,
+                             String audioFilename, String backgroundFilename, DifficultySettings settings,
+                             List<TimingPoint> timingPoints, List<HitObject> hitObjects,
+                             Path audioPath, Path backgroundPath, Path beatmapPath, int previewTimeMs,
+                             BeatmapMetadata metadata, BeatmapTimingStatistics timingStatistics,
+                             BeatmapPlayData playData) {
+        this(title, artist, creator, version, mode, audioFilename, backgroundFilename, settings,
+                timingPoints, hitObjects, audioPath, backgroundPath, beatmapPath, previewTimeMs,
+                metadata, timingStatistics, playData, 0);
+    }
 
     public BeatmapDifficulty(String title, String artist, String creator, String version, int mode,
                              String audioFilename, String backgroundFilename, DifficultySettings settings,
@@ -77,6 +91,7 @@ public record BeatmapDifficulty(
     }
 
     public BeatmapDifficulty {
+        if (skippedHitObjectCount < 0) throw new IllegalArgumentException("Skipped object count cannot be negative");
         title = Objects.requireNonNullElse(title, "Unknown title");
         artist = Objects.requireNonNullElse(artist, "Unknown artist");
         creator = Objects.requireNonNullElse(creator, "Unknown creator");
@@ -94,11 +109,11 @@ public record BeatmapDifficulty(
 
     public BeatmapDifficulty withAssets(Path resolvedAudio, Path resolvedBackground) {
         return new BeatmapDifficulty(title, artist, creator, version, mode, audioFilename,
-                backgroundFilename, settings, timingPoints, hitObjects, resolvedAudio, resolvedBackground, beatmapPath, previewTimeMs, metadata, timingStatistics, playData);
+                backgroundFilename, settings, timingPoints, hitObjects, resolvedAudio, resolvedBackground, beatmapPath, previewTimeMs, metadata, timingStatistics, playData, skippedHitObjectCount);
     }
 
     public BeatmapDifficulty withAssets(Path resolvedAudio, Path resolvedBackground, Path resolvedBeatmap) {
         return new BeatmapDifficulty(title, artist, creator, version, mode, audioFilename,
-                backgroundFilename, settings, timingPoints, hitObjects, resolvedAudio, resolvedBackground, resolvedBeatmap, previewTimeMs, metadata, timingStatistics, playData);
+                backgroundFilename, settings, timingPoints, hitObjects, resolvedAudio, resolvedBackground, resolvedBeatmap, previewTimeMs, metadata, timingStatistics, playData, skippedHitObjectCount);
     }
 }

@@ -1084,7 +1084,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 syncBrowser(true);
                 String message = existing ? "Already imported: " : "Imported: ";
                 message += finished.beatmapSet().title();
-                if (!finished.warnings().isEmpty()) message += " (some difficulties skipped)";
+                if (!finished.warnings().isEmpty()) message += " (" + finished.warnings().size() + " import warning(s))";
                 showToast(message, UiTheme.SUCCESS);
             });
         }, "osujava-import");

@@ -18,6 +18,28 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 class BeatmapFileParserTest {
+    @Test
+    void countsBothShortAndRejectedObjectsWithoutCountingCommentsOrLosingValidRows() throws Exception {
+        var chart = parser.parse("""
+                osu file format v14
+                [HitObjects]
+                // comment is not an object
+
+                200,100,2000,1,0
+                damaged
+                100,100,bad,1,0
+                100,100,1000,2,0,B|bad,1,100
+                100,100,1000,8,0
+                100,100,1000,128,0,NaN
+                100,100,1000,1,bad
+                100,100,1000,1,0
+                """, "partial.osu").difficulty();
+        assertEquals(6, chart.skippedHitObjectCount());
+        assertEquals(List.of(1000L, 2000L), chart.hitObjects().stream().map(HitObject::timeMs).toList());
+        assertEquals(6, chart.withAssets(null, null).skippedHitObjectCount());
+        assertEquals(6, chart.withAssets(null, null, Path.of("moved.osu")).skippedHitObjectCount());
+        assertEquals(0, parser.parse("osu file format v14\n[HitObjects]\n// empty\n", "empty.osu").difficulty().skippedHitObjectCount());
+    }
     private final BeatmapFileParser parser = new BeatmapFileParser();
 
     @Test void additionalMetadataSurvivesBothAssetResolutionPathsAndDefaultsSafely() throws Exception {
