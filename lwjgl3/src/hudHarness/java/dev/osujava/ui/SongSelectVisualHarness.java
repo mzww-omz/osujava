@@ -716,6 +716,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         +"[HitObjects]\n"+(fixture.equals("source-empty-setting")?"":fixture.equals("source-spinner")?"256,192,1000,8,0,500\n":"100,100,1000,1,0\n");
                 diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse(source,fixture+".osu").difficulty().withAssets(null,null,Path.of(fixture+".osu")));
             }
+            for(String fixture:List.of("timing-sv-rounding","timing-sv-clamp"))
+                diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse(Path.of("core/src/test/resources/difficulty/reference-20220902/"+fixture+".osu"))
+                        .difficulty().withAssets(null,null,Path.of(fixture+".osu")));
             library.add(new BeatmapSet("set3","Reference fixtures","Local Fixture","osu!java",null,null,diffs,List.of()));
         } catch(Exception failure) { throw new IllegalStateException("Could not load local difficulty fixtures",failure); }
         var localScores = scene.name.startsWith("phase4-backend-")
@@ -2289,8 +2292,12 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         for(int index=26;index<library.all().getFirst().difficulties().size();index++) {
             browser.select("set3",index);screen.browserMode(SongBrowserModel.Sort.DIFFICULTY,SongBrowserModel.Group.DIFFICULTY);
             for(int i=0;i<45;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
-            if(((SongSelectDetails)screenField(screen,"details")).status().contains("Stars")) throw new AssertionError("Damaged chart rating shown in metadata");
-            capture(fb,name+"-"+library.all().getFirst().difficulties().get(index).title());
+            var chart=library.all().getFirst().difficulties().get(index);
+            var result=service.result(chart);var status=((SongSelectDetails)screenField(screen,"details")).status();
+            if(result.rating().isPresent()) {
+                if(!status.contains(String.format(java.util.Locale.ROOT,"Stars %.2f",result.stars()))) throw new AssertionError("Verified SV rating absent from metadata");
+            } else if(status.contains("Stars")) throw new AssertionError("Damaged chart rating shown in metadata");
+            capture(fb,name+"-"+chart.title());
         }
         browser.select("set3",0);screen.browserMode(SongBrowserModel.Sort.DIFFICULTY,SongBrowserModel.Group.DIFFICULTY);
         for(int i=0;i<45;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
@@ -2314,10 +2321,14 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if(((SongSelectDetails)screenField(reopened,"details")).status().contains("Stars")) throw new AssertionError("Warm screen restored partial stars for a damaged chart");
             capture(fb,name+"-partial-warm");
             var warmCharts=library.all().getFirst().difficulties();
-            for(int index=0;index<warmCharts.size();index++) if(warmCharts.get(index).parseIssues().any()) {
+            for(int index=0;index<warmCharts.size();index++) if(warmCharts.get(index).parseIssues().any() || warmCharts.get(index).title().startsWith("timing-sv-")) {
                 warmBrowser.select("set3",index);reopened.browserMode(SongBrowserModel.Sort.DIFFICULTY,SongBrowserModel.Group.DIFFICULTY);
                 for(int frame=0;frame<45;frame++) {reopened.render(1f/60);transitionFrames++;assertRenderedBounds(reopened,layout);}
-                if(((SongSelectDetails)screenField(reopened,"details")).status().contains("Stars")) throw new AssertionError("Warm screen restored stars after a source correction");
+                var result=((dev.osujava.difficulty.LocalDifficultyService)screenField(reopened,"localRatings")).result(warmCharts.get(index));
+                var status=((SongSelectDetails)screenField(reopened,"details")).status();
+                if(result.rating().isPresent()) {
+                    if(!status.contains(String.format(java.util.Locale.ROOT,"Stars %.2f",result.stars()))) throw new AssertionError("Warm screen did not restore verified SV rating");
+                } else if(status.contains("Stars")) throw new AssertionError("Warm screen restored stars after a source correction");
                 capture(fb,name+"-"+warmCharts.get(index).title()+"-warm");
             }
         } finally {reopened.dispose();}
