@@ -1,0 +1,21 @@
+osu file format v14
+[General]
+Mode:0
+StackLeniency:0.7
+[Metadata]
+Title:spinner
+Artist:Local Fixture
+Creator:osu!java
+Version:Reference
+[Difficulty]
+CircleSize:5
+ApproachRate:5
+OverallDifficulty:5
+[HitObjects]
+100,100,1000,1,0
+300,200,1200,1,0
+256,192,1300,8,0,2000
+400,100,2100,1,0
+100,300,2250,1,0
+400,300,2350,1,0
+100,100,2450,1,0

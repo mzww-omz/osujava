@@ -1,0 +1,14 @@
+osu file format v14
+[General]
+Mode:0
+StackLeniency:0.7
+[Metadata]
+Title:empty
+Artist:Local Fixture
+Creator:osu!java
+Version:Reference
+[Difficulty]
+CircleSize:5
+ApproachRate:5
+OverallDifficulty:5
+[HitObjects]

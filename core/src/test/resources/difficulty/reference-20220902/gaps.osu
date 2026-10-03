@@ -1,0 +1,22 @@
+osu file format v14
+[General]
+Mode:0
+StackLeniency:0.7
+[Metadata]
+Title:gaps
+Artist:Local Fixture
+Creator:osu!java
+Version:Reference
+[Difficulty]
+CircleSize:5
+ApproachRate:5
+OverallDifficulty:5
+[HitObjects]
+100,100,0,1,0
+300,200,100,1,0
+400,100,200,1,0
+50,300,300,1,0
+400,50,5600,1,0
+100,300,5800,1,0
+400,300,5900,1,0
+100,100,6000,1,0

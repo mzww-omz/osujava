@@ -1,0 +1,30 @@
+osu file format v14
+[General]
+Mode:0
+StackLeniency:0.7
+[Metadata]
+Title:stacks
+Artist:Local Fixture
+Creator:osu!java
+Version:Reference
+[Difficulty]
+CircleSize:5
+ApproachRate:5
+OverallDifficulty:5
+[HitObjects]
+100,100,1000,1,0
+100,100,1100,1,0
+100,100,1200,1,0
+100,100,1300,1,0
+130,130,1400,1,0
+130,130,1500,1,0
+130,130,1600,1,0
+130,130,1700,1,0
+160,160,1800,1,0
+160,160,1900,1,0
+160,160,2000,1,0
+160,160,2100,1,0
+190,190,2200,1,0
+190,190,2300,1,0
+190,190,2400,1,0
+190,190,2500,1,0

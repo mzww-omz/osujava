@@ -1,0 +1,49 @@
+using System.Globalization;
+using osu.Game.Beatmaps;
+using osu.Game.Rulesets.Osu.Objects;
+using osu.Game.Rulesets.Osu.Beatmaps;
+using osu.Game.Rulesets.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
+using osu.Game.Rulesets.Osu.Difficulty.Skills;
+using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
+using osu.Game.Rulesets.Mods;
+using osuTK;
+CultureInfo.CurrentCulture=CultureInfo.InvariantCulture;
+string fmt(double n) => n.ToString("R",CultureInfo.InvariantCulture);
+foreach (var file in Directory.GetFiles(args[0],"*.osu").Order()) {
+    var lines=File.ReadAllLines(file);
+    double setting(string name,double fallback) { var l=lines.FirstOrDefault(l=>l.StartsWith(name+":")); return l==null?fallback:double.Parse(l.Split(':')[1]); }
+    float cs=(float)setting("CircleSize",5),ar=(float)setting("ApproachRate",5),od=(float)setting("OverallDifficulty",5);
+    float scale=(1f-.7f*(cs-5)/5)/2;
+    var beatmap=new Beatmap<OsuHitObject>();
+    beatmap.BeatmapInfo.BeatmapVersion=int.Parse(lines[0].Split('v')[1]);
+    beatmap.BeatmapInfo.StackLeniency=(float)setting("StackLeniency",.7);
+    bool parsing=false;
+    foreach(var line in lines) {
+        if(line=="[HitObjects]") { parsing=true; continue; }
+        if(!parsing || line.Length==0) continue;
+        var p=line.Split(','); int type=int.Parse(p[3]);
+        OsuHitObject o=type==8?new Spinner():type==1?new HitCircle():throw new NotSupportedException();
+        o.Position=new Vector2(float.Parse(p[0]),float.Parse(p[1]));o.StartTime=double.Parse(p[2]);o.EndTime=type==8?double.Parse(p[5]):o.StartTime;
+        o.Scale=scale;o.TimePreempt=(float)(ar>5?1200-150*(ar-5):1800-120*ar);o.HitWindows.Window=type==8?0:80-6*od;
+        beatmap.HitObjects.Add(o);
+    }
+    new OsuBeatmapProcessor(beatmap).PostProcess();
+    var objects=new List<DifficultyHitObject>();
+    for(int i=1;i<beatmap.HitObjects.Count;i++) objects.Add(new OsuDifficultyHitObject(beatmap.HitObjects[i],beatmap.HitObjects[i-1],i>1?beatmap.HitObjects[i-2]:null,1,objects,i-1));
+    var aim=new Aim(Array.Empty<Mod>(),true);var speed=new Speed(Array.Empty<Mod>());
+    foreach(var o in objects) { aim.Process(o); speed.Process(o); }
+    double a=Math.Sqrt(aim.DifficultyValue())*.0675,s=Math.Sqrt(speed.DifficultyValue())*.0675;
+    double perf=Math.Pow(Math.Pow(Math.Pow(5*Math.Max(1,a/.0675)-4,3)/100000,1.1)+Math.Pow(Math.Pow(5*Math.Max(1,s/.0675)-4,3)/100000,1.1),1/1.1);
+    double stars=beatmap.HitObjects.Count==0?0:perf>.00001?Math.Cbrt(1.14)*.027*(Math.Cbrt(100000/Math.Pow(2,1/1.1)*perf)+4):0;
+    var output=new List<string>{"# Public ppy/osu 4e96853c7543f80a1b822ccd381943c7377543d7; calculator 20220902; NM fixture oracle", "stars="+fmt(stars),"aim="+fmt(a),"speed="+fmt(s)};
+    output.Add("heights="+string.Join(",",beatmap.HitObjects.Select(o=>o.StackHeight)));
+    for(int i=0;i<objects.Count;i++) {
+        var o=(OsuDifficultyHitObject)objects[i];
+        output.Add("object."+i+"="+string.Join(",",new[]{o.StrainTime,o.LazyJumpDistance,o.Angle??-1,AimEvaluator.EvaluateDifficultyOf(o,true),SpeedEvaluator.EvaluateDifficultyOf(o),RhythmEvaluator.EvaluateDifficultyOf(o)}.Select(fmt)));
+    }
+    output.Add("aimPeaks="+string.Join(",",aim.GetCurrentStrainPeaks().Select(fmt)));
+    output.Add("speedPeaks="+string.Join(",",speed.GetCurrentStrainPeaks().Select(fmt)));
+    File.WriteAllLines(Path.ChangeExtension(file,"properties"),output);
+    Console.WriteLine(Path.GetFileName(file)+" "+fmt(stars));
+}
