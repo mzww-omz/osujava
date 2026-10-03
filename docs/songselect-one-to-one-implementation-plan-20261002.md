@@ -20,6 +20,16 @@ Wine起動検証は当面行わない。Quota制限に抵触しそうな参照�
 P0〜P9の確定契約の実装と未確定部分の調査を進めた。現在の対応範囲・残差・検証・commitは
 [1〜6の実装進捗](songselect-parity-implementation-progress-20261002.md)を参照。全工程の完了／stableとの1:1合格はまだ認定していない。
 
+## 現在の進行とselector残件（2026-10-03）
+
+Mode/Mods/Options入口の割込み修復は[selector記録](songselect-selectors-20261003.md)までで区切った。
+通常進行はbackend **B05のsource品質→timing oracle→work budget→B06→B07→B08→B09**へ戻す。
+今回B05のsource品質通知とcache失効・warm/source修復の検証を実装した。
+次の着手単位・通常Mods/Options/他mode/Editor/selectorの細部/Collection内部の解決計画は
+[backend計画の依存表](songselect-backend-improvement-plan-20261002.md#通常phaseへの復帰とselector残件の実行順)を参照。
+P8bの外観残件はS-VIS1/S-COL1、機能残件はS-MOD/S-OPT/S-MODEへ分割し、P10の同期比較で認定する。
+後続M/E番号は別の機能Phaseで、既存P/Phase番号を置き換えない。
+
 ## 実装順・依存・完了条件
 
 | 順 / 対応ID | 変更単位と主な対象 | 着手条件・完了条件 |

@@ -5,7 +5,7 @@
 [B03履歴・日時の実装記録](songselect-backend-history-20261002.md)、
 [B04Collections/Optionsの実装記録](songselect-backend-collections-20261003.md)、
 [B05星評価の対応範囲・検証・残件](songselect-backend-difficulty-20261003.md)を参照。
-以下の現状表は計画作成時の調査記録として保持する。B05は部分実装、B06–B09は未着手。
+以下の現状表は計画作成時の調査記録として保持する。B05は部分実装（source品質通知まで修復済み）、B06–B09は未着手。
 対象は[残件台帳](songselect-remaining-work-20261002.md)のR06/R07/R08と、それらに必要な保存・更新通知。
 完全ローカル、Java 21/libGDX/LWJGL3、Import / Gameplay / Ruleset / GameClock / Rendererの責務分離を維持する。
 
@@ -49,6 +49,50 @@ score詳細・通常Modsを機能として接続すること。描画だけのpl
 推奨順は **B00→B01→B02→B03→B04→B05→B06→B07→B08→B09**。
 B04とB05はB01後に独立して進められるが、初期は完成しやすいlocal機能を先に接続する。
 backend依存でないpixel丸め/font/chrome/manager順は別のUI比較作業として残す。
+
+## 通常Phaseへの復帰とselector残件の実行順
+
+2026-10-03更新。
+
+selector外観の割込み修復は`70a29a6`までで区切り、通常進行を**B05から再開**した。
+この更新ではB番号や既存P/Phase番号を置き換えない。B01–B04は完了、B05は部分実装、B06–B09は未着手。
+[selector修復記録](songselect-selectors-20261003.md)の未完了項目を、以下の依存付き作業へ移した。
+未対応項目はbackendと検証が揃うまで無効。外観の修復を機能実装の完了として数えない。
+
+### 直近の通常進行
+
+| 単位 / 状態 | 実装・調査対象 | 完了条件と次の作業 |
+| --- | --- | --- |
+| B05-T1 / 実装・Java検証済み | setting/timingの不正値・短いTimingPoint・Spinner終端補正の通知、rating/cacheへの伝播。欠損HitObject通知を維持 | Import→warning→保存→再読込→FAILED、旧SUCCESS cache失効、warm再利用、source修復→SUCCESSを確認済み。意図的な継承NaNは破損ではない。詳細は[B05記録](songselect-backend-difficulty-20261003.md#settingtimingspinner補正のsource品質通知) |
+| **B05-T2 / 次の着手単位** | SVの0.01丸め境界、同時刻red/green優先、継承NaNのtick無効化、nested同時刻、pre-v8 tick距離 | pinned public decoder/control-point処理を実行するoracleを先に拡張。既存Stubsのtiming手組み結果をnative期待値にしない。各境界を独立fixture化→中間値/星を既存許容差で照合→検証した条件だけ現在のUNSUPPORTED guardを緩める。必要ならpreprocessing版を更新 |
+| B05-T3 / T2の後 | 1万難易度のcold/warm、curve/stackの処理上限・cancel・rapid選曲/import | queue/completion上限、同内容のjob共有、stale結果破棄、frame内IO/計算なしを計測。変更前後のframe時間・allocation・全体完了時間を保存。上限変更は検証してから行い、未測定で軽量化済みにしない |
+| B05-T4 / 比較工程へ引継ぎ | stable実機の数値照合、未検証curve/setting/pre-v6等 | 対応subset・未対応subsetを固定しP10へ引継ぐ。実機待ちや未対応B-spline/pre-v6を理由にB06以降を無期限に止めない。B05全体の完全互換とは認定しない |
+| B06 / T2・T3の受入後 | HP/fail/outcomeとResults/履歴への実収集 | 下記B06契約を小単位で実装。NMの固定入力・fps不変、break、fail/abort、保存を通してからB07へ進む |
+
+B05-T2は「全timingをまとめて有効化」するPRにせず、SV境界→同時刻control point→NaN/nested→pre-v8の順に分ける。
+現在の検証済み38fixtureとUIのknown zero/unknownを各単位で回帰確認する。
+通常の主経路は **B05-T2→B05-T3→B06→B07→B08→B09**。stable実機比較は別の完了段階として追跡する。
+
+### 今回のselector残件を解消する作業
+
+| 残件ID / 依存 | 変更単位 | 完了条件 / 検証 |
+| --- | --- | --- |
+| S-MOD1 / B02・B05・B06 → B07 | NF、次にHRを最初の有効Modsとして接続。UIの表示用enumと実Mod構成を分離し、PlayContextを開始時freeze | 選択/解除、1 Reset、倍率・排他、difficulty/HP/score/位置/input/Renderer・星cache・新scoreのModsを同じcontextへ接続。固定入力、NM回帰、failed/abort/Debug Auto非保存、再起動、selector-contractsを通す。NFだけの段階ではHR等を無効のままにする |
+| S-MOD2 / S-MOD1 → B07拡張 | EZ life/recovery、HD visibility、DT/HT audio transportをそれぞれ独立単位で実装 | 既存B07表の条件を満たしてから有効化。音声速度が未対応ならDT/HTを無効に保ち、clockだけの加速は禁止。Nightcore/Perfect派生やRX/AP/SO/FL/Auto/ScoreV2も実処理・保存・組合せ検証を個別に閉じる |
+| S-OPT1 / B01・B02 → B09-1 | Options 4: 選択difficultyのlocal score削除、確認dialog、revision更新 | 内容hash一致scoreだけを対象にし、legacy/別内容を暗黙に削除しない。atomic保存・失敗注入・取消・0/1/多数score・ranking/best grade/played更新・再起動を確認して有効化 |
+| S-OPT2 / B03 → B09-2 | Options 3: Remove from Unplayedの明示local履歴/markerモデルと検索更新 | previewや偽play/偽scoreを作らず「手動でplayed扱い」と実play履歴を分離。元のUnplayed定義との優先順を固定し、取消/保存失敗/再起動/同内容複製を検証。実データモデルが揃うまで無効 |
+| S-OPT3 / B01・B04 → B09-3 | Options 2: 個別difficulty / mapsetのlocal退避と復元可能なindex更新 | trash移動→index更新→revision→cache/選択修復、途中失敗の復元。Collection missing参照・履歴・過去scoreを保持。取消/失敗/再起動/共有audioを確認し、部分削除で他difficultyのassetを消さない |
+| S-OPT4 / B09-3後、Editor別Phase E01 | Options 5: ローカル譜面編集の実backendと遷移 | 読込・編集・保存・取消・parse失敗復旧→library再parse/revision→新hash/星cache/score/Collection参照を検証。Editボタンだけで完了にしない。stable editor全機能はE01内でさらに分割し、達成範囲を明記 |
+| S-MODE1 / B01、mode browser独立Phase M01 | 実mode filter・選択復元・browse状態とflyoutを接続 | Ctrl+1–4、mouse選択、search/sort/collectionとの交差、mode別保存状態・再起動/resizeを照合。browseだけではPlayを有効化しない。空結果・同setに混在modeを回帰確認 |
+| S-MODE2 / M01、Ruleset別Phase M02–M04 | taiko→catch→maniaの実Ruleset/Gameplayを独立に実装 | Import/Renderer/Ruleset/GameClock境界を維持。各modeの固定入力・score/grade/HP/outcome・Results/保存を確認したものだけPlayを有効化。4mode一括rewriteやstandardへの誤フォールバックを行わない |
+| S-VIS1 / 上記主経路後のP8b、機能未完でも観測可 | Modeの絶対geometry・hover/入退場、dialog font/影/gradient/hover/press/音 | 許可skin/font、offline stableの同一入力列で開始/中間/終了、draw/hit、clip、z-orderを計測。現在の公開画像由来の値・SansSerif補正を観測値へ置換。16:9/16:10/4:3、resize、@2x/fallbackでselector suiteへfixtureを追加 |
+| S-COL1 / B04、P8bの別単位 | Collection manager内部のnative配置・editor/paging/animation | Options入口と区別してmanagerを観測。既存CRUD/Unicode/membership/storeを維持し、描画・inputだけ小単位で修正。collections-contractsと実機同条件比較を通す |
+| S-CMP1 / 各実装後のP10 | selectorを含む統合比較と残差修復 | 実装済み、Java検証済み、stable比較済みを別記。未測定値/素材条件差/未対応機能を残し、Java captureだけで1:1合格にしない |
+
+S-OPT1～4はB09内の明示的な順で扱い、主経路のB08後に進める。S-VIS1/S-COL1は同経路を終えた後のUI比較作業へ配置する。
+実機の準備が整った場合のread-only観測は先行可能だが、通常Phaseの実装を再びselector外観だけへ切り替えない。
+M01–M04/E01はまだ未着手の後続Phaseで、B06/B07が完了したとみなす抜け道ではない。
+各単位は独立commit、関連test/build、必要なGL captureまで含める。工期は未見積りで、依存が揃った順に進める。
 
 ## B00/B01: 内容識別と更新の土台
 

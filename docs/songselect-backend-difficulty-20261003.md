@@ -338,3 +338,61 @@ SV丸め/NaN/同時刻timing/nested/pre-v8 tick距離のreference検証を進め
 - `76a658f` — `test(song-select): verify damaged charts never display stars`
 
 本記録・README・進捗・残件台帳の更新は別のdocs commit。
+
+
+## setting/timing/Spinner補正のsource品質通知
+
+通常Phaseへ復帰した最初の変更単位B05-T1。開始HEAD `70a29a6`。
+既存parserは不正なDifficulty/General値を既定値へ置換し、短いTimingPointをskip、数値/flagの不正をfallback、
+Spinnerの終端が開始前なら開始へ補正していた。その由来を失うと正常なcircle chartやempty chartとして星を公開できた。
+これはJavaのsource品質通知の修復であり、stableの壊れたfile許容範囲を認定したという意味ではない。
+
+- 新規`BeatmapParseIssues`はsetting数・問題のあるTimingPoint行数・補正したobject数のimmutable snapshot。
+  `BeatmapDifficulty`に保持し、両asset解決経路とlibrary再構築で維持。既存constructorはNONEを補い、互換性を保つ。
+- 対象settingはHP/CS/OD/AR/SliderMultiplier/SliderTickRate、GeneralのStackLeniency/Mode。
+  明示した空値・数値不正・非有限値を通知する。省略した既定値とOD→ARのlegacy fallbackは問題として数えない。
+  設定の有限な範囲外は従来の未検証範囲判定で扱い、入力を新たにclampしない。
+- TimingPointは短い行、time/beatLengthの不正、存在するmeter/sample/index/volume/effectsの整数不正、
+  uninheritedの0/1以外を行単位で通知。省略されたoptional列は有効。従来のparse値・sort・skipを維持する。
+- 継承pointのbeatLength NaNは意図的なtick無効化のencodingとして認識し、破損件数へ入れない。
+  ただし現在のSlider前処理では未検証なのでUNSUPPORTEDのまま。赤pointのNaN、非有限time、Infinityは通知する。
+- Spinnerは実際に採用したrowの終端補正だけを数える。同じrowが不正HitSound等でskipされた場合は二重計上しない。
+  開始前の終端を補正したchartは保守的に星なしとする。現在のGameplay/Importの補正動作を変えたわけではない。
+- Importerは既存warningへ件数とsource fileを追加。parse後にLibrary保存→新storage instanceで再読込→元file修復した場合も通知を再計算。
+  library schemaの変更・問題のあるSet全体の破棄・Rendererでのsource再readはしない。
+- Calculatorはsource問題ありを早期FAILEDにし、星・中間strainを作らない。known zeroと異なるunknownを維持。
+  algorithmは`osu-java-nm-20220902-3`のまま、preprocessingは`legacy-curves-f32-v8-3`。
+  旧v8-2 SUCCESSを使わず、新keyでFAILEDを保存。旧cacheは保持する。正常chartも新keyで一度再計算する。
+
+根拠:
+
+- [公式.osu形式](https://osu.ppy.sh/wiki/en/Client/File_formats/osu_(file_format))のDifficulty/TimingPoints/Spinner欄。
+- 固定済み公開commit `4e96853c7543f80a1b822ccd381943c7377543d7` の
+  [LegacyBeatmapDecoder](https://github.com/ppy/osu/blob/4e96853c7543f80a1b822ccd381943c7377543d7/osu.Game/Beatmaps/Formats/LegacyBeatmapDecoder.cs)。
+  継承NaNを許容してtick生成を止め、赤pointのNaNを拒否する区別を確認した。
+  既存Java parserのfallbackを独立に追跡した実装であり、公開decoderやstable binary内部コードはコピーしていない。
+
+検証:
+
+- 関連5 test class: **105 tests**成功。設定の空/不正/NaN/Infinity/overflow、省略AR/optional timing、
+  red/green NaN、採用/skip Spinner、Import `.osu`/nested `.osz`→保存→再起動→source修復を確認。
+- 旧v8-2 SUCCESS保持→新FAILED→移動/warm再利用→source修復→SUCCESSを実workerで検証。
+- `./gradlew build --offline --console=plain`: 成功。core **146 suites / 1,442 tests**、lwjgl3 **2 suites / 4 tests**。
+  failure/error/skipped 0。追加13 test cases。log `/tmp/osujava-b05-source-build.log`。
+- `difficulty-contracts`: **12 scenes / 288 PNG / 12,984 scripted transition frames**成功。
+  source-setting/source-timing/source-spinner/source-empty-settingのrow・情報・Unknown分類・星検索除外とwarm再表示を追加。
+  Greylooks/fallback/HD-only ×16:9/16:10/4:3/density 2。log `/tmp/osujava-b05-source-gl.log`、captures `/tmp/osujava-b05-source-gl/`。
+  4:3 Greylooksのempty-settingと2x fallbackのSpinner warm画面を目視確認。
+  正常38数値fixtureは既存の星/skill/stack/path/nested/strain許容差で全件成功。
+- Renderer/input/Gameplayを変更していない。今回はdifficulty suiteを実行し、selector/collections/audit全suiteの再実行はしていない。
+
+次の通常単位は[計画B05-T2](songselect-backend-improvement-plan-20261002.md#通常phaseへの復帰とselector残件の実行順)。
+SV丸め/同時刻control point/継承NaNの実tick動作/nested同時刻/pre-v8距離は引き続き未検証。
+source品質通知は数値互換を拡張しない。raw parserの重複key/非標準数値記法/全source構文の厳密互換も未認定。
+B05-T3の実大規模計測、stable実機比較、B06以降も未完了。B05全体を完了とはしない。
+
+Commit:
+
+- `7232a51` — `fix(difficulty): retain source issues before publishing ratings`
+- `6b61d25` — `test(song-select): cover source quality failures and warm ratings`
+- 本記録・計画・進捗・残件台帳の更新は後続のdocs commit。

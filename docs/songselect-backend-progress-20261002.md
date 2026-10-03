@@ -123,7 +123,7 @@ B05はNM circle/spinner・検証済みlegacy curve Slider、worker/cache、星/�
 | B00数値reference固定 | B05の公開2023 commitと20220902 version、許容差、自作38fixtureを固定・照合済み。未検証path/timing/B06 HPのreferenceは次段階で拡張 |
 | B03 history / addedAt — 実装済み | nativeの小数日丸め/group境界は追加観測が必要。現在は明示したlocal分類。詳細はB03実装記録 |
 | B04 Collections / Options — 実装済み | native managerの厳密な寸法/editor/animationは未比較。local CRUDと既存UIへの接続は完了。管理操作の拡張はB09 |
-| B05 star / Difficulty — 部分実装 | NM v6+ circle/spinnerとv8+検証済みlegacy curveは計算・cache・UI接続済み。HitObject skip情報は伝播済み。次はsetting/timingのsource品質、SV/NaN/同時刻timing/pre-v8 tick距離、実大規模work budget評価、pre-v6/Mods、stable実機の数値照合。未検証chartはunknown |
+| B05 star / Difficulty — 部分実装 | NM v6+ circle/spinnerとv8+検証済みlegacy curveは計算・cache・UI接続済み。HitObject skip情報は伝播済み。setting/timing/Spinner補正のsource品質通知はB05-T1で修復済み。次はB05-T2のSV/NaN/同時刻timing/nested/pre-v8 tick距離、実大規模work budget評価、pre-v6/Mods、stable実機の数値照合。未検証chartはunknown |
 | B06 HP / fail | 実HP/終端を収集する。Resultsは既にpassed=falseのF表示に対応済みで、追加すべき中心はGameplayの計算・収集 |
 | B07通常Mods | NF→HR、後にEZ/HD/rate系。保存用listができたこととModの効果実装を混同しない。銀gradeは実Mod対応後 |
 | B08 replay | 実入力記録と再実行。保存成功した記録だけをscoreへ参照として接続する |
@@ -169,3 +169,19 @@ GL difficulty-contractsは12 scenes / 156 PNG / 7,044操作frame。次はparser 
 buildはcore 145 suites / 1,423 tests、lwjgl3 2 suites / 4 tests、failure/error/skip 0。
 GL difficulty-contractsは12 scenes / 192 PNG / 8,664操作frame。次はsetting/timingのsource品質通知とtiming境界、
 実大規模work budget評価、stable実機比較。詳細は[B05記録](songselect-backend-difficulty-20261003.md)を参照。
+
+
+## 通常Phase復帰: B05-T1 source品質を修復
+
+selector入口修復（`70a29a6`）の後、通常のbackend進行をB05へ戻した。
+不正setting/timingとSpinner終端補正の由来を`BeatmapParseIssues`として保持し、
+Import warning、保存/再parse、Calculator FAILED、新preprocessing keyへ接続した。
+明示不正と省略default、継承NaNと赤point NaNを分ける。正常38fixtureの数値は維持。
+
+`./gradlew build`成功、core **1,442 tests** / lwjgl3 **4 tests**、failure/error/skip 0。
+GL difficulty-contractsは**12 scenes / 288 PNG / 12,984操作frame**。
+[実装記録](songselect-backend-difficulty-20261003.md#settingtimingspinner補正のsource品質通知)に根拠・検証・未対応範囲を記録。
+
+次はB05-T2 timing oracle→B05-T3大規模計測→B06→B07→B08→B09。
+その後のselector残件は[計画の依存表](songselect-backend-improvement-plan-20261002.md#通常phaseへの復帰とselector残件の実行順)へ割り当てた。
+B05の部分実装を全互換完了として数えない。

@@ -122,6 +122,10 @@ Commit:
 - `ba8d854` — `test(song-select): cover selector interaction and visual states`
 - 本記録・capture・asset分類・残件台帳の更新は後続のdocs commit。
 
+2026-10-03追記: 通常PhaseをB05へ戻した後、本書の残件を[改善計画の依存付き作業表](songselect-backend-improvement-plan-20261002.md#通常phaseへの復帰とselector残件の実行順)へ移した。
+B05-T2/T3→B06→B07→B08→B09の主経路を維持し、S-MOD/S-OPT/S-MODE/S-VIS/S-COL/S-CMPに完了条件を置く。
+以下の表は発見した差の内容、実行順と着手条件は改善計画が管理する。
+
 ## stableとの差として残す作業
 
 | 残件 | 次の作業と完了判定 |
