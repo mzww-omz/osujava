@@ -42,6 +42,7 @@ public class OsuJavaGame extends Game {
     private LocalScoreStore localScores = new LocalScoreStore();
     private dev.osujava.score.LocalPlayer localPlayer;
     private dev.osujava.score.LocalPlayHistory playHistory = new dev.osujava.score.LocalPlayHistory();
+    private dev.osujava.collection.LocalCollectionStore collections = new dev.osujava.collection.LocalCollectionStore();
     private final java.time.Clock wallClock = java.time.Clock.systemDefaultZone();
     private BeatmapArchiveImporter importer;
     private OsuRuleset osuRuleset;
@@ -115,6 +116,7 @@ public class OsuJavaGame extends Game {
         localPlayer = dev.osujava.score.LocalPlayerProfile.load(localDataRoot().resolve("player.properties"),
                 System.getProperty("osujava.playerName"));
         playHistory = new dev.osujava.score.LocalPlayHistory(localDataRoot().resolve("history"));
+        collections = new dev.osujava.collection.LocalCollectionStore(localDataRoot().resolve("collections.properties"));
         osuRuleset = new OsuRuleset();
         navigate(new MainMenuScreen(this));
     }
@@ -166,6 +168,7 @@ public class OsuJavaGame extends Game {
     public LocalScoreStore localScores() { return localScores; }
     public dev.osujava.score.LocalPlayer localPlayer() { return localPlayer; }
     public dev.osujava.score.LocalPlayHistory playHistory() { return playHistory; }
+    public dev.osujava.collection.LocalCollectionStore collections() { return collections; }
     public java.time.Clock wallClock() { return wallClock; }
 
     public BeatmapLibrary library() {
