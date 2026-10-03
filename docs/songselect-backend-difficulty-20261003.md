@@ -40,3 +40,28 @@ fractional settings/coordinatesについて一致した。
 - pre-v6 stacking、範囲外settings、Mods別計算の検証。
 - stable実機での数値比較、Difficulty group境界・NM/Mod適用範囲の観測。
 - 全B05受入はslider fixture等を含む。circle/spinnerの照合だけでB05全体完了とはしない。
+
+## Workerとcache
+
+`LocalDifficultyService`をSong Select単位で所有し、disposeでinterrupt/queue破棄する。
+1 daemon worker、待機32件、未公開完了64件。library内容は変更時だけcontent単位でindexし、
+同内容の移動/複製は1jobを共有する。選択→visible→library順で優先し、満杯時のpromotionは末尾を
+背景待機へ戻す。残り全譜面をexecutorへ一括投入しない。
+
+UIのlibrary/prioritize/result/drainは計算・disk I/Oを行わない。workerのimmutable結果をgeneration付きで
+戻し、frame側drainで現generationだけを採用する。1batchに1revision。
+library交換前の結果はUIへ採用しない。同内容keyの既公開値は安全に再利用する。
+
+Production cacheは `~/.osujava/difficulty/`、schema 1の内容別sidecar。
+SHA-256/mode/正規化Mods/algorithm/preprocessingをkeyに含める。現在のserviceが要求するModsはNMのみ。
+SUCCESS/UNSUPPORTED/FAILEDを永続化し、毎frame・warm restartで失敗を再計算しない。
+旧計算版の別keyは新計算へ流用しない。未知schema・壊れたcacheは数値として信用せず、元fileを保持したまま
+メモリ内で再計算する。64KiB読取上限を設ける。
+
+一時fileをclose後、同directory内のhard linkで完成済みrecordをatomic公開する。
+既存recordを置換しないので、競合で出現したfuture schemaも上書きしない。
+hard linkを提供しないfilesystem/保存失敗では計算値を表示用メモリに保持し、storageWarningに理由を残す。
+未対応filesystemで非atomic書込へ切り替えない。raw `.osu`は変更しない。
+
+テストはcontent重複/移動/編集、cold/warm、計算版変更、Mods正規化key、terminal結果の再利用、
+future/corrupt保持、保存先が通常fileの失敗、世代交換、closeのinterrupt、1万chartでのpriority/queue/completion上限を含む。
