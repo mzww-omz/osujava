@@ -26,4 +26,16 @@ class ScoreContextPresentationTest {
         assertFalse(browser.rows().get(1).provenance().contains("NM"));
         assertFalse(ResultsPresentation.of(ResultsSnapshot.saved(legacy)).provenance().contains("NM"));
     }
+
+    @Test void failedOutcomeIsExplicitWithoutChangingJudgementRatioGrade() {
+        var details = new ScoreDetails(ScoreDetails.SCORE_V1,"a".repeat(64),"",null,null,null,null,false,null,null,null);
+        var score = new LocalScore(UUID.randomUUID(),new DifficultyIdentity("set","map.osu"),1,
+                new ScoreState(300,1,1,1,0,0,0,1),details);
+        var store = new LocalScoreStore(); store.save(score,GameplayRunMode.MANUAL);
+        var browser = new ScoreBrowserModel(store); browser.target(score.difficulty(),new BeatmapContentKey(details.beatmapSha256(),0));
+        assertTrue(browser.rows().getFirst().provenance().startsWith("Failed · "));
+        assertEquals(dev.osujava.ruleset.osu.OsuGrade.SS,score.grade());
+        assertEquals(dev.osujava.skin.ResultsSkinAssets.Image.F,ResultsPresentation.of(browser.open(0)).grade());
+        assertFalse(ScoreContextPresentation.of(null,ScoreDetails.LEGACY).contains("Failed"));
+    }
 }
