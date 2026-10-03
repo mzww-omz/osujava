@@ -5,6 +5,8 @@
 今回、下部hover spriteの入力矩形・Back連番provider・preview更新と失敗再試行を修復した。
 根拠と再現手順は[解消可能な差の修復](songselect-actionable-differences-20261002.md)を参照。
 stableとの完全一致は未達成。
+2026-10-03：B05のNM circle/spinner星計算とDifficulty UIを接続済み。
+対応範囲・数値検証・次のslider作業は[B05実装記録](songselect-backend-difficulty-20261003.md)を参照。
 
 ## 前回閉じた実装漏れ
 
@@ -61,8 +63,8 @@ B04（local Collections CRUD・membership・Collections tab/Group・Manage Colle
 | R03 / P1 / 追加観測 | HD eligibilityはJavaの共通resolverで常時HD優先。nativeはdisplay height>=800またはoption、別option、GL max texture条件を持つ | native `06002340`のoptionの意味・display対window・reload契機を測定。SD/HD混在fixtureとresizeでprovider/density期待値を確定し、共有resolverを壊さず実装 |
 | R04 / P1 / 追加観測 | Back/下部buttonのraw hover矩形、透明部分のhit、静的/連番provider競合、壊れたHD時の探索停止を修復済み。INI owner/mask、音alias、focus時の連番時計は未確定 | nativeと同期した異寸法連番・focus/復帰の比較でframe/crop/hit/時計を確認。INI・音のownerを独立に確定。旧台帳V08–V13参照 |
 | R05 / P1 / 追加観測 | metadata typography/font metrics、全frame合成。AWTとnative GDIの差、独自5行構成、Greylooks fallbackと公式defaultの差 | 再配布可能な同一font/skinでLatin/CJK/結合文字・長文を720/800/768高で比較。baseline・省略・影・originを測定して調整。公式素材の抽出で埋めない |
-| R06 / P1 / backend依存 | production star rating sourceと本当のranked statusがない。星描画/animationは実装済みでfixture ratingを表示可能 | 信頼できる独立ローカルdifficulty計算をcacheとして供給。ranked statusは実metadata sourceがある場合のみ接続。Settingsから偽rating/statusを作らない |
-| R07 / P1 / backend依存 | Recently Playedと日時検索はB03、Collections tab/GroupとOptionsのcollection管理はB04で接続済み。通常Mods/他mode/Difficulty tab、譜面/score削除等は未実装 | 次はB05の独立ratingとDifficulty tab。管理拡張はB09。Recently Played境界とnative collection manager/editorの寸法・animationは追加観測 |
+| R06 / P1 / backend依存 | B05でNM v6+ circle/spinner星を独立計算・永続cacheから供給済み。Slider/他mode/pre-v6/Mods/範囲外設定は未検証でunknown。本当のranked statusはlocal sourceなし | 次は公開referenceのslider path/nested/lazy cursor中間値をfixture化して対応拡張。stable実機の数値照合も未実施。ranked statusは実metadataがある場合のみ接続 |
+| R07 / P1 / backend依存 | Recently Playedと日時検索はB03、Collections tab/GroupとOptionsのcollection管理はB04で接続済み。B05のDifficulty tab/sort/group/stars検索も接続済み。通常Mods/他mode、譜面/score削除等は未実装 | 次はB05 slider等の数値範囲拡張。管理拡張はB09。Recently Played境界とnative collection manager/editorの寸法・animationは追加観測 |
 | R08 / P2 / 観測・backend依存 | 新規scoreのplayer/Mods/rulesetをschema 3へ保存しranking/Resultsへ接続済み。現GameplayはNMのみ、旧scoreの未収集情報はunknown。replay、score native座標/grade配置/managerの全比較、barのnative形状・連続scroll・track操作は未完了 | score専用native managerを0/1/多数/選択/hoverで比較。通常ModsはB07、実replayはB08で収集後に接続。carousel barとscore barを分けて寸法/hit/scrollを検証。旧V17/V18 |
 | R09 / P2 / 追加観測 | 同frameの選曲/音声更新と、失敗音源の選択変更時のみ1回再試行を修復済み。同一audio pathの健康なstreamは継続。別PreviewTime、未指定seek=0、loop/focus/Gameplay復帰のnative契約は未確定 | 同一音源で別PreviewTime、失敗後再選択、focus/minimize、Gameplay短時間往復を観測。位置・再生/停止・fade・再試行をfake Music testへ落とす。旧T01/T02 |
 | R10 / P2 / layout方針 | chromeの安全上限とrow scissorはnativeとの差。極端なportraitではscore幅0で非表示になる | 正常skinのnative clipと巨大/異常skinの安全方針を区別。portraitを対応対象にする場合は専用レイアウト方針とresize回帰を追加 |

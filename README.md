@@ -133,6 +133,7 @@ Gameplayの単発hitsoundは譜面sample → custom Skin → local fallback → 
 | `~/.osujava/library/<set-id>/` | Importした譜面、音声、背景など |
 | `~/.osujava/library/index/` | SetごとのProperties形式の索引 |
 | `~/.osujava/scores/` | プレイUUIDごとのProperties形式のスコア |
+| `~/.osujava/difficulty/` | 内容hash・Mods・計算版別のローカル星評価cache |
 | `~/.osujava/skins/<SHA-256 ID>/` | ImportしたSkin |
 
 起動時に索引と `.osu` を読み、譜面を再構築します。同一Setの再Importはローカルデータと索引を更新します。Set identityは正のBeatmapSetIDを優先し、ない場合はmetadataから生成します。スコアの難易度identityはSet IDと正規化した `.osu` 相対パスです。
@@ -149,6 +150,7 @@ Gradleは `core` と `lwjgl3` の2モジュール構成で、依存方向は `lw
 | --- | --- |
 | `core/beatmap`・`beatmap.parse` | 譜面データモデルと `.osu` 解析 |
 | `core/archive`・`library` | 安全な展開、Import、譜面一覧と索引の永続化 |
+| `core/difficulty` | 独立した星評価、bounded worker、version別cache |
 | `core/gameplay` | Session・Input・状態スナップショット・GameClockの契約と共通処理 |
 | `core/ruleset.osu` | standardの判定、Slider経路・時間、Spinner、Stacking、ScoreV1 |
 | `core/ruleset.osu.render` | osu!固有の描画順、Slider Body、legacy表示計算 |
@@ -173,7 +175,7 @@ GameplayScreen → ResultsSnapshot → ResultsScreen
 
 `OsuJavaGame` が共有サービスと描画リソースを組み立て、画面遷移と破棄を管理します。Importがarchive処理を完結し、Gameplayへ解析済み譜面とローカルPathを渡します。判定・スコアはSession、プレイ時刻はGameClock、描画は読み取り専用のGameplayStateを受け取るRendererの責務です。音声cueもSessionが発行し、AudioPlayerが再生します。
 
-Song Selectは `SongBrowserModel` が検索・分類・選択、Input関連クラスが操作、Carousel / ViewStateが動き、Layout / RowPresentationが表示情報、Rendererが描画を担当します。Local Rankingsは別の `ScoreBrowserModel` が管理します。UIの表示時刻とGameplayの時計は分離しています。
+Song Selectは `SongBrowserModel` が検索・分類・選択、Input関連クラスが操作、Carousel / ViewStateが動き、Layout / RowPresentationが表示情報、Rendererが描画を担当します。Local Rankingsは別の `ScoreBrowserModel` が管理します。`LocalDifficultyService` が別workerで検証済みの星を計算し、星表示・Difficulty分類・検索へ供給します。画面破棄でworkerをcancelします。UIの表示時刻とGameplayの時計は分離しています。
 
 `Ruleset` / `GameplaySession` はインターフェース化されていますが、現在のGameplay画面とRendererはstandard専用です。他モードの追加にはRulesetと表示側の対応が必要です。[設計資料](docs/architecture.md)には旧スコア方式の記述も残っているため、現行のスコア経路は `OsuGameplaySession → OsuScoreV1` と[Results実装記録](docs/results-stable-implementation.md)を参照してください。
 
@@ -182,8 +184,9 @@ Song Selectは `SongBrowserModel` が検索・分類・選択、Input関連ク�
 - standardのHitCircle・Slider・Spinner、ローカルImport、Skin、通常プレイ結果の保存・再閲覧に対応しています。
 - NoModのScoreV1、Geki / Katu、入力誤差統計を実装していますが、stableとの全体的な1:1互換は未達です。Spinner物理・加点、判定の時系列処理などに残る差があります。
 - HP drain・fail判定は未実装で、実プレイのHP・pass・RPM記録は未収集です。HPグラフは実データがある場合だけ描画する構造です。
-- 星評価計算、ModsのGameplay効果、Replay記録・再生と `.osr` Import / Export、Editor、taiko / catch / maniaのGameplayは未実装です。Optionsも未対応です。
-- 旧方式とScoreV1、異なる譜面hashのスコアを条件別に順位分離する処理は未完了です。
+- 星評価はNM standardのv6以降、circle/spinnerのみ対応し、Difficulty tab/sort/groupと `stars` 検索へ接続しています。Slider・Mods等の未検証chartは星なしです。[対応範囲と検証](docs/songselect-backend-difficulty-20261003.md)を参照してください。
+- ModsのGameplay効果、Replay記録・再生と `.osr` Import / Export、Editor、taiko / catch / maniaのGameplayは未実装です。Optionsはlocal Collection管理に対応し、譜面/score削除等は未対応です。
+- 現譜面の順位は内容hashが一致したローカルscoreを対象とし、hashなしの旧scoreは未検証legacy行として扱います。異なる採点方式・条件の順位分離は未完了です。
 
 互換性の調査と実装の残りは[Gameplay差分](docs/gameplay-lazer-gap.md)、[Resultsの不足データ計画](docs/results-missing-data-plan-20260929.md)、[Results実装記録](docs/results-stable-implementation.md)を参照してください。これらには過去の仕様や未実装の計画も含まれます。
 

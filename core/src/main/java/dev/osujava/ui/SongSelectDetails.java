@@ -5,7 +5,7 @@ import dev.osujava.beatmap.BeatmapSet;
 import dev.osujava.beatmap.HitObject;
 import java.util.Locale;
 
-/** Immutable selected metadata, built only when the selected Library objects change. */
+/** Cached selected metadata, rebuilt when selection, library objects or rating changes. */
 record SongSelectDetails(String title, String mapper, String summary, String stats, String status) {
     static SongSelectDetails of(BeatmapSet set, BeatmapDifficulty diff, SongSelectRowPresentation.Stars rating) {
         String title = diff.artist() + " - " + diff.title() + " [" + diff.version() + "]";

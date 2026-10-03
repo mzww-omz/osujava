@@ -89,3 +89,65 @@ Sort/Group/searchがratingに依存しなければbrowserをrebuildしない。
 この分類遅延中もrow星/selected情報は直ちに更新する。
 比較用ratingはrebuild時にchartごと1回取得し、sortの全比較ごとのprovider取得/boxingを避ける。
 図形/文字の既存viewport reservation・row hitbox・chrome z-orderを変更していない。
+
+## 最終検証と変更ファイル
+
+- `./gradlew build`: SUCCESS。core **145 suites / 1,386 tests**、lwjgl3 **2 suites / 4 tests**。
+  failure/error/skip 0。最終log `/tmp/osujava-b05-final-build.log`。
+- `difficulty-contracts`: 12 scenes / 72 PNG / 3,264操作frame。実worker、selected metadata、星renderer、
+  Difficulty tabの実クリック、数値検索、known zero、unsupported slider、再オープンを確認。
+  Greylooks / 全画像欠落のprocedural fallback / HD-only、1280×720・1280×800・1024×768・1280×720 density 2。
+  最終log `/tmp/osujava-b05-gl-difficulty-final.log`、captures `/tmp/osujava-b05-gl-difficulty-final/`。
+- 既存 `collections-contracts`: 16 scenes / 100 PNG / 1,588操作frame。
+- 既存 `backend-contracts`: 16 scenes / 28 PNG / 672操作frame。
+- 既存 `audit`: 84 scenes / 172 PNG / 1,256操作frame。長文/CJK、背景なし、多数difficulty、hover/hit、
+  wheel、collapse/expand、score 0/1/多数、resize、巨大chrome、fallback/density、再保存/再読込を含む。
+- 合計 **128 scenes / 372報告PNG / 6,780操作frame**。difficulty初回と最終再取得は重複加算しない。
+  既存suiteのlog/capturesは `/tmp/osujava-b05-gl-<phase>.log` と同名directory。
+- `:core:songSelectPerformanceProbe`: SUCCESS。GL/audio/画像I/Oなし・hashless fixtureの10,000sets/40,000diffsで
+  idle mean **41.047μs / p95 43.802μs / 13,404.3bytes/frame**、idle中GC 0。
+  `/tmp/osujava-b05-performance.log`。これはsteady updateのCPU probeであり、実大規模libraryのcold rating計算時間、
+  cache I/O時間や星分類中のworst frameを測った値ではない。worker上限/priorityは別の1万chartテストで確認した。
+
+主な変更:
+
+- [StandardDifficultyCalculator](../core/src/main/java/dev/osujava/difficulty/StandardDifficultyCalculator.java)、
+  [DifficultyResult](../core/src/main/java/dev/osujava/difficulty/DifficultyResult.java): 純粋計算・未知/成功/未対応/失敗。
+- [LocalDifficultyService](../core/src/main/java/dev/osujava/difficulty/LocalDifficultyService.java)、
+  [DifficultyCache](../core/src/main/java/dev/osujava/difficulty/DifficultyCache.java)、
+  [DifficultyKey](../core/src/main/java/dev/osujava/difficulty/DifficultyKey.java): scheduling/世代/永続cache。
+- [SongSelectScreen](../core/src/main/java/dev/osujava/ui/SongSelectScreen.java)、
+  [SongBrowserModel](../core/src/main/java/dev/osujava/ui/SongBrowserModel.java)、
+  [SongBrowserQuery](../core/src/main/java/dev/osujava/ui/SongBrowserQuery.java)、SongBrowserControls/OsuJavaGame: UI接続。
+- `core/src/test/java/dev/osujava/difficulty/`、SongBrowserRatingsTest、既存browser/tab tests、
+  `lwjgl3/src/hudHarness/java/dev/osujava/ui/SongSelectVisualHarness.java`: 数値/回帰/実描画。
+- [reference oracle](../tools/difficulty-reference/README.md)、
+  `core/src/test/resources/difficulty/reference-20220902/`: 再生成手順とcheck-in済み自作fixture。
+
+commit:
+
+- `68bb8c5` — `feat(difficulty): verify local NM circle and spinner calculation against pinned reference`
+- `9c82355` — `feat(difficulty): cache versioned local results with a bounded background worker`
+- `3300bc2` — `feat(song-select): connect verified local stars to difficulty browsing and search`
+- `cae000a` — `test(song-select): cover bounded calculations and real worker rating visuals`
+
+本記録とREADME/計画/残件台帳の更新は別のdocs commit。
+
+## 次の作業に渡す未完了項目
+
+1. **Sliderを含むchartは全体がUNSUPPORTED**。circle部分だけを計算して混合chartの星を作らない。
+   oracleのSlider adapterを本物の公開path/defaults/nested/timingに拡張し、linear/Bezier/perfect/Catmull、
+   SV/timing変更、repeat/tick/tail、stack、lazy end/travel/minimum jumpを中間値から照合する。
+   Javaの既存SliderPath/Timing/EventGeneratorは、契約が一致する部分だけ再利用する。
+2. pre-v6 stacking、CS/AR/OD範囲外、StackLeniency範囲外、他mode、Mods別calculatorは未対応。
+   Mod cache keyは用意したが現在の要求はNMだけ。通常Modsの効果/HP/rate audioはB06/B07で別に実装する。
+3. 公開C# subsetとの一致を検証したが、stable b20230727.9での数値照合、decoder/legacy allowance差、
+   native `stars`検索の丸め・Mod適用、group label/animationの同期観測は未実施。
+4. 1万chart queue上限とsteady CPU probeは確認済み。実大規模libraryのcold/warm calculation/cache時間、
+   分類rebuild集中時のframe p95/GC、rapid import/選曲の実描画計測は次段階で追加する。
+5. sidecarの古いversion/孤立record cleanup、容量上限、外部cache変更のlive reloadは未実装。
+   現行version cacheはscreen再オープンで読み、旧versionは別keyとして保持する。
+   hard link不可ならsession内メモリのみで、次screen/restart時は再計算する。
+6. B06 HP/fail、B07通常Mods、B08 replay、B09削除/退避/復旧は未着手のまま。
+   official ranked status、online ranking、Bancho/API接続は対象外。
+   B03/B04と既存Results layout/font等の具体的残件は統合残件台帳を参照する。

@@ -1,10 +1,11 @@
 # Song Selectを完成させるローカルbackend改善計画
 
-2026-10-02、調査基準HEAD `0a1f02b`。2026-10-03時点でB01/B02/B03/B04を実装済み。
+2026-10-02、調査基準HEAD `0a1f02b`。2026-10-03時点でB01/B02/B03/B04を実装済み。B05はNM circle/spinner計算とUI接続まで実装済み。
 実装範囲・検証・未完了事項は[backend実装進捗](songselect-backend-progress-20261002.md)と
 [B03履歴・日時の実装記録](songselect-backend-history-20261002.md)、
-[B04Collections/Optionsの実装記録](songselect-backend-collections-20261003.md)を参照。
-以下の現状表は計画作成時の調査記録として保持する。B05–B09は未着手。
+[B04Collections/Optionsの実装記録](songselect-backend-collections-20261003.md)、
+[B05星評価の対応範囲・検証・残件](songselect-backend-difficulty-20261003.md)を参照。
+以下の現状表は計画作成時の調査記録として保持する。B05は部分実装、B06–B09は未着手。
 対象は[残件台帳](songselect-remaining-work-20261002.md)のR06/R07/R08と、それらに必要な保存・更新通知。
 完全ローカル、Java 21/libGDX/LWJGL3、Import / Gameplay / Ruleset / GameClock / Rendererの責務分離を維持する。
 
