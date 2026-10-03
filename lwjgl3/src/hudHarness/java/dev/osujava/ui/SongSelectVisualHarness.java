@@ -716,7 +716,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         +"[HitObjects]\n"+(fixture.equals("source-empty-setting")?"":fixture.equals("source-spinner")?"256,192,1000,8,0,500\n":"100,100,1000,1,0\n");
                 diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse(source,fixture+".osu").difficulty().withAssets(null,null,Path.of(fixture+".osu")));
             }
-            for(String fixture:List.of("timing-sv-rounding","timing-sv-clamp","timing-coincident-rg","timing-coincident-gr","timing-coincident-multiple"))
+            for(String fixture:List.of("timing-sv-rounding","timing-sv-clamp","timing-coincident-rg","timing-coincident-gr","timing-coincident-multiple","timing-nan-repeat","timing-nan-priority"))
                 diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse(Path.of("core/src/test/resources/difficulty/reference-20220902/"+fixture+".osu"))
                         .difficulty().withAssets(null,null,Path.of(fixture+".osu")));
             diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse("osu file format v14\n[Metadata]\nTitle:source-reordered\nArtist:Local Fixture\nCreator:osu!java\nVersion:Reordered source\n[TimingPoints]\n0,500\n1000,-50,4,0,0,100,0,0\n500,-100,4,0,0,100,0,0\n[HitObjects]\n100,100,2000,2,0,L|300:100,1,200\n","source-reordered.osu")
