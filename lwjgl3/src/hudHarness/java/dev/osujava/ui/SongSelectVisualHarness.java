@@ -709,6 +709,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse("osu file format v14\n[Metadata]\nTitle:"+fixture+"\nArtist:Local Fixture\nCreator:osu!java\nVersion:Damaged\n[HitObjects]\n"
                         +(fixture.equals("partial")?"100,100,1000,1,0\n":"")+"damaged\n",fixture+".osu")
                         .difficulty().withAssets(null,null,Path.of(fixture+".osu")));
+            for(String fixture:List.of("source-setting","source-timing","source-spinner","source-empty-setting")) {
+                String source="osu file format v14\n[Metadata]\nTitle:"+fixture+"\nArtist:Local Fixture\nCreator:osu!java\nVersion:Source issues\n"
+                        +(fixture.contains("setting")?"[Difficulty]\nCircleSize:invalid\n":"")
+                        +(fixture.equals("source-timing")?"[TimingPoints]\nshort\n0,500\n":"")
+                        +"[HitObjects]\n"+(fixture.equals("source-empty-setting")?"":fixture.equals("source-spinner")?"256,192,1000,8,0,500\n":"100,100,1000,1,0\n");
+                diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse(source,fixture+".osu").difficulty().withAssets(null,null,Path.of(fixture+".osu")));
+            }
             library.add(new BeatmapSet("set3","Reference fixtures","Local Fixture","osu!java",null,null,diffs,List.of()));
         } catch(Exception failure) { throw new IllegalStateException("Could not load local difficulty fixtures",failure); }
         var localScores = scene.name.startsWith("phase4-backend-")
@@ -2232,7 +2239,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         var content=(Map<BeatmapDifficulty,SongSelectRowPresentation.Content>)screenField(screen,"rowContent");
         for(var chart:library.all().getFirst().difficulties()) {
             var result=service.result(chart);
-            if(chart.skippedHitObjectCount()>0) {
+            if(chart.skippedHitObjectCount()>0 || chart.parseIssues().any()) {
                 if(result.status()!=dev.osujava.difficulty.DifficultyResult.Status.FAILED || content.get(chart).stars().present())
                     throw new AssertionError("Damaged chart received partial stars or known zero");
             } else if(chart.version().equals("Slider")) {
@@ -2279,7 +2286,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         for(int i=0;i<45;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
         if(((SongSelectDetails)screenField(screen,"details")).status().contains("Stars")) throw new AssertionError("Unsupported rating shown in metadata");
         capture(fb,name+"-unsupported");
-        for(int index=26;index<28;index++) {
+        for(int index=26;index<library.all().getFirst().difficulties().size();index++) {
             browser.select("set3",index);screen.browserMode(SongBrowserModel.Sort.DIFFICULTY,SongBrowserModel.Group.DIFFICULTY);
             for(int i=0;i<45;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
             if(((SongSelectDetails)screenField(screen,"details")).status().contains("Stars")) throw new AssertionError("Damaged chart rating shown in metadata");
@@ -2306,6 +2313,13 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for(int i=0;i<45;i++) {reopened.render(1f/60);transitionFrames++;assertRenderedBounds(reopened,layout);}
             if(((SongSelectDetails)screenField(reopened,"details")).status().contains("Stars")) throw new AssertionError("Warm screen restored partial stars for a damaged chart");
             capture(fb,name+"-partial-warm");
+            var warmCharts=library.all().getFirst().difficulties();
+            for(int index=0;index<warmCharts.size();index++) if(warmCharts.get(index).parseIssues().any()) {
+                warmBrowser.select("set3",index);reopened.browserMode(SongBrowserModel.Sort.DIFFICULTY,SongBrowserModel.Group.DIFFICULTY);
+                for(int frame=0;frame<45;frame++) {reopened.render(1f/60);transitionFrames++;assertRenderedBounds(reopened,layout);}
+                if(((SongSelectDetails)screenField(reopened,"details")).status().contains("Stars")) throw new AssertionError("Warm screen restored stars after a source correction");
+                capture(fb,name+"-"+warmCharts.get(index).title()+"-warm");
+            }
         } finally {reopened.dispose();}
         System.out.println("DIFFICULTY PASS "+name);
     }
