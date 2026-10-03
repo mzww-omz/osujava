@@ -76,7 +76,7 @@ class LocalDifficultyServiceTest {
         }
     }
     @ParameterizedTest
-    @CsvSource({"timing-sv-rounding,legacy-curves-f32-v8-3", "timing-coincident-rg,legacy-curves-f32-v8-4"})
+    @CsvSource({"timing-sv-rounding,legacy-curves-f32-v8-3", "timing-coincident-rg,legacy-curves-f32-v8-4", "timing-nan-repeat,legacy-curves-f32-v8-5"})
     void verifiedTimingInvalidatesPreviousUnsupportedCacheAndWarmsSuccessfully(String fixture, String previousVersion) throws Exception {
         var parser=new BeatmapFileParser();
         BeatmapDifficulty chart;

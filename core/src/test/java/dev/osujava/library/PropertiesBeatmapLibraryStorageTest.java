@@ -93,6 +93,24 @@ class PropertiesBeatmapLibraryStorageTest {
         assertNotEquals(restored.playData().sha256(),repaired.playData().sha256());
         assertEquals(dev.osujava.difficulty.DifficultyResult.Status.SUCCESS,calculator.calculate(repaired).status());
     }
+    @Test void inheritedNaNTimingSurvivesLocalImportRestartWithItsVerifiedRating() throws Exception {
+        Path root=tempDir.resolve("nan-library"),source=tempDir.resolve("nan.osu");
+        try(var in=getClass().getResourceAsStream("/difficulty/reference-20220902/timing-nan-repeat.osu")) {
+            assertNotEquals(null,in);Files.write(source,in.readAllBytes());
+        }
+        var imported=new BeatmapArchiveImporter(root).importFile(source);
+        assertTrue(imported.warnings().isEmpty());
+        new PropertiesBeatmapLibraryStorage(root).save(imported.beatmapSet());
+        var restored=new PropertiesBeatmapLibraryStorage(root).load().getFirst().difficulties().getFirst();
+        assertFalse(restored.parseIssues().any());assertTrue(Double.isNaN(restored.timingPoints().get(1).beatLength()));
+        var expected=new java.util.Properties();
+        try(var in=getClass().getResourceAsStream("/difficulty/reference-20220902/timing-nan-repeat.properties")) {
+            assertNotEquals(null,in);expected.load(in);
+        }
+        var result=new dev.osujava.difficulty.StandardDifficultyCalculator().calculate(restored);
+        assertEquals(dev.osujava.difficulty.DifficultyResult.Status.SUCCESS,result.status());
+        assertEquals(Double.parseDouble(expected.getProperty("stars")),result.stars(),1e-9);
+    }
     @TempDir
     Path tempDir;
 

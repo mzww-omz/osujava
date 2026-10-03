@@ -108,7 +108,7 @@ final class SliderPreprocessing {
         Vec endRelative,lazy;
         float lazyDistance;
         double lazyTime;
-        Slider(HitObject object,double beatLength,double sv,BeatmapDifficulty chart,Budget budget) {
+        Slider(HitObject object,double beatLength,double sv,boolean generateTicks,BeatmapDifficulty chart,Budget budget) {
             head=new Vec((float)object.x(),(float)object.y());
             path=new Path(object,chart.settings().formatVersion(),budget);repeats=object.sliderData().repeatCount();
             if(repeats>=MAX_WORK || path.distance<=0) throw new Unsupported("Degenerate or excessive-repeat slider is not verified");
@@ -118,7 +118,7 @@ final class SliderPreprocessing {
             start=object.timeMs();double scoringDistance=100*multiplier*sv,velocity=scoringDistance/beatLength;
             spanDuration=path.distance/velocity;end=start+(repeats+1)*spanDuration;
             if(!Double.isFinite(end) || end-start>6*60*60*1000L) throw new Unsupported("Slider duration exceeds verified range");
-            double tickDistance=Math.min(scoringDistance/tickRate,path.distance);
+            double tickDistance=generateTicks?Math.min(scoringDistance/tickRate,path.distance):path.distance;
             endRelative=path.at((repeats+1)%2);
             budget.spend();nested.add(new Nested(start,new Vec(0,0),false));
             for(int span=0;span<=repeats;span++) {
@@ -172,7 +172,8 @@ final class SliderPreprocessing {
         if(timing.size()>MAX_WORK) throw new Unsupported("Timing point work limit exceeded");
         double previous=Double.NEGATIVE_INFINITY;
         for(var p:timing) {
-            if(!Double.isFinite(p.timeMs()) || !Double.isFinite(p.beatLength()) || p.timeMs()<previous)
+            boolean inheritedNaN=!p.uninherited() && Double.isNaN(p.beatLength());
+            if(!Double.isFinite(p.timeMs()) || (!Double.isFinite(p.beatLength()) && !inheritedNaN) || p.timeMs()<previous)
                 throw new Unsupported("Non-finite or reversed slider timing points are not verified");
             previous=p.timeMs();
             if(p.uninherited() && (p.beatLength()<6 || p.beatLength()>60000)) throw new Unsupported("Beat length outside verified range");
@@ -180,6 +181,7 @@ final class SliderPreprocessing {
         Budget budget=new Budget();int point=0;
         // TimingPointAt falls back to the first red line, even before its timestamp.
         double beat=timing.stream().filter(TimingPoint::uninherited).mapToDouble(TimingPoint::beatLength).findFirst().orElse(1000),sv=1;
+        boolean generateTicks=true;
         for(int i=0;i<result.length;i++) {
             var object=chart.hitObjects().get(i);
             while(point<timing.size() && timing.get(point).timeMs()<=object.timeMs()) {
@@ -192,12 +194,13 @@ final class SliderPreprocessing {
                 // Within a contiguous source batch: first red sets BPM, last green overrides SV.
                 if(red!=null) beat=red.beatLength();
                 var p=green!=null?green:red;
+                generateTicks=!Double.isNaN(p.beatLength());
                 double raw=p.beatLength()<0?100/-p.beatLength():1;
                 // Pinned Slider velocity uses nearest 0.01 after clamping, with ties to even.
                 sv=Math.clamp(raw,.1,10);
                 sv=Math.rint(sv/.01)*.01;
             }
-            if(object.type()==HitObject.Type.SLIDER) result[i]=new Slider(object,beat,sv,chart,budget);
+            if(object.type()==HitObject.Type.SLIDER) result[i]=new Slider(object,beat,sv,generateTicks,chart,budget);
         }
         return result;
     }
