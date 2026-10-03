@@ -23,9 +23,10 @@ public record ScoreDetails(String scoringVersion, String beatmapSha256, String b
                 || !beatmapSha256.matches("(?:[0-9a-f]{64})?") || !beatmapMd5.matches("(?:[0-9a-f]{32})?")
                 || geki != null && geki < 0 || katu != null && katu < 0 || possibleCombo != null && possibleCombo < 0)
             throw new IllegalArgumentException("Invalid score details");
+        if (health != null && health.size() > MAX_HEALTH_POINTS)
+            throw new IllegalArgumentException("Too many health points");
         health = health == null ? null : List.copyOf(health);
         if (health != null) {
-            if (health.size() > MAX_HEALTH_POINTS) throw new IllegalArgumentException("Too many health points");
             float previous = Float.NEGATIVE_INFINITY;
             for (HealthPoint point : health) {
                 if (point.timeMs() < previous) throw new IllegalArgumentException("Health times out of order");
