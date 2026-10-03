@@ -123,7 +123,7 @@ B05はNM circle/spinner・検証済みlegacy curve Slider、worker/cache、星/�
 | B00数値reference固定 | B05の公開2023 commitと20220902 version、許容差、自作38fixtureを固定・照合済み。未検証path/timing/B06 HPのreferenceは次段階で拡張 |
 | B03 history / addedAt — 実装済み | nativeの小数日丸め/group境界は追加観測が必要。現在は明示したlocal分類。詳細はB03実装記録 |
 | B04 Collections / Options — 実装済み | native managerの厳密な寸法/editor/animationは未比較。local CRUDと既存UIへの接続は完了。管理操作の拡張はB09 |
-| B05 star / Difficulty — 部分実装 | NM v6+ circle/spinnerとv8+検証済みlegacy curveは計算・cache・UI接続済み。次はparser skip情報、SV/NaN/同時刻timing/pre-v8 tick距離、実大規模work budget評価、pre-v6/Mods、stable実機の数値照合。未検証chartはunknown |
+| B05 star / Difficulty — 部分実装 | NM v6+ circle/spinnerとv8+検証済みlegacy curveは計算・cache・UI接続済み。HitObject skip情報は伝播済み。次はsetting/timingのsource品質、SV/NaN/同時刻timing/pre-v8 tick距離、実大規模work budget評価、pre-v6/Mods、stable実機の数値照合。未検証chartはunknown |
 | B06 HP / fail | 実HP/終端を収集する。Resultsは既にpassed=falseのF表示に対応済みで、追加すべき中心はGameplayの計算・収集 |
 | B07通常Mods | NF→HR、後にEZ/HD/rate系。保存用listができたこととModの効果実装を混同しない。銀gradeは実Mod対応後 |
 | B08 replay | 実入力記録と再実行。保存成功した記録だけをscoreへ参照として接続する |
@@ -163,3 +163,9 @@ aim/speed/rhythmを拡張した。自作24fixtureの中間値まで照合し、�
 今回buildはcore 145 suites / 1,418 tests、lwjgl3 2 suites / 4 tests、failure/error/skip 0。
 GL difficulty-contractsは12 scenes / 156 PNG / 7,044操作frame。次はparser skip情報・timing境界・
 実大規模work budget評価・stable実機照合。詳細は[B05記録](songselect-backend-difficulty-20261003.md)を参照。
+
+2026-10-03、開始HEAD `5c921bf`から破損HitObjectのskip件数をparser→asset解決→library再読込→ratingへ伝播した。
+部分的な星/全行skipの0星を抑止し、Import warningとversioned cacheの移行・warm再利用・source修復を検証。
+buildはcore 145 suites / 1,423 tests、lwjgl3 2 suites / 4 tests、failure/error/skip 0。
+GL difficulty-contractsは12 scenes / 192 PNG / 8,664操作frame。次はsetting/timingのsource品質通知とtiming境界、
+実大規模work budget評価、stable実機比較。詳細は[B05記録](songselect-backend-difficulty-20261003.md)を参照。

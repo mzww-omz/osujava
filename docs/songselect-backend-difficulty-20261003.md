@@ -15,7 +15,8 @@ format v6以降のcircle/spinnerに加え、**v8以降の検証済みLinear/Bezi
 未検証のpath/settings/timing・他mode・pre-v6はchart全体をUNSUPPORTEDとして数値を供給しない。
 現在の具体的範囲は後述「曲線Sliderへの拡張」を参照。Linear段階の記録は履歴として保持する。
 計算済み空chartはSUCCESSの0星、1object chartはreferenceの非zero値を保持する。
-PENDING/UNSUPPORTED/FAILEDは星なし。object数/BPMだけの疑似星は導入しない。
+PENDING/UNSUPPORTED/FAILEDは星なし。parserでHitObject行をskipしたchartはFAILEDとし、部分的な星や0星を供給しない。
+object数/BPMだけの疑似星は導入しない。
 
 独立calculatorはGL・GameplaySession・GameClock・audioを使用せず、元chartを変更しない。
 float位置/CS scale/stack offset/angle、25ms strain cap、400ms section、aim/speed/rhythm、peak reduction、
@@ -211,7 +212,8 @@ minimum jumpを既存の許容差のまま照合した。Java出力を見て許�
   前段のcollections/backend/audit全suiteの再実行はしていない。
 
 次の数値検証時には、既存parserが破損HitObject行をskipする情報をrating側へ渡す方法も検討する。
-現在のcalculatorはparse後modelだけを受け取り、元fileのskip履歴を知れない。
+この段階のcalculatorはparse後modelだけを受け取り、元fileのskip履歴を知れなかった。
+現在は後述「破損HitObjectの状態伝播」で修復済み。
 壊れた行を含むraw fileと完全な正常fileの同値は本fixture suiteの検証対象外。
 
 Linear拡張のcommit:
@@ -285,3 +287,54 @@ degree-specific B-spline、pre-v6、通常Mods・HP/fail・replay・管理拡張
 - `b1d1c23` — `test(song-select): cover curve ratings and cached reopening`
 
 本記録・README・計画・残件台帳の更新は別のdocs commit。
+
+## 破損HitObjectの状態伝播（開始HEAD `5c921bf`）
+
+従来はparserが短い行・不正な数値・壊れたSlider/Spinner/Hold行をskipした後、その状態を失っていた。
+残ったcircleだけへ正常な星を付けたり、全行をskipしたchartに0星を付ける問題を修復した。
+これはJava内部の欠損通知の修正であり、stableの破損file許容仕様を再現したという主張はしない。
+
+- [BeatmapDifficulty](../core/src/main/java/dev/osujava/beatmap/BeatmapDifficulty.java)に非負の`skippedHitObjectCount`を保持。
+  コメント/空行は対象外。既存のprogrammatic constructorは0を補い、asset解決の両経路は件数を維持する。
+- [BeatmapFileParser](../core/src/main/java/dev/osujava/beatmap/parse/BeatmapFileParser.java)は既存のskip契約を維持しつつ件数を集計。
+  一部の破損でset全体を捨てない。valid row・元file digest・既存の時刻sortを保持する。
+- [Importer](../core/src/main/java/dev/osujava/library/BeatmapArchiveImporter.java)はfileとskip件数を既存`ImportResult.warnings`へ追加。
+  Song Selectのtoastは従来の「difficultyをskipした」という固定文からimport warning件数へ変更。
+  行skipだけでもdifficulty自体を捨てたと誤って表示しない。詳細warningの常設viewerは追加していない。
+- [Library loader](../core/src/main/java/dev/osujava/library/PropertiesBeatmapLibraryStorage.java)のmodel組み直しでも件数を維持。
+  元`.osu`を再parseするためindex schema変更不要。再起動でも復元し、source修復後は新しい件数/hashを読む。
+- [Calculator](../core/src/main/java/dev/osujava/difficulty/StandardDifficultyCalculator.java)は欠損chartを全体FAILEDとして早期終了。
+  partial chartのstrain計算をせず、理由に件数を保持。真のempty chartは従来通りSUCCESS/0星。
+
+algorithmは`osu-java-nm-20220902-3`のまま、preprocessingを`legacy-curves-f32-v8-2`へ更新した。
+同じraw contentに保存されていた旧SUCCESSを使わず、FAILEDを新keyへ保存する。
+旧cacheは上書き/削除しない。warm再表示でFAILEDを再利用し、source修復後は新content keyでSUCCESSへ戻る。
+worker/cache/Renderer/Gameplayの責務とresource上限は維持する。正常38fixtureの数値は変更なし。
+
+検証:
+
+- 短い行、time/hitSound不正、Slider/Spinner/Hold破損、コメント/空行、両asset解決経路を回帰test化。
+- `.osu`とnested `.osz`のImport warning→保存→別storage instanceで再読込→source修復を実経路で検証。
+- 旧partial SUCCESS cacheの保持→新FAILED→移動/warm再利用→source修復による再計算を実workerで検証。
+- 部分譜面/全行skipに星なし、実emptyに0星という判別をcalculatorと実描画の双方で検証。
+- `./gradlew build`: SUCCESS。core **145 suites / 1,423 tests**、lwjgl3 **2 suites / 4 tests**、failure/error/skip 0。
+  log `/tmp/osujava-parser-build.log`。関連5 test classの先行実行も成功。
+- `difficulty-contracts`: **12 scenes / 192 PNG / 8,664操作frame**。Greylooks/fallback/HD-only ×
+  16:9・16:10・4:3・density 2。従来38fixtureのうちUI対象の数値、分類/検索/known zero/unknown、
+  partial/damaged-emptyの星なし、partial warm再表示が成功。
+  log `/tmp/osujava-parser-gl.log`、captures `/tmp/osujava-parser-gl/`。
+  4:3 Greylooksのdamaged-emptyと2x fallbackのpartial warmを目視確認。
+  このGL runはtoast文言変更前。変更後のbuildは成功。今回はcollections/backend/audit全suiteを再実行していない。
+
+現在の通知対象は**実際にskipされたHitObject行のみ**。TimingPointの短い行skip・不正なsetting/timingの
+既存fallback、Spinner終端の補正などはこの件数に含まれない。次はこれらのsource品質通知と、
+SV丸め/NaN/同時刻timing/nested/pre-v8 tick距離のreference検証を進める。
+実大規模libraryのcold/warm/work budget評価、stable実機比較、pre-v6/degree-specific B-spline/Modsも残る。
+
+
+状態伝播のcommit:
+
+- `76f0554` — `fix(difficulty): reject ratings for skipped hit object rows`
+- `76a658f` — `test(song-select): verify damaged charts never display stars`
+
+本記録・README・進捗・残件台帳の更新は別のdocs commit。
