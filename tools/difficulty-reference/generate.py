@@ -13,7 +13,7 @@ FILES += ['osu.Game/Beatmaps/ControlPoints/'+name+'.cs' for name in
      'TimingControlPoint','EffectControlPoint','SampleControlPoint']]
 FILES += ['osu.Game/Beatmaps/Legacy/'+name+'.cs' for name in
     ['LegacyControlPointInfo','LegacySampleBank','LegacyEffectFlags']]
-FILES += ['osu.Game/Beatmaps/Timing/TimeSignature.cs']
+FILES += ['osu.Game/Beatmaps/Timing/TimeSignature.cs','osu.Game/Beatmaps/IBeatmapDifficultyInfo.cs']
 FRAMEWORK_COMMIT = '3365c86f769cb0ed84a10c5c96313a73e552dc2d'
 p = argparse.ArgumentParser()
 p.add_argument('--dotnet', default='dotnet')
@@ -49,8 +49,17 @@ with tempfile.TemporaryDirectory(prefix='osujava-difficulty-oracle-') as temp:
     # applies precision 0.01. Execute both real declarations, not a hand-written rounding formula.
     legacy_decoder = urllib.request.urlopen('https://raw.githubusercontent.com/ppy/osu/'+COMMIT+
         '/osu.Game/Beatmaps/Formats/LegacyDecoder.cs').read().decode('utf-8-sig')
+    converter = urllib.request.urlopen('https://raw.githubusercontent.com/ppy/osu/'+COMMIT+
+        '/osu.Game.Rulesets.Osu/Beatmaps/OsuBeatmapConverter.cs').read().decode('utf-8-sig')
+    hit_object = urllib.request.urlopen('https://raw.githubusercontent.com/ppy/osu/'+COMMIT+
+        '/osu.Game/Rulesets/Objects/HitObject.cs').read().decode('utf-8-sig')
+    osu_hit_object = urllib.request.urlopen('https://raw.githubusercontent.com/ppy/osu/'+COMMIT+
+        '/osu.Game.Rulesets.Osu/Objects/OsuHitObject.cs').read().decode('utf-8-sig')
     slider = urllib.request.urlopen('https://raw.githubusercontent.com/ppy/osu/'+COMMIT+
         '/osu.Game.Rulesets.Osu/Objects/Slider.cs').read().decode('utf-8-sig')
+    (work/'OsuBeatmapConverter.reference.txt').write_text(converter)
+    (work/'HitObject.reference.txt').write_text(hit_object)
+    (work/'OsuHitObject.reference.txt').write_text(osu_hit_object)
     (work/'LegacyDecoder.reference.txt').write_text(legacy_decoder)
     (work/'Slider.reference.txt').write_text(slider)
     legacy_class = complete_member(legacy_decoder, 'public class LegacyDifficultyControlPoint')
@@ -59,13 +68,26 @@ with tempfile.TemporaryDirectory(prefix='osujava-difficulty-oracle-') as temp:
     field_start = slider.index('public BindableNumber<double> SliderVelocityBindable')
     velocity_field = slider[field_start:slider.index('};', field_start)+2]
     velocity_property = complete_member(slider, 'public double SliderVelocity\n')
+    end_time = slider[slider.index('public double EndTime =>'):slider.index(';',slider.index('public double EndTime =>'))+1]
+    span_duration = slider[slider.index('public double SpanDuration =>'):slider.index(';',slider.index('public double SpanDuration =>'))+1]
+    duration = complete_member(slider, 'public double Duration')
     (work/'FixtureLegacyTiming.cs').write_text(
         '// Public MIT declarations; original headers/sources: LegacyDecoder.reference.txt, Slider.reference.txt\n'
-        '#nullable disable\nusing System; using osu.Framework.Bindables; using osu.Game.Beatmaps.ControlPoints; using osu.Game.Audio; using osu.Game.Rulesets.Objects.Legacy; using osu.Game.Beatmaps;\n'
+        '#nullable disable\nusing System; using osu.Framework.Bindables; using osu.Game.Beatmaps.ControlPoints; using osu.Game.Audio; using osu.Game.Rulesets.Objects.Legacy; using osu.Game.Beatmaps; using osu.Game.Rulesets.Objects; using osu.Game.Rulesets.Objects.Types; using System.Threading;\n'
         'namespace osu.Game.Beatmaps.ControlPoints { '+legacy_class+' }\n'
         'namespace osu.Game.Beatmaps.ControlPoints { '+legacy_sample+' }\n'
-        'namespace osu.Game.Rulesets.Osu.Objects { public partial class Slider { '+velocity_field+
-        '\n'+velocity_property+'\n'+complete_member(slider, 'protected override void ApplyDefaultsToSelf')+' } }\n')
+        'namespace osu.Game.Rulesets.Osu.Objects { public partial class Slider { '+end_time+'\n'+duration+'\n'+span_duration+'\n'+velocity_field+
+        '\n'+velocity_property+'\n'+complete_member(slider, 'protected override void ApplyDefaultsToSelf')+
+        '\n'+complete_member(slider, 'protected override void CreateNestedHitObjects')+' } }\n')
+    (work/'FixtureConversion.cs').write_text(
+        '// Public MIT methods; original headers/sources: OsuBeatmapConverter.reference.txt, HitObject.reference.txt, OsuHitObject.reference.txt\n'
+        '#nullable disable\nusing System; using System.Linq; using System.Collections.Generic; using System.Threading; '
+        'using osu.Framework.Bindables; using osu.Framework.Extensions.IEnumerableExtensions; using osuTK; '
+        'using osu.Game.Beatmaps; using osu.Game.Beatmaps.ControlPoints; using osu.Game.Beatmaps.Legacy; '
+        'using osu.Game.Rulesets.Objects; using osu.Game.Rulesets.Objects.Types; using osu.Game.Rulesets.Osu.Objects; using osu.Game.Rulesets.Osu.UI;\n'
+        'partial class FixtureOsuConverter { '+complete_member(converter, 'protected override IEnumerable<OsuHitObject> ConvertHitObject')+' }\n'
+        'namespace osu.Game.Rulesets.Objects { public partial class HitObject { '+complete_member(hit_object, 'public void ApplyDefaults')+' } }\n'
+        'namespace osu.Game.Rulesets.Osu.Objects { public partial class OsuHitObject { '+complete_member(osu_hit_object, 'protected override void ApplyDefaultsToSelf')+' } }\n')
     timing_decoder = urllib.request.urlopen('https://raw.githubusercontent.com/ppy/osu/'+COMMIT+
         '/osu.Game/Beatmaps/Formats/LegacyBeatmapDecoder.cs').read().decode('utf-8-sig')
     (work/'LegacyBeatmapDecoder.reference.txt').write_text(timing_decoder)

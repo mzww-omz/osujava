@@ -31,12 +31,25 @@ namespace osu.Game.Rulesets.Scoring {
     public class HitWindows { public double Window; public double WindowFor(HitResult _) => Window; }
 }
 namespace osu.Game.Rulesets.Objects {
-    public class HitObject { public double StartTime; public double EndTime; public double GetEndTime() => EndTime; }
+    public partial class HitObject {
+        public readonly osu.Framework.Bindables.BindableDouble StartTimeBindable=new();
+        public double StartTime { get=>StartTimeBindable.Value; set=>StartTimeBindable.Value=value; }
+        public double EndTime;
+        public double GetEndTime()=>this is osu.Game.Rulesets.Objects.Types.IHasDuration duration?duration.EndTime:StartTime;
+        protected readonly List<HitObject> nestedHitObjects=new();
+        public List<HitObject> NestedHitObjects=>nestedHitObjects;
+        public IList<osu.Game.Audio.HitSampleInfo> Samples=new List<osu.Game.Audio.HitSampleInfo>();
+        public event Action<HitObject>? DefaultsApplied;
+        protected virtual void ApplyDefaultsToSelf(osu.Game.Beatmaps.ControlPoints.ControlPointInfo info,osu.Game.Beatmaps.IBeatmapDifficultyInfo difficulty) { ((osu.Game.Rulesets.Osu.Objects.OsuHitObject)this).HitWindows.Window=80-6*difficulty.OverallDifficulty; }
+        protected virtual void CreateNestedHitObjects(CancellationToken token) { }
+        protected void AddNested(HitObject obj)=>nestedHitObjects.Add(obj);
+    }
 }
 namespace osu.Game.Rulesets.Osu.Mods { public static class OsuModHidden { public const double FADE_OUT_DURATION_MULTIPLIER=.3; } }
 namespace osu.Game.Rulesets.Osu.Objects {
-    public class OsuHitObject : osu.Game.Rulesets.Objects.HitObject {
-        protected virtual void ApplyDefaultsToSelf(osu.Game.Beatmaps.ControlPoints.ControlPointInfo info,osu.Game.Beatmaps.IBeatmapDifficultyInfo difficulty) { }
+    public partial class OsuHitObject : osu.Game.Rulesets.Objects.HitObject {
+        public const double PREEMPT_MIN=450;
+        public bool NewCombo; public int ComboOffset;
         public osuTK.Vector2 Position;
         public virtual osuTK.Vector2 EndPosition => Position;
         private int height; public virtual int StackHeight { get=>height; set=>height=value; }
@@ -47,49 +60,54 @@ namespace osu.Game.Rulesets.Osu.Objects {
         public osu.Game.Rulesets.Scoring.HitWindows HitWindows=new();
     }
     public class HitCircle : OsuHitObject { }
-    public class Spinner : OsuHitObject { }
-    public class SliderRepeat : OsuHitObject { }
-    public partial class Slider : OsuHitObject {
+    public class Spinner : OsuHitObject,osu.Game.Rulesets.Objects.Types.IHasDuration { double osu.Game.Rulesets.Objects.Types.IHasDuration.EndTime=>EndTime; }
+    public class SliderHeadCircle:HitCircle { }
+    public class SliderTailCircle:HitCircle { public int RepeatIndex; public SliderTailCircle(Slider parent) { } }
+    public class SliderTick:OsuHitObject { public int SpanIndex; public double SpanStartTime; }
+    public class SliderRepeat : OsuHitObject { public int RepeatIndex; public SliderRepeat(Slider parent) { } }
+    public partial class Slider : OsuHitObject,osu.Game.Rulesets.Objects.Types.IHasDuration {
         public const double BASE_SCORING_DISTANCE=100;
         public double Velocity { get; private set; }
         public double TickDistance { get; private set; }
         public bool GenerateTicks { get; set; }=true;
         public double TickDistanceMultiplier=1;
-        public void ApplyFixtureDefaults(osu.Game.Beatmaps.ControlPoints.ControlPointInfo info,osu.Game.Beatmaps.IBeatmapDifficultyInfo difficulty)=>ApplyDefaultsToSelf(info,difficulty);
-        public double LazyTravelTime,SpanDuration;
+        public double? LegacyLastTickOffset;
+        public IList<IList<osu.Game.Audio.HitSampleInfo>> NodeSamples=new List<IList<osu.Game.Audio.HitSampleInfo>>();
+        protected void UpdateNestedSamples() { }
+        public double LazyTravelTime;
         public float LazyTravelDistance;
         public osuTK.Vector2? LazyEndPosition;
         public int RepeatCount;
-        public HitCircle HeadCircle=new(),TailCircle=new();
-        public List<osu.Game.Rulesets.Objects.HitObject> NestedHitObjects=new();
+        public SliderHeadCircle HeadCircle=new(); public SliderTailCircle TailCircle=null!;
         public osu.Game.Rulesets.Objects.SliderPath Path=new();
         public override osuTK.Vector2 EndPosition => Position+Path.PositionAt((RepeatCount+1)%2);
         public override int StackHeight { get=>base.StackHeight; set { base.StackHeight=value; foreach(var n in NestedHitObjects) ((OsuHitObject)n).StackHeight=value; } }
     }
 }
 namespace osu.Game.Beatmaps {
-    public interface IBeatmap { BeatmapInfo BeatmapInfo { get; } }
+    public interface IBeatmap { BeatmapInfo BeatmapInfo { get; } osu.Game.Beatmaps.ControlPoints.ControlPointInfo ControlPointInfo { get; } }
     public class BeatmapInfo { public int BeatmapVersion; public float StackLeniency; }
-    public class Beatmap<T> : IBeatmap { public List<T> HitObjects=new(); public BeatmapInfo BeatmapInfo { get; }=new(); }
+    public class Beatmap<T> : IBeatmap { public osu.Game.Beatmaps.ControlPoints.ControlPointInfo ControlPointInfo { get; set; }=new(); public List<T> HitObjects=new(); public BeatmapInfo BeatmapInfo { get; }=new(); }
     public class BeatmapProcessor { protected IBeatmap Beatmap; public BeatmapProcessor(IBeatmap b) { Beatmap=b; } public virtual void PostProcess() { } }
 }
 
 namespace Newtonsoft.Json { public class JsonIgnoreAttribute:Attribute { } public class JsonPropertyAttribute:Attribute { } public class JsonConstructorAttribute:Attribute { } }
 namespace osu.Framework.Caching { public class Cached { public bool IsValid; public void Invalidate()=>IsValid=false; public void Validate()=>IsValid=true; } }
 namespace osu.Framework.Bindables {
+    public readonly record struct ValueChangedEvent<T>(T OldValue,T NewValue);
     public interface IBindable<T> { IBindable<T> GetBoundCopy(); }
     // Storage/event adapter only: numerical range and precision setters run in the unchanged public classes.
     // These fixtures never bind instances or mutate a disabled instance.
     public class Bindable<T>:IBindable<T> {
         private T value;
         public Bindable(T defaultValue=default!) { value=Default=defaultValue; }
-        public event Action<T>? ValueChanged;
-        public virtual T Value { get=>value; set { if(Disabled) throw new InvalidOperationException("Disabled fixture bindable"); this.value=value; ValueChanged?.Invoke(value); } }
+        public event Action<ValueChangedEvent<T>>? ValueChanged;
+        public virtual T Value { get=>value; set { if(Disabled) throw new InvalidOperationException("Disabled fixture bindable"); var old=this.value; this.value=value; ValueChanged?.Invoke(new(old,value)); } }
         public T Default { get; set; }
         public bool Disabled { get; set; }
         protected IReadOnlyList<Bindable<T>>? Bindings=>null;
         public virtual bool IsDefault=>EqualityComparer<T>.Default.Equals(Value,Default);
-        public virtual void TriggerChange()=>ValueChanged?.Invoke(Value);
+        public virtual void TriggerChange()=>ValueChanged?.Invoke(new(Value,Value));
         public virtual void CopyTo(Bindable<T> other) { other.Default=Default; other.Value=Value; }
         public virtual void BindTo(Bindable<T> other)=>throw new NotSupportedException("Fixture bindables are unbound");
         public virtual void UnbindEvents()=>ValueChanged=null;

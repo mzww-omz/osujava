@@ -1,0 +1,34 @@
+osu file format v6
+[General]
+Mode:0
+StackLeniency:0.7
+[Metadata]
+Title:timing-pre-v8-v6
+Artist:Local fixture
+Creator:osu-java tests
+Version:NM public converter/nested reference
+[Difficulty]
+CircleSize:4
+OverallDifficulty:8
+ApproachRate:9
+SliderMultiplier:1.4
+SliderTickRate:2
+[TimingPoints]
+0,500,4,0,0,100,1,0
+900,-81.63265306122449,4,0,0,100,0,0
+4000,-99.50248756218906,4,0,0,100,0,0
+7000,-4000,4,0,0,100,0,0
+10000,-5,4,0,0,100,0,0
+13000,400,4,0,0,100,1,0
+17000,NaN,4,0,0,100,0,0
+21000,-81.63265306122449,4,0,0,100,0,0
+[HitObjects]
+100,100,1000,2,0,L|420:260,2,350
+400,260,4100,2,0,L|100:100,2,350
+100,100,7100,2,0,L|420:260,1,160
+400,260,10100,2,0,L|100:100,2,350
+100,100,13100,2,0,L|420:260,2,350
+300,200,17100,1,0
+100,100,18000,2,0,L|420:260,2,350
+400,260,22000,2,0,L|100:100,2,350
+300,200,26000,1,0
