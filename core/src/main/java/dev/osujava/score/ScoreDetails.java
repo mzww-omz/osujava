@@ -7,6 +7,7 @@ public record ScoreDetails(String scoringVersion, String beatmapSha256, String b
                            Integer geki, Integer katu, Integer possibleCombo, Boolean perfect,
                            Boolean passed, List<HealthPoint> health, List<Integer> hitErrors, List<Integer> spinnerRpm) {
     public static final String SCORE_V1 = "stable-score-v1-local-1";
+    public static final int MAX_HEALTH_POINTS = 100_000;
     public static final ScoreDetails LEGACY = new ScoreDetails("osujava-legacy-1", "", "",
             null, null, null, null, null, null, null, null);
 
@@ -23,6 +24,14 @@ public record ScoreDetails(String scoringVersion, String beatmapSha256, String b
                 || geki != null && geki < 0 || katu != null && katu < 0 || possibleCombo != null && possibleCombo < 0)
             throw new IllegalArgumentException("Invalid score details");
         health = health == null ? null : List.copyOf(health);
+        if (health != null) {
+            if (health.size() > MAX_HEALTH_POINTS) throw new IllegalArgumentException("Too many health points");
+            float previous = Float.NEGATIVE_INFINITY;
+            for (HealthPoint point : health) {
+                if (point.timeMs() < previous) throw new IllegalArgumentException("Health times out of order");
+                previous = point.timeMs();
+            }
+        }
         hitErrors = hitErrors == null ? null : List.copyOf(hitErrors);
         spinnerRpm = spinnerRpm == null ? null : List.copyOf(spinnerRpm);
     }

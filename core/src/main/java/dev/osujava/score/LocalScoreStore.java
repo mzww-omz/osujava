@@ -156,14 +156,12 @@ public final class LocalScoreStore {
             if (raw.length() > 4_000_000) throw new IllegalArgumentException("Health data exceeds limit");
             if (!raw.isEmpty()) {
                 String[] points = raw.split(";", -1);
-                if (points.length > 100_000) throw new IllegalArgumentException("Too many health points");
-                float previous = Float.NEGATIVE_INFINITY;
+                if (points.length > ScoreDetails.MAX_HEALTH_POINTS) throw new IllegalArgumentException("Too many health points");
                 for (String point : points) {
                     String[] pair = point.split(":", -1);
                     if (pair.length != 2) throw new IllegalArgumentException("Invalid health pair");
                     var sample = new ScoreDetails.HealthPoint(Float.parseFloat(pair[0]), Float.parseFloat(pair[1]));
-                    if (sample.timeMs() < previous) throw new IllegalArgumentException("Health times out of order");
-                    health.add(sample); previous = sample.timeMs();
+                    health.add(sample);
                 }
             }
         }
