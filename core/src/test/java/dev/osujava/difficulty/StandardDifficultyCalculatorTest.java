@@ -48,6 +48,29 @@ class StandardDifficultyCalculatorTest {
             assertEquals(DifficultyResult.Status.UNSUPPORTED,result.status());assertTrue(result.rating().isEmpty());
         }
     }
+    private dev.osujava.beatmap.BeatmapDifficulty withObjects(dev.osujava.beatmap.BeatmapDifficulty base,List<dev.osujava.beatmap.HitObject> objects) {
+        return new dev.osujava.beatmap.BeatmapDifficulty(base.title(),base.artist(),base.creator(),base.version(),base.mode(),base.audioFilename(),base.backgroundFilename(),
+                base.settings(),base.timingPoints(),objects,null,null,null);
+    }
+    @Test void excessiveObjectCountDurationAndStackWorkAreBoundedWithoutSyntheticRatings() throws Exception {
+        var base=new BeatmapFileParser().parse(source("single",".osu"),"fixture.osu").difficulty();
+        var circle=base.hitObjects().getFirst();
+        var excessive=withObjects(base,Collections.nCopies(StandardDifficultyCalculator.MAX_OBJECTS+1,circle));
+        var longMap=withObjects(base,List.of(circle,new dev.osujava.beatmap.HitObject(300,200,circle.timeMs()+6*60*60*1000L+1,dev.osujava.beatmap.HitObject.Type.CIRCLE,1,0)));
+        var comparisons=new ArrayList<dev.osujava.beatmap.HitObject>();
+        for(int i=0;i<2002;i++)comparisons.add(new dev.osujava.beatmap.HitObject(i*5,100,1000,dev.osujava.beatmap.HitObject.Type.CIRCLE,1,0));
+        for(var chart:List.of(excessive,longMap,withObjects(base,comparisons))) {
+            var result=new StandardDifficultyCalculator().calculate(chart);assertEquals(DifficultyResult.Status.UNSUPPORTED,result.status());assertTrue(result.rating().isEmpty());
+        }
+    }
+    @Test void invalidGeometryAndOutOfOrderObjectsFailRatherThanPoisoningOtherJobs() throws Exception {
+        var base=new BeatmapFileParser().parse(source("pair",".osu"),"fixture.osu").difficulty();
+        for(var objects:List.of(List.of(base.hitObjects().getLast(),base.hitObjects().getFirst()),
+                List.of(new dev.osujava.beatmap.HitObject(Double.NaN,100,1000,dev.osujava.beatmap.HitObject.Type.CIRCLE,1,0)))) {
+            var result=new StandardDifficultyCalculator().calculate(withObjects(base,objects));assertEquals(DifficultyResult.Status.FAILED,result.status());assertTrue(result.rating().isEmpty());
+        }
+        assertEquals(DifficultyResult.Status.SUCCESS,new StandardDifficultyCalculator().calculate(base).status());
+    }
     @Test void cancellationDoesNotBecomeAStoredFailedRating() throws Exception {
         var chart=new BeatmapFileParser().parse(source("jumps",".osu"),"fixture.osu").difficulty();
         Thread.currentThread().interrupt();

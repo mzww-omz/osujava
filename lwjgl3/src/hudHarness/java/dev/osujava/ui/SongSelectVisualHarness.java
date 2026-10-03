@@ -243,6 +243,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                             "phase4-wheel-hover", "phase4-oversized-score", "phase4-resize", "phase4-partial-palette", "phasechrome-giant",
                             "phasechrome-transparent", "phase5a-state-save-reload"))
                         scenes.add(new Scene(size[0],size[1],size[2],name));
+            } else if (phase.equals("difficulty-contracts")) {
+                scenes.clear();
+                for(int[] size:new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
+                    for(String state:List.of("greylooks","fallback","high-only"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"difficulty-"+state));
             } else if (phase.equals("collections-contracts")) {
                 scenes.clear();
                 for (int[] size : new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
@@ -621,7 +626,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         var library = new BeatmapLibrary(null,wallClock);
         int setCount = (scene.name.equals("greylooks-large-library") || scene.name.startsWith("phase25-large-library-modern") || scene.name.equals("phase3-large-library") || scene.name.startsWith("phase4-large") || scene.name.startsWith("phase5a-state-large")) ? 1000 : 7;
         if (scene.name.equals("phase3-focus-page") || scene.name.startsWith("lifecycle-") || scene.name.startsWith("keyboard-")) setCount = 24;
-        if (scene.name.equals("repair-empty")) setCount = 0;
+        if (scene.name.equals("repair-empty") || scene.name.startsWith("difficulty-")) setCount = 0;
         if (scene.name.equals("repair-single") || scene.name.startsWith("repair-row-hit")) setCount = 1;
         boolean phase2 = scene.name.startsWith("phase2");
         var ratings = new IdentityHashMap<BeatmapDifficulty, OptionalDouble>();
@@ -685,6 +690,15 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             }
             library.add(new BeatmapSet("set" + i,title,artist,mapper,null,image,diffs,List.of()));
         }
+        if(scene.name.startsWith("difficulty-")) try {
+            var diffs=new ArrayList<BeatmapDifficulty>();
+            for(String fixture:List.of("empty","single","pair","jumps","rhythm","spinner","stacks","stream","fractional","simultaneous","gaps","three"))
+                diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse(Path.of("core/src/test/resources/difficulty/reference-20220902/"+fixture+".osu"))
+                        .difficulty().withAssets(null,null,Path.of(fixture+".osu")));
+            diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse("osu file format v14\n[Metadata]\nTitle:Unverified slider\nArtist:Local Fixture\nCreator:osu!java\nVersion:Slider\n[HitObjects]\n100,100,1000,2,0,L|200:100,1,100","slider.osu")
+                    .difficulty().withAssets(null,null,Path.of("slider.osu")));
+            library.add(new BeatmapSet("set3","Reference fixtures","Local Fixture","osu!java",null,null,diffs,List.of()));
+        } catch(Exception failure) { throw new IllegalStateException("Could not load local difficulty fixtures",failure); }
         var localScores = scene.name.startsWith("phase4-backend-")
                 ? new dev.osujava.score.LocalScoreStore(backendScoreDirectory(scene))
                 : scene.name.equals("phase5a-state-save-reload")
@@ -714,6 +728,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             @Override public dev.osujava.score.LocalPlayHistory playHistory() { return playHistory; }
             @Override public dev.osujava.collection.LocalCollectionStore collections() { return collections; }
             @Override public java.time.Clock wallClock() { return wallClock; }
+            @Override public dev.osujava.difficulty.LocalDifficultyService createLocalDifficultyService() {
+                return new dev.osujava.difficulty.LocalDifficultyService(output.resolve("difficulty-cache/"+scene.width+"x"+scene.height+"-"+scene.density+"-"+scene.name));
+            }
             @Override public Path skinDirectory() { return scene.name.equals("phasechrome-custom") ? customSkin
                     : scene.name.startsWith("phasechrome-current") ? Path.of("core/src/main/resources/skins/default").toAbsolutePath() : null; }
             @Override public Path skinFallbackDirectory() { return scene.name.equals("phasechrome-custom") ? null : output.resolve("fixtures/latest"); }
@@ -733,8 +750,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "phasechrome-tall" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/tall"), greylooks);
             case "phasechrome-present" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/present"), greylooks);
             case "phasechrome-transparent" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/transparent"), greylooks);
-            case "phase4-fallback", "phase3-fallback", "phase4-collections-empty" -> new SkinAssetResolver(output.resolve("fixtures/empty"));
-            case "phase4-high-only", "phase4-collections-missing" -> new SkinAssetResolver(output.resolve("fixtures/high-only"));
+            case "difficulty-fallback", "phase4-fallback", "phase3-fallback", "phase4-collections-empty" -> new SkinAssetResolver(output.resolve("fixtures/empty"));
+            case "difficulty-high-only", "phase4-high-only", "phase4-collections-missing" -> new SkinAssetResolver(output.resolve("fixtures/high-only"));
             case "phase4-bundled-fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), null);
             case "phase4-partial-palette" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/star-high"), null);
             case "phase3-modern" -> new SkinAssetResolver(output.resolve("fixtures/latest"));
@@ -746,7 +763,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     "phase25-rating-high", "phase25-rating-none", "phase25-thumbnail-missing", "phase25-thumbnail-wide",
                     "phase25-thumbnail-tall", "phase25-chrome-full", "phase25-hover", "phase2-thumbnail-fade", "phase2-missing-thumbnail",
                     "phase2-portrait", "phase2-wide", "phase2-broken-thumbnail", "phase2-v22" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/star-high"), null);
-            default -> scene.name.startsWith("greylooks") || phase2 || scene.name.startsWith("phase3") || scene.name.startsWith("phase4") ? SkinAssetResolver.withBundledDefault(null,null)
+            default -> scene.name.startsWith("greylooks") || phase2 || scene.name.startsWith("phase3") || scene.name.startsWith("phase4") || scene.name.startsWith("difficulty-") ? SkinAssetResolver.withBundledDefault(null,null)
                     : new SkinAssetResolver(output.resolve("fixtures").resolve(scene.name));
         };
         if (scene.name.startsWith("search-")) resolver = SkinAssetResolver.withBundledDefault(null,null);
@@ -777,7 +794,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 : scene.name.startsWith("greylooks-expanded") ? "set2" : "set3";
         int preferredDifficulty = scene.name.equals("greylooks-first-item") ? 0
                 : (scene.name.equals("greylooks-last-item") || scene.name.startsWith("greylooks-expanded")) ? 3 : 1;
-        var screen = new SongSelectScreen(game,preferredSet,preferredDifficulty,assets, diff -> ratings.getOrDefault(diff, OptionalDouble.empty()));
+        var screen = scene.name.startsWith("difficulty-") ? new SongSelectScreen(game,preferredSet,preferredDifficulty,assets)
+                : new SongSelectScreen(game,preferredSet,preferredDifficulty,assets, diff -> ratings.getOrDefault(diff, OptionalDouble.empty()));
         var fb = new FrameBuffer(Pixmap.Format.RGBA8888,scene.width * scene.density,scene.height * scene.density,false);
         try {
             screen.show();
@@ -811,6 +829,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseGroupCards(screen, scene.name, pointer, clicked, pressed, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if(scene.name.startsWith("difficulty-")) {
+                try { exerciseDifficulty(screen,scene,game,library,resolver,pointer,clicked,pressed,layout,fb,name); }
+                catch(Exception failure) { throw new IllegalStateException("Difficulty visual contract failed",failure); }
+                fb.end();advanceScene();return;
+            }
             if(scene.name.startsWith("phase4-collections-")) {
                 exerciseCollections(screen,scene,collections,library,pointer,clicked,pressed,layout,fb,name);
                 fb.end(); advanceScene(); return;
@@ -2124,6 +2147,66 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         Arrays.sort(switches);
         System.out.printf(Locale.ROOT,"Toolbox difficulty switch %s: mean %.3f ms, p95 %.3f ms, max %.3f ms%n",name,
                 Arrays.stream(switches).average().orElseThrow()/1e6,switches[94]/1e6,switches[99]/1e6);
+    }
+    private void awaitDifficulty(SongSelectScreen screen,UiLayout layout) throws Exception {
+        var service=(dev.osujava.difficulty.LocalDifficultyService)screenField(screen,"localRatings");
+        long deadline=System.nanoTime()+java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
+        while(service.diagnostics().published()!=service.diagnostics().libraryContents()) {
+            if(System.nanoTime()>deadline) throw new AssertionError("Difficulty worker did not finish: "+service.diagnostics());
+            screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);Thread.sleep(1);
+        }
+        for(int i=0;i<45;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
+    }
+    private void exerciseDifficulty(SongSelectScreen screen,Scene scene,OsuJavaGame game,BeatmapLibrary library,
+                                    SkinAssetResolver resolver,int[] pointer,boolean[] clicked,boolean[] pressed,
+                                    UiLayout layout,FrameBuffer fb,String name) throws Exception {
+        awaitDifficulty(screen,layout);
+        var browser=(SongBrowserModel)screenField(screen,"browser");var selection=browser.selection();
+        var service=(dev.osujava.difficulty.LocalDifficultyService)screenField(screen,"localRatings");
+        var content=(Map<BeatmapDifficulty,SongSelectRowPresentation.Content>)screenField(screen,"rowContent");
+        for(var chart:library.all().getFirst().difficulties()) {
+            var result=service.result(chart);
+            if(chart.version().equals("Slider")) {
+                if(result.status()!=dev.osujava.difficulty.DifficultyResult.Status.UNSUPPORTED || content.get(chart).stars().present())
+                    throw new AssertionError("Unverified slider received a fake rating");
+            } else {
+                var expected=new java.util.Properties();
+                try(var in=Files.newInputStream(Path.of("core/src/test/resources/difficulty/reference-20220902/"+chart.title()+".properties"))) {expected.load(in);}
+                double value=Double.parseDouble(expected.getProperty("stars"));
+                if(result.status()!=dev.osujava.difficulty.DifficultyResult.Status.SUCCESS || Math.abs(result.stars()-value)>1e-9
+                        || content.get(chart).stars().rating()!=result.stars()) throw new AssertionError("Worker and visible row rating differ: "+chart.title());
+            }
+        }
+        if(!((SongSelectDetails)screenField(screen,"details")).status().contains("Stars 0.14")) throw new AssertionError("Selected information did not refresh from the worker");
+        capture(fb,name+"-calculated");
+        var tab=SongBrowserControls.tabBounds(layout.width(),layout.height(),SongBrowserControls.Tab.DIFFICULTY.ordinal());
+        pointer[0]=Math.round((tab.x()+tab.width()/2)*layout.scale());pointer[1]=scene.height-Math.round((tab.y()+tab.height()/2)*layout.scale());
+        clicked[0]=pressed[0]=true;screen.render(1f/60);transitionFrames++;clicked[0]=pressed[0]=false;
+        for(int i=0;i<45;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
+        if(browser.group()!=SongBrowserModel.Group.DIFFICULTY || browser.sort()!=SongBrowserModel.Sort.DIFFICULTY || !selection.equals(browser.selection()))
+            throw new AssertionError("Difficulty tab did not keep playable identity");
+        if(!browser.rows().stream().filter(SongBrowserModel.Row::group).reduce((a,b)->b).orElseThrow().label.equals("Unknown difficulty"))
+            throw new AssertionError("Unknown difficulty was mixed with known zero");
+        capture(fb,name+"-grouped");
+        screen.browserSearch("stars>=5 stars<8",true);
+        for(int i=0;i<45;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
+        if(browser.rows().stream().filter(r->!r.group() && !r.excluded).count()!=4) throw new AssertionError("Stars search does not use local computed ratings");
+        capture(fb,name+"-search");screen.browserSearch("",false);
+        if(!selection.equals(browser.selection())) throw new AssertionError("Stars search clear lost selection");
+        browser.select("set3",12);screen.browserMode(SongBrowserModel.Sort.DIFFICULTY,SongBrowserModel.Group.DIFFICULTY);
+        for(int i=0;i<45;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
+        if(((SongSelectDetails)screenField(screen,"details")).status().contains("Stars")) throw new AssertionError("Unsupported rating shown in metadata");
+        capture(fb,name+"-unsupported");
+        browser.select("set3",0);screen.browserMode(SongBrowserModel.Sort.DIFFICULTY,SongBrowserModel.Group.DIFFICULTY);
+        for(int i=0;i<45;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
+        if(!((SongSelectDetails)screenField(screen,"details")).status().contains("Stars 0.00")) throw new AssertionError("Known zero was hidden");
+        capture(fb,name+"-zero");
+        var reopened=new SongSelectScreen(game,"set3",3,new SongSelectSkinAssets(resolver));
+        try {reopened.show();reopened.resize(scene.width,scene.height);awaitDifficulty(reopened,layout);
+            if(!((SongSelectDetails)screenField(reopened,"details")).status().contains("Stars 5.76")) throw new AssertionError("Warm screen did not restore cached ratings");
+            capture(fb,name+"-warm");
+        } finally {reopened.dispose();}
+        System.out.println("DIFFICULTY PASS "+name);
     }
     private void populateCollections(dev.osujava.collection.LocalCollectionStore store,BeatmapLibrary library,String state) {
         if(state.endsWith("empty")) return;
