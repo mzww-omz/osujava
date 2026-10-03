@@ -105,6 +105,18 @@ class StandardDifficultyCalculatorTest {
         assertTrue(result.reason().contains("Coincident slider nested"),result.reason());
         assertTrue(result.rating().isEmpty());
     }
+    @Test void largeTimestampSpanRetainsThePublicEndTimeSubtractionBoundary() throws Exception {
+        String name="timing-duration-large-time";
+        var chart=new BeatmapFileParser().parse(source(name,".osu"),"large.osu").difficulty();
+        var expected=new Properties();expected.load(new StringReader(source(name,".properties")));
+        var sliders=SliderPreprocessing.prepare(chart);
+        for(int i=0;i<sliders.length;i++) if(sliders[i]!=null) {
+            // The ordinary float-geometry tolerance permits the old path/velocity result here.
+            // This IEEE-double boundary fixture specifically checks the measured getter value.
+            double span=Double.parseDouble(expected.getProperty("slider."+i).split(",")[1]);
+            assertEquals(span,sliders[i].spanDuration);
+        }
+    }
     @Test void unverifiedOrExcessiveSliderPreprocessingStaysUnknownAndDoesNotPoisonTheNextJob() throws Exception {
         String header="osu file format v14\n[TimingPoints]\n0,500,4,0,0,100,1,0\n[HitObjects]\n";
         var sources=List.of(
