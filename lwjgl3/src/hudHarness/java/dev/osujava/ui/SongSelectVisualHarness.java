@@ -243,6 +243,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                             "phase4-wheel-hover", "phase4-oversized-score", "phase4-resize", "phase4-partial-palette", "phasechrome-giant",
                             "phasechrome-transparent", "phase5a-state-save-reload"))
                         scenes.add(new Scene(size[0],size[1],size[2],name));
+            } else if (phase.equals("selector-contracts")) {
+                scenes.clear();
+                for(int[] size:new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
+                    for(String state:List.of("greylooks","fallback","high-only"))
+                        scenes.add(new Scene(size[0],size[1],size[2],"selectors-"+state));
             } else if (phase.equals("difficulty-contracts")) {
                 scenes.clear();
                 for(int[] size:new int[][]{{1280,720,1},{1280,800,1},{1024,768,1},{1280,720,2}})
@@ -757,8 +762,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             case "phasechrome-tall" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/tall"), greylooks);
             case "phasechrome-present" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/present"), greylooks);
             case "phasechrome-transparent" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/transparent"), greylooks);
-            case "difficulty-fallback", "phase4-fallback", "phase3-fallback", "phase4-collections-empty" -> new SkinAssetResolver(output.resolve("fixtures/empty"));
-            case "difficulty-high-only", "phase4-high-only", "phase4-collections-missing" -> new SkinAssetResolver(output.resolve("fixtures/high-only"));
+            case "selectors-fallback", "difficulty-fallback", "phase4-fallback", "phase3-fallback", "phase4-collections-empty" -> new SkinAssetResolver(output.resolve("fixtures/empty"));
+            case "selectors-high-only", "difficulty-high-only", "phase4-high-only", "phase4-collections-missing" -> new SkinAssetResolver(output.resolve("fixtures/high-only"));
             case "phase4-bundled-fallback" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/empty"), null);
             case "phase4-partial-palette" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/star-high"), null);
             case "phase3-modern" -> new SkinAssetResolver(output.resolve("fixtures/latest"));
@@ -770,7 +775,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                     "phase25-rating-high", "phase25-rating-none", "phase25-thumbnail-missing", "phase25-thumbnail-wide",
                     "phase25-thumbnail-tall", "phase25-chrome-full", "phase25-hover", "phase2-thumbnail-fade", "phase2-missing-thumbnail",
                     "phase2-portrait", "phase2-wide", "phase2-broken-thumbnail", "phase2-v22" -> SkinAssetResolver.withBundledDefault(output.resolve("fixtures/star-high"), null);
-            default -> scene.name.startsWith("greylooks") || phase2 || scene.name.startsWith("phase3") || scene.name.startsWith("phase4") || scene.name.startsWith("difficulty-") ? SkinAssetResolver.withBundledDefault(null,null)
+            default -> scene.name.startsWith("selectors-") || scene.name.startsWith("greylooks") || phase2 || scene.name.startsWith("phase3") || scene.name.startsWith("phase4") || scene.name.startsWith("difficulty-") ? SkinAssetResolver.withBundledDefault(null,null)
                     : new SkinAssetResolver(output.resolve("fixtures").resolve(scene.name));
         };
         if (scene.name.startsWith("search-")) resolver = SkinAssetResolver.withBundledDefault(null,null);
@@ -836,6 +841,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                 exerciseGroupCards(screen, scene.name, pointer, clicked, pressed, layout, scene.height);
             if (scene.name.startsWith("phase4")) configureScores(screen, scene.name, processor[0], pointer, clicked, layout, scene.height);
             String name = scene.width + "x" + scene.height + "-" + scene.density + "x-" + scene.name;
+            if(scene.name.startsWith("selectors-")) {
+                exerciseSelectors(screen,scene,processor[0],pointer,clicked,pressed,layout,fb,name);
+                fb.end();advanceScene();return;
+            }
             if(scene.name.startsWith("difficulty-")) {
                 try { exerciseDifficulty(screen,scene,game,library,resolver,pointer,clicked,pressed,layout,fb,name); }
                 catch(Exception failure) { throw new IllegalStateException("Difficulty visual contract failed",failure); }
@@ -1939,6 +1948,8 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         if (toolboxState(screen).open()) {
             var selected = browser(screen).selectedDifficulty(); String search = (String)screenField(screen,"search");
             var scores = scoreBrowser(screen); int first = scores.first(); var selectedScore = scores.selected();
+            // Mode dismisses on an outside click; the full-screen Mods dialog consumes it.
+            if (toolboxState(screen).overlay() == SongSelectToolboxState.Overlay.MODS)
             for (var b : List.of(geometry.control(SongSelectSkinAssets.Selection.RANDOM).interaction(),geometry.cookie,
                     new SongSelectToolboxLayout.Bounds(800,590,70,40),new SongSelectToolboxLayout.Bounds(30,560,70,30))) {
                 point(b,pointer,layout,scene.height); clicked[0] = true; screen.render(0); clicked[0] = false;
@@ -2155,6 +2166,54 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         System.out.printf(Locale.ROOT,"Toolbox difficulty switch %s: mean %.3f ms, p95 %.3f ms, max %.3f ms%n",name,
                 Arrays.stream(switches).average().orElseThrow()/1e6,switches[94]/1e6,switches[99]/1e6);
     }
+    private void selectorFrames(SongSelectScreen screen,UiLayout layout,int count) {
+        for(int i=0;i<count;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
+    }
+    private void selectorClick(SongSelectScreen screen,Scene scene,SongSelectToolboxLayout.Bounds b,int[] pointer,boolean[] clicked,boolean[] pressed,UiLayout layout) {
+        point(b,pointer,layout,scene.height);clicked[0]=pressed[0]=true;screen.render(1f/60);transitionFrames++;
+        clicked[0]=pressed[0]=false;screen.render(1f/60);transitionFrames++;
+    }
+    private void exerciseSelectors(SongSelectScreen screen,Scene scene,InputProcessor input,int[] pointer,boolean[] clicked,boolean[] pressed,UiLayout layout,FrameBuffer fb,String name) {
+        var identity=browser(screen).selection();var g=new SongSelectSelectorLayout(layout);
+        var toolbox=toolboxState(screen);var manager=(SongSelectCollections)screenField(screen,"collectionManager");
+        selectorClick(screen,scene,toolboxLayout(screen).control(SongSelectSkinAssets.Selection.MODE).interaction(),pointer,clicked,pressed,layout);
+        selectorFrames(screen,layout,20);capture(fb,name+"-mode");
+        selectorClick(screen,scene,g.mode(3),pointer,clicked,pressed,layout);
+        if(!toolbox.open() || !identity.equals(browser(screen).selection())) throw new AssertionError("Unavailable mode became active");
+        capture(fb,name+"-mode-unavailable-hover");
+        selectorClick(screen,scene,new SongSelectToolboxLayout.Bounds(layout.width()-80,layout.height()/2,40,40),pointer,clicked,pressed,layout);
+        if(toolbox.open() || !identity.equals(browser(screen).selection()) || pending(screen)) throw new AssertionError("Mode outside click leaked to Song Select");
+        selectorFrames(screen,layout,12);
+        tapKey(input,Input.Keys.F1);selectorFrames(screen,layout,12);capture(fb,name+"-mods-entering");
+        selectorFrames(screen,layout,65);
+        selectorClick(screen,scene,g.mod(SongSelectToolboxState.Mod.HARD_ROCK),pointer,clicked,pressed,layout);
+        if(!toolbox.active().isEmpty()) throw new AssertionError("Unsupported Mod activated");
+        capture(fb,name+"-mods-hover");
+        for(int key:new int[]{Input.Keys.F2,Input.Keys.F3,Input.Keys.I,Input.Keys.ENTER,Input.Keys.F6,Input.Keys.DOWN}) tapKey(input,key);
+        input.keyTyped('x');input.scrolled(0,3);
+        if(!identity.equals(browser(screen).selection()) || pending(screen) || !screenField(screen,"search").equals("")) throw new AssertionError("Mods input escaped modal");
+        selectorClick(screen,scene,toolbox.animation.bounds(g.reset(),0),pointer,clicked,pressed,layout);
+        if(!toolbox.open() || !toolbox.active().isEmpty()) throw new AssertionError("Reset closed or activated Mods");
+        selectorClick(screen,scene,toolbox.animation.bounds(g.closeMods(),1),pointer,clicked,pressed,layout);
+        if(toolbox.open()) throw new AssertionError("Mods close hitbox differs from paint");
+        selectorFrames(screen,layout,3);capture(fb,name+"-mods-closing");selectorFrames(screen,layout,12);
+        tapKey(input,Input.Keys.F3);selectorFrames(screen,layout,12);capture(fb,name+"-options-entering");
+        selectorFrames(screen,layout,65);
+        selectorClick(screen,scene,manager.interaction(layout,SongSelectCollections.Button.DELETE_BEATMAP),pointer,clicked,pressed,layout);
+        if(manager.snapshot().mode()!=SongSelectCollections.Mode.OPTIONS || !identity.equals(browser(screen).selection())) throw new AssertionError("Unavailable Options action ran");
+        capture(fb,name+"-options");
+        selectorClick(screen,scene,manager.interaction(layout,SongSelectCollections.Button.MANAGE),pointer,clicked,pressed,layout);
+        if(manager.snapshot().mode()!=SongSelectCollections.Mode.MANAGE) throw new AssertionError("Options lost Collection manager");
+        capture(fb,name+"-collections");tapKey(input,Input.Keys.ESCAPE);selectorFrames(screen,layout,12);
+        tapKey(input,Input.Keys.F3);selectorFrames(screen,layout,75);
+        selectorClick(screen,scene,manager.interaction(layout,SongSelectCollections.Button.CLOSE),pointer,clicked,pressed,layout);
+        if(manager.open()) throw new AssertionError("Options cancel hitbox differs from paint");
+        selectorFrames(screen,layout,12);
+        tapKey(input,Input.Keys.F3);input.keyDown(Input.Keys.NUM_6);input.keyTyped('6');input.keyUp(Input.Keys.NUM_6);
+        selectorFrames(screen,layout,12);
+        if(manager.open() || !identity.equals(browser(screen).selection()) || !screenField(screen,"search").equals("")) throw new AssertionError("Options keyboard close leaked text");
+        capture(fb,name+"-closed");System.out.println("SELECTOR PASS "+name);
+    }
     private void awaitDifficulty(SongSelectScreen screen,UiLayout layout) throws Exception {
         var service=(dev.osujava.difficulty.LocalDifficultyService)screenField(screen,"localRatings");
         long deadline=System.nanoTime()+java.util.concurrent.TimeUnit.SECONDS.toNanos(10);
@@ -2262,7 +2321,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         }
     }
     private void collectionClick(SongSelectScreen screen,SongSelectCollections.Button button,int[] pointer,boolean[] clicked,boolean[] pressed,UiLayout layout,int height) {
-        var b=SongSelectCollections.bounds(layout,button);
+        var b=((SongSelectCollections)screenField(screen,"collectionManager")).interaction(layout,button);
         pointer[0]=Math.round((b.x()+b.width()/2)*layout.scale()); pointer[1]=height-Math.round((b.y()+b.height()/2)*layout.scale());
         clicked[0]=pressed[0]=true; screen.render(1f/60); transitionFrames++; clicked[0]=pressed[0]=false; screen.render(1f/60); transitionFrames++;
     }
