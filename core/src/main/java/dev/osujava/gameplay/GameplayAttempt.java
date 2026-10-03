@@ -24,6 +24,8 @@ public final class GameplayAttempt {
     }
     public void finish(LocalPlayHistory.Outcome outcome) {
         if (!started || ended) return;
-        ended=true; history.finish(playId,clock.millis(),outcome);
+        if (outcome == null || outcome == LocalPlayHistory.Outcome.UNKNOWN)
+            throw new IllegalArgumentException("Attempt must finish with a terminal outcome");
+        ended=history.finish(playId,clock.millis(),outcome);
     }
 }
