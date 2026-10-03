@@ -75,4 +75,31 @@ class SongSelectScoreSnapshotTest {
         assertEquals(SongSelectRowPresentation.Tone.PLAYED,SongSelectRowPresentation.tone(false,false,true));
         assertEquals(SongSelectRowPresentation.Tone.UNPLAYED,SongSelectRowPresentation.tone(false,false,false));
     }
+
+    @Test void failedAttemptRemainsBrowsableWithoutMarkingContentCompleted() {
+        var set = set("a"); var diff = set.difficulties().getFirst();
+        var prototype = score(set, 0, 200);
+        var original = prototype.details();
+        var failed = new LocalScore(prototype.playId(), prototype.difficulty(), prototype.playedAt(), prototype.result(),
+                new ScoreDetails(original.scoringVersion(), original.beatmapSha256(), original.beatmapMd5(),
+                        null, null, null, null, false, List.of(new ScoreDetails.HealthPoint(1000, 0)), null, null));
+        var store = new LocalScoreStore(root);
+        assertTrue(store.save(failed, GameplayRunMode.MANUAL));
+        var reloadedStore = new LocalScoreStore(root);
+        var snapshot = new SongSelectScoreSnapshot(reloadedStore);
+        snapshot.refresh(List.of(set));
+        assertFalse(snapshot.played(set));
+        assertFalse(snapshot.played(set, diff));
+        assertNull(snapshot.best(set, diff));
+        var browser = new ScoreBrowserModel(reloadedStore);
+        browser.target(failed.difficulty(), BeatmapContentKey.of(diff));
+        assertEquals(failed, browser.rows().getFirst().score());
+        assertEquals(dev.osujava.ruleset.osu.OsuGrade.SS, failed.grade(), "Accuracy grade is separate from outcome");
+        var completed = score(set, 0, 100);
+        assertTrue(reloadedStore.save(completed, GameplayRunMode.MANUAL));
+        snapshot.refresh(List.of(set));
+        assertTrue(snapshot.played(set));
+        assertEquals(completed, snapshot.best(set, diff), "A higher failed score cannot hide a completed play");
+        assertNull(completed.details().passed(), "Unknown legacy outcome does not imply failure");
+    }
 }

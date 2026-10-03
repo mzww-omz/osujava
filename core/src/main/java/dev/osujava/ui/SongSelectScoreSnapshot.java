@@ -24,7 +24,12 @@ final class SongSelectScoreSnapshot {
             var best = new IdentityHashMap<BeatmapDifficulty,LocalScore>();
             for (var diff : set.difficulties()) {
                 var identity = DifficultyIdentity.of(set.id(),diff);
-                var score = identity == null ? null : store.best(BeatmapContentKey.of(diff));
+                // A failed attempt stays browsable, but cannot mark content completed or hide
+                // a lower-scoring completed play. Unknown outcomes retain legacy behaviour.
+                LocalScore score = null;
+                if (identity != null) for (var candidate : store.query(BeatmapContentKey.of(diff))) {
+                    if (!Boolean.FALSE.equals(candidate.details().passed())) { score = candidate; break; }
+                }
                 if (score != null) best.put(diff,score);
             }
             entries.put(set,new Entry(!best.isEmpty(),best));
