@@ -123,8 +123,8 @@ B05はNM circle/spinner・検証済みlegacy curve Slider、worker/cache、星/�
 | B00数値reference固定 | B05の公開2023 commitと20220902 version、許容差、自作38fixtureを固定・照合済み。未検証path/timing/B06 HPのreferenceは次段階で拡張 |
 | B03 history / addedAt — 実装済み | nativeの小数日丸め/group境界は追加観測が必要。現在は明示したlocal分類。詳細はB03実装記録 |
 | B04 Collections / Options — 実装済み | native managerの厳密な寸法/editor/animationは未比較。local CRUDと既存UIへの接続は完了。管理操作の拡張はB09 |
-| B05 star / Difficulty — 部分実装 | NM v6+ circle/spinnerとv8+検証済みlegacy curveは計算・cache・UI接続済み。HitObject skip情報は伝播済み。setting/timing/Spinner補正のsource品質通知はB05-T1で修復済み。SV/同時刻timing/継承NaNはB05-T2a–cで修復済み。次はB05-T2dのnested/pre-v8 tick距離。1万sourceのservice baselineと登録allocation改善は計測済み、実library/UI分類/work budget評価は未完了、pre-v6/Mods、stable実機の数値照合。未検証chartはunknown |
-| B06 HP / fail | 実HP/終端を収集する。Resultsは既にpassed=falseのF表示に対応済みで、追加すべき中心はGameplayの計算・収集 |
+| B05 star / Difficulty — 部分実装 | v6+ circle/spinner/Linear、v8+検証済みcurve、SV/同時刻timing/NaN/pre-v8/durationを検証。49 reference中48対応＋tie未知1。実1万UI分類とservice baselineを計測、allocation修復済み。次は分類tailと実library/IO/GPU、未対応subset/native比較はT4 |
+| B06 HP / fail — 部分実装 | health保存契約、terminal履歴、failed表示と完走色除外、NM H/U・増減算術を実装。calibration→時刻順runtime→outcome freeze→graph採取は未接続。Results F受口は既存を維持 |
 | B07通常Mods | NF→HR、後にEZ/HD/rate系。保存用listができたこととModの効果実装を混同しない。銀gradeは実Mod対応後 |
 | B08 replay | 実入力記録と再実行。保存成功した記録だけをscoreへ参照として接続する |
 | B09 local管理 | score削除/譜面退避の整合・復旧を実装し、Optionsへ接続する |
@@ -202,3 +202,47 @@ source元順変更をImport/Gameplayのsortと分けて保持し、対応subset�
 1万source hash＋1千content-copyの実worker/cold/warm計測を追加し、
 key検証の毎回regex compileとNMの不要streamを修復。登録allocation45.42MB→8.92MB、warm再計算0。
 実library/分類/GPU性能の合格とは認定しない。次はT2dのpre-v8/nested tie→T3受入→B06以降。
+
+
+## B系大分類の自律進行: B05-T2d/T3修復、B06初期実装
+
+ユーザーの明示許可に従い、B系Phaseも承認待ちを挟まずsubagent3名でreference/性能/HP契約を分担した。
+B05はpre-v8 Linearとdurationの実source境界を修復し、B06はHP算術・保存/失敗表示/履歴の小単位へ進めた。
+Renderer/Import/Ruleset/GameClockの分離、完全local、Java21と既存skin densityを維持。
+
+- B05: 49 reference（48対応＋tie未知1）。元45stars byte不変。cache version更新、cold/warm UI確認。
+- T3: 実hash付き1万難易度のproduction updateを計測。source metadata/identity/hashとbucket計算を再利用し、
+  完了中frame平均allocationをsort約47%／group約66%／検索約50%削減。旧sourceの公開除外とworker closeを確認。
+- B06: finite/ordered/100kのhealth snapshot、保存前上限、partial failed scoreのrestartを回帰。
+  明示failedは完走row色/gradeから除外し、ランキングprovenanceへFailedを表示。
+  accuracy gradeはoutcomeと分け、未確認のranking-F-smallを新設しない。Resultsの既存Fは維持。
+- attemptはUNKNOWN/nullを終端として受け付けず、保存失敗時に終端済みflagを立てない。
+  復旧後retryとFAILEDの終端不変をテストした。
+- NM HP算術は指定stable ILの再確認を根拠に独立実装。H/U、C/N、object/nested/spinner、
+  HP補間とcapを10 casesで検証。公開2023 generic/後年legacyとの仕様差も明記。
+
+全build1,490 tests成功（core1,486＋lwjgl3 4、failure/error/skip 0）。
+GL12scenes／528PNG／23,784操作framesとnavigation/disposal成功。
+[B05根拠・対応範囲](songselect-backend-difficulty-20261003.md)、
+[全UI性能CSVと残るtail](songselect-backend-service-performance-20261003.md)、
+[B06仕様・実装接続の次単位](songselect-backend-health-contracts-20261003.md)を参照。
+
+残件を完了扱いにしない。cold分類p95約21–26ms、Import相当projection最大約77msのtail、
+実library/Import IO/GPUは未受入。HP calibration、runtime drain/fail/outcome、graphは未接続で、
+現実プレイのpassed/healthはnull。ModsはB07、replay B08、Options管理 B09と依存表の順に進める。
+pre-v8曲線・nested ties・pre-v6・B-spline・native数値比較はB05-T4/P10へ引継ぐ。
+
+今回の実装commit（この後の記録更新commitは最終報告に記載）:
+
+- `acc454c` — `fix(score): enforce bounded chronological health snapshots`
+- `fc2f478` — `fix(song-select): exclude failed attempts from completed row badges`
+- `256ce35` — `fix(song-select): label known failed local scores explicitly`
+- `0188f0e` — `fix(gameplay): finalize attempts only after saving a terminal outcome`
+- `6f1fabc` — `test(difficulty): execute public slider conversion and nested defaults`
+- `18df81c` — `fix(difficulty): verify pre-v8 ticks and slider duration ordering`
+- `d006bdd` — `test(song-select): cover pre-v8 local ratings through warm reopen`
+- `be59e09` — `test(song-select): measure hashed rating classification and library replacement`
+- `03a3a24` — `perf(song-select): retain source metadata between rating projections`
+- `817d023` — `fix(score): reject oversized health before copying samples`
+- `a48e743` — `feat(ruleset): implement verified NM health event arithmetic`
+- `78a911f` — `test(difficulty): guard large timestamp span rounding exactly`

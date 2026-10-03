@@ -11,9 +11,9 @@
 を根拠に独立実装する。現行2026のalgorithm、またはstableの全譜面との同値は主張しない。
 
 現在は **NM、mode 0、CS/AR/OD 0–10、StackLeniency 0–1**。
-format v6以降のcircle/spinnerに加え、**v8以降の検証済みLinear/Bezier/Perfect/Catmull/mixed Slider**を含むchartへ拡張した。
+format v6以降のcircle/spinner/Linear Sliderに加え、**v8以降の検証済みBezier/Perfect/Catmull/mixed Slider**を含むchartへ拡張した。
 未検証のpath/settings/timing・他mode・pre-v6はchart全体をUNSUPPORTEDとして数値を供給しない。
-現在の具体的範囲は後述「曲線Sliderへの拡張」とB05-T2a–cを参照。
+現在の具体的範囲は後述「曲線Sliderへの拡張」とB05-T2a–dを参照。
 SV丸め・source時刻順の同時刻batch・継承NaNのtick抑制を検証済み。Linear段階の記録は履歴として保持する。
 計算済み空chartはSUCCESSの0星、1object chartはreferenceの非zero値を保持する。
 PENDING/UNSUPPORTED/FAILEDは星なし。parserでHitObject行をskip、不正setting/timingをfallback、Spinner終端を補正したchartはFAILEDとし、部分的な星や0星を供給しない。
@@ -482,3 +482,44 @@ Commit:
 - 28267cd — test(difficulty): verify inherited NaN tick suppression against decoder
 - a171304 — fix(difficulty): honor inherited NaN without dropping slider repeats
 - dd44805 — test(song-select): include inherited NaN cold and warm ratings
+
+
+## B05-T2d: public converter・実nested defaults・pre-v8・duration境界
+
+`6f1fabc`でreferenceにpinned OsuBeatmapConverter.ConvertHitObject、Slider.CreateNestedHitObjects、
+HitObject.ApplyDefaults（.NET List.Sort）、OsuHitObject defaultsとSlider EndTime/Duration/SpanDurationの
+公開全文処理を接続した。無関係なaudio/editor/serializationはadapter、full stream parsingは対象外。
+公開sourceをtemporaryに取得・実行してexpectedを作り、Javaは独立算術として実装。stable内部コードや公式assetsを移植しない。
+
+[公開converter](https://github.com/ppy/osu/blob/4e96853c7543f80a1b822ccd381943c7377543d7/osu.Game.Rulesets.Osu/Beatmaps/OsuBeatmapConverter.cs)
+はpre-v8 tick倍率をraw/clamped SVの逆数とする。Slider側の0.01丸め値とは分けて保持する。
+[公開Slider](https://github.com/ppy/osu/blob/4e96853c7543f80a1b822ccd381943c7377543d7/osu.Game.Rulesets.Osu/Objects/Slider.cs)
+のEndTimeはstart＋spanCount×path/velocity、SpanDurationは(EndTime−start)/spanCount。
+repeatはstart＋(spanIndex＋1)×SpanDuration、legacy tailは実event generatorの演算順で生成する。
+path/velocityだけからspanを作るwrapperは大きいtimestampで観測可能な差が出るため修正した。
+
+- 自作49 referenceのうち48対応fixtureと全中間値を従来許容差で照合。tie fixture1はreference-only。
+- v6/v7は各7 Linear sliders。raw/丸めSV、両clamp端、red reset、継承NaN抑制と通常green復帰を確認。
+- 大timestamp fixtureはInteger.MAX_VALUE近く、0.1px、1/3/5span。元の許容差とは別に、
+  公開getterのIEEE-double span値を厳密照合する境界回帰を追加（`78a911f`）。
+- 実nested/getter接続で元45expectedの25file、129数値cellに微小差。45starsはbyte不変、
+  aim最大差2.22e-16、最大中間差7.28e-12。toleranceを緩めず実source処理順のexpectedへ更新。
+- .NET8 List.Sortは同時刻の安定順を保証しない。短repeatとsmall-list境界を跨ぐfixtureを作成したが、
+  Java/stableのtie順互換を認定せず、全chart UNSUPPORTEDのguardを維持した。
+- pre-v8非Linear、pre-v6、source順をparserが変更したSlider、degree-specific B-spline、Modsは未知。
+
+`18df81c`でpreprocessing keyを`legacy-curves-f32-v6-7`へ更新。
+旧v8-6のUNSUPPORTED cacheを温存したまま新SUCCESSへ移行し、cold→warm/restartを確認。
+`d006bdd`でv6/v7の本番UI cold/warm、星sort/group/検索をharnessへ追加した。
+
+`./gradlew build --offline --console=plain`成功。core150 suites／1,486 tests、lwjgl3 2 suites／4 tests、
+合計1,490、failure/error/skip 0。
+GL difficulty-contractsは12 scenes／528 PNG／23,784 scripted transition framesとnavigation/disposal成功。
+Greylooks、procedural fallback、HD-only fixture×16:9/16:10/4:3/2x density。
+4:3 Greylooksと2x fallbackのpre-v8 warm captureを目視確認した。HD-onlyは意図的な合成asset条件であり、
+全skinの見た目が同じという主張ではない。
+ログ `/tmp/osujava-b-phase-{final-build,difficulty-visual}.log`、oracle `/tmp/osujava-b05-nested-final-oracle.log`。
+
+B05-T3は実UI計測・allocation修復へ進めたがcold分類とimport projectionのtailが残る。
+[性能記録](songselect-backend-service-performance-20261003.md)と[計画](songselect-backend-improvement-plan-20261002.md)へ具体値を引継いだ。
+B06の保存・失敗表示・HP増減算術に着手した。B05全体を完全互換完了とは認定しない。

@@ -132,3 +132,17 @@ Javaに合わせてexpectedを変更しない。JUnitは固定referenceだけで
 
 Stableとの実機比較はB05-T4／P10の残件。公開2023 oracleへの一致だけを根拠に、
 stable全譜面・現行2026 algorithm・Gameplay timingとの一致を主張しない。
+
+
+## T2dの実施結果と次への引継ぎ
+
+public converter/nested/defaults/duration getterを実行するoracleへ拡張済み。
+v6/v7 Linear各7sliders（SV丸め前倍率、clamp、red reset、NaN抑制/復帰）、
+large timestampの3sliders、shortrepeat tiesの5slidersを追加。
+49 reference中48対応＋tie未知1、preprocessing `legacy-curves-f32-v6-7`。
+元45stars不変、実getter順に由来するexpectedの微小差とtoleranceを[B05結果](songselect-backend-difficulty-20261003.md#b05-t2d-public-converter実nested-defaultspre-v8duration境界)に記録した。
+
+同時刻nestedのsort順は公開APIが不安定であり、.NET8 oracle出力をstableの順序とみなさない。
+pre-v8曲線、pre-v6、source-reordered、B-spline、Modsも引き続きUNSUPPORTED。
+これらのnative比較はT4/P10、分類tailはT3、HPはB06の契約として分ける。
+T2dの対応subsetを固定したので、未対応全譜面の認定までHP部品の独立作業を止めない。

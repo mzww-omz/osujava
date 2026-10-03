@@ -138,3 +138,13 @@ P10の最終合格は同一入力列の状態一致、確定した座標/丸め/
 計画作成時の検証: 台帳33 IDの記載、参照テスト22クラスとリンク22件の存在を確認。
 `git diff --check`と`./gradlew build --offline --console=plain`は成功。
 文書のみの変更のためbuildの15 tasksはすべてUP-TO-DATEで、既存テストは再実行されていない。
+
+
+## B系Phase進行の更新（2026-10-03）
+
+B系大分類も承認待ちを挟まず進める許可を受け、B05-T2d/T3の検証・修復とB06初期実装へ進んだ。
+[現在の実行順](songselect-backend-improvement-plan-20261002.md#直近の通常進行)と
+[実装・検証・全commit記録](songselect-backend-progress-20261002.md#b系大分類の自律進行-b05-t2dt3修復b06初期実装)を参照。
+B05の48対応fixtureとtie未知、1万UIの分類allocation改善と残るtail、B06の独立HP算術と
+未接続calibration/runtimeを分けて記録する。selectorの残件依存表は維持し、B07/B08/B09の
+実機能を完了してからS-MOD/S-OPTを有効にする。normal Phaseを完了扱いせず次の単位を進める。

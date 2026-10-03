@@ -5,7 +5,7 @@
 [B03履歴・日時の実装記録](songselect-backend-history-20261002.md)、
 [B04Collections/Optionsの実装記録](songselect-backend-collections-20261003.md)、
 [B05星評価の対応範囲・検証・残件](songselect-backend-difficulty-20261003.md)を参照。
-以下の現状表は計画作成時の調査記録として保持する。B05は部分実装（source品質・SV・同時刻timing・継承NaNまで修復済み）、B06–B09は未着手。
+以下の現状表は計画作成時の調査記録として保持する。B05は部分実装（T2dと実UI計測・性能修復まで実施）、B06は保存・履歴・独立HP算術へ着手済み、B07–B09は未着手。
 対象は[残件台帳](songselect-remaining-work-20261002.md)のR06/R07/R08と、それらに必要な保存・更新通知。
 完全ローカル、Java 21/libGDX/LWJGL3、Import / Gameplay / Ruleset / GameClock / Rendererの責務分離を維持する。
 
@@ -52,10 +52,10 @@ backend依存でないpixel丸め/font/chrome/manager順は別のUI比較作業�
 
 ## 通常Phaseへの復帰とselector残件の実行順
 
-2026-10-03更新。
+2026-10-03更新。ユーザーはB系の大分類を含むPhase進行とsubagent分担を明示的に許可済み。各Phase着手を承認待ちにしない。
 
 selector外観の割込み修復は`70a29a6`までで区切り、通常進行を**B05から再開**した。
-この更新ではB番号や既存P/Phase番号を置き換えない。B01–B04は完了、B05は部分実装、B06–B09は未着手。
+この更新ではB番号や既存P/Phase番号を置き換えない。B01–B04は完了、B05は部分実装、B06は部分実装、B07–B09は未着手。
 [selector修復記録](songselect-selectors-20261003.md)の未完了項目を、以下の依存付き作業へ移した。
 未対応項目はbackendと検証が揃うまで無効。外観の修復を機能実装の完了として数えない。
 
@@ -67,14 +67,14 @@ selector外観の割込み修復は`70a29a6`までで区切り、通常進行を
 | B05-T2a / SV境界を実装・Java検証済み | raw/clamped SVとSlider側0.01丸めを公開Bindable処理で検証、上限/下限/中点の20 slider cases | 既存38 referenceはbyte不変、2追加fixtureの星/中間値を同じ許容差で照合。旧v8-3 UNSUPPORTED失効とwarm SUCCESSを確認。preprocessingはv8-4。full timing対応ではない |
 | B05-T2b / 同時刻timingを実装・Java検証済み | 同時刻red/green優先、first red / last green、parser元順変更の通知 | pinned decoder/control point/defaultsの実処理をoracleへ接続。3fixture・36slider casesを照合。元40reference byte不変。sourceを並べ替えたslider chartは破損と別のUNSUPPORTEDとして保持、Import/保存/再parse/修復を検証 |
 | B05-T2c / 継承NaNを実装・Java検証済み | GenerateTicks=falseと通常greenへの復帰、同時刻NaN優先 | 2fixture・16slider cases。head/repeat/legacy tail保持、通常tickだけ抑制。元43reference byte不変。赤NaNはFAILED、継承NaNは正当な設定。最終preprocessing v8-6、旧UNSUPPORTED失効とwarm/再起動を検証 |
-| **B05-T2d / 次の着手単位** | pre-v8 tick距離とnested同時刻 | [timing契約の調査記録](songselect-backend-timing-contracts-20261003.md)に従いconverterのraw SV逆数とnested materialisation/sortの実処理をoracleへ接続。v6/v7/v8境界→tie小/多数の順にfixture化し、全中間値を従来許容差で照合。再現できないtieはUNSUPPORTEDのまま対応subsetを固定しT4へ引継ぐ |
-| B05-T3 / baseline・登録allocation修復済み、全体受入はT2dの後 | 1万source hash＋1千コピーの実worker/cold/warm。実library、curve/stack上限・cancel・rapid選曲/importは未計測 | [service計測記録](songselect-backend-service-performance-20261003.md)にbefore/afterを保存。空hashの従来UI probeと区別。queue32/completion64、cold1万計算/warm0を確認、登録allocation約80%削減。UI分類再投影/実library/frame IO/キャンセルを追加計測してからT3を受け入れる。上限変更は未実施 |
+| B05-T2d / 対応subsetを実装・検証済み | v6/v7 Linearのraw SV逆数、NaN復帰、実duration/nested defaults、large timestamp | 49 referenceのうち48対応fixture＋tie未知1を検証。元45stars byte不変、getter順による微小reference差は記録。preprocessing v6-7。pre-v8曲線・nested tieはUNSUPPORTEDでT4へ引継ぎ |
+| B05-T3 / service・実UI計測とallocation修復済み、tailは未受入 | SHA付き1万source＋1千copyのcold/warm、1万実UI分類、rapid選曲・library世代交代、curve/stack上限 | queue32/completion64維持、全件SUCCESS、旧source除外とclose確認。分類allocation約47–66%減。ただしcold p95約21–26ms／import tail約77ms。差分/分割更新、実library、Import IO、cancel/first-result/GPUの受入は次の単位。詳細は[性能記録](songselect-backend-service-performance-20261003.md) |
 | B05-T4 / 比較工程へ引継ぎ | stable実機の数値照合、未検証curve/setting/pre-v6等 | 対応subset・未対応subsetを固定しP10へ引継ぐ。実機待ちや未対応B-spline/pre-v6を理由にB06以降を無期限に止めない。B05全体の完全互換とは認定しない |
-| B06 / T2・T3の受入後 | HP/fail/outcomeとResults/履歴への実収集 | 下記B06契約を小単位で実装。NMの固定入力・fps不変、break、fail/abort、保存を通してからB07へ進む |
+| B06 / T1・増減算術を実装、runtime未接続 | health保存契約・終端履歴・failed表示と完走色除外、NM HP H/U・判定別増減 | [HP契約](songselect-backend-health-contracts-20261003.md)にstatic根拠と公開sourceとの差を固定。次はbounded calibration→時刻順runtime→fail/outcome→graph。B05の未受入部分を完了扱いせず、独立算術/保存は並行着手 |
 
 B05-T2は「全timingをまとめて有効化」するPRにせず、SV境界→同時刻control point→NaN→pre-v8→nestedの順に分ける。
-現在の検証済み45fixtureとUIのknown zero/unknownを各単位で回帰確認する。
-通常の主経路は **B05-T2d→B05-T3の受入→B06→B07→B08→B09**。stable実機比較は別の完了段階として追跡する。
+現在の49 reference（48対応＋tie未知1）とUIのknown zero/unknownを各単位で回帰確認する。
+通常の主経路は **B05-T3 tail修復・受入→B06-T2 calibration/runtime→B07→B08→B09**。B06-T1と増減算術は先行着手済み。stable実機比較は別の完了段階として追跡する。
 
 ### 今回のselector残件を解消する作業
 
@@ -151,7 +151,7 @@ Retryも新しいattempt。アプリ中断で終端不明のattemptは不明の�
 初期のRecently Playedは最終開始時刻の降順。stableの日/週等のgroup境界はwikiだけでは確定しないため、
 観測前は明示したlocal分類を使用し、1:1扱いにしない。時計とtimezoneを注入して境界をテストする。
 `addedAt`は成功importで初回保存し、同内容再importで保持。旧libraryの正しい追加日は不明として扱う。
-scoreのplayed/完走色とhistoryのattempt有無は別の値にする。B06後はfailed scoreを完走色に使わない。
+scoreのplayed/完走色とhistoryのattempt有無は別の値にする。B06の初期修正でfailed scoreを完走色から除外済み。
 現在日時への補完やファイルmtimeの代用は行わない。
 
 ### Collection
@@ -198,7 +198,8 @@ import中のjob、画面close、1万難易度でqueue上限・rebuild回数・fr
 
 ## B06/B07: HP/failから通常Modsへ
 
-B06は現在nullのpassed/healthを生成するための独立作業。HP増減、break中drain、fail境界を
+B06は現在nullのpassed/healthを生成するための独立作業。保存・失敗score表示・終端履歴と独立HP増減は実装済み。
+[HP契約・具体的な次単位](songselect-backend-health-contracts-20261003.md)に従い、calibration/runtimeが揃うまで実Gameplayへ固定drainを接続しない。HP増減、break中drain、fail境界を
 stable観測・公開仕様から確定し、rulesetで計算する。時刻付きinput、scheduled判定、HP更新の順を固定。
 完走/failed/abortedを分け、fail時に残りobjectを一括MISS化して最終scoreを捏造しない。
 保存するhealthは時刻順・有限長とし、未収集の旧scoreはnullのまま。Resultsの既存受け口を活用する。

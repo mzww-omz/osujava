@@ -70,3 +70,54 @@ Commit:
 
 検証はprobeのbefore/after/current全実行成功、key境界2tests成功。
 timing修復後の最終buildはcore1,457＋lwjgl3 4＝1,461tests成功。描画/数値結果は[B05記録](songselect-backend-difficulty-20261003.md)を参照。
+
+
+## T3: 実Song Select update・星分類・library置換を計測
+
+`be59e09`でopt-in `:core:songSelectDifficultyPerformanceProbe`を追加。
+元8種類の数値検証済みfixtureからunique SHA/source pathの10,000難易度／2,500Setを作り、
+本番SongSelectScreen.update、実local worker/cache、TITLE、Difficulty sort/group、stars検索、rapid選曲、
+2回のlibrary世代交代を60Hzのwall-clockで確認した。旧source公開の除外とclose時worker停止もassertする。
+source pathも個別に与え、同じVersion名によるrow identity重複を避ける。
+source作成・解析は計測frameの外で行う。Import相当の更新はin-memory library.addであり、archive展開、
+Import/storage IO、実libraryの代表性、GPU/audio/thumbnailの性能は含まない。
+時間はupdateのwall時間（reflection/lock/OS schedulingを含む）。park待機は除外し、allocationはUI threadのみ。
+
+毎回の分類でChart正規化・rowKeyを再作成し、group比較ごとにbucket生成とSetのdeep hashが発生していた。
+`03a3a24`はimmutable sourceごとにDocument/Chart/metadata/identity/content/BPM/Set hashを保持し、
+同じSet instanceはlibrary変更でも再利用する。rating/date/collectionに依存するbucketはprojectionごとに再評価。
+Set equality、nativeのBPM境界、検索・選択・日付跨ぎ・同path更新は既存suiteと新3testsで検証した。
+
+下表は修正済みunique path入力で旧modelを別classpathへcompileしたbeforeと、現modelのafter。
+独立JVM各1回、Java21／512MiB、10,000件、完了中157frames（TITLEは158/159）、settled300frames。
+allocationは完了中frame平均であり、分類1回だけのallocationではない。
+
+| 完了中case | before p95 ms | after p95 ms | before bytes/frame | after bytes/frame |
+| --- | ---: | ---: | ---: | ---: |
+| Difficulty sort | 41.263 | 26.282 | 1,296,481 | 680,682 |
+| Difficulty group | 37.952 | 25.596 | 2,417,338 | 810,696 |
+| stars検索 | 30.549 | 21.535 | 1,225,428 | 609,414 |
+
+完了中allocationはsort約47%、group約66%、検索約50%減。同じ数値を実GPUのFPS向上とは呼ばない。
+分類rebuildはどちらも12回、settledは0回。queue32/completion64を維持し、全rating SUCCESS。
+rapid選曲＋2回置換ではafter import frame最大76.783ms、settled選曲frame最大4.492ms。
+時間にはJIT/GC/OSの揺れがあり、普遍的な改善率は主張しない。
+[全20行のCSV](songselect-backend-ui-probe-20261003.csv)を保存した。
+ログ: `/tmp/osujava-b05-ui-10k-{baseline-path,final}.log`。
+
+work budgetの単独合成caseも測定した。Catmull200本はSUCCESS、400本は100,000 work上限でUNSUPPORTED。
+nested上限・2,000,000 stack比較上限もUNSUPPORTED、その次の正常chartはSUCCESS。
+afterの単発wall時間は6.852/11.247/6.067/24.010ms。JITや他検証の負荷を含む単独sampleで、
+worst-case latency保証ではない。実curve-heavy譜面を受け入れる十分な上限かは未認定。
+
+T3の残件は明確に残す。cold分類p95は16.67msを超え、import後の全projection更新にもtailがある。
+分類の分割・差分更新、実library、Import IO、旧active job/cache IO競合と選択first-result latency、
+GPU/thumbnailの受入は未完了。B05-T3全体を完了認定しない。
+
+再実行:
+
+```sh
+./gradlew :core:songSelectDifficultyPerformanceProbe --offline --console=plain
+```
+
+smoke: `-PdifficultyUiProbeCount=80 -PdifficultyUiProbeSamples=20`。
