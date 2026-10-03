@@ -47,6 +47,7 @@ final class SongSelectRenderer {
         Color inactiveText,
         SongSelectToolboxState toolbox,
         SongSelectCollections.Snapshot collections,
+        SongSelectMenuAnimation collectionAnimation,
         BrowserView browser,
         ScoreView scores,
         SongBrowserControls controls,
@@ -213,8 +214,8 @@ final class SongSelectRenderer {
         if (frame.toastSeconds > 0) view.textSmooth(frame.toast, 27, frame.bottom + 34, Math.min(430, layout.width() * .4f), UiTheme.META, frame.toastColor);
         view.endText();
         frame.controls.drawMenu(view, layout.width(), layout.height(), frame.browser,px,py);
-        SongSelectToolboxOverlay.draw(view,batch,layout,frame.toolbox,frame.skin);
-        SongSelectCollectionsOverlay.draw(view,layout,frame.collections,px,py);
+        SongSelectToolboxOverlay.draw(view,batch,layout,frame.toolbox,frame.skin,px,py);
+        SongSelectCollectionsOverlay.draw(view,layout,frame.collections,frame.collectionAnimation,px,py);
         view.cover(frame.entranceOpacity);
         view.cover(frame.outgoingOpacity);
     }

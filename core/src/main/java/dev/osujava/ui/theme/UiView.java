@@ -149,6 +149,10 @@ public final class UiView {
         game.smoothFont().drawCenteredVertically(game.batch(), value, x, centreY, width, scale, color, bold);
     }
 
+    public void textCentered(String value, float x, float centreY, float width, float scale, Color color) {
+        game.smoothFont().drawCentered(game.batch(), value, x, centreY, width, scale, color);
+    }
+
     public void cover(float opacity) {
         if (opacity <= 0) return;
         beginShapes();

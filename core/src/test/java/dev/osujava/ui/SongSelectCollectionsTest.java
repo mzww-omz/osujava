@@ -14,6 +14,28 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.*;
 
 class SongSelectCollectionsTest {
+    @Test void optionsShowsNativeCommandSlotsWhileOnlyLocalSupportedActionsCanRun() throws Exception {
+        var set=set("Map",1);library.add(set);manager.options(set,set.difficulties().getFirst());
+        var before=manager.snapshot();assertEquals(6,buttons(before).size());
+        var initialLayout=UiLayout.fromPixels(1280,720);
+        var invisible=manager.interaction(initialLayout,Button.MANAGE);
+        manager.click(initialLayout,invisible.x()+invisible.width()/2,invisible.y()+invisible.height()/2);
+        assertEquals(before,manager.snapshot(),"Invisible entrance button must not capture a command");
+        assertTrue(enabled(before,Button.MANAGE));assertTrue(enabled(before,Button.CLOSE));
+        for(var button:List.of(Button.DELETE_BEATMAP,Button.MARK_PLAYED,Button.CLEAR_SCORES,Button.EDIT_BEATMAP)) {
+            assertFalse(enabled(before,button));manager.action(button);assertEquals(before,manager.snapshot());
+        }
+        for(int key: new int[]{Input.Keys.NUM_2,Input.Keys.NUM_3,Input.Keys.NUM_4,Input.Keys.NUM_5}) manager.key(key,false);
+        assertEquals(before,manager.snapshot());assertEquals(1,library.size());
+        var layout=UiLayout.fromPixels(1024,768);manager.animation.advance(2);
+        var close=manager.interaction(layout,Button.CLOSE);
+        assertEquals(new SongSelectSelectorLayout(layout).option(5),close);
+        manager.click(layout,close.x()+close.width()/2,close.y()+close.height()/2);
+        assertFalse(manager.open());assertEquals(Mode.OPTIONS,manager.presentation().mode());
+        manager.animation.advance(.12f);assertEquals(Mode.CLOSED,manager.presentation().mode());
+        manager.options(set,set.difficulties().getFirst());manager.key(Input.Keys.NUM_1,false);
+        assertEquals(Mode.MANAGE,manager.snapshot().mode());
+    }
     private final LocalCollectionStore store=new LocalCollectionStore();
     private final BeatmapLibrary library=new BeatmapLibrary();
     private final SongSelectCollections manager=new SongSelectCollections(store,library);

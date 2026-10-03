@@ -57,12 +57,14 @@ class SongSelectInput extends InputAdapter {
         }
         if (toolbox.open()) {
             if (!initial) return true;
-            if (key == Input.Keys.ESCAPE || key == Input.Keys.NUM_2
+            if (key == Input.Keys.ESCAPE || key == Input.Keys.NUM_2 && toolbox.overlay() == SongSelectToolboxState.Overlay.MODS
                     || key == Input.Keys.F1 && toolbox.overlay() == SongSelectToolboxState.Overlay.MODS) {
                 suppressedTyped = key == Input.Keys.NUM_2 ? '2' : 0;
                 if (key == Input.Keys.NUM_2) suppressedTextKeys.add(key);
                 toolbox.close();
             } else if (key == Input.Keys.NUM_1 && toolbox.overlay() == SongSelectToolboxState.Overlay.MODS) toolbox.reset();
+            else if(key==Input.Keys.NUM_1 && toolbox.overlay()==SongSelectToolboxState.Overlay.MODE
+                    && (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT))) { suppressedTyped='1';toolbox.close(); }
             return true;
         }
         if (key == Input.Keys.F1 || key == Input.Keys.F3 || key == Input.Keys.F2) {
@@ -145,7 +147,7 @@ class SongSelectInput extends InputAdapter {
     }
     @Override public boolean keyUp(int key) {
         repeat.release(key); suppressedTextKeys.remove(key);
-        if (key == Input.Keys.I || key == Input.Keys.SPACE || key == Input.Keys.NUM_2 || key == Input.Keys.NUM_6) suppressedTyped = 0;
+        if (key == Input.Keys.I || key == Input.Keys.SPACE || key == Input.Keys.NUM_1 || key == Input.Keys.NUM_2 || key == Input.Keys.NUM_6) suppressedTyped = 0;
         return false;
     }
     @Override public boolean touchDown(int x, int y, int pointer, int button) {

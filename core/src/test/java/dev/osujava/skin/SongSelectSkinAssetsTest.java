@@ -14,6 +14,15 @@ import static org.junit.jupiter.api.Assertions.*;
 class SongSelectSkinAssetsTest {
     @TempDir Path directory;
 
+    @Test void scoreV2SelectorAssetKeepsProviderAndHighDensityLogicalSize() throws Exception {
+        Files.createFile(directory.resolve("selection-mod-scorev2@2x.png"));
+        var assets=new SongSelectSkinAssets(new SkinAssetResolver(directory),file -> new TestTexture(206,132));
+        var image=assets.get(Image.MOD_SCORE_V2);
+        assertNotNull(image);assertEquals("current",assets.provider(Image.MOD_SCORE_V2));
+        assertEquals(2,image.density());assertEquals(103,image.logicalWidth());assertEquals(66,image.logicalHeight());
+        assets.dispose();
+    }
+
     @Test void partialSkinPairsOmittedColoursWithInheritedBackgroundWithoutChangingSelectedConfiguration() throws Exception {
         Files.writeString(directory.resolve("skin.ini"), "[General]\nVersion: 2.2");
         var bundled = new SongSelectSkinAssets(SkinAssetResolver.withBundledDefault(directory, null),

@@ -313,7 +313,8 @@ public final class SongSelectScreen extends ScreenAdapter {
                 activeText,
                 inactiveText,
                 toolbox,
-                collectionManager.snapshot(),
+                collectionManager.presentation(),
+                collectionManager.animation,
                 new SongSelectRenderer.BrowserView(browser.sort(), browser.group(), browser.visibleSets().size()),
                 new SongSelectRenderer.ScoreView(scores.rows(), scores.first(), scores.selected(), scoreHover.snapshot()),
                 controls,
@@ -400,6 +401,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         }
         wheelInput.dispatch();
         input.advanceKeys(delta);
+        toolbox.animation.advance(delta);
+        collectionManager.animation.advance(delta);
         viewState.sample(layout, Gdx.input.getX(), Gdx.input.getY(), Gdx.input.isButtonPressed(Input.Buttons.LEFT));
         viewState.advance(delta);
         seconds = viewState.elapsed;
@@ -1020,10 +1023,12 @@ public final class SongSelectScreen extends ScreenAdapter {
             case MODE, MODS -> {
                 sound(SongSelectAudio.Cue.CONFIRM);
                 controls.close(); searchActive = false;
+                collectionManager.animation.finish();scoreScroll.cancel();input.cancelPointer();
                 toolbox.open(action == SongSelectAction.MODE ? SongSelectToolboxState.Overlay.MODE : SongSelectToolboxState.Overlay.MODS);
             }
             case OPTIONS -> {
                 controls.close(); searchActive=false; scoreScroll.cancel(); input.cancelPointer();
+                toolbox.animation.finish();
                 collectionManager.options(selectedSet(),selectedDifficulty()); sound(SongSelectAudio.Cue.CONFIRM);
             }
             case BACK -> goBack();

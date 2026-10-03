@@ -14,7 +14,8 @@ import java.util.*;
 final class SongSelectCollections {
     enum Mode { CLOSED, OPTIONS, MANAGE, DELETE }
     enum Edit { NONE, CREATE, RENAME }
-    enum Button { MANAGE, CLOSE, CREATE, RENAME, DELETE, DIFFICULTY, SET, MISSING, PREVIOUS, NEXT, SAVE, CANCEL, CONFIRM }
+    enum Button { MANAGE, CLOSE, CREATE, RENAME, DELETE, DIFFICULTY, SET, MISSING, PREVIOUS, NEXT, SAVE, CANCEL, CONFIRM,
+        DELETE_BEATMAP, MARK_PLAYED, CLEAR_SCORES, EDIT_BEATMAP }
     record Row(UUID id,String name,String count) { }
     record Snapshot(Mode mode,List<Row> rows,UUID selected,String selectedName,int page,Edit edit,String draft,String error,String target,
                     boolean hasDifficulty,boolean hasSet,boolean difficultyIncluded,boolean setIncluded,int missing) {
@@ -36,19 +37,22 @@ final class SongSelectCollections {
     private Set<BeatmapContentKey> available=Set.of();
     private List<Row> presentationRows=List.of();
     private Snapshot snapshot;
+    private Snapshot closingSnapshot;
+    final SongSelectMenuAnimation animation=new SongSelectMenuAnimation();
     SongSelectCollections(LocalCollectionStore store,BeatmapLibrary library) { this.store=store; this.library=library; refresh(true); }
     Snapshot snapshot() { return snapshot; }
+    Snapshot presentation() { return !open() && animation.visible() && closingSnapshot!=null ? closingSnapshot : snapshot; }
     boolean open() { return mode!=Mode.CLOSED; }
     void options(BeatmapSet beatmapSet,BeatmapDifficulty diff) {
         difficulty=member(beatmapSet,diff); set=beatmapSet==null ? List.of() : beatmapSet.difficulties().stream().map(d -> member(beatmapSet,d)).filter(Objects::nonNull).toList();
         target=diff==null ? "No beatmap selected" : diff.artist()+" - "+diff.title()+" ["+diff.version()+"]";
-        mode=Mode.OPTIONS; edit=Edit.NONE; error=store.error(); refresh(true);
+        mode=Mode.OPTIONS; edit=Edit.NONE; error=store.error(); animation.open();closingSnapshot=null;refresh(true);
     }
     private static Member member(BeatmapSet set,BeatmapDifficulty diff) {
         var key=BeatmapContentKey.of(diff); var location=set==null ? null : DifficultyIdentity.of(set.id(),diff);
         return key==null || location==null ? null : new Member(key,location);
     }
-    void close() { mode=Mode.CLOSED; edit=Edit.NONE; highSurrogate=suppressedTyped=0; publish(); }
+    void close() { if(mode==Mode.OPTIONS) closingSnapshot=snapshot;animation.close(); mode=Mode.CLOSED; edit=Edit.NONE; highSurrogate=suppressedTyped=0; publish(); }
     void refresh() { refresh(false); }
     private void refresh(boolean forced) {
         if(!forced && revision==store.revision() && libraryRevision==library.revision()) return;
@@ -107,12 +111,27 @@ final class SongSelectCollections {
         if(mode==Mode.MANAGE && edit==Edit.NONE) { page=Math.max(0,Math.min(page+(amount>0 ? 1 : -1),Math.max(0,(store.all().size()-1)/PAGE_SIZE))); publish(); }
     }
     void click(UiLayout layout,float x,float y) {
-        for(var b:buttons(snapshot)) if(bounds(layout,b).contains(x,y)) { if(enabled(snapshot,b)) action(b); return; }
+        int index=0;
+        for(var b:buttons(snapshot)) {
+            boolean visible=mode!=Mode.OPTIONS || animation.rowAlpha(index)>0;
+            index++;
+            if(!visible) continue;
+            var hit=interaction(layout,b);
+            if(hit.contains(x,y)) { if(enabled(snapshot,b)) action(b); return; }
+        }
         if(mode==Mode.MANAGE && edit==Edit.NONE) for(int i=0;i<PAGE_SIZE;i++) if(page*PAGE_SIZE+i<store.all().size() && rowBounds(layout,i).contains(x,y)) {
             choose(page*PAGE_SIZE+i); return;
         }
     }
+    Bounds interaction(UiLayout layout,Button button) {
+        return mode==Mode.OPTIONS ? animation.bounds(optionBounds(layout,button),buttons(snapshot).indexOf(button)) : bounds(layout,button);
+    }
+    static Bounds optionBounds(UiLayout layout,Button button) {
+        int index=switch(button) {case MANAGE->0;case DELETE_BEATMAP->1;case MARK_PLAYED->2;case CLEAR_SCORES->3;case EDIT_BEATMAP->4;case CLOSE->5;default->throw new IllegalArgumentException("Not an Options command");};
+        return new SongSelectSelectorLayout(layout).option(index);
+    }
     void action(Button button) {
+        if(!enabled(snapshot,button)) return;
         boolean changed=false; error="";
         switch(button) {
             case CLOSE -> { close(); return; }
@@ -141,6 +160,7 @@ final class SongSelectCollections {
             }
             case PREVIOUS -> page=Math.max(0,page-1);
             case NEXT -> page=Math.min(Math.max(0,(store.all().size()-1)/PAGE_SIZE),page+1);
+            case DELETE_BEATMAP,MARK_PLAYED,CLEAR_SCORES,EDIT_BEATMAP -> { return; }
         }
         if(changed) {
             refresh(true);
@@ -150,13 +170,14 @@ final class SongSelectCollections {
         publish();
     }
     static List<Button> buttons(Snapshot s) {
-        if(s.mode()==Mode.OPTIONS) return List.of(Button.MANAGE,Button.CLOSE);
+        if(s.mode()==Mode.OPTIONS) return List.of(Button.MANAGE,Button.DELETE_BEATMAP,Button.MARK_PLAYED,Button.CLEAR_SCORES,Button.EDIT_BEATMAP,Button.CLOSE);
         if(s.mode()==Mode.DELETE) return List.of(Button.CONFIRM,Button.CANCEL);
         if(s.edit()!=Edit.NONE) return List.of(Button.SAVE,Button.CANCEL);
         return List.of(Button.CREATE,Button.RENAME,Button.DELETE,Button.DIFFICULTY,Button.SET,Button.MISSING,Button.PREVIOUS,Button.NEXT,Button.CLOSE);
     }
     static boolean enabled(Snapshot s,Button b) {
         return switch(b) {
+            case DELETE_BEATMAP,MARK_PLAYED,CLEAR_SCORES,EDIT_BEATMAP -> false;
             case RENAME,DELETE -> s.selected()!=null;
             case DIFFICULTY -> s.selected()!=null && s.hasDifficulty();
             case SET -> s.selected()!=null && s.hasSet();
@@ -174,7 +195,11 @@ final class SongSelectCollections {
     static Bounds bounds(UiLayout l,Button button) {
         var p=panel(l); float right=p.x()+p.width()*.48f, width=p.width()*.52f-24;
         return switch(button) {
-            case MANAGE -> new Bounds(p.x()+24,p.y()+p.height()-182,p.width()-48,48);
+            case MANAGE -> new SongSelectSelectorLayout(l).option(0);
+            case DELETE_BEATMAP -> new SongSelectSelectorLayout(l).option(1);
+            case MARK_PLAYED -> new SongSelectSelectorLayout(l).option(2);
+            case CLEAR_SCORES -> new SongSelectSelectorLayout(l).option(3);
+            case EDIT_BEATMAP -> new SongSelectSelectorLayout(l).option(4);
             case CLOSE -> new Bounds(p.x()+p.width()-158,p.y()+16,134,32);
             case CREATE,RENAME,DELETE -> new Bounds(right,p.y()+p.height()-144-(button.ordinal()-Button.CREATE.ordinal())*40,width,34);
             case DIFFICULTY,SET,MISSING -> new Bounds(right,p.y()+p.height()-288-(button.ordinal()-Button.DIFFICULTY.ordinal())*40,width,34);

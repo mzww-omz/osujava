@@ -42,6 +42,11 @@ public final class SmoothUiFont implements AutoCloseable {
         draw(batch, text, x, centreY, maxWidth, scale, color, Align.left, bold, true);
     }
 
+    public void drawCentered(SpriteBatch batch, String text, float x, float centreY, float maxWidth,
+                             float scale, Color color) {
+        draw(batch, text, x, centreY, maxWidth, scale, color, Align.center, false, true);
+    }
+
     private void draw(SpriteBatch batch, String text, float x, float y, float maxWidth,
                       float scale, Color color, int align, boolean bold, boolean centeredVertically) {
         if (text == null || text.isEmpty() || maxWidth <= 0) return;

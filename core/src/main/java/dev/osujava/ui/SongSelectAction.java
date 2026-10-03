@@ -4,7 +4,7 @@ import com.badlogic.gdx.Input;
 
 import dev.osujava.skin.SongSelectSkinAssets.Selection;
 
-/** Options routes to explicit unavailable feedback until the real Beatmap Options exists. */
+/** Song Select commands; selectors expose only locally supported actions. */
 enum SongSelectAction {
     BACK, IMPORT, MODE, MODS, RANDOM, PREVIOUS_RANDOM, OPTIONS, PLAY, DEBUG_AUTO;
     static SongSelectAction shortcut(int key, boolean shift) {

@@ -36,7 +36,7 @@ public final class SongSelectSkinAssets implements Disposable {
         MOD_NF("selection-mod-nofail"), MOD_EZ("selection-mod-easy"), MOD_HT("selection-mod-halftime"),
         MOD_HD("selection-mod-hidden"), MOD_HR("selection-mod-hardrock"), MOD_SD("selection-mod-suddendeath"),
         MOD_DT("selection-mod-doubletime"), MOD_FL("selection-mod-flashlight"), MOD_RX("selection-mod-relax"),
-        MOD_AP("selection-mod-relax2"), MOD_SO("selection-mod-spunout"), MOD_AUTO("selection-mod-autoplay");
+        MOD_AP("selection-mod-relax2"), MOD_SO("selection-mod-spunout"), MOD_AUTO("selection-mod-autoplay"), MOD_SCORE_V2("selection-mod-scorev2");
 
         public final String basename;
         Image(String basename) { this.basename = basename; }

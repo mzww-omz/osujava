@@ -613,6 +613,45 @@ class SongSelectNavigationTest {
         selected(1,1,"Beta-hard.png"); assertEquals(0,importRequests);
         key(Input.Keys.ESCAPE); assertFalse(((SongSelectToolboxState)field("toolbox")).open());
     }
+    @Test void openSelectorsKeepSelectionAndCommandsAfterLiveResize() throws Exception {
+        open("Beta",0);screen.resize(1280,720);settle();
+        var identity=((SongBrowserModel)field("browser")).selection();
+        var toolbox=(SongSelectToolboxState)field("toolbox");
+        var manager=(SongSelectCollections)field("collectionManager");
+        key(Input.Keys.F1);updatePointer(1280,720,.4f);
+        float before=toolbox.animation.opacity();screen.resize(1024,768);
+        assertEquals(SongSelectToolboxState.Overlay.MODS,toolbox.overlay());assertEquals(before,toolbox.animation.opacity());
+        var layout=dev.osujava.ui.theme.UiLayout.fromPixels(1024,768);
+        var geometry=new SongSelectSelectorLayout(layout);
+        var close=toolbox.animation.bounds(geometry.closeMods(),1);
+        SongSelectToolboxOverlay.click(toolbox,layout,close.x()+close.width()/2,close.y()+close.height()/2);
+        assertFalse(toolbox.open());
+        key(Input.Keys.F3);updatePointer(1024,768,.5f);screen.resize(1280,800);
+        assertEquals(SongSelectCollections.Mode.OPTIONS,manager.snapshot().mode());
+        layout=dev.osujava.ui.theme.UiLayout.fromPixels(1280,800);
+        close=manager.interaction(layout,SongSelectCollections.Button.CLOSE);
+        manager.click(layout,close.x()+close.width()/2,close.y()+close.height()/2);
+        assertFalse(manager.open());assertEquals(identity,((SongBrowserModel)field("browser")).selection());
+        assertFalse(((UiNavigation)field("outgoing")).pending());
+    }
+
+    @Test void modeFlyoutConsumesUnsupportedModesAndDoesNotUseModsCloseShortcut() throws Exception {
+        open("Beta",1);
+        var perform=SongSelectScreen.class.getDeclaredMethod("perform",SongSelectAction.class);perform.setAccessible(true);
+        perform.invoke(screen,SongSelectAction.MODE);
+        var toolbox=(SongSelectToolboxState)field("toolbox");
+        key(Input.Keys.NUM_2);assertTrue(toolbox.open());
+        control=true;key(Input.Keys.NUM_2);control=false;assertTrue(toolbox.open());
+        control=true;processor.keyDown(Input.Keys.NUM_1);processor.keyTyped('1');processor.keyUp(Input.Keys.NUM_1);control=false;
+        assertFalse(toolbox.open());assertEquals("",field("search"));selected(1,1,"Beta-hard.png");
+        perform.invoke(screen,SongSelectAction.MODE);
+        var layout=dev.osujava.ui.theme.UiLayout.fromPixels(1024,768);var g=new SongSelectSelectorLayout(layout);
+        var mania=g.mode(3);SongSelectToolboxOverlay.click(toolbox,layout,mania.x()+10,mania.y()+10);assertTrue(toolbox.open());
+        SongSelectToolboxOverlay.click(toolbox,layout,layout.width()-10,layout.height()/2);assertFalse(toolbox.open());
+        assertFalse(((UiNavigation)field("outgoing")).pending());
+        processor.keyDown(Input.Keys.NUM_1);processor.keyTyped('1');processor.keyUp(Input.Keys.NUM_1);
+        assertEquals("1",field("search"),"Released mode shortcut must not consume the next search character");
+    }
 
     @Test void enterSpaceDebugAutoAndBackStillRequestTheirTransition() throws Exception {
         for (int key : new int[]{Input.Keys.ENTER,Input.Keys.SPACE,Input.Keys.F6,Input.Keys.ESCAPE}) {
