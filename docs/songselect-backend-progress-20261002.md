@@ -111,11 +111,17 @@ HP/failは未実装で、COMPLETEDはsession終端だけを表す。次はB04 lo
 
 ## 後続・stableとの差
 
+2026-10-03：B04も実装済み。local Collections CRUD、内容membership、Collections tab/Group、
+F3/右クリック/下部OptionsからManage Collectionsを接続した。Date Addedの方向もwikiに合わせ修正した。
+最新の検証・commit・残件は[B04実装記録](songselect-backend-collections-20261003.md)を参照。
+core 142 suites / 1,353 tests、lwjgl3 2 suites / 4 tests、GL 160 scenes / 440報告PNGが成功。
+次はB05の独立star calculatorとDifficulty tab。
+
 | 残件 | 次の具体的な実装 |
 | --- | --- |
 | B00数値reference固定 | B05/B06の公開reference commit・algorithm version・数値許容差をfixture作成前に固定。UI対象versionとは別に扱う |
 | B03 history / addedAt — 実装済み | nativeの小数日丸め/group境界は追加観測が必要。現在は明示したlocal分類。詳細はB03実装記録 |
-| B04 Collections / Options | UUID/name＋content key/locatorのlocal CRUDとmembershipを作り、既存UIへ接続する |
+| B04 Collections / Options — 実装済み | native managerの厳密な寸法/editor/animationは未比較。local CRUDと既存UIへの接続は完了。管理操作の拡張はB09 |
 | B05 star / Difficulty | referenceに基づく独立NM calculator、worker/cache/revisionを作る。現在のproduction ratingはunknownのまま |
 | B06 HP / fail | 実HP/終端を収集する。Resultsは既にpassed=falseのF表示に対応済みで、追加すべき中心はGameplayの計算・収集 |
 | B07通常Mods | NF→HR、後にEZ/HD/rate系。保存用listができたこととModの効果実装を混同しない。銀gradeは実Mod対応後 |

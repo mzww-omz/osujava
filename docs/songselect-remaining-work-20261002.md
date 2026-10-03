@@ -49,9 +49,10 @@ backend依存の項目をUIだけ有効にしない。他mode Gameplay等の全�
 R06/R07/R08の実装順・保存互換・受入条件は
 [ローカルbackend改善計画](songselect-backend-improvement-plan-20261002.md)を参照。
 B01/B02（内容照合・更新通知・score schema 3・play context）と
-B03（manual履歴・追加日時・Recently Played・日時検索）は実装済み。
+B03（manual履歴・追加日時・Recently Played・日時検索）、
+B04（local Collections CRUD・membership・Collections tab/Group・Manage Collections）は実装済み。
 検証と後続の具体的作業は[backend実装進捗](songselect-backend-progress-20261002.md)と
-[B03実装記録](songselect-backend-history-20261002.md)を参照。
+[B03実装記録](songselect-backend-history-20261002.md)、[B04実装記録](songselect-backend-collections-20261003.md)を参照。
 
 | ID / 優先度 / 分類 | 現在の差異・根拠 | 次の具体的作業と終了判定 |
 | --- | --- | --- |
@@ -61,7 +62,7 @@ B03（manual履歴・追加日時・Recently Played・日時検索）は実装�
 | R04 / P1 / 追加観測 | Back/下部buttonのraw hover矩形、透明部分のhit、静的/連番provider競合、壊れたHD時の探索停止を修復済み。INI owner/mask、音alias、focus時の連番時計は未確定 | nativeと同期した異寸法連番・focus/復帰の比較でframe/crop/hit/時計を確認。INI・音のownerを独立に確定。旧台帳V08–V13参照 |
 | R05 / P1 / 追加観測 | metadata typography/font metrics、全frame合成。AWTとnative GDIの差、独自5行構成、Greylooks fallbackと公式defaultの差 | 再配布可能な同一font/skinでLatin/CJK/結合文字・長文を720/800/768高で比較。baseline・省略・影・originを測定して調整。公式素材の抽出で埋めない |
 | R06 / P1 / backend依存 | production star rating sourceと本当のranked statusがない。星描画/animationは実装済みでfixture ratingを表示可能 | 信頼できる独立ローカルdifficulty計算をcacheとして供給。ranked statusは実metadata sourceがある場合のみ接続。Settingsから偽rating/statusを作らない |
-| R07 / P1 / backend依存 | Recently Played・履歴/日時sort/searchはB03で接続済み。通常Mods/他mode/Options、Difficulty/Collections tabは未実装 | 次はB04のlocal collection CRUDとOptions接続。rating/ruleset対応後に各UIへ接続し、filter/selection/score identityの回帰を確認。Recently Playedのnative境界は追加観測 |
+| R07 / P1 / backend依存 | Recently Playedと日時検索はB03、Collections tab/GroupとOptionsのcollection管理はB04で接続済み。通常Mods/他mode/Difficulty tab、譜面/score削除等は未実装 | 次はB05の独立ratingとDifficulty tab。管理拡張はB09。Recently Played境界とnative collection manager/editorの寸法・animationは追加観測 |
 | R08 / P2 / 観測・backend依存 | 新規scoreのplayer/Mods/rulesetをschema 3へ保存しranking/Resultsへ接続済み。現GameplayはNMのみ、旧scoreの未収集情報はunknown。replay、score native座標/grade配置/managerの全比較、barのnative形状・連続scroll・track操作は未完了 | score専用native managerを0/1/多数/選択/hoverで比較。通常ModsはB07、実replayはB08で収集後に接続。carousel barとscore barを分けて寸法/hit/scrollを検証。旧V17/V18 |
 | R09 / P2 / 追加観測 | 同frameの選曲/音声更新と、失敗音源の選択変更時のみ1回再試行を修復済み。同一audio pathの健康なstreamは継続。別PreviewTime、未指定seek=0、loop/focus/Gameplay復帰のnative契約は未確定 | 同一音源で別PreviewTime、失敗後再選択、focus/minimize、Gameplay短時間往復を観測。位置・再生/停止・fade・再試行をfake Music testへ落とす。旧T01/T02 |
 | R10 / P2 / layout方針 | chromeの安全上限とrow scissorはnativeとの差。極端なportraitではscore幅0で非表示になる | 正常skinのnative clipと巨大/異常skinの安全方針を区別。portraitを対応対象にする場合は専用レイアウト方針とresize回帰を追加 |
@@ -85,7 +86,8 @@ Selectionのalpha範囲は画像診断に使用するがinputには使用しな�
 ## 最新の検証・commit
 
 [backend実装進捗](songselect-backend-progress-20261002.md)と
-[B03履歴・日時の実装記録](songselect-backend-history-20261002.md)に最新build・GL harness・commitを記録。
+[B03履歴・日時の実装記録](songselect-backend-history-20261002.md)、
+[B04Collections/Optionsの実装記録](songselect-backend-collections-20261003.md)に最新build・GL harness・commitを記録。
 [解消可能な差の修復](songselect-actionable-differences-20261002.md)はその直前のUI修復記録。
 下記は前回修復の検証履歴であり、現在の総test数ではない。
 
