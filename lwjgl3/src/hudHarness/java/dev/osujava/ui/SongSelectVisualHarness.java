@@ -716,9 +716,11 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
                         +"[HitObjects]\n"+(fixture.equals("source-empty-setting")?"":fixture.equals("source-spinner")?"256,192,1000,8,0,500\n":"100,100,1000,1,0\n");
                 diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse(source,fixture+".osu").difficulty().withAssets(null,null,Path.of(fixture+".osu")));
             }
-            for(String fixture:List.of("timing-sv-rounding","timing-sv-clamp"))
+            for(String fixture:List.of("timing-sv-rounding","timing-sv-clamp","timing-coincident-rg","timing-coincident-gr","timing-coincident-multiple"))
                 diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse(Path.of("core/src/test/resources/difficulty/reference-20220902/"+fixture+".osu"))
                         .difficulty().withAssets(null,null,Path.of(fixture+".osu")));
+            diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse("osu file format v14\n[Metadata]\nTitle:source-reordered\nArtist:Local Fixture\nCreator:osu!java\nVersion:Reordered source\n[TimingPoints]\n0,500\n1000,-50,4,0,0,100,0,0\n500,-100,4,0,0,100,0,0\n[HitObjects]\n100,100,2000,2,0,L|300:100,1,200\n","source-reordered.osu")
+                    .difficulty().withAssets(null,null,Path.of("source-reordered.osu")));
             library.add(new BeatmapSet("set3","Reference fixtures","Local Fixture","osu!java",null,null,diffs,List.of()));
         } catch(Exception failure) { throw new IllegalStateException("Could not load local difficulty fixtures",failure); }
         var localScores = scene.name.startsWith("phase4-backend-")
@@ -2245,7 +2247,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if(chart.skippedHitObjectCount()>0 || chart.parseIssues().any()) {
                 if(result.status()!=dev.osujava.difficulty.DifficultyResult.Status.FAILED || content.get(chart).stars().present())
                     throw new AssertionError("Damaged chart received partial stars or known zero");
-            } else if(chart.version().equals("Slider")) {
+            } else if(chart.version().equals("Slider") || chart.parseIssues().timingOrderChanged()) {
                 if(result.status()!=dev.osujava.difficulty.DifficultyResult.Status.UNSUPPORTED || content.get(chart).stars().present())
                     throw new AssertionError("Unverified slider received a fake rating");
             } else {
@@ -2321,7 +2323,7 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             if(((SongSelectDetails)screenField(reopened,"details")).status().contains("Stars")) throw new AssertionError("Warm screen restored partial stars for a damaged chart");
             capture(fb,name+"-partial-warm");
             var warmCharts=library.all().getFirst().difficulties();
-            for(int index=0;index<warmCharts.size();index++) if(warmCharts.get(index).parseIssues().any() || warmCharts.get(index).title().startsWith("timing-sv-")) {
+            for(int index=0;index<warmCharts.size();index++) if(warmCharts.get(index).parseIssues().any() || warmCharts.get(index).parseIssues().timingOrderChanged() || warmCharts.get(index).title().startsWith("timing-")) {
                 warmBrowser.select("set3",index);reopened.browserMode(SongBrowserModel.Sort.DIFFICULTY,SongBrowserModel.Group.DIFFICULTY);
                 for(int frame=0;frame<45;frame++) {reopened.render(1f/60);transitionFrames++;assertRenderedBounds(reopened,layout);}
                 var result=((dev.osujava.difficulty.LocalDifficultyService)screenField(reopened,"localRatings")).result(warmCharts.get(index));
