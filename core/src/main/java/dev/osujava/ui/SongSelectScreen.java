@@ -29,11 +29,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.IdentityHashMap;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.OptionalDouble;
 import java.util.function.Function;
 import java.util.Locale;
 
 public final class SongSelectScreen extends ScreenAdapter {
+    private static final double RATING_CLASSIFICATION_INTERVAL_SECONDS=.25;
     private static final Color DARK_TEXT = new Color(.14f, .10f, .18f, 1f);
 
     private final OsuJavaGame game;
@@ -67,6 +69,10 @@ public final class SongSelectScreen extends ScreenAdapter {
     boolean renderedSelectionProcedural(Selection action) { return renderer.renderedSelectionProcedural(action); }
     private final Map<BeatmapDifficulty, SongSelectRowPresentation.Content> rowContent = new IdentityHashMap<>();
     private final Function<BeatmapDifficulty, OptionalDouble> ratings;
+    private final dev.osujava.difficulty.LocalDifficultyService localRatings;
+    private final Map<dev.osujava.beatmap.BeatmapContentKey,List<BeatmapDifficulty>> ratingRows=new HashMap<>();
+    private boolean ratingProjectionDirty;
+    private double ratingProjectionDelay;
     private BeatmapDifficulty metadataDifficulty;
     private BeatmapSet metadataSet;
     private SongSelectDetails details;
@@ -137,13 +143,14 @@ public final class SongSelectScreen extends ScreenAdapter {
 
     /** The capture harness can supply a resolver with no bundled fallback. */
     SongSelectScreen(OsuJavaGame game, String preferredSetId, int preferredDifficulty, SongSelectSkinAssets skin) {
-        this(game, preferredSetId, preferredDifficulty, skin, difficulty -> OptionalDouble.empty());
+        this(game, preferredSetId, preferredDifficulty, skin, null);
     }
 
-    /** Receives trusted, already calculated ratings only. Production has no rating source yet. */
+    /** The harness can inject fixed ratings; production uses the local worker/cache. */
     SongSelectScreen(OsuJavaGame game, String preferredSetId, int preferredDifficulty, SongSelectSkinAssets skin,
                      Function<BeatmapDifficulty, OptionalDouble> ratings) {
-        this.ratings = ratings;
+        localRatings=ratings==null ? game.createLocalDifficultyService() : null;
+        this.ratings = ratings==null ? difficulty -> localRatings.result(difficulty).rating() : ratings;
         this.game = game;
         this.skin = skin;
         view = new UiView(game);
@@ -158,8 +165,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         scores = new ScoreBrowserModel(game.localScores());
         scoreSnapshot = new SongSelectScoreSnapshot(game.localScores());
         sets = browser.librarySets();
-        cacheRowContent();
-        scoreSnapshot.refresh(sets);
+        browser.ratings(this.ratings);
         if (preferredSetId != null) {
             for (int i = 0; i < sets.size(); i++) if (sets.get(i).id().equals(preferredSetId)) {
                 selectedSetIndex = i;
@@ -168,6 +174,9 @@ public final class SongSelectScreen extends ScreenAdapter {
                 break;
             }
         }
+        if(localRatings!=null) { localRatings.library(librarySource);localRatings.prioritize(selectedDifficulty()); }
+        cacheRowContent();
+        scoreSnapshot.refresh(sets);
     }
 
     @Override public void show() {
@@ -357,6 +366,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         collectionManager.refresh();
         var collections=game.collections().all();
         boolean collectionsChanged=!importing && collections!=collectionSource;
+        if(libraryChanged && localRatings!=null) { localRatings.library(source);ratingProjectionDirty=false;ratingProjectionDelay=0; }
         if (libraryChanged || activityChanged || collectionsChanged) {
             cancelInput();
             if(libraryChanged) browser.library(source);
@@ -364,6 +374,29 @@ public final class SongSelectScreen extends ScreenAdapter {
             browser.activity(activity.facts(),game.wallClock());
             if(collectionsChanged) { collectionSource=collections; browser.collections(collectionSource); }
             syncBrowser(true);
+        }
+        if(localRatings!=null) {
+            var changed=localRatings.drain();
+            if(!changed.isEmpty()) {
+                for(var key:changed) for(var chart:ratingRows.getOrDefault(key,List.of())) {
+                    var old=rowContent.get(chart);
+                    var stars=SongSelectRowPresentation.Stars.of(ratings.apply(chart));
+                    if(old.stars().equals(stars)) continue;
+                    rowContent.put(chart,new SongSelectRowPresentation.Content(old.title(),old.byline(),old.detail(),old.thumbnail(),stars,old.mode()));
+                    ratingProjectionDirty=true;
+                }
+                metadataDifficulty=null;updateDetails();
+            }
+            // Large warm/cold libraries can complete across many frames. Classification is
+            // coalesced to four updates/second; visible stars/details do not wait for this timer.
+            ratingProjectionDelay=Math.max(0,ratingProjectionDelay-delta);
+            if(ratingProjectionDirty) {
+                var progress=localRatings.diagnostics();
+                if(ratingProjectionDelay==0 || progress.published()==progress.libraryContents()) {
+                    ratingProjectionDirty=false;ratingProjectionDelay=RATING_CLASSIFICATION_INTERVAL_SECONDS;
+                    if(browser.ratingsChanged()) { cancelInput();syncBrowser(true); }
+                }
+            }
         }
         wheelInput.dispatch();
         input.advanceKeys(delta);
@@ -385,6 +418,13 @@ public final class SongSelectScreen extends ScreenAdapter {
                     dev.osujava.beatmap.BeatmapContentKey.of(selectedDifficulty()));
         }
         visibleRows = layoutRows(layout, 0, false);
+        if(localRatings!=null) {
+            for(var row:visibleRows) if(row.setIndex()>=0) {
+                var set=sets.get(row.setIndex());
+                localRatings.prioritize(row.difficultyIndex()<0 ? browser.row(row.key()).difficulty : set.difficulties().get(row.difficultyIndex()));
+            }
+            localRatings.prioritize(selectedDifficulty());
+        }
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
         var buttons = input.buttons(Gdx.input.isButtonPressed(Input.Buttons.LEFT),
                 Gdx.input.isButtonPressed(Input.Buttons.RIGHT), Gdx.input.isButtonPressed(Input.Buttons.MIDDLE), delta * 1000.0);
@@ -581,7 +621,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
     @Override public void pause() { cancelInput(); }
     @Override public void hide() { cancelInput(); if (preview != null) preview.close(); if (cursor != null) cursor.hide(); }
-    @Override public void dispose() { closed = true; cancelInput(); if (preview != null) preview.close(); if (audio != null) audio.close(); if (cursor != null) cursor.close(); thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
+    @Override public void dispose() { closed = true; if(localRatings!=null) localRatings.close(); cancelInput(); if (preview != null) preview.close(); if (audio != null) audio.close(); if (cursor != null) cursor.close(); thumbnails.close(); playCookie.close(); if (rowFill != null) { rowFill.dispose(); rowFill = null; } if (skin != null) skin.dispose(); }
 
     private void calculateLayout(UiLayout layout) {
         viewportHeight = layout.height();
@@ -705,10 +745,15 @@ public final class SongSelectScreen extends ScreenAdapter {
     }
 
     private void cacheRowContent() {
-        rowContent.clear();
+        rowContent.clear();ratingRows.clear();
         for (BeatmapSet set : sets) {
-            for (BeatmapDifficulty diff : set.difficulties())
+            for (BeatmapDifficulty diff : set.difficulties()) {
                 rowContent.put(diff, SongSelectRowPresentation.content(set, diff, ratings.apply(diff)));
+                if(localRatings!=null) {
+                    var key=dev.osujava.beatmap.BeatmapContentKey.of(diff);
+                    if(key!=null) ratingRows.computeIfAbsent(key,k -> new java.util.ArrayList<>()).add(diff);
+                }
+            }
         }
     }
 

@@ -46,6 +46,7 @@ public class OsuJavaGame extends Game {
     private final java.time.Clock wallClock = java.time.Clock.systemDefaultZone();
     private BeatmapArchiveImporter importer;
     private OsuRuleset osuRuleset;
+    private Path difficultyCacheDirectory;
     private final AudioVolumes audioVolumes = new AudioVolumes();
     private final VolumeHud volumeHud = new VolumeHud(audioVolumes);
     private final VolumeHudInput volumeInput = new VolumeHudInput(volumeHud,
@@ -117,6 +118,7 @@ public class OsuJavaGame extends Game {
                 System.getProperty("osujava.playerName"));
         playHistory = new dev.osujava.score.LocalPlayHistory(localDataRoot().resolve("history"));
         collections = new dev.osujava.collection.LocalCollectionStore(localDataRoot().resolve("collections.properties"));
+        difficultyCacheDirectory = localDataRoot().resolve("difficulty");
         osuRuleset = new OsuRuleset();
         navigate(new MainMenuScreen(this));
     }
@@ -170,6 +172,10 @@ public class OsuJavaGame extends Game {
     public dev.osujava.score.LocalPlayHistory playHistory() { return playHistory; }
     public dev.osujava.collection.LocalCollectionStore collections() { return collections; }
     public java.time.Clock wallClock() { return wallClock; }
+    /** Screen owns worker cancellation; cached sidecars survive navigation/restart. */
+    public dev.osujava.difficulty.LocalDifficultyService createLocalDifficultyService() {
+        return new dev.osujava.difficulty.LocalDifficultyService(difficultyCacheDirectory);
+    }
 
     public BeatmapLibrary library() {
         return library;

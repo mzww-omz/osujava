@@ -65,3 +65,27 @@ hard linkを提供しないfilesystem/保存失敗では計算値を表示用メ
 
 テストはcontent重複/移動/編集、cold/warm、計算版変更、Mods正規化key、terminal結果の再利用、
 future/corrupt保持、保存先が通常fileの失敗、世代交換、closeのinterrupt、1万chartでのpriority/queue/completion上限を含む。
+
+## Song Selectへの接続
+
+以前はproductionのrating注入点が常にemptyで、用意済みstar renderer/animationを使用できなかった。
+現在は同じlocal結果をrow star、selected情報、Difficulty sort/group/tab、`stars`検索に供給する。
+`STAR` assetと既存procedural fallback、density処理、spriteGeneration別animationをそのまま使う。
+新asset・texture/fontの毎frame生成・Gameplay側の採点変更はない。
+
+[公式Interface wiki](https://osu.ppy.sh/wiki/en/Client/Interface)が示すDifficulty groupの整数切捨てと、
+sortの易→難の方向を採用した。未知/unsupported/failedはUnknown difficultyへ置き、known 0とは分離する。
+難易度単位の並び替えを使い、非隣接familyを再結合しない。
+Sort/Group enumは末尾へ追加して既存ordinalを維持し、既存By Difficulty tabの明示identityへ接続する。
+
+`stars>=5 stars<8`等は既知のfinite非negative値のみを比較する。未知は`!=`にもmatchしない。
+現在のratingはNM。raw精度で比較するlocal仕様であり、nativeの小数丸め/Mod適用範囲まで同値とはしない。
+検索のclear、完了後のreorder/group移動で既存playable identityを維持する。
+明示的に別Groupを開いている場合、無関係な計算完了で選択Groupを強制的に開き直さない。
+
+row内容は変更contentに属する難易度だけを再生成し、selected情報も更新する。
+Sort/Group/searchがratingに依存しなければbrowserをrebuildしない。
+依存する場合は完了を250msごとに集約し、全完了時は待たずに最終batchを反映する。
+この分類遅延中もrow星/selected情報は直ちに更新する。
+比較用ratingはrebuild時にchartごと1回取得し、sortの全比較ごとのprovider取得/boxingを避ける。
+図形/文字の既存viewport reservation・row hitbox・chrome z-orderを変更していない。

@@ -12,7 +12,7 @@ final class SongBrowserControls {
     enum Menu { GROUP, SORT }
     // 0600136e, SelectPlay=5 (OsuModes): explicit tab identities, not Group ordinals.
     enum Tab {
-        ALL("No grouping",SongBrowserModel.Group.NONE), DIFFICULTY("By Difficulty",null),
+        ALL("No grouping",SongBrowserModel.Group.NONE), DIFFICULTY("By Difficulty",SongBrowserModel.Group.DIFFICULTY,SongBrowserModel.Sort.DIFFICULTY),
         ARTIST("By Artist",SongBrowserModel.Group.ARTIST,SongBrowserModel.Sort.ARTIST),
         CREATOR("By Creator",SongBrowserModel.Group.CREATOR,SongBrowserModel.Sort.CREATOR),
         RECENT("Recently Played",SongBrowserModel.Group.RECENT,SongBrowserModel.Sort.RECENT), COLLECTIONS("Collections",SongBrowserModel.Group.COLLECTIONS);

@@ -49,7 +49,7 @@ class SongBrowserModelTest {
         model.sort(SongBrowserModel.Sort.LENGTH); assertEquals(List.of("unknown","a","multi"),ids(model));
         model.select("multi",0); model.sort(SongBrowserModel.Sort.BPM); assertEquals(List.of("unknown","a","multi"),ids(model));
     }
-    @ParameterizedTest @EnumSource(value=SongBrowserModel.Group.class,names={"RECENT","COLLECTIONS"},mode=EnumSource.Mode.EXCLUDE)
+    @ParameterizedTest @EnumSource(value=SongBrowserModel.Group.class,names={"RECENT","COLLECTIONS","DIFFICULTY"},mode=EnumSource.Mode.EXCLUDE)
     void groupEntriesHaveHeadersAndPreserveAllSets(SongBrowserModel.Group group) {
         var model = new SongBrowserModel(fixture()); model.select("c",0); model.group(group);
         long headers = model.entries().stream().filter(e -> e.kind() == SongBrowserModel.Kind.GROUP_HEADER).count();

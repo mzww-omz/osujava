@@ -11,12 +11,12 @@ import dev.osujava.collection.LocalCollectionStore.Collection;
 /** GL-free browser. Rebuilds only on state changes; identities never use display indices. */
 final class SongBrowserModel {
     enum Sort {
-        TITLE("Title"), ARTIST("Artist"), CREATOR("Creator"), BPM("BPM"), LENGTH("Length"), RECENT("Last Played"), ADDED("Date Added");
+        TITLE("Title"), ARTIST("Artist"), CREATOR("Creator"), BPM("BPM"), LENGTH("Length"), RECENT("Last Played"), ADDED("Date Added"), DIFFICULTY("Difficulty");
         final String label;
         Sort(String label) { this.label = label; }
     }
     enum Group {
-        NONE("No Grouping"), ARTIST("Artist"), CREATOR("Creator"), BPM("BPM"), LENGTH("Length"), RECENT("Recently Played"), COLLECTIONS("Collections");
+        NONE("No Grouping"), ARTIST("Artist"), CREATOR("Creator"), BPM("BPM"), LENGTH("Length"), RECENT("Recently Played"), COLLECTIONS("Collections"), DIFFICULTY("Difficulty");
         final String label;
         Group(String label) { this.label = label; }
     }
@@ -75,6 +75,25 @@ final class SongBrowserModel {
     private List<Collection> collections=List.of();
     private Map<Selection,List<String>> collectionRowKeys=Map.of();
     private String collectionFocus;
+    private java.util.function.Function<BeatmapDifficulty,OptionalDouble> ratings=d -> OptionalDouble.empty();
+    private boolean queryUsesRatings;
+    private Map<BeatmapDifficulty,Double> knownRatings=Map.of();
+    void ratings(java.util.function.Function<BeatmapDifficulty,OptionalDouble> provider) { ratings=Objects.requireNonNull(provider); }
+    /** One rebuild per completion batch, only if classification/search depends on ratings. */
+    boolean ratingsChanged() {
+        if(sort!=Sort.DIFFICULTY && group!=Group.DIFFICULTY && !queryUsesRatings) return false;
+        var selected=rowsByKey.get(selectedKey());
+        String previousParent=selected==null || selected.parent==null ? null : selected.parent.key;
+        boolean following=selected!=null && (selected.parent==null || selected.parent.expanded);
+        rebuild();
+        selected=rowsByKey.get(selectedKey());
+        String nextParent=selected==null || selected.parent==null ? null : selected.parent.key;
+        if(following && !Objects.equals(previousParent,nextParent)) { revealSelection=true;expand(); }
+        return true;
+    }
+    private Double rating(BeatmapDifficulty chart) {
+        return knownRatings.get(chart);
+    }
     void collections(List<Collection> next) {
         if(collections==next) return;
         collections=next; if(group==Group.COLLECTIONS) { revealSelection=true; rebuild(); }
@@ -321,7 +340,18 @@ final class SongBrowserModel {
     }
     private void rebuild() {
         today=LocalDate.now(wallClock);
-        var query = new SongBrowserQuery(search,this::facts,wallClock);
+        var query = new SongBrowserQuery(search,this::facts,wallClock,d -> {
+            Double value=rating(d);return value==null ? OptionalDouble.empty() : OptionalDouble.of(value);
+        });
+        queryUsesRatings=query.usesRatings();
+        if(sort==Sort.DIFFICULTY || group==Group.DIFFICULTY || queryUsesRatings) {
+            var values=new IdentityHashMap<BeatmapDifficulty,Double>();
+            for(var set:snapshot) for(var chart:set.difficulties()) {
+                var value=ratings.apply(chart);
+                if(value!=null && value.isPresent() && Double.isFinite(value.getAsDouble()) && value.getAsDouble()>=0) values.put(chart,value.getAsDouble());
+            }
+            knownRatings=values;
+        } else knownRatings=Map.of();
         var collected=new HashSet<BeatmapContentKey>();
         if(group==Group.COLLECTIONS) for(var c:collections) for(var m:c.members()) collected.add(m.content());
         Map<String, List<BeatmapDifficulty>> matching = new HashMap<>();
@@ -341,6 +371,7 @@ final class SongBrowserModel {
             case LENGTH -> Comparator.comparingInt(c -> c.difficulty.timingStatistics().lengthSeconds());
             case RECENT -> Comparator.comparing((Chart c) -> facts(c.difficulty).lastPlayedAt(),Comparator.nullsLast(Comparator.reverseOrder()));
             case ADDED -> Comparator.comparing((Chart c) -> facts(c.difficulty).addedAt(),Comparator.nullsLast(Comparator.naturalOrder()));
+            case DIFFICULTY -> Comparator.comparing((Chart c) -> rating(c.difficulty),Comparator.nullsLast(Comparator.naturalOrder()));
         };
         Comparator<Chart> ordering = primary.thenComparing(secondary);
         if (group != Group.NONE) ordering = Comparator.comparing((Chart c) -> bucket(c).order())
@@ -477,6 +508,12 @@ final class SongBrowserModel {
             case ARTIST -> initial(chart.difficulty.artist());
             case CREATOR -> initial(chart.difficulty.creator());
             case COLLECTIONS -> new Bucket(0,chart.collection.name(),chart.collection.id().toString());
+            case DIFFICULTY -> {
+                Double value=rating(chart.difficulty);
+                if(value==null) yield new Bucket(Integer.MAX_VALUE,"Unknown difficulty");
+                int band=(int)Math.min(Integer.MAX_VALUE-1,Math.floor(value));
+                yield new Bucket(band,band+"–<"+(band+1)+" stars");
+            }
             case RECENT -> {
                 var time=facts(chart.difficulty).lastPlayedAt();
                 long age=time==null ? Long.MAX_VALUE : Math.max(0,ChronoUnit.DAYS.between(Instant.ofEpochMilli(time).atZone(wallClock.getZone()).toLocalDate(),today));

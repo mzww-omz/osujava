@@ -5,6 +5,7 @@ import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.OptionalDouble;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.time.*;
@@ -27,19 +28,26 @@ final class SongBrowserQuery {
     }
 
     // Common stable field syntax. Unsupported fields/malformed terms remain literal searches;
-    // Official server dates, mode conversion and rating still require actual sources.
+    // Official server dates and mode conversion still require actual sources.
     private static final Pattern FIELD = Pattern.compile("^([a-z]+)(==|!=|<=|>=|=|<|>)(.*)$");
     private static final Pattern NUMBER = Pattern.compile("[+-]?(?:[0-9]+(?:\\.[0-9]*)?|\\.[0-9]+)");
     private final List<Predicate<Document>> predicates;
     private final Function<BeatmapDifficulty,SongBrowserActivity.Facts> activity;
     private final long now;
     private final ZoneId zone;
+    private final Function<BeatmapDifficulty,OptionalDouble> ratings;
+    private boolean usesRatings;
+    boolean usesRatings() { return usesRatings; }
 
     SongBrowserQuery(String query) {
         this(query,d -> SongBrowserActivity.Facts.UNKNOWN,Clock.systemDefaultZone());
     }
     SongBrowserQuery(String query, Function<BeatmapDifficulty,SongBrowserActivity.Facts> activity, Clock clock) {
-        this.activity=activity; now=clock.millis(); zone=clock.getZone();
+        this(query,activity,clock,d -> OptionalDouble.empty());
+    }
+    SongBrowserQuery(String query, Function<BeatmapDifficulty,SongBrowserActivity.Facts> activity, Clock clock,
+                     Function<BeatmapDifficulty,OptionalDouble> ratings) {
+        this.ratings=ratings; this.activity=activity; now=clock.millis(); zone=clock.getZone();
         predicates = tokens(normalize(query)).stream().map(this::compile).toList();
     }
 
@@ -91,6 +99,17 @@ final class SongBrowserQuery {
                     return time!=null && compare(Instant.ofEpochMilli(time).atZone(zone).toLocalDate().toEpochDay(),operator,date);
                 };
             } catch(DateTimeException ignored) { }
+            if(name.equals("stars") && NUMBER.matcher(value).matches()) {
+                double target=Double.parseDouble(value);
+                if(Double.isFinite(target)) {
+                    usesRatings=true;
+                    return d -> {
+                        var rating=ratings.apply(d.difficulty());
+                        return rating!=null && rating.isPresent() && Double.isFinite(rating.getAsDouble()) && rating.getAsDouble()>=0
+                                && compare(rating.getAsDouble(),operator,target);
+                    };
+                }
+            }
             // 06001405–1408 compare Contains to (operator == '='); other operators invert it.
             Predicate<Document> text = switch (name) {
                 case "title" -> d -> d.title().contains(value);

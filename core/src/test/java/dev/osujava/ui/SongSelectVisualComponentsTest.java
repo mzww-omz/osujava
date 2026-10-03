@@ -41,19 +41,20 @@ class SongSelectVisualComponentsTest {
         assertTrue(controls.click(g.x()+1,g.y()-26*4-13,960,720,browser));
         assertEquals(SongBrowserModel.Group.LENGTH,browser.group());
     }
-    @Test void unimplementedNativeTabsKeepTheirIdentityWithoutSelectingAnotherLocalGroup() {
+    @Test void implementedTabsKeepTheirIdentityAndRouteToTheirOwnLocalGroup() {
         assertEquals(List.of(SongBrowserControls.Tab.ALL,SongBrowserControls.Tab.DIFFICULTY,
                 SongBrowserControls.Tab.ARTIST,SongBrowserControls.Tab.CREATOR,SongBrowserControls.Tab.RECENT,
                 SongBrowserControls.Tab.COLLECTIONS),List.of(SongBrowserControls.Tab.values()));
         var browser = new SongBrowserModel(List.of()); var controls = new SongBrowserControls();
         browser.group(SongBrowserModel.Group.BPM);
         var requests = new java.util.ArrayList<SongBrowserControls.Tab>();
-        for (var tab : SongBrowserControls.Tab.values()) if (!tab.available()) {
+        for (var tab : SongBrowserControls.Tab.values()) {
+            assertTrue(tab.available());
             var b = SongBrowserControls.tabBounds(1280,720,tab.ordinal());
             assertTrue(controls.click(b.x()+2,b.y()+2,1280,720,browser,requests::add));
-            assertEquals(SongBrowserModel.Group.BPM,browser.group());
+            assertEquals(tab.group,browser.group());
         }
-        assertEquals(List.of(SongBrowserControls.Tab.DIFFICULTY),requests);
+        assertTrue(requests.isEmpty());
     }
     @Test void artistAndCreatorTabsCoupleSortButNoGroupingPreservesIt() {
         var browser = new SongBrowserModel(List.of()); var controls = new SongBrowserControls();
