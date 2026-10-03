@@ -44,7 +44,7 @@ class StandardDifficultyCalculatorTest {
     }
     // Fixed before comparing results. Stars/skill ratings: 1e-9 absolute;
     // per-object and section values: 1e-7 absolute + 1e-9 relative (single-precision geometry).
-    static Stream<String> fixtures() { return Stream.of("empty","single","pair","three","jumps","stream","rhythm","simultaneous","stacks","spinner","gaps","fractional","linear-basic","linear-repeat","linear-polyline","linear-sv","linear-stacks","linear-late-tick","linear-duplicate","linear-no-timing","linear-rhythm","linear-single","linear-spinner","linear-future-timing","curve-bezier","curve-bezier-segments","curve-bezier-high-degree","curve-perfect","curve-perfect-major","curve-perfect-fallback","curve-catmull","curve-catmull-duplicates","curve-mixed","curve-stacks","curve-fractional-controls","curve-loop","curve-catmull-v128","curve-perfect-reverse","timing-sv-rounding","timing-sv-clamp","timing-coincident-rg","timing-coincident-gr","timing-coincident-multiple","timing-nan-repeat","timing-nan-priority"); }
+    static Stream<String> fixtures() { return Stream.of("empty","single","pair","three","jumps","stream","rhythm","simultaneous","stacks","spinner","gaps","fractional","linear-basic","linear-repeat","linear-polyline","linear-sv","linear-stacks","linear-late-tick","linear-duplicate","linear-no-timing","linear-rhythm","linear-single","linear-spinner","linear-future-timing","curve-bezier","curve-bezier-segments","curve-bezier-high-degree","curve-perfect","curve-perfect-major","curve-perfect-fallback","curve-catmull","curve-catmull-duplicates","curve-mixed","curve-stacks","curve-fractional-controls","curve-loop","curve-catmull-v128","curve-perfect-reverse","timing-sv-rounding","timing-sv-clamp","timing-coincident-rg","timing-coincident-gr","timing-coincident-multiple","timing-nan-repeat","timing-nan-priority","timing-pre-v8-v6","timing-pre-v8-v7","timing-duration-large-time"); }
     private String source(String name,String extension) throws IOException {
         try(var in=getClass().getResourceAsStream("/difficulty/reference-20220902/"+name+extension)) {
             assertNotNull(in);return new String(in.readAllBytes(),StandardCharsets.UTF_8);
@@ -96,10 +96,19 @@ class StandardDifficultyCalculatorTest {
             assertEquals(DifficultyResult.Status.UNSUPPORTED,result.status());assertTrue(result.rating().isEmpty());
         }
     }
+    @Test void runtimeDependentNestedTiesRemainUnknownAfterActualPublicNestedVerification() throws Exception {
+        // .NET List.Sort is unstable. A pinned public-source runtime observation alone does
+        // not establish stable's tie order for short sliders or lists above its insertion-sort boundary.
+        var chart=new BeatmapFileParser().parse(source("timing-nested-ties",".osu"),"ties.osu").difficulty();
+        var result=new StandardDifficultyCalculator().calculate(chart);
+        assertEquals(DifficultyResult.Status.UNSUPPORTED,result.status());
+        assertTrue(result.reason().contains("Coincident slider nested"),result.reason());
+        assertTrue(result.rating().isEmpty());
+    }
     @Test void unverifiedOrExcessiveSliderPreprocessingStaysUnknownAndDoesNotPoisonTheNextJob() throws Exception {
         String header="osu file format v14\n[TimingPoints]\n0,500,4,0,0,100,1,0\n[HitObjects]\n";
         var sources=List.of(
-                header.replace("v14","v7")+"100,100,1000,2,0,L|200:100,1,100",
+                header.replace("v14","v7")+"100,100,1000,2,0,B|200:200|300:100,1,100",
                 header+"100,100,1000,2,0,L|200:100,1,0",
                 header+"100,100,1000,2,0,L|100:100,1,100",
                 header+"100,100,1000,2,0,L|200:100,2,7",

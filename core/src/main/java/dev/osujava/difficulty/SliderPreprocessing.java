@@ -108,17 +108,23 @@ final class SliderPreprocessing {
         Vec endRelative,lazy;
         float lazyDistance;
         double lazyTime;
-        Slider(HitObject object,double beatLength,double sv,boolean generateTicks,BeatmapDifficulty chart,Budget budget) {
+        Slider(HitObject object,double beatLength,double rawSv,double sv,boolean generateTicks,BeatmapDifficulty chart,Budget budget) {
             head=new Vec((float)object.x(),(float)object.y());
+            if(chart.settings().formatVersion()<8 && object.sliderData()!=null
+                    && object.sliderData().segments().stream().anyMatch(s -> s.curveType()!=SliderData.CurveType.LINEAR))
+                throw new Unsupported("Pre-v8 non-linear slider paths are not verified");
             path=new Path(object,chart.settings().formatVersion(),budget);repeats=object.sliderData().repeatCount();
             if(repeats>=MAX_WORK || path.distance<=0) throw new Unsupported("Degenerate or excessive-repeat slider is not verified");
             double multiplier=chart.settings().sliderMultiplier(),tickRate=chart.settings().sliderTickRate();
             if(!Double.isFinite(multiplier) || multiplier<.4 || multiplier>3.6 || !Double.isFinite(tickRate) || tickRate<.5 || tickRate>8)
                 throw new Unsupported("Slider settings outside verified range");
             start=object.timeMs();double scoringDistance=100*multiplier*sv,velocity=scoringDistance/beatLength;
-            spanDuration=path.distance/velocity;end=start+(repeats+1)*spanDuration;
-            if(!Double.isFinite(end) || end-start>6*60*60*1000L) throw new Unsupported("Slider duration exceeds verified range");
-            double tickDistance=generateTicks?Math.min(scoringDistance/tickRate,path.distance):path.distance;
+            // Preserve Slider.EndTime and SpanDuration operation order at large timestamps.
+            end=start+(repeats+1)*path.distance/velocity;spanDuration=(end-start)/(repeats+1);
+            if(!Double.isFinite(end) || spanDuration<=0 || end-start>6*60*60*1000L) throw new Unsupported("Slider duration exceeds verified range");
+            // Pre-v8 tick spacing divides by raw/clamped difficulty-point SV, before 0.01 rounding.
+            double tickMultiplier=chart.settings().formatVersion()<8?1/rawSv:1;
+            double tickDistance=generateTicks?Math.min(scoringDistance/tickRate*tickMultiplier,path.distance):path.distance;
             endRelative=path.at((repeats+1)%2);
             budget.spend();nested.add(new Nested(start,new Vec(0,0),false));
             for(int span=0;span<=repeats;span++) {
@@ -129,9 +135,10 @@ final class SliderPreprocessing {
                     ticks.add(new Nested(spanStart+(reversed?1-progress:progress)*spanDuration,path.at(progress),false));
                 }
                 if(reversed) Collections.reverse(ticks);nested.addAll(ticks);
-                if(span<repeats) {budget.spend();nested.add(new Nested(spanStart+spanDuration,path.at((span+1)%2),true));}
+                if(span<repeats) {budget.spend();nested.add(new Nested(start+(span+1)*spanDuration,path.at((span+1)%2),true));}
             }
-            budget.spend();nested.add(new Nested(Math.max(start+(end-start)/2,end-36),endRelative,false));
+            double legacyTail=Math.max(start+(repeats+1)*spanDuration/2,start+repeats*spanDuration+spanDuration-36);
+            budget.spend();nested.add(new Nested(legacyTail,endRelative,false));
             // HitObject.ApplyDefaults sorts nested objects by StartTime: late ticks can follow the legacy tail.
             nested.sort(Comparator.comparingDouble(Nested::time));
             for(int i=1;i<nested.size();i++) if(nested.get(i).time==nested.get(i-1).time)
@@ -166,7 +173,7 @@ final class SliderPreprocessing {
     static Slider[] prepare(BeatmapDifficulty chart) {
         Slider[] result=new Slider[chart.hitObjects().size()];
         if(chart.hitObjects().stream().noneMatch(o->o.type()==HitObject.Type.SLIDER)) return result;
-        if(chart.settings().formatVersion()<8) throw new Unsupported("Pre-v8 slider tick distance is not verified");
+        if(chart.settings().formatVersion()<6) throw new Unsupported("Pre-v6 slider timing and stacking are not verified");
         if(chart.parseIssues().timingOrderChanged()) throw new Unsupported("Reordered source timing is not verified");
         var timing=chart.timingPoints();
         if(timing.size()>MAX_WORK) throw new Unsupported("Timing point work limit exceeded");
@@ -180,7 +187,7 @@ final class SliderPreprocessing {
         }
         Budget budget=new Budget();int point=0;
         // TimingPointAt falls back to the first red line, even before its timestamp.
-        double beat=timing.stream().filter(TimingPoint::uninherited).mapToDouble(TimingPoint::beatLength).findFirst().orElse(1000),sv=1;
+        double beat=timing.stream().filter(TimingPoint::uninherited).mapToDouble(TimingPoint::beatLength).findFirst().orElse(1000),rawSv=1,sv=1;
         boolean generateTicks=true;
         for(int i=0;i<result.length;i++) {
             var object=chart.hitObjects().get(i);
@@ -197,10 +204,10 @@ final class SliderPreprocessing {
                 generateTicks=!Double.isNaN(p.beatLength());
                 double raw=p.beatLength()<0?100/-p.beatLength():1;
                 // Pinned Slider velocity uses nearest 0.01 after clamping, with ties to even.
-                sv=Math.clamp(raw,.1,10);
-                sv=Math.rint(sv/.01)*.01;
+                rawSv=Math.clamp(raw,.1,10);
+                sv=Math.rint(rawSv/.01)*.01;
             }
-            if(object.type()==HitObject.Type.SLIDER) result[i]=new Slider(object,beat,sv,generateTicks,chart,budget);
+            if(object.type()==HitObject.Type.SLIDER) result[i]=new Slider(object,beat,rawSv,sv,generateTicks,chart,budget);
         }
         return result;
     }
