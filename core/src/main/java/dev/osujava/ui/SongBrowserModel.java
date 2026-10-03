@@ -6,6 +6,7 @@ import java.util.*;
 import java.util.random.RandomGenerator;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
+import dev.osujava.collection.LocalCollectionStore.Collection;
 
 /** GL-free browser. Rebuilds only on state changes; identities never use display indices. */
 final class SongBrowserModel {
@@ -15,7 +16,7 @@ final class SongBrowserModel {
         Sort(String label) { this.label = label; }
     }
     enum Group {
-        NONE("No Grouping"), ARTIST("Artist"), CREATOR("Creator"), BPM("BPM"), LENGTH("Length"), RECENT("Recently Played");
+        NONE("No Grouping"), ARTIST("Artist"), CREATOR("Creator"), BPM("BPM"), LENGTH("Length"), RECENT("Recently Played"), COLLECTIONS("Collections");
         final String label;
         Group(String label) { this.label = label; }
     }
@@ -44,14 +45,17 @@ final class SongBrowserModel {
     private String groupTargetKey, focusKey;
     private boolean revealSelection = true;
     private record Indexed(BeatmapSet set, List<SongBrowserQuery.Document> difficulties) { }
-    private record Chart(Indexed item, BeatmapDifficulty difficulty, List<String> fields) {
+    private record Chart(Indexed item, BeatmapDifficulty difficulty, List<String> fields, Collection collection) {
         Chart(Indexed item, BeatmapDifficulty difficulty) {
-            this(item,difficulty,List.of(normalize(difficulty.title()),normalize(difficulty.artist()),normalize(difficulty.creator())));
+            this(item,difficulty,List.of(normalize(difficulty.title()),normalize(difficulty.artist()),normalize(difficulty.creator())),null);
         }
+        Chart in(Collection collection) { return new Chart(item,difficulty,fields,collection); }
     }
     private List<Chart> orderedCharts = List.of();
     private Map<String, Integer> familySizes = Map.of();
-    private record Bucket(int order, String label) { }
+    private record Bucket(int order, String label, String identity) {
+        Bucket(int order,String label) { this(order,label,label); }
+    }
     static final int HISTORY_LIMIT = 64;
     private List<Indexed> library = List.of();
     private List<BeatmapSet> visible = List.of();
@@ -68,6 +72,13 @@ final class SongBrowserModel {
     private Map<BeatmapDifficulty,SongBrowserActivity.Facts> activity=Map.of();
     private Clock wallClock=Clock.systemDefaultZone();
     private LocalDate today;
+    private List<Collection> collections=List.of();
+    private Map<Selection,List<String>> collectionRowKeys=Map.of();
+    private String collectionFocus;
+    void collections(List<Collection> next) {
+        if(collections==next) return;
+        collections=next; if(group==Group.COLLECTIONS) { revealSelection=true; rebuild(); }
+    }
     void activity(Map<BeatmapDifficulty,SongBrowserActivity.Facts> next, Clock clock) {
         if(activity==next && wallClock==clock) return;
         activity=next; wallClock=clock; rebuild();
@@ -109,7 +120,16 @@ final class SongBrowserModel {
             return openGroupKey != null ? openGroupKey : groupTargetKey;
         return selectedKey();
     }
-    String selectedKey() { return selectedSet() == null ? null : rowKey(selection.setId(), selection.difficultyId()); }
+    String selectedKey() {
+        if(selectedSet()==null) return null;
+        if(group!=Group.COLLECTIONS) return rowKey(selection.setId(),selection.difficultyId());
+        var keys=collectionRowKeys.getOrDefault(selection,List.of());
+        if(collectionFocus!=null) {
+            String preferred=collectionFocus+rowKey(selection.setId(),selection.difficultyId());
+            var row=rowsByKey.get(preferred); if(row!=null && !row.excluded) return preferred;
+        }
+        return keys.isEmpty() ? null : keys.getFirst();
+    }
     static String rowKey(String setId, String difficultyId) {
         return "beatmap:" + identityField(setId) + identityField(difficultyId);
     }
@@ -249,8 +269,13 @@ final class SongBrowserModel {
         Row row = rowsByKey.get(key);
         if (row != null) activate(row);
     }
+    void selectDifficultyRow(String key) {
+        var row=rowsByKey.get(key); if(row!=null && !row.group() && !row.excluded) selectRow(row);
+    }
     private void selectRow(Row row) {
+        if(group==Group.COLLECTIONS && row.parent!=null) collectionFocus=row.parent.key+":";
         select(row.set.id(), row.set.difficulties().indexOf(row.difficulty));
+        if(group==Group.COLLECTIONS) { revealSelection=true; groupTargetKey=null; focusKey=null; expand(); }
     }
 
     void random() {
@@ -297,10 +322,12 @@ final class SongBrowserModel {
     private void rebuild() {
         today=LocalDate.now(wallClock);
         var query = new SongBrowserQuery(search,this::facts,wallClock);
+        var collected=new HashSet<BeatmapContentKey>();
+        if(group==Group.COLLECTIONS) for(var c:collections) for(var m:c.members()) collected.add(m.content());
         Map<String, List<BeatmapDifficulty>> matching = new HashMap<>();
         for (var item : library) {
             var matches = item.difficulties().stream().filter(query::matches).map(SongBrowserQuery.Document::difficulty)
-                    .filter(this::classified).toList();
+                    .filter(this::classified).filter(d -> group!=Group.COLLECTIONS || collected.contains(BeatmapContentKey.of(d))).toList();
             if (!matches.isEmpty()) matching.put(item.set().id(), matches);
         }
         matchingDifficulties = Map.copyOf(matching);
@@ -317,12 +344,21 @@ final class SongBrowserModel {
         };
         Comparator<Chart> ordering = primary.thenComparing(secondary);
         if (group != Group.NONE) ordering = Comparator.comparing((Chart c) -> bucket(c).order())
-                .thenComparing(c -> bucket(c).label()).thenComparing(ordering);
+                .thenComparing(c -> bucket(c).label()).thenComparing(c -> bucket(c).identity()).thenComparing(ordering);
         // Sort difficulty records before taking the unique Set projection. Unmatched charts
         // retain identity after the matching records, but cannot determine their order/family.
         Comparator<Chart> finalOrdering = ordering;
-        orderedCharts = library.stream().flatMap(i -> i.set.difficulties().stream().map(d -> new Chart(i,d)))
-                .filter(c -> classified(c.difficulty))
+        var charts=library.stream().flatMap(i -> i.set.difficulties().stream().map(d -> new Chart(i,d)))
+                .filter(c -> classified(c.difficulty)).toList();
+        if(group==Group.COLLECTIONS) {
+            var byContent=new HashMap<BeatmapContentKey,List<Chart>>();
+            for(var c:charts) { var key=BeatmapContentKey.of(c.difficulty); if(key!=null) byContent.computeIfAbsent(key,k -> new ArrayList<>()).add(c); }
+            var projected=new ArrayList<Chart>();
+            for(var collection:collections) for(var member:collection.members())
+                for(var c:byContent.getOrDefault(member.content(),List.of())) projected.add(c.in(collection));
+            charts=projected;
+        }
+        orderedCharts = charts.stream()
                 .sorted(Comparator.comparing((Chart c) -> !matches(c.item.set,c.difficulty)).thenComparing(finalOrdering)).toList();
         visible = orderedCharts.stream().filter(c -> matches(c.item.set,c.difficulty)).map(c -> c.item.set).distinct().toList();
         Map<String, BeatmapSet> nextById = new HashMap<>();
@@ -345,13 +381,14 @@ final class SongBrowserModel {
         Map<String, List<Row>> children = new LinkedHashMap<>();
         Row representative = null;
         Map<String, Integer> familySizes = new HashMap<>();
+        var selectionKeys=new HashMap<Selection,List<String>>();
         for (var chart : orderedCharts) {
             var set = chart.item.set;
             var difficulty = chart.difficulty;
             Row parent = null;
             if (group != Group.NONE) {
                 Bucket bucket = bucket(chart);
-                String key = "group:" + group + ":" + bucket.label();
+                String key = "group:" + group + ":" + bucket.identity();
                 parent = retained.get(key);
                 if (parent == null) {
                     parent = rowsByKey.computeIfAbsent(key, Row::new);
@@ -360,10 +397,12 @@ final class SongBrowserModel {
                 }
                 if (matches(set,difficulty)) parent.matchingChildren++;
             }
-            String key = rowKey(set.id(),difficultyId(difficulty));
+            String key = (group==Group.COLLECTIONS ? parent.key+":" : "")+rowKey(set.id(),difficultyId(difficulty));
             Row row = rowsByKey.computeIfAbsent(key, Row::new);
             row.set = set; row.difficulty = difficulty; row.parent = parent;
             row.excluded = !matches(set,difficulty);
+            if(group==Group.COLLECTIONS && !row.excluded)
+                selectionKeys.computeIfAbsent(new Selection(set.id(),difficultyId(difficulty)),s -> new ArrayList<>()).add(key);
             if (!row.excluded) {
                 // 06003257: a Group or a change of the preceding non-excluded family
                 // starts a new representative; non-adjacent records must not merge.
@@ -385,6 +424,7 @@ final class SongBrowserModel {
         }
         rowsByKey.keySet().retainAll(retained.keySet());
         rows = List.copyOf(orderedRows);
+        collectionRowKeys=Map.copyOf(selectionKeys);
         this.familySizes = Map.copyOf(familySizes);
     }
 
@@ -436,6 +476,7 @@ final class SongBrowserModel {
             case NONE -> new Bucket(0, "");
             case ARTIST -> initial(chart.difficulty.artist());
             case CREATOR -> initial(chart.difficulty.creator());
+            case COLLECTIONS -> new Bucket(0,chart.collection.name(),chart.collection.id().toString());
             case RECENT -> {
                 var time=facts(chart.difficulty).lastPlayedAt();
                 long age=time==null ? Long.MAX_VALUE : Math.max(0,ChronoUnit.DAYS.between(Instant.ofEpochMilli(time).atZone(wallClock.getZone()).toLocalDate(),today));

@@ -38,9 +38,25 @@ class ScoreBrowserModelTest {
         var target=DifficultyIdentity.of("b",b.difficulties().getFirst()); save(target,123);
         sync(browser); scores.select(0);
         for(var group:SongBrowserModel.Group.values()) {
+            if(group==SongBrowserModel.Group.COLLECTIONS) continue; // This fixture has no collections; covered below with real membership.
             browser.sort(sort); browser.group(group); sync(browser);
             assertEquals(target,scores.target()); assertEquals("123",scores.rows().getFirst().value()); assertNotNull(scores.selected());
         }
+    }
+    @Test void collectionCopiesKeepTheSameDifficultyScoreSelectionAndCache() throws Exception {
+        var map=dev.osujava.support.CollectionTestMaps.set("Map",1); var diff=map.difficulties().getFirst();
+        var collections=new dev.osujava.collection.LocalCollectionStore(); var a=collections.create("A"); var b=collections.create("B");
+        var target=DifficultyIdentity.of(map.id(),diff); var key=dev.osujava.beatmap.BeatmapContentKey.of(diff);
+        var member=new dev.osujava.collection.LocalCollectionStore.Member(key,target);
+        collections.add(a.id(),List.of(member)); collections.add(b.id(),List.of(member));
+        store.save(new LocalScore(UUID.randomUUID(),target,0,new ScoreState(123,0,1,1,0,0,0,1),
+                new ScoreDetails(ScoreDetails.SCORE_V1,key.sha256(),"",null,null,null,null,null,null,null,null)),GameplayRunMode.MANUAL);
+        var browser=new SongBrowserModel(List.of(map)); browser.collections(collections.all()); browser.group(SongBrowserModel.Group.COLLECTIONS);
+        scores.target(target,key); scores.select(0); var selected=scores.selected(); var rows=scores.rows();
+        var copies=browser.rows().stream().filter(r -> !r.group()).toList();
+        browser.toggleGroup(copies.get(1).parent.key); browser.activateRow(copies.get(1).key);
+        scores.target(DifficultyIdentity.of(browser.selectedSet().id(),browser.selectedDifficulty()),dev.osujava.beatmap.BeatmapContentKey.of(browser.selectedDifficulty()));
+        assertEquals(target,scores.target()); assertEquals(selected,scores.selected()); assertSame(rows,scores.rows()); assertEquals("123",scores.rows().getFirst().value());
     }
     @Test void searchRandomPreviousAndLibraryImportHaveNoStaleScores() {
         var a=SongBrowserModelTest.set("a","A","A","A",120,1000);

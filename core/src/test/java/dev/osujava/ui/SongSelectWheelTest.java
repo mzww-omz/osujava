@@ -105,6 +105,7 @@ class SongSelectWheelTest {
             assertTrue(scores.rows().isEmpty()); assertEquals(0,scores.first());
             processor.keyDown(Input.Keys.UP); assertEquals(100,scores.rows().size()); assertEquals(identity,scores.target());
             for(var sort:SongBrowserModel.Sort.values())for(var group:SongBrowserModel.Group.values()) {
+                if(group==SongBrowserModel.Group.COLLECTIONS) continue; // No membership in this scroll fixture.
                 screen.browserMode(sort,group); assertEquals(identity,scores.target()); assertEquals(100,scores.rows().size());
             }
             for(char c:"nonexistent".toCharArray())processor.keyTyped(c);
