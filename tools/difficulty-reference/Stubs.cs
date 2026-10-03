@@ -48,7 +48,7 @@ namespace osu.Game.Rulesets.Osu.Objects {
     public class HitCircle : OsuHitObject { }
     public class Spinner : OsuHitObject { }
     public class SliderRepeat : OsuHitObject { }
-    public class Slider : OsuHitObject {
+    public partial class Slider : OsuHitObject {
         public double LazyTravelTime,SpanDuration;
         public float LazyTravelDistance;
         public osuTK.Vector2? LazyEndPosition;
@@ -70,8 +70,28 @@ namespace osu.Game.Beatmaps {
 namespace Newtonsoft.Json { public class JsonIgnoreAttribute:Attribute { } public class JsonConstructorAttribute:Attribute { } }
 namespace osu.Framework.Caching { public class Cached { public bool IsValid; public void Invalidate()=>IsValid=false; public void Validate()=>IsValid=true; } }
 namespace osu.Framework.Bindables {
-    public interface IBindable<T> { }
-    public class Bindable<T>:IBindable<T> { private T value=default!; public event Action<T>? ValueChanged; public T Value { get=>value; set { this.value=value; ValueChanged?.Invoke(value); } } }
+    public interface IBindable<T> { IBindable<T> GetBoundCopy(); }
+    // Storage/event adapter only: numerical range and precision setters run in the unchanged public classes.
+    // These fixtures never bind instances or mutate a disabled instance.
+    public class Bindable<T>:IBindable<T> {
+        private T value;
+        public Bindable(T defaultValue=default!) { value=Default=defaultValue; }
+        public event Action<T>? ValueChanged;
+        public virtual T Value { get=>value; set { if(Disabled) throw new InvalidOperationException("Disabled fixture bindable"); this.value=value; ValueChanged?.Invoke(value); } }
+        public T Default { get; set; }
+        public bool Disabled { get; set; }
+        protected IReadOnlyList<Bindable<T>>? Bindings=>null;
+        public virtual bool IsDefault=>EqualityComparer<T>.Default.Equals(Value,Default);
+        public virtual void TriggerChange()=>ValueChanged?.Invoke(Value);
+        public virtual void CopyTo(Bindable<T> other) { other.Default=Default; other.Value=Value; }
+        public virtual void BindTo(Bindable<T> other)=>throw new NotSupportedException("Fixture bindables are unbound");
+        public virtual void UnbindEvents()=>ValueChanged=null;
+        protected virtual Bindable<T> CreateInstance()=>new();
+        public Bindable<T> GetBoundCopy()=>throw new NotSupportedException("Fixture bindables are unbound");
+        IBindable<T> IBindable<T>.GetBoundCopy()=>GetBoundCopy();
+        public Bindable<T> GetUnboundCopy() { var copy=CreateInstance();CopyTo(copy);return copy; }
+        public virtual string ToString(string? format,IFormatProvider provider)=>Convert.ToString(Value,provider)??"";
+    }
     public class BindableList<T>:List<T> { public event System.Collections.Specialized.NotifyCollectionChangedEventHandler? CollectionChanged; public new void AddRange(IEnumerable<T> items) { foreach(var i in items) { Add(i);CollectionChanged?.Invoke(this,new(System.Collections.Specialized.NotifyCollectionChangedAction.Add,i)); } } }
 }
 namespace osu.Game.Rulesets.Objects.Types { public enum PathType { Linear,PerfectCurve,Catmull,Bezier } }
@@ -80,9 +100,30 @@ namespace osu.Framework.Utils {
     public static class Precision {
         public static bool AlmostEquals(double a,double b)=>Math.Abs(a-b)<=1e-7;
         public static bool AlmostEquals(float a,float b)=>Math.Abs(a-b)<=1e-3f;
+        public static bool AlmostEquals(double a,double b,double tolerance)=>Math.Abs(a-b)<=tolerance;
+        public static bool AlmostEquals(float a,float b,float tolerance)=>Math.Abs(a-b)<=tolerance;
         public static bool DefinitelyBigger(double a,double b)=>a-1e-7>b;
     }
 }
 namespace osu.Framework.Graphics.Primitives { public struct RectangleF { public static RectangleF Empty=>new(); public RectangleF(float x,float y,float w,float h) {} } }
 namespace osu.Game.IO { public static class Parsing { public const double MAX_COORDINATE_VALUE=100_000; public static double ParseDouble(string s,double max) { double v=double.Parse(s); if(!double.IsFinite(v) || Math.Abs(v)>max) throw new NotSupportedException(); return v; } } }
 namespace osu.Game.Beatmaps.Formats { public static class LegacyBeatmapEncoder { public const int FIRST_LAZER_VERSION=128; } }
+
+namespace osu.Framework.Utils {
+    public static class Validation {
+        public static bool IsSupportedBindableNumberType<T>()=>typeof(T)==typeof(double);
+    }
+}
+namespace osuTK.Graphics { public struct Color4 { } }
+namespace osu.Game.Graphics { public class OsuColour { public osuTK.Graphics.Color4 Lime1=>new(); } }
+namespace osu.Game.Beatmaps.ControlPoints {
+    public class ControlPoint : IEquatable<ControlPoint> {
+        public double Time;
+        public virtual osuTK.Graphics.Color4 GetRepresentingColour(osu.Game.Graphics.OsuColour colours)=>new();
+        public virtual bool IsRedundant(ControlPoint? other)=>false;
+        public virtual void CopyFrom(ControlPoint other)=>Time=other.Time;
+        public virtual bool Equals(ControlPoint? other)=>other!=null && GetType()==other.GetType() && Time==other.Time;
+        public override bool Equals(object? other)=>other is ControlPoint point && Equals(point);
+        public override int GetHashCode()=>HashCode.Combine(Time,GetType());
+    }
+}
