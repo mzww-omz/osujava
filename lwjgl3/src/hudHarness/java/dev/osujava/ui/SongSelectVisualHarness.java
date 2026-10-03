@@ -695,9 +695,9 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for(String fixture:List.of("empty","single","pair","jumps","rhythm","spinner","stacks","stream","fractional","simultaneous","gaps","three"))
                 diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse(Path.of("core/src/test/resources/difficulty/reference-20220902/"+fixture+".osu"))
                         .difficulty().withAssets(null,null,Path.of(fixture+".osu")));
-            diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse("osu file format v14\n[Metadata]\nTitle:Unverified slider\nArtist:Local Fixture\nCreator:osu!java\nVersion:Slider\n[HitObjects]\n100,100,1000,2,0,B|150:200|200:100,1,100","slider.osu")
+            diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse("osu file format v14\n[Metadata]\nTitle:Unverified slider\nArtist:Local Fixture\nCreator:osu!java\nVersion:Slider\n[HitObjects]\n100,100,1000,2,0,B2|150:200|200:100,1,100","slider.osu")
                     .difficulty().withAssets(null,null,Path.of("slider.osu")));
-            for(String fixture:List.of("linear-basic","linear-repeat","linear-polyline","linear-sv","linear-stacks","linear-late-tick","linear-duplicate","linear-no-timing","linear-rhythm"))
+            for(String fixture:List.of("linear-basic","linear-repeat","linear-polyline","linear-sv","linear-stacks","linear-late-tick","linear-duplicate","linear-no-timing","linear-rhythm","curve-bezier","curve-perfect","curve-catmull","curve-mixed"))
                 diffs.add(new dev.osujava.beatmap.parse.BeatmapFileParser().parse(Path.of("core/src/test/resources/difficulty/reference-20220902/"+fixture+".osu"))
                         .difficulty().withAssets(null,null,Path.of(fixture+".osu")));
             library.add(new BeatmapSet("set3","Reference fixtures","Local Fixture","osu!java",null,null,diffs,List.of()));
@@ -2193,13 +2193,22 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
         capture(fb,name+"-grouped");
         screen.browserSearch("stars>=5 stars<8",true);
         for(int i=0;i<45;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
-        if(browser.rows().stream().filter(r->!r.group() && !r.excluded).count()!=5) throw new AssertionError("Stars search does not use local computed ratings");
+        long expectedSearch=library.all().getFirst().difficulties().stream().map(service::result).filter(r->r.rating().isPresent() && r.stars()>=5 && r.stars()<8).count();
+        if(browser.rows().stream().filter(r->!r.group() && !r.excluded).count()!=expectedSearch) throw new AssertionError("Stars search does not use local computed ratings");
         capture(fb,name+"-search");screen.browserSearch("",false);
         if(!selection.equals(browser.selection())) throw new AssertionError("Stars search clear lost selection");
         browser.select("set3",14);screen.browserMode(SongBrowserModel.Sort.DIFFICULTY,SongBrowserModel.Group.DIFFICULTY);
         for(int i=0;i<45;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
         if(!((SongSelectDetails)screenField(screen,"details")).status().contains("Stars 1.68")) throw new AssertionError("Linear repeat slider rating absent from metadata");
         capture(fb,name+"-linear-repeat");
+        for(int index=22;index<26;index++) {
+            browser.select("set3",index);screen.browserMode(SongBrowserModel.Sort.DIFFICULTY,SongBrowserModel.Group.DIFFICULTY);
+            for(int i=0;i<45;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
+            var chart=library.all().getFirst().difficulties().get(index);
+            var label=String.format(java.util.Locale.ROOT,"Stars %.2f",service.result(chart).stars());
+            if(!((SongSelectDetails)screenField(screen,"details")).status().contains(label)) throw new AssertionError("Curve rating absent: "+chart.title());
+            capture(fb,name+"-"+chart.title());
+        }
         browser.select("set3",12);screen.browserMode(SongBrowserModel.Sort.DIFFICULTY,SongBrowserModel.Group.DIFFICULTY);
         for(int i=0;i<45;i++) {screen.render(1f/60);transitionFrames++;assertRenderedBounds(screen,layout);}
         if(((SongSelectDetails)screenField(screen,"details")).status().contains("Stars")) throw new AssertionError("Unsupported rating shown in metadata");
@@ -2217,6 +2226,10 @@ public final class SongSelectVisualHarness extends ApplicationAdapter {
             for(int i=0;i<45;i++) {reopened.render(1f/60);transitionFrames++;assertRenderedBounds(reopened,layout);}
             if(!((SongSelectDetails)screenField(reopened,"details")).status().contains("Stars 1.68")) throw new AssertionError("Warm screen did not restore Linear slider rating");
             capture(fb,name+"-linear-warm");
+            warmBrowser.select("set3",22);reopened.browserMode(SongBrowserModel.Sort.DIFFICULTY,SongBrowserModel.Group.DIFFICULTY);
+            for(int i=0;i<45;i++) {reopened.render(1f/60);transitionFrames++;assertRenderedBounds(reopened,layout);}
+            if(!((SongSelectDetails)screenField(reopened,"details")).status().contains("Stars 1.74")) throw new AssertionError("Warm screen did not restore Bezier rating");
+            capture(fb,name+"-curve-warm");
         } finally {reopened.dispose();}
         System.out.println("DIFFICULTY PASS "+name);
     }
