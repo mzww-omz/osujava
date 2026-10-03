@@ -103,6 +103,8 @@ public final class BeatmapArchiveImporter {
         for (Path osuFile : osuFiles) {
             try {
                 BeatmapFile beatmap = parser.parse(osuFile);
+                if (beatmap.difficulty().parseIssues().any())
+                    warnings.add("Source issues in " + staging.relativize(osuFile) + ": " + beatmap.difficulty().parseIssues().description());
                 if (beatmap.difficulty().skippedHitObjectCount() > 0) {
                     warnings.add("Skipped " + beatmap.difficulty().skippedHitObjectCount()
                             + " invalid HitObject line(s) in " + staging.relativize(osuFile));

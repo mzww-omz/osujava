@@ -52,6 +52,28 @@ class PropertiesBeatmapLibraryStorageTest {
         assertEquals(dev.osujava.difficulty.DifficultyResult.Status.SUCCESS, calculator.calculate(repaired).status());
         assertNotEquals(restored.playData().sha256(), repaired.playData().sha256());
     }
+    @ParameterizedTest @ValueSource(booleans={false,true})
+    void sourceIssuesSurviveImportRestartAndRepairWithoutChangingLibrarySchema(boolean archive) throws Exception {
+        Path root=tempDir.resolve("source-quality-library");
+        String valid="osu file format v14\n[Metadata]\nTitle:SourceQuality\nBeatmapSetID:124\n[Difficulty]\nCircleSize:5\n[TimingPoints]\n0,500\n[HitObjects]\n256,192,1000,8,0,1500\n";
+        String damaged=valid.replace("CircleSize:5","CircleSize:broken").replace("0,500","short\n0,500").replace("8,0,1500","8,0,500");
+        Path source=tempDir.resolve(archive?"source.osz":"source.osu");
+        if(archive) try(var zip=new ZipOutputStream(Files.newOutputStream(source),StandardCharsets.UTF_8)) {put(zip,"nested/source.osu",damaged);}
+        else Files.writeString(source,damaged);
+        var imported=new BeatmapArchiveImporter(root).importFile(source);
+        assertEquals(1,imported.warnings().size());assertTrue(imported.warnings().getFirst().contains("Source issues"));
+        var expected=new dev.osujava.beatmap.BeatmapParseIssues(1,1,1);
+        assertEquals(expected,imported.beatmapSet().difficulties().getFirst().parseIssues());
+        new PropertiesBeatmapLibraryStorage(root).save(imported.beatmapSet());
+        var restored=new PropertiesBeatmapLibraryStorage(root).load().getFirst().difficulties().getFirst();
+        assertEquals(expected,restored.parseIssues());
+        assertEquals(dev.osujava.difficulty.DifficultyResult.Status.FAILED,new dev.osujava.difficulty.StandardDifficultyCalculator().calculate(restored).status());
+        Files.writeString(restored.beatmapPath(),valid);
+        var repaired=new PropertiesBeatmapLibraryStorage(root).load().getFirst().difficulties().getFirst();
+        assertEquals(dev.osujava.beatmap.BeatmapParseIssues.NONE,repaired.parseIssues());
+        assertNotEquals(restored.playData().sha256(),repaired.playData().sha256());
+        assertEquals(dev.osujava.difficulty.DifficultyResult.Status.SUCCESS,new dev.osujava.difficulty.StandardDifficultyCalculator().calculate(repaired).status());
+    }
     @TempDir
     Path tempDir;
 

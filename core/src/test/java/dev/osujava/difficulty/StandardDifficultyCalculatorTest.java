@@ -24,6 +24,24 @@ class StandardDifficultyCalculatorTest {
         }
         assertEquals(0, calculator.calculate(parser.parse("osu file format v14\n[HitObjects]\n", "empty.osu").difficulty()).stars());
     }
+    @Test void sourceFallbacksAndCorrectionsCannotProduceStarsIncludingForEmptyCharts() throws Exception {
+        var parser=new BeatmapFileParser();var calculator=new StandardDifficultyCalculator();
+        for(String source:List.of("[Difficulty]\nCircleSize:bad\n", "[General]\nMode:bad\n", "[Difficulty]\nHPDrainRate:NaN\n",
+                "[TimingPoints]\nshort\n", "[TimingPoints]\nNaN,500\n", "[TimingPoints]\n0,500,4,0,0,100,bad,0\n")) {
+            for(String objects:List.of("", "100,100,1000,1,0\n")) {
+                var chart=parser.parse("osu file format v14\n"+source+"[HitObjects]\n"+objects, "bad.osu").difficulty();
+                var inspection=calculator.inspect(chart);
+                assertEquals(DifficultyResult.Status.FAILED,inspection.result().status(),source);
+                assertTrue(inspection.result().reason().contains("Parser source issues"));
+                assertTrue(inspection.result().rating().isEmpty());assertTrue(inspection.objects().isEmpty());
+            }
+        }
+        var corrected=parser.parse("osu file format v14\n[HitObjects]\n256,192,1000,8,0,500", "spinner.osu").difficulty();
+        assertEquals(DifficultyResult.Status.FAILED,calculator.calculate(corrected).status());
+        String nan="osu file format v14\n[TimingPoints]\n0,500\n1000,NaN,4,0,0,100,0,0\n[HitObjects]\n100,100,1000,2,0,L|200:100,1,100";
+        assertEquals(DifficultyResult.Status.UNSUPPORTED,calculator.calculate(parser.parse(nan,"nan.osu").difficulty()).status(),
+                "Intentional NaN slider timing remains unverified, rather than corrupt source");
+    }
     // Fixed before comparing results. Stars/skill ratings: 1e-9 absolute;
     // per-object and section values: 1e-7 absolute + 1e-9 relative (single-precision geometry).
     static Stream<String> fixtures() { return Stream.of("empty","single","pair","three","jumps","stream","rhythm","simultaneous","stacks","spinner","gaps","fractional","linear-basic","linear-repeat","linear-polyline","linear-sv","linear-stacks","linear-late-tick","linear-duplicate","linear-no-timing","linear-rhythm","linear-single","linear-spinner","linear-future-timing","curve-bezier","curve-bezier-segments","curve-bezier-high-degree","curve-perfect","curve-perfect-major","curve-perfect-fallback","curve-catmull","curve-catmull-duplicates","curve-mixed","curve-stacks","curve-fractional-controls","curve-loop","curve-catmull-v128","curve-perfect-reverse"); }

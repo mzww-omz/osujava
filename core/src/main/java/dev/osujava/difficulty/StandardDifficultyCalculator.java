@@ -10,7 +10,7 @@ import java.util.concurrent.CancellationException;
  * See docs/songselect-backend-difficulty-20261003.md for numerical scope and provenance. */
 public final class StandardDifficultyCalculator {
     public static final String ALGORITHM_VERSION = "osu-java-nm-20220902-3";
-    public static final String PREPROCESS_VERSION = "legacy-curves-f32-v8-2";
+    public static final String PREPROCESS_VERSION = "legacy-curves-f32-v8-3";
     public static final int MAX_OBJECTS = 20_000;
     private static final int MAX_STACK_COMPARISONS = 2_000_000;
     private static final long MAX_SPAN_MS = 6 * 60 * 60 * 1000L;
@@ -27,6 +27,8 @@ public final class StandardDifficultyCalculator {
     private Inspection inspect(BeatmapDifficulty chart, boolean diagnostics) {
         if (chart.skippedHitObjectCount() > 0)
             return rejected(DifficultyResult.failed("Parser skipped " + chart.skippedHitObjectCount() + " invalid HitObject line(s)"));
+        if (chart.parseIssues().any())
+            return rejected(DifficultyResult.failed("Parser source issues: " + chart.parseIssues().description()));
         if (chart.mode()!=0) return rejected(DifficultyResult.unsupported("Only osu!standard NM is supported"));
         if (chart.settings().formatVersion()<6) return rejected(DifficultyResult.unsupported("Pre-v6 stacking is not verified"));
         var settings=chart.settings();

@@ -6,6 +6,7 @@ import dev.osujava.beatmap.BeatmapTimingStatistics;
 import dev.osujava.beatmap.BeatmapFile;
 import dev.osujava.beatmap.BeatmapPoint;
 import dev.osujava.beatmap.BeatmapPlayData;
+import dev.osujava.beatmap.BeatmapParseIssues;
 import dev.osujava.beatmap.BreakPeriod;
 import dev.osujava.beatmap.DifficultySettings;
 import dev.osujava.beatmap.HitObject;
@@ -93,7 +94,8 @@ public final class BeatmapFileParser {
                 decimal(difficultyValues.get("slidertickrate"), 1),
                 decimal(general.get("stackleniency"), 0.7), formatVersion);
 
-        List<TimingPoint> timingPoints = parseTimingPoints(timingLines);
+        ParsedTiming parsedTiming = parseTimingPoints(timingLines);
+        List<TimingPoint> timingPoints = parsedTiming.points();
         ParsedObjects parsedObjects = parseHitObjects(objectLines);
         var statistics = BeatmapTimingStatistics.calculate(timingPoints, parsedObjects.firstStartMs(),
                 parsedObjects.lastStartMs(), parsedObjects.lastEndMs(), breakDuration(eventLines));
@@ -108,7 +110,8 @@ public final class BeatmapFileParser {
         BeatmapDifficulty difficulty = new BeatmapDifficulty(title, artist, creator, version, mode,
                 audioFilename, backgroundFilename, settings, timingPoints, parsedObjects.objects(), null, null, null, integer(general.get("previewtime"), -1),
                 new BeatmapMetadata(titleUnicode, artistUnicode, value(metadata, "source", ""), value(metadata, "tags", ""),
-                        integer(metadata.get("beatmapid"), -1), beatmapSetId), statistics, playData, parsedObjects.skippedCount());
+                        integer(metadata.get("beatmapid"), -1), beatmapSetId), statistics, playData, parsedObjects.skippedCount(),
+                new BeatmapParseIssues(invalidSettings(difficultyValues, general), parsedTiming.invalidCount(), parsedObjects.correctedCount()));
         return new BeatmapFile(formatVersion, title, titleUnicode, artist, artistUnicode, creator,
                 beatmapSetId, difficulty);
     }
@@ -128,25 +131,54 @@ public final class BeatmapFileParser {
         throw new BeatmapParseException("Missing osu file format header in " + sourceName);
     }
 
-    private List<TimingPoint> parseTimingPoints(List<String> lines) {
+    private record ParsedTiming(List<TimingPoint> points, int invalidCount) { }
+
+    private ParsedTiming parseTimingPoints(List<String> lines) {
         List<TimingPoint> points = new ArrayList<>();
+        int invalidCount = 0;
         for (String line : lines) {
             String[] fields = line.split(",", -1);
-            if (fields.length < 2) continue;
+            if (fields.length < 2) { invalidCount++; continue; }
+            boolean uninherited = bool(field(fields, 6), true);
+            boolean invalid = !validDecimal(fields[0], false) || !validDecimal(fields[1], !uninherited);
+            for (int i = 2; i < Math.min(fields.length, 8); i++) {
+                String v = fields[i].trim();
+                invalid |= i == 6 ? !(v.equals("0") || v.equals("1")) : !validInteger(v);
+            }
+            if (invalid) invalidCount++;
             points.add(new TimingPoint(decimal(fields[0], 0), decimal(fields[1], 0),
                     integer(field(fields, 2), 4), integer(field(fields, 3), 0), integer(field(fields, 4), 0),
                     integer(field(fields, 5), 100), bool(field(fields, 6), true), integer(field(fields, 7), 0)));
         }
         points.sort(Comparator.comparingDouble(TimingPoint::timeMs));
-        return points;
+        return new ParsedTiming(points, invalidCount);
     }
 
-    private record ParsedObjects(List<HitObject> objects, int firstStartMs, int lastStartMs, int lastEndMs, int skippedCount) { }
+    private int invalidSettings(Map<String, String> difficulty, Map<String, String> general) {
+        int count = 0;
+        for (String key : new String[]{"hpdrainrate", "circlesize", "overalldifficulty", "approachrate", "slidermultiplier", "slidertickrate"})
+            if (difficulty.containsKey(key) && !validDecimal(difficulty.get(key), false)) count++;
+        if (general.containsKey("stackleniency") && !validDecimal(general.get("stackleniency"), false)) count++;
+        if (general.containsKey("mode") && !validInteger(general.get("mode"))) count++;
+        return count;
+    }
+
+    private boolean validDecimal(String value, boolean allowNaN) {
+        try { double n = Double.parseDouble(value.trim()); return Double.isFinite(n) || allowNaN && Double.isNaN(n); }
+        catch (NumberFormatException e) { return false; }
+    }
+
+    private boolean validInteger(String value) {
+        try { Integer.parseInt(value.trim()); return true; }
+        catch (NumberFormatException e) { return false; }
+    }
+
+    private record ParsedObjects(List<HitObject> objects, int firstStartMs, int lastStartMs, int lastEndMs, int skippedCount, int correctedCount) { }
 
     private ParsedObjects parseHitObjects(List<String> lines) {
         List<HitObject> objects = new ArrayList<>();
         int firstStartMs = -1, lastStartMs = -1, lastEndMs = -1;
-        int skippedCount = 0;
+        int skippedCount = 0, correctedCount = 0;
         for (String line : lines) {
             String[] fields = line.split(",", -1);
             if (fields.length < 5) { skippedCount++; continue; }
@@ -172,6 +204,7 @@ public final class BeatmapFileParser {
                 }
                 objects.add(new HitObject(x, y, timeMs, type, rawType,
                         Integer.parseInt(fields[4].trim()), slider, spinner));
+                if (spinner != null && Double.parseDouble(fields[5].trim()) < timeMs) correctedCount++;
                 if (firstStartMs == -1) firstStartMs = BeatmapTimingStatistics.milliseconds(timeMs);
                 if (type != HitObject.Type.UNKNOWN) {
                     lastStartMs = BeatmapTimingStatistics.milliseconds(type == HitObject.Type.HOLD ? endMs : timeMs);
@@ -183,7 +216,7 @@ public final class BeatmapFileParser {
             }
         }
         objects.sort(Comparator.comparingLong(HitObject::timeMs));
-        return new ParsedObjects(objects, firstStartMs, lastStartMs, lastEndMs, skippedCount);
+        return new ParsedObjects(objects, firstStartMs, lastStartMs, lastEndMs, skippedCount, correctedCount);
     }
 
     private long breakDuration(List<String> lines) {

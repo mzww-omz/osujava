@@ -50,6 +50,29 @@ class LocalDifficultyServiceTest {
             assertTrue(service.result(repaired).rating().isPresent());
         }
     }
+    @Test void sourceIssueVersionRejectsOldFallbackRatingAndWarmRestartRetainsFailure() throws Exception {
+        var parser=new BeatmapFileParser();
+        String valid="osu file format v14\n[Difficulty]\nCircleSize:5\n[TimingPoints]\n0,500\n[HitObjects]\n100,100,1000,1,0\n";
+        var bad=parser.parse(valid.replace("CircleSize:5","CircleSize:broken"),"bad.osu").difficulty();
+        var old=new DifficultyKey(BeatmapContentKey.of(bad),List.of(),StandardDifficultyCalculator.ALGORITHM_VERSION,"legacy-curves-f32-v8-2");
+        var cache=new DifficultyCache(directory);cache.save(old,VALUE);byte[] previous=Files.readAllBytes(cache.path(old));
+        DifficultyResult failed;
+        try(var service=new LocalDifficultyService(directory)) {
+            service.library(sets(bad));finished(service,1);failed=service.result(bad);
+            assertEquals(DifficultyResult.Status.FAILED,failed.status());assertTrue(failed.reason().contains("1 invalid setting"));
+        }
+        assertArrayEquals(previous,Files.readAllBytes(cache.path(old)));
+        try(var service=new LocalDifficultyService(directory,d->{fail("Warm source failure must not recalculate");return VALUE;},
+                StandardDifficultyCalculator.ALGORITHM_VERSION,StandardDifficultyCalculator.PREPROCESS_VERSION)) {
+            var moved=bad.withAssets(null,null,Path.of("moved.osu"));
+            service.library(sets(moved));finished(service,1);assertEquals(failed,service.result(moved));
+        }
+        var repaired=parser.parse(valid,"bad.osu").difficulty();
+        try(var service=new LocalDifficultyService(directory)) {
+            service.library(sets(bad,repaired));finished(service,2);
+            assertEquals(failed,service.result(bad));assertEquals(DifficultyResult.Status.SUCCESS,service.result(repaired).status());
+        }
+    }
     @Test void frameMethodsDoNoCalculationAndContentDuplicatesShareOneResultAndCache() throws Exception {
         var first=chart(100);var copy=first.withAssets(null,null,Path.of("moved.osu"));
         var calls=new AtomicInteger();var thread=new AtomicReference<Thread>();Thread ui=Thread.currentThread();

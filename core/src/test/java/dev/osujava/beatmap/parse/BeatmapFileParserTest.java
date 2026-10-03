@@ -1,12 +1,15 @@
 package dev.osujava.beatmap.parse;
 
 import dev.osujava.beatmap.BeatmapFile;
+import dev.osujava.beatmap.BeatmapParseIssues;
 import dev.osujava.beatmap.BreakPeriod;
 import dev.osujava.beatmap.HitObject;
 import dev.osujava.beatmap.SliderData;
 import dev.osujava.beatmap.SpinnerData;
 import dev.osujava.beatmap.TimingPoint;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.io.TempDir;
 import java.nio.file.Path;
 import java.nio.file.Files;
@@ -39,6 +42,55 @@ class BeatmapFileParserTest {
         assertEquals(6, chart.withAssets(null, null).skippedHitObjectCount());
         assertEquals(6, chart.withAssets(null, null, Path.of("moved.osu")).skippedHitObjectCount());
         assertEquals(0, parser.parse("osu file format v14\n[HitObjects]\n// empty\n", "empty.osu").difficulty().skippedHitObjectCount());
+    }
+    @ParameterizedTest @ValueSource(strings={"bad", "", "NaN", "Infinity", "-Infinity", "1e999"})
+    void retainsInvalidExplicitSettingsEvenWhenTolerantParsingUsesDefaults(String value) throws Exception {
+        var chart=parser.parse("osu file format v14\n[Difficulty]\nCircleSize:"+value+"\n[HitObjects]\n100,100,1000,1,0", "settings.osu").difficulty();
+        var expected=new BeatmapParseIssues(1,0,0);
+        assertEquals(expected,chart.parseIssues());
+        assertEquals(expected,chart.withAssets(null,null).parseIssues());
+        assertEquals(expected,chart.withAssets(null,null,Path.of("moved.osu")).parseIssues());
+        assertEquals(1,chart.hitObjects().size());
+        if(value.equals("bad") || value.isEmpty()) assertEquals(5,chart.settings().circleSize());
+    }
+    @Test void missingDefaultsAndLegacyShortTimingRemainDifferentFromDamagedExplicitValues() throws Exception {
+        var valid=parser.parse("osu file format v14\n[Difficulty]\nOverallDifficulty:7\n[TimingPoints]\n-100,500\n0,-50,4,0,0,100,0,0", "valid.osu").difficulty();
+        assertEquals(BeatmapParseIssues.NONE,valid.parseIssues());assertEquals(7,valid.settings().approachRate());
+        var bad=parser.parse("""
+                osu file format v14
+                [General]
+                Mode:invalid
+                StackLeniency:
+                [Difficulty]
+                HPDrainRate:NaN
+                CircleSize:bad
+                OverallDifficulty:Infinity
+                ApproachRate:
+                SliderMultiplier:1e999
+                SliderTickRate:bad
+                [TimingPoints]
+                // absent optional fields are valid
+                0,500
+                short
+                ,500
+                1000,nope,4,0,0,100,1,0
+                2000,500,broken,0,0,100,1,0
+                3000,500,4,0,0,100,what,0
+                ""","bad.osu").difficulty();
+        assertEquals(new BeatmapParseIssues(8,5,0),bad.parseIssues());
+        assertEquals(0,bad.mode());assertEquals(5,bad.timingPoints().size());
+        assertThrows(IllegalArgumentException.class,()->new BeatmapParseIssues(-1,0,0));
+    }
+    @Test void inheritedNaNIsAnIntentionalTimingEncodingWhileNonFiniteTimesAndRedNaNAreIssues() throws Exception {
+        var green=parser.parse("osu file format v14\n[TimingPoints]\n0,500\n1000,NaN,4,0,0,100,0,0", "green.osu").difficulty();
+        assertEquals(BeatmapParseIssues.NONE,green.parseIssues());
+        var bad=parser.parse("osu file format v14\n[TimingPoints]\nNaN,500\n0,Infinity\n1,NaN,4,0,0,100,1,0", "bad.osu").difficulty();
+        assertEquals(new BeatmapParseIssues(0,3,0),bad.parseIssues());
+    }
+    @Test void reportsOnlyKeptSpinnerEndCorrectionsAndPreservesExistingClamp() throws Exception {
+        var chart=parser.parse("osu file format v14\n[HitObjects]\n256,192,1000,8,0,500\n256,192,2000,8,bad,500\n256,192,3000,8,0,3000", "spinner.osu").difficulty();
+        assertEquals(new BeatmapParseIssues(0,0,1),chart.parseIssues());assertEquals(1,chart.skippedHitObjectCount());
+        assertEquals(2,chart.hitObjects().size());assertEquals(1000,chart.hitObjects().getFirst().endTimeMs());
     }
     private final BeatmapFileParser parser = new BeatmapFileParser();
 

@@ -337,7 +337,7 @@ public final class PropertiesBeatmapLibraryStorage implements BeatmapLibraryStor
                         properties.getProperty(prefix + "source", metadata.source()),
                         properties.getProperty(prefix + "tags", metadata.tags()),
                         integer(properties, prefix + "beatmapId", metadata.beatmapId()),
-                        integer(properties, prefix + "beatmapSetId", metadata.beatmapSetId())), chart.timingStatistics(), chart.playData(), chart.skippedHitObjectCount());
+                        integer(properties, prefix + "beatmapSetId", metadata.beatmapSetId())), chart.timingStatistics(), chart.playData(), chart.skippedHitObjectCount(), chart.parseIssues());
     }
 
     private Path firstPath(List<BeatmapDifficulty> difficulties, boolean audio) {
