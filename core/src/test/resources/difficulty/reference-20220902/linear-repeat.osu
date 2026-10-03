@@ -1,0 +1,24 @@
+osu file format v14
+[General]
+Mode:0
+StackLeniency:0.7
+[Metadata]
+Title:linear-repeat
+Artist:Local fixture
+Creator:osu-java tests
+Version:NM linear reference
+[Difficulty]
+CircleSize:6.3
+OverallDifficulty:8
+ApproachRate:9
+SliderMultiplier:1.4
+SliderTickRate:2
+[TimingPoints]
+0,400,4,0,0,100,1,0
+[HitObjects]
+80,80,1000,2,0,L|420:280,2,390
+80,80,3900,1,0
+400,300,4100,2,0,L|120:180,3,310
+460,100,7600,1,0
+40,320,7800,1,0
+420,260,8000,1,0

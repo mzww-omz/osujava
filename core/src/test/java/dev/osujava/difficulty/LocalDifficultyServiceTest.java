@@ -35,6 +35,17 @@ class LocalDifficultyServiceTest {
         }
         try(var paths=Files.list(directory)) { assertEquals(1,paths.count()); }
     }
+    @Test void newlyVerifiedLinearRatingBypassesTheOldUnsupportedCacheAndSurvivesRestart() throws Exception {
+        var chart=new BeatmapFileParser().parse(Path.of("src/test/resources/difficulty/reference-20220902/linear-repeat.osu")).difficulty();
+        var old=new DifficultyKey(BeatmapContentKey.of(chart),List.of(),"osu-java-nm-20220902-1","circle-spinner-f32-v6-1");
+        var cache=new DifficultyCache(directory);cache.save(old,DifficultyResult.unsupported("Slider preprocessing is not verified"));
+        byte[] previous=Files.readAllBytes(cache.path(old));DifficultyResult calculated;
+        try(var service=new LocalDifficultyService(directory)) {service.library(sets(chart));finished(service,1);calculated=service.result(chart);assertEquals(DifficultyResult.Status.SUCCESS,calculated.status());assertEquals(1.677664082435828,calculated.stars(),1e-9);}
+        assertArrayEquals(previous,Files.readAllBytes(cache.path(old)));
+        try(var service=new LocalDifficultyService(directory,d->{fail("Linear slider must use its warm versioned cache");return VALUE;},StandardDifficultyCalculator.ALGORITHM_VERSION,StandardDifficultyCalculator.PREPROCESS_VERSION)) {
+            service.library(sets(chart));finished(service,1);assertEquals(calculated,service.result(chart));
+        }
+    }
     @Test void algorithmPreprocessingModeAndNormalizedModsAreIndependentCacheKeys() throws Exception {
         var content=BeatmapContentKey.of(chart(100));
         var a=new DifficultyKey(content,List.of("HR","HD","HD"),"alg","pre");var b=new DifficultyKey(content,List.of("HD","HR"),"alg","pre");

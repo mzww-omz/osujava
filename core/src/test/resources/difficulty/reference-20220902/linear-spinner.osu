@@ -1,0 +1,25 @@
+osu file format v14
+[General]
+Mode:0
+StackLeniency:0.7
+[Metadata]
+Title:linear-spinner
+Artist:Local fixture
+Creator:osu-java tests
+Version:NM linear reference
+[Difficulty]
+CircleSize:5
+OverallDifficulty:8
+ApproachRate:9
+SliderMultiplier:1.4
+SliderTickRate:1
+[TimingPoints]
+0,500,4,0,0,100,1,0
+[HitObjects]
+100,100,1000,1,0
+100,100,1200,2,0,L|400:200,1,300
+256,192,1600,8,0,2000
+400,200,2200,2,0,L|100:300,2,280
+100,300,4300,1,0
+400,100,4500,1,0
+80,300,4700,1,0

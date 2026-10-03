@@ -7,6 +7,8 @@ using osu.Game.Rulesets.Osu.Difficulty.Preprocessing;
 using osu.Game.Rulesets.Osu.Difficulty.Skills;
 using osu.Game.Rulesets.Osu.Difficulty.Evaluators;
 using osu.Game.Rulesets.Mods;
+using osu.Game.Rulesets.Objects;
+using osu.Game.Rulesets.Objects.Types;
 using osuTK;
 CultureInfo.CurrentCulture=CultureInfo.InvariantCulture;
 string fmt(double n) => n.ToString("R",CultureInfo.InvariantCulture);
@@ -18,14 +20,41 @@ foreach (var file in Directory.GetFiles(args[0],"*.osu").Order()) {
     var beatmap=new Beatmap<OsuHitObject>();
     beatmap.BeatmapInfo.BeatmapVersion=int.Parse(lines[0].Split('v')[1]);
     beatmap.BeatmapInfo.StackLeniency=(float)setting("StackLeniency",.7);
+    var timing=new List<(double time,double beat,bool red)>(); bool timingSection=false;
+    foreach(var line in lines) {
+        if(line.StartsWith("[")) { timingSection=line=="[TimingPoints]";continue; }
+        if(timingSection && line.Length>0) {var t=line.Split(',');timing.Add((double.Parse(t[0]),double.Parse(t[1]),t.Length<7 || t[6]=="1"));}
+    }
     bool parsing=false;
     foreach(var line in lines) {
         if(line=="[HitObjects]") { parsing=true; continue; }
         if(!parsing || line.Length==0) continue;
         var p=line.Split(','); int type=int.Parse(p[3]);
-        OsuHitObject o=type==8?new Spinner():type==1?new HitCircle():throw new NotSupportedException();
-        o.Position=new Vector2(float.Parse(p[0]),float.Parse(p[1]));o.StartTime=double.Parse(p[2]);o.EndTime=type==8?double.Parse(p[5]):o.StartTime;
-        o.Scale=scale;o.TimePreempt=(float)(ar>5?1200-150*(ar-5):1800-120*ar);o.HitWindows.Window=type==8?0:80-6*od;
+        OsuHitObject o=(type&8)!=0?new Spinner():(type&1)!=0?new HitCircle():(type&2)!=0?new Slider():throw new NotSupportedException();
+        o.Position=new Vector2(float.Parse(p[0]),float.Parse(p[1]));o.StartTime=double.Parse(p[2]);o.EndTime=(type&8)!=0?double.Parse(p[5]):o.StartTime;
+        o.Scale=scale;o.TimePreempt=(float)(ar>5?1200-150*(ar-5):1800-120*ar);o.HitWindows.Window=(type&8)!=0?0:80-6*od;
+        if(o is Slider slider) {
+            var controls=p[5].Split('|');if(controls[0]!="L") throw new NotSupportedException();
+            var points=new List<Vector2>{Vector2.Zero};
+            foreach(var c in controls.Skip(1)) {var xy=c.Split(':');points.Add(new Vector2(float.Parse(xy[0]),float.Parse(xy[1]))-o.Position);}
+            slider.Path=new osu.Game.Rulesets.Objects.SliderPath(PathType.Linear,points.ToArray(),double.Parse(p[7]));
+            slider.RepeatCount=int.Parse(p[6])-1;
+            double beat=timing.Any(t=>t.red)?timing.First(t=>t.red).beat:1000,sv=1;
+            foreach(var t in timing.Where(t=>t.time<=o.StartTime)) {if(t.red)beat=Math.Clamp(t.beat,6,60000);sv=Math.Round(Math.Clamp(t.beat<0?100/-t.beat:1,.1,10)/.01)*.01;}
+            double scoringDistance=100*Math.Clamp(setting("SliderMultiplier",1.4),.4,3.6)*sv;
+            double velocity=scoringDistance/beat;
+            slider.SpanDuration=slider.Path.Distance/velocity;o.EndTime=o.StartTime+(slider.RepeatCount+1)*slider.SpanDuration;
+            foreach(var e in SliderEventGenerator.Generate(o.StartTime,slider.SpanDuration,velocity,scoringDistance/Math.Clamp(setting("SliderTickRate",1),.5,8),slider.Path.Distance,slider.RepeatCount+1,36)) {
+                if(e.Type==SliderEventType.Tail)continue;
+                OsuHitObject nested=e.Type==SliderEventType.Repeat?new SliderRepeat():new HitCircle();
+                nested.StartTime=e.Time;nested.EndTime=e.Time;nested.Scale=scale;nested.HitWindows.Window=80-6*od;
+                nested.Position=e.Type==SliderEventType.LegacyLastTick?slider.EndPosition:o.Position+slider.Path.PositionAt(e.PathProgress);
+                slider.NestedHitObjects.Add(nested);
+                if(e.Type==SliderEventType.Head)slider.HeadCircle=(HitCircle)nested;
+                if(e.Type==SliderEventType.LegacyLastTick)slider.TailCircle=(HitCircle)nested;
+            }
+            slider.NestedHitObjects.Sort((a,b)=>a.StartTime.CompareTo(b.StartTime));
+        }
         beatmap.HitObjects.Add(o);
     }
     new OsuBeatmapProcessor(beatmap).PostProcess();
@@ -40,7 +69,14 @@ foreach (var file in Directory.GetFiles(args[0],"*.osu").Order()) {
     output.Add("heights="+string.Join(",",beatmap.HitObjects.Select(o=>o.StackHeight)));
     for(int i=0;i<objects.Count;i++) {
         var o=(OsuDifficultyHitObject)objects[i];
-        output.Add("object."+i+"="+string.Join(",",new[]{o.StrainTime,o.LazyJumpDistance,o.Angle??-1,AimEvaluator.EvaluateDifficultyOf(o,true),SpeedEvaluator.EvaluateDifficultyOf(o),RhythmEvaluator.EvaluateDifficultyOf(o)}.Select(fmt)));
+        output.Add("object."+i+"="+string.Join(",",new[]{o.StrainTime,o.LazyJumpDistance,o.Angle??-1,AimEvaluator.EvaluateDifficultyOf(o,true),SpeedEvaluator.EvaluateDifficultyOf(o),RhythmEvaluator.EvaluateDifficultyOf(o),o.TravelDistance,o.TravelTime,o.MinimumJumpDistance,o.MinimumJumpTime}.Select(fmt)));
+    }
+    for(int i=0;i<beatmap.HitObjects.Count;i++) if(beatmap.HitObjects[i] is Slider slider) {
+        // Trigger lazy calculation for a lone / first slider as well, without feeding skills.
+        if(slider.LazyEndPosition==null) _=new OsuDifficultyHitObject(slider,new HitCircle{Scale=scale,StartTime=slider.StartTime-100},null,1,new(),0);
+        output.Add("slider."+i+"="+string.Join(",",new[]{slider.Path.Distance,slider.SpanDuration,slider.EndTime,slider.EndPosition.X,slider.EndPosition.Y,slider.LazyTravelTime,slider.LazyTravelDistance,slider.LazyEndPosition!.Value.X,slider.LazyEndPosition!.Value.Y}.Select(fmt)));
+        for(int j=0;j<slider.NestedHitObjects.Count;j++) {var n=(OsuHitObject)slider.NestedHitObjects[j];output.Add($"nested.{i}.{j}="+string.Join(",",new[]{n.StartTime,n.StackedPosition.X,n.StackedPosition.Y,n is SliderRepeat?1d:0d}.Select(fmt)));}
+        output.Add("path."+i+"="+string.Join(",",new[]{0d,.25,.5,.75,1}.SelectMany(t=>{var v=slider.Path.PositionAt(t);return new[]{(double)v.X,v.Y};}).Select(fmt)));
     }
     output.Add("aimPeaks="+string.Join(",",aim.GetCurrentStrainPeaks().Select(fmt)));
     output.Add("speedPeaks="+string.Join(",",speed.GetCurrentStrainPeaks().Select(fmt)));

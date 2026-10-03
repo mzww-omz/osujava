@@ -21,7 +21,19 @@ single-precision vector and interpolation adapters. The original preprocessing, 
 evaluators and skill aggregators run unchanged. The wrapper uses the pinned NM final combination formula.
 It sets circle defaults to the pinned `OsuHitObject` formula, spinner Great window to zero (`HitWindows.Empty`),
 and standard Great half-window to `80 - 6*OD`. It does **not** emulate the full lazer decoder or stable client.
-Slider adapters throw rather than creating substitute slider facts.
+The unchanged public `SliderPath` and `SliderEventGenerator` also run. Linear approximation is the
+identity in the framework adapter; all Bezier/perfect/Catmull paths throw. Minimal bindable/cache adapters
+supply only these fixture contracts. The wrapper independently wires the public Slider default/nested
+object contracts: relative float control points, first-red-line timing fallback (1000ms without red lines),
+SV precision 0.01, legacy tail offset 36ms and nested StartTime sorting. It is not a full decoder oracle.
+
+24 self-authored fixtures cover the original circle/spinner cases plus Linear paths: single slider,
+first slider, spinner transitions, clipped/extended polylines, repeated terminal control points,
+odd/even repeats, positive/negative stacks, ticks later than the early legacy tail, SV/red-line changes,
+missing timing and timing before the first red line. Output includes actual path positions and length,
+nested event times/stacked positions, lazy end/travel and minimum jump distance/time.
+Arbitrary SV rounding boundaries, NaN/duplicate timing, coincident nested events and pre-v8 tick-distance
+multipliers remain outside the verified subset. Java rejects these charts rather than substituting facts.
 
 Acceptance tolerance, chosen before checking Java outputs: 1e-9 absolute for star/skill ratings;
 1e-7 absolute + 1e-9 relative for per-object/section facts. Stack heights must agree exactly.

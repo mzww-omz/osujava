@@ -6,11 +6,11 @@ import java.util.*;
 import java.util.concurrent.CancellationException;
 
 /** Pure NM calculation, independently implemented against the pinned 20220902 public reference.
- * Only v6+ circle/spinner maps are accepted until slider preprocessing has its own oracle coverage.
+ * v6+ circles/spinners and verified v8+ Linear sliders are accepted.
  * See docs/songselect-backend-difficulty-20261003.md for numerical scope and provenance. */
 public final class StandardDifficultyCalculator {
-    public static final String ALGORITHM_VERSION = "osu-java-nm-20220902-1";
-    public static final String PREPROCESS_VERSION = "circle-spinner-f32-v6-1";
+    public static final String ALGORITHM_VERSION = "osu-java-nm-20220902-2";
+    public static final String PREPROCESS_VERSION = "linear-slider-f32-v8-1";
     public static final int MAX_OBJECTS = 20_000;
     private static final int MAX_STACK_COMPARISONS = 2_000_000;
     private static final long MAX_SPAN_MS = 6 * 60 * 60 * 1000L;
@@ -19,7 +19,7 @@ public final class StandardDifficultyCalculator {
     public DifficultyResult calculate(BeatmapDifficulty chart) { return inspect(chart,false).result(); }
     /** Diagnostics are allocated only for tests/reference inspection, never by the production worker. */
     public Inspection inspect(BeatmapDifficulty chart) { return inspect(chart,true); }
-    public record ObjectFacts(double strainTime, double distance, double angle, double aim, double speed, double rhythm) { }
+    public record ObjectFacts(double strainTime, double distance, double angle, double aim, double speed, double rhythm, double travelDistance, double travelTime, double minimumJumpDistance, double minimumJumpTime) { }
     public record Inspection(DifficultyResult result, List<Integer> heights, List<ObjectFacts> objects,
                              List<Double> aimPeaks, List<Double> speedPeaks) { }
     private static Inspection rejected(DifficultyResult result) { return new Inspection(result,List.of(),List.of(),List.of(),List.of()); }
@@ -37,8 +37,8 @@ public final class StandardDifficultyCalculator {
         if(count>MAX_OBJECTS) return rejected(DifficultyResult.unsupported("Object limit exceeded"));
         for(int i=0;i<count;i++) {
             var object=source.get(i);
-            if(object.type()!=HitObject.Type.CIRCLE && object.type()!=HitObject.Type.SPINNER)
-                return rejected(DifficultyResult.unsupported("Slider/other object preprocessing is not verified"));
+            if(object.type()!=HitObject.Type.CIRCLE && object.type()!=HitObject.Type.SPINNER && object.type()!=HitObject.Type.SLIDER)
+                return rejected(DifficultyResult.unsupported("Other object preprocessing is not verified"));
             if(!Double.isFinite(object.x()) || !Double.isFinite(object.y()) || Math.abs(object.x())>100_000 || Math.abs(object.y())>100_000
                     || Math.abs((double)object.timeMs())>Integer.MAX_VALUE || !Double.isFinite(object.endTimeMs()))
                 return rejected(DifficultyResult.failed("Invalid hit object geometry or time"));
@@ -54,30 +54,63 @@ public final class StandardDifficultyCalculator {
         float preempt=(float)(ar>5 ? 1200-150*(ar-5) : 1800-120*ar);
         // Public reference uses a float product for the stack threshold and float positions.
         float threshold=preempt*(float)settings.stackLeniency();
+        LinearSliderPreprocessing.Slider[] sliders;
+        try { sliders=LinearSliderPreprocessing.prepare(chart); }
+        catch(LinearSliderPreprocessing.Unsupported e) { return rejected(DifficultyResult.unsupported(e.getMessage())); }
         int[] heights=new int[count]; float[] x=new float[count], y=new float[count];
         for(int i=0;i<count;i++) { x[i]=(float)source.get(i).x(); y[i]=(float)source.get(i).y(); }
+        float[] endX=x.clone(),endY=y.clone();double[] endTime=new double[count];
+        for(int i=0;i<count;i++) {
+            endTime[i]=source.get(i).endTimeMs();
+            if(sliders[i]!=null) {endX[i]+=sliders[i].endRelative.x();endY[i]+=sliders[i].endRelative.y();endTime[i]=sliders[i].end;}
+        }
         int comparisons=0;
         for(int i=count-1;i>0;i--) {
             if(heights[i]!=0 || spinner(source,i)) continue;
-            int anchor=i;
+            boolean circle=sliders[i]==null;int anchor=i;
             for(int j=i-1;j>=0;j--) {
                 if((++comparisons&255)==0) checkCancelled();
                 if(comparisons>MAX_STACK_COMPARISONS) return rejected(DifficultyResult.unsupported("Stacking work limit exceeded"));
                 if(spinner(source,j)) continue;
-                if(source.get(anchor).timeMs()-source.get(j).timeMs()>threshold) break;
-                if(length(x[anchor]-x[j],y[anchor]-y[j])<3) { heights[j]=heights[anchor]+1; anchor=j; }
+                if(source.get(anchor).timeMs()-(circle?endTime[j]:source.get(j).timeMs())>threshold) break;
+                if(circle && sliders[j]!=null && length(endX[j]-x[anchor],endY[j]-y[anchor])<3) {
+                    int offset=heights[anchor]-heights[j]+1;
+                    for(int k=j+1;k<=i;k++) {
+                        if((++comparisons&255)==0) checkCancelled();
+                        if(comparisons>MAX_STACK_COMPARISONS) return rejected(DifficultyResult.unsupported("Stacking work limit exceeded"));
+                        if(length(endX[j]-x[k],endY[j]-y[k])<3) heights[k]-=offset;
+                    }
+                    break;
+                }
+                if(length((circle?x[j]:endX[j])-x[anchor],(circle?y[j]:endY[j])-y[anchor])<3) { heights[j]=heights[anchor]+1; anchor=j; }
             }
         }
         for(int i=0;i<count;i++) { float offset=heights[i]*scale*-6.4f; x[i]+=offset; y[i]+=offset; }
+        float[] cursorX=x.clone(),cursorY=y.clone();
+        for(int i=0;i<count;i++) if(sliders[i]!=null) {
+            checkCancelled();sliders[i].cursor(heights[i]*scale*-6.4f,radius);
+            cursorX[i]=sliders[i].lazy.x();cursorY[i]=sliders[i].lazy.y();
+        }
         // All difficulties are float settings in the reference beatmap model.
         double window=2*(80-6*(float)settings.overallDifficulty());
         var objects=new Note[Math.max(0,count-1)];
         for(int i=1;i<count;i++) {
             int index=i-1; var n=new Note(index,source.get(i).timeMs(),source.get(i).timeMs()-source.get(i-1).timeMs(),spinner(source,i),spinner(source,i)?0:window);
+            if(sliders[i]!=null) {
+                n.slider=true;n.travelDistance=sliders[i].lazyDistance*(float)Math.pow(1+sliders[i].repeats/2.5,1/2.5);
+                n.travelTime=Math.max(25,sliders[i].lazyTime);
+            }
             if(!spinner(source,i) && !spinner(source,i-1)) {
-                n.distance=length(x[i]*distanceScale-x[i-1]*distanceScale,y[i]*distanceScale-y[i-1]*distanceScale);
+                n.distance=length(x[i]*distanceScale-cursorX[i-1]*distanceScale,y[i]*distanceScale-cursorY[i-1]*distanceScale);
+                n.minimumJump=n.distance;n.minimumTime=n.strainTime;
+                if(sliders[i-1]!=null) {
+                    n.minimumTime=Math.max(25,n.strainTime-Math.max(25,sliders[i-1].lazyTime));
+                    var tail=sliders[i-1].nestedPosition(sliders[i-1].endRelative,heights[i-1]*scale*-6.4f);
+                    float tailJump=length(tail.x()-x[i],tail.y()-y[i])*distanceScale;
+                    n.minimumJump=Math.max(0,Math.min(n.distance-(LinearSliderPreprocessing.MAX_SLIDER_RADIUS-LinearSliderPreprocessing.ASSUMED_SLIDER_RADIUS),tailJump-LinearSliderPreprocessing.MAX_SLIDER_RADIUS));
+                }
                 if(i>1 && !spinner(source,i-2)) {
-                    float ax=x[i-2]-x[i-1],ay=y[i-2]-y[i-1],bx=x[i]-x[i-1],by=y[i]-y[i-1];
+                    float ax=cursorX[i-2]-x[i-1],ay=cursorY[i-2]-y[i-1],bx=x[i]-cursorX[i-1],by=y[i]-cursorY[i-1];
                     float dot=ax*bx+ay*by, determinant=ax*by-ay*bx;
                     n.angle=Math.abs(Math.atan2(determinant,dot));
                 }
@@ -91,7 +124,7 @@ public final class StandardDifficultyCalculator {
             if((i&255)==0) checkCancelled();
             Note n=objects[i]; double aim=aim(objects,i),speed=speed(objects,i),rhythm=rhythm(objects,i);
             aimSkill.add(n,aim,1); speedSkill.add(n,speed,rhythm);
-            if(diagnostics) facts.add(new ObjectFacts(n.strainTime,n.distance,Double.isNaN(n.angle)?-1:n.angle,aim,speed,rhythm));
+            if(diagnostics) facts.add(new ObjectFacts(n.strainTime,n.distance,Double.isNaN(n.angle)?-1:n.angle,aim,speed,rhythm,n.travelDistance,n.travelTime,n.minimumJump,n.minimumTime));
         }
         double aim=Math.sqrt(aimSkill.difficulty())*RATING_SCALE, speed=Math.sqrt(speedSkill.difficulty())*RATING_SCALE;
         double combined=Math.pow(Math.pow(performance(aim),1.1)+Math.pow(performance(speed),1.1),1/1.1);
@@ -110,7 +143,8 @@ public final class StandardDifficultyCalculator {
     private static double wide(double angle) { return square(Math.sin(.75*(clamp(angle,Math.PI/6,Math.PI*5/6)-Math.PI/6))); }
     private static final class Note {
         final int index; final double time,delta,strainTime,window; final boolean spinner;
-        double distance,angle=Double.NaN;
+        boolean slider;
+        double distance,angle=Double.NaN,travelDistance,travelTime,minimumJump,minimumTime;
         Note(int index,double time,double delta,boolean spinner,double window) {
             this.index=index;this.time=time;this.delta=delta;this.spinner=spinner;this.window=window;strainTime=Math.max(25,delta);
         }
@@ -120,6 +154,9 @@ public final class StandardDifficultyCalculator {
         if(n.spinner || index<=1 || notes[index-1].spinner) return 0;
         Note p=notes[index-1],pp=notes[index-2];
         double v=n.distance/n.strainTime,previous=p.distance/p.strainTime,wideBonus=0,acuteBonus=0,change=0;
+        if(p.slider) v=Math.max(v,p.travelDistance/p.travelTime+n.minimumJump/n.minimumTime);
+        if(pp.slider) previous=Math.max(previous,pp.travelDistance/pp.travelTime+p.minimumJump/p.minimumTime);
+        double strain=v;
         if(Math.max(n.strainTime,p.strainTime)<1.25*Math.min(n.strainTime,p.strainTime)
                 && !Double.isNaN(n.angle) && !Double.isNaN(p.angle) && !Double.isNaN(pp.angle)) {
             double angleVelocity=Math.min(v,previous);
@@ -132,12 +169,14 @@ public final class StandardDifficultyCalculator {
             acuteBonus*=.5+.5*(1-Math.min(acuteBonus,Math.pow(1-wide(pp.angle),3)));
         }
         if(Math.max(v,previous)!=0) {
+            previous=(p.distance+pp.travelDistance)/p.strainTime;
+            v=(n.distance+p.travelDistance)/n.strainTime;
             double difference=Math.abs(previous-v);
             change=Math.min(125/Math.min(n.strainTime,p.strainTime),difference)
                     *square(Math.sin(Math.PI/2*difference/Math.max(previous,v)))
                     *square(Math.min(n.strainTime,p.strainTime)/Math.max(n.strainTime,p.strainTime));
         }
-        return v+Math.max(1.95*acuteBonus,1.5*wideBonus+.75*change);
+        return strain+Math.max(1.95*acuteBonus,1.5*wideBonus+.75*change)+(p.slider?1.35*p.travelDistance/p.travelTime:0);
     }
     private static double speed(Note[] notes,int index) {
         Note n=notes[index]; if(n.spinner) return 0;
@@ -149,7 +188,7 @@ public final class StandardDifficultyCalculator {
         }
         double time=n.strainTime/clamp(n.strainTime/n.window/.93,.92,1);
         double bonus=time<75 ? 1+.75*square((75-time)/40) : 1;
-        return bonus*(1+Math.pow(Math.min(125,n.distance)/125,3.5))*doubletap/time;
+        return bonus*(1+Math.pow(Math.min(125,n.minimumJump+(index>0?notes[index-1].travelDistance:0))/125,3.5))*doubletap/time;
     }
     private static double rhythm(Note[] notes,int index) {
         Note n=notes[index]; if(n.spinner) return 0;
@@ -166,6 +205,8 @@ public final class StandardDifficultyCalculator {
             boolean changed=previous>1.25*current || previous*1.25<current;
             if(counting && !changed) island=Math.min(7,island+1);
             else if(counting) {
+                if(c.slider) effective*=.125;
+                if(p.slider) effective*=.25;
                 if(previousIsland==island) effective*=.25;
                 if(previousIsland%2==island%2) effective*=.5;
                 if(pp.strainTime>previous+10 && previous>current+10) effective*=.125;

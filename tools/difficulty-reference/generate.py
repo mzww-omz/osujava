@@ -7,6 +7,7 @@ FILES += ['osu.Game/Rulesets/Difficulty/Preprocessing/DifficultyHitObject.cs']
 FILES += ['osu.Game.Rulesets.Osu/Difficulty/Skills/'+x+'.cs' for x in ['Aim','Speed','OsuStrainSkill']]
 FILES += ['osu.Game.Rulesets.Osu/Difficulty/Evaluators/'+x+'Evaluator.cs' for x in ['Aim','Speed','Rhythm']]
 FILES += ['osu.Game.Rulesets.Osu/Difficulty/Preprocessing/OsuDifficultyHitObject.cs','osu.Game.Rulesets.Osu/Beatmaps/OsuBeatmapProcessor.cs']
+FILES += ['osu.Game/Rulesets/Objects/SliderPath.cs','osu.Game/Rulesets/Objects/SliderEventGenerator.cs']
 p = argparse.ArgumentParser(); p.add_argument('--dotnet',default='dotnet'); a=p.parse_args()
 root=pathlib.Path(__file__).resolve().parents[2]
 with tempfile.TemporaryDirectory(prefix='osujava-difficulty-oracle-') as temp:
