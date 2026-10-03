@@ -13,9 +13,11 @@
 現在は **NM、mode 0、CS/AR/OD 0–10、StackLeniency 0–1**。
 format v6以降のcircle/spinnerに加え、**v8以降の検証済みLinear/Bezier/Perfect/Catmull/mixed Slider**を含むchartへ拡張した。
 未検証のpath/settings/timing・他mode・pre-v6はchart全体をUNSUPPORTEDとして数値を供給しない。
-現在の具体的範囲は後述「曲線Sliderへの拡張」を参照。Linear段階の記録は履歴として保持する。
+現在の具体的範囲は後述「曲線Sliderへの拡張」とB05-T2a–cを参照。
+SV丸め・source時刻順の同時刻batch・継承NaNのtick抑制を検証済み。Linear段階の記録は履歴として保持する。
 計算済み空chartはSUCCESSの0星、1object chartはreferenceの非zero値を保持する。
-PENDING/UNSUPPORTED/FAILEDは星なし。parserでHitObject行をskipしたchartはFAILEDとし、部分的な星や0星を供給しない。
+PENDING/UNSUPPORTED/FAILEDは星なし。parserでHitObject行をskip、不正setting/timingをfallback、Spinner終端を補正したchartはFAILEDとし、部分的な星や0星を供給しない。
+parserがsource timingを並べ替えたslider chartはUNSUPPORTEDとし、元順を推測しない。
 object数/BPMだけの疑似星は導入しない。
 
 独立calculatorはGL・GameplaySession・GameClock・audioを使用せず、元chartを変更しない。
@@ -24,25 +26,26 @@ float位置/CS scale/stack offset/angle、25ms strain cap、400ms section、aim/
 数値calculatorのfloat scale契約はこの参照版に固定する。
 
 上限は20,000objects、6時間の開始時刻span、2,000,000stack比較。
-過大chartはUNSUPPORTED、非finite値・時刻の逆転等はFAILED。
+過大chartはUNSUPPORTED、非finiteなHitObject値・HitObject開始時刻の逆転等はFAILED。継承NaNのbeatLengthは合法なtick抑制設定として扱う。
 interruptはcancelとして扱い、失敗ratingに変換しない。
 
 ## Reference再生成とテスト
 
 [oracle説明](../tools/difficulty-reference/README.md)の手順で公開C#処理を一時directoryに取得し、
-自作38fixtureの値を生成した。stable asset抽出なし。app/build/testのnetwork接続なし。
+自作45fixtureの値を生成した。stable asset抽出なし。app/build/testのnetwork接続なし。
 通常JUnitはcheck-in済み値だけを使用する。
 
 許容差は比較前に固定した。star/aim/speedはabsolute 1e-9、object/sectionはabsolute 1e-7＋relative 1e-9、
 stack高さは完全一致。empty/single/pair/three/jumps/stream/rhythm/simultaneous/stacks/spinner/gaps/
-fractional settings/coordinates、12種のLinear fixtureと14種のcurve fixtureについて一致した。
+fractional settings/coordinates、12種のLinear fixtureと14種のcurve fixture、7種のtiming fixtureについて一致した。
 
 ## 残件
 
-- Linear/Bezier/Perfect/Catmull/mixed pathの中間値は照合済み。次はSV丸め・NaN・同時刻timing/nested・pre-v8 tick距離を拡張する。
+- Linear/Bezier/Perfect/Catmull/mixed path、SV丸め、同時刻timing、継承NaNは照合済み。次はpre-v8 tick距離とnested同時刻。
 - pre-v6 stacking、範囲外settings、Mods別計算の検証。
 - stable実機での数値比較、Difficulty group境界・NM/Mod適用範囲の観測。
-- B05はcurveを含むfixtureまで対応済みだが、timing境界・stable実機・大規模cold/cache計測を残すため全体完了とはしない。
+- 1万source hashのservice/cold/warm baselineと登録allocation修復は計測済み。実library/UI分類/処理上限/cancel評価は残る。
+- B05は対応subsetの45fixtureまで検証済みだが、残るtiming・実library・stable実機比較のため全体完了とはしない。
 
 ## Workerとcache
 
@@ -396,3 +399,86 @@ Commit:
 - `7232a51` — `fix(difficulty): retain source issues before publishing ratings`
 - `6b61d25` — `test(song-select): cover source quality failures and warm ratings`
 - 本記録・計画・進捗・残件台帳の更新は後続のdocs commit。
+
+
+## B05-T2a: SV丸め境界とclamp
+
+通常Phaseの次の小単位を実装した。v8+、finiteなtiming、既存の検証済みcurve subsetで、
+raw SVが0.01に一致しないという理由だけのUNSUPPORTEDを解除した。
+同時刻timing、継承NaN、pre-v8 tick multiplier、nested tieは引き続き未対応。
+
+- development oracleで公開DifficultyControlPoint／BindableDouble／BindableNumber／RangeConstrainedBindableを変更せず実行。
+  LegacyDifficultyControlPoint classとSlider速度bindable/propertyは全本文を一時wrapperへ抽出し、raw/clampedとroundedを分離。
+  sourceはappへ取り込まず一時directoryで破棄。原38referenceはbyte単位で不変。
+- 自作timing-sv-rounding／timing-sv-clampの2fixture・20sliderケースを追加。中点の前後、偶数／奇数、0.1／10境界、
+  finite subnormalからの除算overflow、正／0の継承beatLengthを検証。binary double演算順も維持する。
+  星／aim／speed／stack／path／nested／lazy／object／sectionを従来の許容差で全件照合した。
+- JavaのSV計算はclamp後にMath.rintでnearest ties-to-evenへ丸める既存式を維持し、未検証guardだけ解除。
+  algorithm versionは同じ、preprocessingはlegacy-curves-f32-v8-4。旧v8-3 UNSUPPORTEDは保持し新keyでSUCCESSへ再計算。
+  次のservice instanceではcache SUCCESSを使い、calculator callbackは再実行しない。
+- 公開decoder/control pointの同時刻batch、full defaults/nested materialisationはまだoracle未接続。
+  oracleも未検証timingの期待値を生成しないようNaN／同時刻・逆順／pre-v8を明示拒否する。
+
+検証:
+
+- Calculator／LocalDifficultyServiceの関連63 tests成功。固定referenceは40fixtureになった。
+- SV修復時のbuildはcore 146 suites / 1,445 tests、lwjgl3 2 suites / 4 tests、failure/error/skipped 0。
+- difficulty-contractsは12 scenes / 336 PNG / 15,144 scripted transition framesとnavigation/disposal確認に成功。
+  新2fixtureのworker評価、row／情報／星group／search、cold／warm表示を追加。
+  Greylooks／fallback／HD-only、16:9／16:10／4:3／density 2。4:3 Greylooksのrounding warmと2x fallbackのclampを目視確認。
+- logs: /tmp/osujava-b05-sv-oracle.log、/tmp/osujava-b05-sv-tests.log、/tmp/osujava-b05-sv-build.log、/tmp/osujava-b05-sv-gl.log。
+  captures: /tmp/osujava-b05-sv-gl/。一時logs/captureは開発環境の実行記録で永続配布assetではない。
+
+根拠と次の独立実装契約は[timing監査記録](songselect-backend-timing-contracts-20261003.md)を参照。
+特にpre-v8はraw SVの逆数を使い、同時刻は元fileの連続batchを参照する。
+安定sort済みlistから元順を推測しない。Java fixture一致とstable実機比較を区別する。
+
+Commit:
+
+- 67173a0 — test(difficulty): execute pinned velocity bindables at rounding boundaries
+- 9e327ec — fix(difficulty): accept verified slider velocity rounding
+- 9a82bd2 — test(song-select): verify rounded velocity ratings through warm reopen
+
+
+## B05-T2b/c: 同時刻timingと継承NaN
+
+SV境界修復後も承認待ちを挟まず通常Phaseを進行し、同時刻とNaNを独立単位で実装した。
+公開decoderのhandleTimingPoint/addControlPoint/flushPendingPoints、ControlPoint/Group/Info/LegacyInfo、
+framework SortedList、Slider.ApplyDefaultsToSelfを一時wrapperで原処理のまま実行するoracleへ拡張。
+lookupは正確なStartTime、sample用1ms leniencyをdefaultsへ足さない。公式素材やstableコードをappへ移植しない。
+
+- Javaは時刻順sourceの連続同時刻batchでfirst redをBPM、last greenをSVへ採用する。
+  greenはredの前後どちらでも優先する。3fixture・36sliderで直前/同時刻/直後を照合した。
+  非連続batchを時刻sortだけで推測しないため、parserがtimingOrderChangedを保持する。
+  source逆順のsliderはUNSUPPORTED。orderingだけではsource破損やImport warningを捏造しない。
+  既存parse値/Gameplay用sort/asset解決は維持。Import→保存→再parse→順序修復後SUCCESSを検証。
+- 継承NaNはSV=1、GenerateTicks=false。通常tickだけ省略し、head/repeat/legacy tailは維持する。
+  通常greenへ戻るとtickを復帰させ、同時刻NaN/通常greenにも同じbatch規則を適用。
+  2fixture・16sliderで元43referenceをbyte不変に保持しながら全中間値/星を照合した。
+  red NaNはsource破損のFAILED。実public oracleもInvalidDataExceptionで拒否し、期待値を生成しない。
+- preprocessorは同時刻単位v8-5、NaN単位v8-6へ更新。旧UNSUPPORTEDを保持し、新keyでSUCCESSを計算する。
+  実workerの再表示cacheとNaNのImport/保存/再起動後reference星を検証した。
+- B05専用前処理だけを変更し、Gameplayのtick生成/採点/input/audioは変更していない。
+  sourceが並べ替えられたtiming、pre-v8 tick距離、nested tie、未検証path/設定/処理上限は引き続き星なし。
+
+最終検証:
+
+- 公開oracleは45fixture成功。段階ごとの旧38→40→43 referenceは全件byte不変。
+- 最終build成功: core147 suites / 1,457 tests、lwjgl3 2 suites / 4 tests、failure/error/skipped 0。
+  開始時1,446から合計15cases追加。log /tmp/osujava-b05-timing-final-build.log。
+- 最終difficulty-contracts: 12 scenes / 480 PNG / 21,624 scripted transition frames＋navigation/disposal成功。
+  同時刻/NaNの星、元順変更の星なし、group/search、cold/warmを実screen/workerで確認した。
+  Greylooks/fallback/HD-only ×16:9/16:10/4:3/density2。4:3 Greylooks NaN repeat warm、2x fallback元順変更warmを目視確認。
+  log /tmp/osujava-b05-timing-final-gl.log、capture /tmp/osujava-b05-timing-final-gl/。
+- oracle logs: /tmp/osujava-b05-coincident-oracle.log、/tmp/osujava-b05-nan-oracle.log、/tmp/osujava-b05-nan-red-reject.log。
+- 別単位で[1万sourceのservice/cold/warm計測と登録allocation修復](songselect-backend-service-performance-20261003.md)を実施。
+  実library/UI分類/全体の実機比較/HP/Modsは未完了。B05全体やstable 1:1を完了認定しない。
+
+Commit:
+
+- 865b108 — test(difficulty): execute pinned timing decoder and control point lookup
+- 43e98d9 — fix(difficulty): respect coincident timing priority and source order
+- b9cae56 — test(song-select): cover coincident and reordered timing ratings
+- 28267cd — test(difficulty): verify inherited NaN tick suppression against decoder
+- a171304 — fix(difficulty): honor inherited NaN without dropping slider repeats
+- dd44805 — test(song-select): include inherited NaN cold and warm ratings

@@ -123,7 +123,7 @@ B05はNM circle/spinner・検証済みlegacy curve Slider、worker/cache、星/�
 | B00数値reference固定 | B05の公開2023 commitと20220902 version、許容差、自作38fixtureを固定・照合済み。未検証path/timing/B06 HPのreferenceは次段階で拡張 |
 | B03 history / addedAt — 実装済み | nativeの小数日丸め/group境界は追加観測が必要。現在は明示したlocal分類。詳細はB03実装記録 |
 | B04 Collections / Options — 実装済み | native managerの厳密な寸法/editor/animationは未比較。local CRUDと既存UIへの接続は完了。管理操作の拡張はB09 |
-| B05 star / Difficulty — 部分実装 | NM v6+ circle/spinnerとv8+検証済みlegacy curveは計算・cache・UI接続済み。HitObject skip情報は伝播済み。setting/timing/Spinner補正のsource品質通知はB05-T1で修復済み。次はB05-T2のSV/NaN/同時刻timing/nested/pre-v8 tick距離、実大規模work budget評価、pre-v6/Mods、stable実機の数値照合。未検証chartはunknown |
+| B05 star / Difficulty — 部分実装 | NM v6+ circle/spinnerとv8+検証済みlegacy curveは計算・cache・UI接続済み。HitObject skip情報は伝播済み。setting/timing/Spinner補正のsource品質通知はB05-T1で修復済み。SV/同時刻timing/継承NaNはB05-T2a–cで修復済み。次はB05-T2dのnested/pre-v8 tick距離。1万sourceのservice baselineと登録allocation改善は計測済み、実library/UI分類/work budget評価は未完了、pre-v6/Mods、stable実機の数値照合。未検証chartはunknown |
 | B06 HP / fail | 実HP/終端を収集する。Resultsは既にpassed=falseのF表示に対応済みで、追加すべき中心はGameplayの計算・収集 |
 | B07通常Mods | NF→HR、後にEZ/HD/rate系。保存用listができたこととModの効果実装を混同しない。銀gradeは実Mod対応後 |
 | B08 replay | 実入力記録と再実行。保存成功した記録だけをscoreへ参照として接続する |
@@ -185,3 +185,20 @@ GL difficulty-contractsは**12 scenes / 288 PNG / 12,984操作frame**。
 次はB05-T2 timing oracle→B05-T3大規模計測→B06→B07→B08→B09。
 その後のselector残件は[計画の依存表](songselect-backend-improvement-plan-20261002.md#通常phaseへの復帰とselector残件の実行順)へ割り当てた。
 B05の部分実装を全互換完了として数えない。
+
+
+## B05-T2a–cとservice baselineを継続実装
+
+公開原処理oracleを拡張し、SV境界20、同時刻36、継承NaN16slider casesを追加。
+原38/40/43referenceを段階ごとにbyte保持し、最終45fixtureと全中間値を照合した。
+source元順変更をImport/Gameplayのsortと分けて保持し、対応subsetの外では星なしを維持。
+最終preprocessing legacy-curves-f32-v8-6。旧UNSUPPORTED失効、warm/restart/修復後の再計算を確認。
+
+全build1,461tests成功、GL12scenes/480PNG/21,624操作frames成功。
+[実装・全commit記録](songselect-backend-difficulty-20261003.md)、
+[timing根拠/残件](songselect-backend-timing-contracts-20261003.md)、
+[service性能/計測commit記録](songselect-backend-service-performance-20261003.md)を参照。
+
+1万source hash＋1千content-copyの実worker/cold/warm計測を追加し、
+key検証の毎回regex compileとNMの不要streamを修復。登録allocation45.42MB→8.92MB、warm再計算0。
+実library/分類/GPU性能の合格とは認定しない。次はT2dのpre-v8/nested tie→T3受入→B06以降。

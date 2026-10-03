@@ -5,7 +5,7 @@
 [B03履歴・日時の実装記録](songselect-backend-history-20261002.md)、
 [B04Collections/Optionsの実装記録](songselect-backend-collections-20261003.md)、
 [B05星評価の対応範囲・検証・残件](songselect-backend-difficulty-20261003.md)を参照。
-以下の現状表は計画作成時の調査記録として保持する。B05は部分実装（source品質通知まで修復済み）、B06–B09は未着手。
+以下の現状表は計画作成時の調査記録として保持する。B05は部分実装（source品質・SV・同時刻timing・継承NaNまで修復済み）、B06–B09は未着手。
 対象は[残件台帳](songselect-remaining-work-20261002.md)のR06/R07/R08と、それらに必要な保存・更新通知。
 完全ローカル、Java 21/libGDX/LWJGL3、Import / Gameplay / Ruleset / GameClock / Rendererの責務分離を維持する。
 
@@ -64,14 +64,17 @@ selector外観の割込み修復は`70a29a6`までで区切り、通常進行を
 | 単位 / 状態 | 実装・調査対象 | 完了条件と次の作業 |
 | --- | --- | --- |
 | B05-T1 / 実装・Java検証済み | setting/timingの不正値・短いTimingPoint・Spinner終端補正の通知、rating/cacheへの伝播。欠損HitObject通知を維持 | Import→warning→保存→再読込→FAILED、旧SUCCESS cache失効、warm再利用、source修復→SUCCESSを確認済み。意図的な継承NaNは破損ではない。詳細は[B05記録](songselect-backend-difficulty-20261003.md#settingtimingspinner補正のsource品質通知) |
-| **B05-T2 / 次の着手単位** | SVの0.01丸め境界、同時刻red/green優先、継承NaNのtick無効化、nested同時刻、pre-v8 tick距離 | pinned public decoder/control-point処理を実行するoracleを先に拡張。既存Stubsのtiming手組み結果をnative期待値にしない。各境界を独立fixture化→中間値/星を既存許容差で照合→検証した条件だけ現在のUNSUPPORTED guardを緩める。必要ならpreprocessing版を更新 |
-| B05-T3 / T2の後 | 1万難易度のcold/warm、curve/stackの処理上限・cancel・rapid選曲/import | queue/completion上限、同内容のjob共有、stale結果破棄、frame内IO/計算なしを計測。変更前後のframe時間・allocation・全体完了時間を保存。上限変更は検証してから行い、未測定で軽量化済みにしない |
+| B05-T2a / SV境界を実装・Java検証済み | raw/clamped SVとSlider側0.01丸めを公開Bindable処理で検証、上限/下限/中点の20 slider cases | 既存38 referenceはbyte不変、2追加fixtureの星/中間値を同じ許容差で照合。旧v8-3 UNSUPPORTED失効とwarm SUCCESSを確認。preprocessingはv8-4。full timing対応ではない |
+| B05-T2b / 同時刻timingを実装・Java検証済み | 同時刻red/green優先、first red / last green、parser元順変更の通知 | pinned decoder/control point/defaultsの実処理をoracleへ接続。3fixture・36slider casesを照合。元40reference byte不変。sourceを並べ替えたslider chartは破損と別のUNSUPPORTEDとして保持、Import/保存/再parse/修復を検証 |
+| B05-T2c / 継承NaNを実装・Java検証済み | GenerateTicks=falseと通常greenへの復帰、同時刻NaN優先 | 2fixture・16slider cases。head/repeat/legacy tail保持、通常tickだけ抑制。元43reference byte不変。赤NaNはFAILED、継承NaNは正当な設定。最終preprocessing v8-6、旧UNSUPPORTED失効とwarm/再起動を検証 |
+| **B05-T2d / 次の着手単位** | pre-v8 tick距離とnested同時刻 | [timing契約の調査記録](songselect-backend-timing-contracts-20261003.md)に従いconverterのraw SV逆数とnested materialisation/sortの実処理をoracleへ接続。v6/v7/v8境界→tie小/多数の順にfixture化し、全中間値を従来許容差で照合。再現できないtieはUNSUPPORTEDのまま対応subsetを固定しT4へ引継ぐ |
+| B05-T3 / baseline・登録allocation修復済み、全体受入はT2dの後 | 1万source hash＋1千コピーの実worker/cold/warm。実library、curve/stack上限・cancel・rapid選曲/importは未計測 | [service計測記録](songselect-backend-service-performance-20261003.md)にbefore/afterを保存。空hashの従来UI probeと区別。queue32/completion64、cold1万計算/warm0を確認、登録allocation約80%削減。UI分類再投影/実library/frame IO/キャンセルを追加計測してからT3を受け入れる。上限変更は未実施 |
 | B05-T4 / 比較工程へ引継ぎ | stable実機の数値照合、未検証curve/setting/pre-v6等 | 対応subset・未対応subsetを固定しP10へ引継ぐ。実機待ちや未対応B-spline/pre-v6を理由にB06以降を無期限に止めない。B05全体の完全互換とは認定しない |
 | B06 / T2・T3の受入後 | HP/fail/outcomeとResults/履歴への実収集 | 下記B06契約を小単位で実装。NMの固定入力・fps不変、break、fail/abort、保存を通してからB07へ進む |
 
-B05-T2は「全timingをまとめて有効化」するPRにせず、SV境界→同時刻control point→NaN/nested→pre-v8の順に分ける。
-現在の検証済み38fixtureとUIのknown zero/unknownを各単位で回帰確認する。
-通常の主経路は **B05-T2→B05-T3→B06→B07→B08→B09**。stable実機比較は別の完了段階として追跡する。
+B05-T2は「全timingをまとめて有効化」するPRにせず、SV境界→同時刻control point→NaN→pre-v8→nestedの順に分ける。
+現在の検証済み45fixtureとUIのknown zero/unknownを各単位で回帰確認する。
+通常の主経路は **B05-T2d→B05-T3の受入→B06→B07→B08→B09**。stable実機比較は別の完了段階として追跡する。
 
 ### 今回のselector残件を解消する作業
 

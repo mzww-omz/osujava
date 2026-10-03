@@ -24,7 +24,8 @@ P0〜P9の確定契約の実装と未確定部分の調査を進めた。現在�
 
 Mode/Mods/Options入口の割込み修復は[selector記録](songselect-selectors-20261003.md)までで区切った。
 通常進行はbackend **B05のsource品質→timing oracle→work budget→B06→B07→B08→B09**へ戻す。
-今回B05のsource品質通知とcache失効・warm/source修復の検証を実装した。
+B05のsource品質、SV丸め、同時刻timing、継承NaNとcache失効・warm/restartを実装・検証した。
+service baselineも追加し登録allocationを修復。次はT2d（pre-v8/nested tie）とT3の実library/UI分類等の受入。
 次の着手単位・通常Mods/Options/他mode/Editor/selectorの細部/Collection内部の解決計画は
 [backend計画の依存表](songselect-backend-improvement-plan-20261002.md#通常phaseへの復帰とselector残件の実行順)を参照。
 P8bの外観残件はS-VIS1/S-COL1、機能残件はS-MOD/S-OPT/S-MODEへ分割し、P10の同期比較で認定する。
