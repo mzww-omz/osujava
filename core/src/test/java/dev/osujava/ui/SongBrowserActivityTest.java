@@ -54,7 +54,7 @@ class SongBrowserActivityTest {
         model.search("unplayed!="); assertEquals(List.of("recent"),ids(model));
         model.search("added=invalid-date"); assertTrue(ids(model).isEmpty());
     }
-    @Test void dateAddedSortUsesNewestKnownContentFirstAndKeepsSelectionAcrossFiltering() throws Exception {
+    @Test void dateAddedSortUsesOldestKnownContentFirstAndKeepsSelectionAcrossFiltering() throws Exception {
         var first=set("first",100);
         clock.set("2026-10-03T12:00:00Z"); var second=set("second",101);
         clock.set("2026-10-04T12:00:00Z"); var unknown=set("unknown",102);
@@ -62,7 +62,7 @@ class SongBrowserActivityTest {
         var facts=new IdentityHashMap<>(projection.facts()); facts.put(unknown.difficulties().getFirst(),SongBrowserActivity.Facts.UNKNOWN);
         var model=new SongBrowserModel(library.all()); model.activity(facts,clock); model.select(first.id(),0);
         var selected=model.selection(); model.sort(SongBrowserModel.Sort.ADDED);
-        assertEquals(List.of("second","first","unknown"),ids(model)); assertEquals(selected,model.selection());
+        assertEquals(List.of("first","second","unknown"),ids(model)); assertEquals(selected,model.selection());
         model.search("added>=2026-10-03"); assertEquals(List.of("second"),ids(model));
         model.search(""); assertEquals(selected,model.selection());
         var rows=model.rows(); model.activity(facts,clock); assertSame(rows,model.rows());

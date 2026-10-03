@@ -340,7 +340,7 @@ final class SongBrowserModel {
             case BPM -> Comparator.comparingDouble(c -> maximumBpm(c.difficulty));
             case LENGTH -> Comparator.comparingInt(c -> c.difficulty.timingStatistics().lengthSeconds());
             case RECENT -> Comparator.comparing((Chart c) -> facts(c.difficulty).lastPlayedAt(),Comparator.nullsLast(Comparator.reverseOrder()));
-            case ADDED -> Comparator.comparing((Chart c) -> facts(c.difficulty).addedAt(),Comparator.nullsLast(Comparator.reverseOrder()));
+            case ADDED -> Comparator.comparing((Chart c) -> facts(c.difficulty).addedAt(),Comparator.nullsLast(Comparator.naturalOrder()));
         };
         Comparator<Chart> ordering = primary.thenComparing(secondary);
         if (group != Group.NONE) ordering = Comparator.comparing((Chart c) -> bucket(c).order())

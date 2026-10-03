@@ -32,7 +32,12 @@ Java 21/libGDX、完全ローカル、Import / Gameplay / GameClock / Renderer�
 | `unplayed=`、`unplayed!=`等 | 内容一致のmanual開始履歴も保存済みscore日時もない難易度。演算子にかかわらず同じpredicate |
 | `added>=2026-10-01` | **local拡張**。成功importで記録した日時を現在timezoneのcalendar dateに変換して比較 |
 | Recently Played | local calendarのToday / Yesterday / Last 7 Days / Older / Never Playedにgroup化し、最終開始日時の降順 |
-| Last Played / Date Added sort | 既知日時を新しい順、unknownを最後へ並べる。既存secondary metadata順で同値を安定化 |
+| Last Played sort | 既知日時を新しい順、unknownを最後へ並べる |
+| Date Added sort | 既知日時を古い順、unknownを最後へ並べる。既存secondary metadata順で同値を安定化 |
+
+2026-10-03追記：Date Addedは初回実装で新しい順だったが、
+[公式Interface wiki](https://osu.ppy.sh/wiki/en/Client/Interface)の古い順に修正した。
+修正・最新検証は[B04実装記録](songselect-backend-collections-20261003.md)を参照。
 
 `played` / `added`のunknownは`!=`を含む日時比較に一致しない。不正値・未対応fieldは従来のliteral検索へ戻す。
 実履歴がまだない旧データの「Never Played」は、ローカル記録がないことを意味し、過去の未記録playを否定しない。
