@@ -56,6 +56,7 @@ class SongSelectNavigationTest {
     private final BeatmapLibrary library = new BeatmapLibrary();
     private final dev.osujava.score.LocalScoreStore localScores = new dev.osujava.score.LocalScoreStore();
     private dev.osujava.score.LocalPlayHistory playHistory = new dev.osujava.score.LocalPlayHistory();
+    private dev.osujava.collection.LocalCollectionStore collections = new dev.osujava.collection.LocalCollectionStore();
     private SongSelectScreen screen;
     private int importRequests;
     private boolean shift, control, alt, pointerPressed, pointerClicked, rightPressed, rightClicked, middlePressed;
@@ -146,6 +147,7 @@ class SongSelectNavigationTest {
             @Override public OsuRuleset osuRuleset() { return new OsuRuleset(); }
             @Override public dev.osujava.score.LocalScoreStore localScores() { return localScores; }
             @Override public dev.osujava.score.LocalPlayHistory playHistory() { return playHistory; }
+            @Override public dev.osujava.collection.LocalCollectionStore collections() { return collections; }
         };
         screen = new SongSelectScreen(game,set,difficulty,null,ignored -> testRating); screen.show();
     }
@@ -548,11 +550,58 @@ class SongSelectNavigationTest {
         key(Input.Keys.UP); selected(1,0,"Beta-easy.png");
     }
 
-    @Test void optionsShortcutReportsUnavailableWithoutOpeningFakeMenuOrGameplay() throws Exception {
+    @Test void optionsShortcutOpensCollectionsEntryWithoutStartingGameplay() throws Exception {
         open("Beta",1); key(Input.Keys.F3);
-        assertTrue(((String)field("toast")).contains("unavailable"));
+        assertEquals(SongSelectCollections.Mode.OPTIONS,((SongSelectCollections)field("collectionManager")).snapshot().mode());
         assertFalse(((SongSelectToolboxState)field("toolbox")).open());
         assertFalse(((UiNavigation)field("outgoing")).pending()); selected(1,1,"Beta-hard.png");
+    }
+    @Test void collectionManagerKeyboardAndPointerSaveRealMembershipAndRefreshBrowser() throws Exception {
+        var set=dev.osujava.support.CollectionTestMaps.set("Beta",3); library.add(set); open("Beta",1); screen.resize(1280,720); settle();
+        var browser=(SongBrowserModel)field("browser"); var identity=browser.selection();
+        key(Input.Keys.F3); key(Input.Keys.NUM_1); assertTrue(processor.keyTyped('1')); assertEquals("",field("search"));
+        key(Input.Keys.N); processor.keyTyped('n'); for(char ch:"夜の星 🌟".toCharArray()) processor.keyTyped(ch); key(Input.Keys.ENTER);
+        var manager=(SongSelectCollections)field("collectionManager"); var id=manager.snapshot().selected();
+        assertEquals("夜の星 🌟",collections.find(id).name());
+        var l=dev.osujava.ui.theme.UiLayout.fromPixels(1280,720); var b=SongSelectCollections.bounds(l,SongSelectCollections.Button.DIFFICULTY);
+        pointerX=Math.round(b.x()+20); pointerY=720-Math.round(b.y()+10); pointerPressed=pointerClicked=true; updatePointer(1280,720,.016f);
+        pointerClicked=pointerPressed=false; updatePointer(1280,720,.016f);
+        assertTrue(manager.snapshot().difficultyIncluded()); assertEquals(1,collections.find(id).members().size());
+        assertFalse(((UiNavigation)field("outgoing")).pending()); assertEquals("",field("search"));
+        key(Input.Keys.ESCAPE); screen.browserMode(SongBrowserModel.Sort.TITLE,SongBrowserModel.Group.COLLECTIONS); settle();
+        assertEquals(identity,browser.selection()); assertEquals(1,browser.rows().stream().filter(r -> !r.group() && !r.excluded).count());
+        screen.browserSearch("difficulty=D0",false); assertNull(browser.selectedDifficulty());
+        screen.browserSearch("",false); assertEquals(identity,browser.selection());
+        var rows=browser.rows(); for(int i=0;i<60;i++) updatePointer(1280,720,.016f); assertSame(rows,browser.rows());
+        assertEquals(0,localScores.revision()); assertEquals(0,playHistory.revision());
+    }
+    @Test void collectionModalCancelsCapturedRowAndBlocksNavigationSearchAndBehindClicks() throws Exception {
+        open("Beta",0); screen.resize(1280,720); settle(); pointAtRow(1,0);
+        pointerPressed=pointerClicked=true; updatePointer(1280,720,.016f); pointerClicked=false;
+        assertNotNull(((SongSelectInputController)field("input")).pressedKey()); key(Input.Keys.F3);
+        assertNull(((SongSelectInputController)field("input")).pressedKey());
+        for(int k:new int[]{Input.Keys.I,Input.Keys.F2,Input.Keys.F1,Input.Keys.F6,Input.Keys.ENTER,Input.Keys.DOWN}) key(k);
+        processor.keyTyped('a'); assertEquals("",field("search")); assertEquals(0,importRequests); selected(1,0,"Beta-easy.png");
+        pointerPressed=false; updatePointer(1280,720,.016f); assertFalse(((UiNavigation)field("outgoing")).pending());
+        pointerX=35; pointerY=690; pointerPressed=pointerClicked=true; updatePointer(1280,720,.016f);
+        pointerPressed=pointerClicked=false; updatePointer(1280,720,.016f); assertFalse(((UiNavigation)field("outgoing")).pending());
+        processor.keyDown(Input.Keys.NUM_6); processor.keyTyped('6'); processor.keyUp(Input.Keys.NUM_6); assertEquals("",field("search"));
+        assertFalse(((SongSelectCollections)field("collectionManager")).open());
+    }
+    @Test void clickingSameDifficultyInAnotherCollectionSelectsThatRowBeforeStartingGameplay() throws Exception {
+        var map=dev.osujava.support.CollectionTestMaps.set("Beta",2); library.add(map); var diff=map.difficulties().get(1);
+        var member=new dev.osujava.collection.LocalCollectionStore.Member(BeatmapContentKey.of(diff),dev.osujava.score.DifficultyIdentity.of(map.id(),diff));
+        var a=collections.create("A"); var b=collections.create("B"); collections.add(a.id(),List.of(member)); collections.add(b.id(),List.of(member));
+        open("Beta",1); screen.resize(1280,720); screen.browserMode(SongBrowserModel.Sort.TITLE,SongBrowserModel.Group.COLLECTIONS); settle();
+        var browser=(SongBrowserModel)field("browser"); var identity=browser.selection();
+        var copies=browser.rows().stream().filter(r -> !r.group()).toList(); var other=copies.get(1);
+        browser.toggleGroup(other.parent.key); var sync=SongSelectScreen.class.getDeclaredMethod("syncBrowser",boolean.class); sync.setAccessible(true); sync.invoke(screen,true); settle();
+        var row=((List<?>)field("visibleRows")).stream().map(SongSelectRow.class::cast).filter(r -> r.key().equals(other.key)).findFirst().orElseThrow();
+        assertFalse(row.selected()); pointAtRow(1,1); pointerPressed=pointerClicked=true; updatePointer(1280,720,.016f);
+        pointerPressed=pointerClicked=false; updatePointer(1280,720,.016f);
+        assertEquals(identity,browser.selection()); assertEquals(other.key,browser.selectedKey()); assertFalse(((UiNavigation)field("outgoing")).pending());
+        settle(); pointAtRow(1,1); pointerPressed=pointerClicked=true; updatePointer(1280,720,.016f);
+        pointerPressed=pointerClicked=false; updatePointer(1280,720,.016f); assertTrue(((UiNavigation)field("outgoing")).pending());
     }
 
     @Test void modeViewOnlyReportsActuallySupportedRulesetAndEscClosesIt() throws Exception {
@@ -910,17 +959,17 @@ class SongSelectNavigationTest {
         selected(1, 0, "Beta-easy.png"); assertEquals("", field("toast"));
         rightPressed = false; updatePointer(1280, 720, 0);
         selected(set, Math.max(0, difficulty), background);
-        assertEquals("Beatmap Options unavailable in this version.", field("toast"));
+        assertEquals(SongSelectCollections.Mode.OPTIONS,((SongSelectCollections)field("collectionManager")).snapshot().mode());
         assertFalse(((UiNavigation) field("outgoing")).pending());
     }
-    @Test void productionRightReleaseWhileLeftHeldRequestsOptionsOnceAndKeepsDragging() throws Exception {
+    @Test void productionRightReleaseWhileLeftHeldRequestsOptionsOnceAndCancelsDragging() throws Exception {
         open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 0);
         pointerClicked = true; pointerPressed = true; rightPressed = true; updatePointer(1280, 720, .02f);
         pointerClicked = false; rightPressed = false; updatePointer(1280, 720, .02f);
-        assertEquals("Beatmap Options unavailable in this version.", field("toast"));
+        assertEquals(SongSelectCollections.Mode.OPTIONS,((SongSelectCollections)field("collectionManager")).snapshot().mode());
         setField("toast", ""); float before = carousel().scrollOffset();
         pointerY -= 30; updatePointer(1280, 720, .02f);
-        assertEquals(before + 30, carousel().scrollOffset(), .001);
+        assertEquals(before, carousel().scrollOffset(), .001);
         pointerPressed = false; updatePointer(1280, 720, 0);
         assertEquals("", field("toast")); assertFalse(((UiNavigation) field("outgoing")).pending());
     }
@@ -928,7 +977,7 @@ class SongSelectNavigationTest {
         open("Beta", 0); screen.resize(1280, 720); settle(); pointAtRow(1, 0);
         rightPressed = true; updatePointer(1280, 720, 0);
         rightPressed = false; pointerPressed = true; pointerClicked = true; updatePointer(1280, 720, 0);
-        assertEquals("Beatmap Options unavailable in this version.", field("toast"));
+        assertEquals(SongSelectCollections.Mode.OPTIONS,((SongSelectCollections)field("collectionManager")).snapshot().mode());
         assertFalse(((UiNavigation) field("outgoing")).pending());
         pointerClicked = false; pointerPressed = false; updatePointer(1280, 720, 0);
         assertFalse(((UiNavigation) field("outgoing")).pending());
@@ -974,6 +1023,7 @@ class SongSelectNavigationTest {
         updatePointer(1280, 720, .01f);
         pointerPressed = false; pointerClicked = false; rightPressed = false; updatePointer(1280, 720, .01f);
         selected(2, 0, "Gamma-easy.png"); assertFalse(((UiNavigation) field("outgoing")).pending());
+        if(rightFirst) { assertTrue(((SongSelectCollections)field("collectionManager")).open()); key(Input.Keys.ESCAPE); }
         pointAtRow(2, 0); pointerPressed = true; pointerClicked = true; updatePointer(1280, 720, .01f);
         assertFalse(((UiNavigation) field("outgoing")).pending());
         pointerPressed = false; pointerClicked = false; updatePointer(1280, 720, .01f);
@@ -1140,6 +1190,7 @@ class SongSelectNavigationTest {
         assertEquals(target, carousel().scrollTarget());
         rightClicked = false; rightPressed = false; updatePointer(1280, 720, 0);
         assertFalse(((UiNavigation) field("outgoing")).pending());
+        assertTrue(((SongSelectCollections)field("collectionManager")).open()); key(Input.Keys.ESCAPE);
         pointerX = 500; rightClicked = true; rightPressed = true; updatePointer(1280, 720, 0);
         assertTrue(((SongSelectInputController) field("input")).rightScrolling());
         rightClicked = false; key(Input.Keys.F1); updatePointer(1280, 720, 0);

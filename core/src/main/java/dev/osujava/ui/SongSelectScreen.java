@@ -92,6 +92,8 @@ public final class SongSelectScreen extends ScreenAdapter {
     private final SongBrowserActivity activity;
     private List<BeatmapSet> librarySource;
     private final SongBrowserControls controls = new SongBrowserControls();
+    private final SongSelectCollections collectionManager;
+    private List<dev.osujava.collection.LocalCollectionStore.Collection> collectionSource;
     private List<SongBrowserModel.Row> browserRows = List.of();
     private List<SongBrowserModel.Entry> browserEntries = List.of();
     private List<SongSelectCarousel.Entry> carouselEntries = List.of();
@@ -149,6 +151,8 @@ public final class SongSelectScreen extends ScreenAdapter {
         renderer = new SongSelectRenderer(view, game.batch(), rowRenderer, playCookie);
         librarySource = game.library().all();
         browser = new SongBrowserModel(librarySource);
+        collectionSource=game.collections().all(); browser.collections(collectionSource);
+        collectionManager=new SongSelectCollections(game.collections(),game.library());
         activity = new SongBrowserActivity(game.library(),game.playHistory(),game.localScores(),game.wallClock());
         activity.refresh(); browser.activity(activity.facts(),game.wallClock());
         scores = new ScoreBrowserModel(game.localScores());
@@ -201,6 +205,10 @@ public final class SongSelectScreen extends ScreenAdapter {
                 search = query; ensureVisibleSelection();
             }
             @Override public void perform(SongSelectAction action) { SongSelectScreen.this.perform(action); }
+            @Override public boolean modalOpen() { return collectionManager.open(); }
+            @Override public void modalKey(int key) { collectionManager.key(key,Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT)); }
+            @Override public void modalTyped(char character) { collectionManager.typed(character); }
+            @Override public void modalScroll(float amount) { collectionManager.scroll(amount); }
             @Override public void difficulty(int direction) { advance(direction); }
             @Override public void set(int direction) { advanceSet(direction); }
             @Override public void group(int direction) {
@@ -277,7 +285,7 @@ public final class SongSelectScreen extends ScreenAdapter {
     /** Reserve each browser viewport, including row gaps and empty results. */
     public boolean usesMouseWheelAt(int screenX, int screenY) {
         if (closed || outgoing.pending()) return false;
-        if (toolbox.open()) return true;
+        if (modalOpen()) return true;
         if (Gdx.graphics.getWidth() <= 0 || Gdx.graphics.getHeight() <= 0) return false;
         UiLayout layout = UiLayout.fromPixels(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         float x = layout.pointerX(screenX), y = layout.pointerY(screenY);
@@ -296,6 +304,7 @@ public final class SongSelectScreen extends ScreenAdapter {
                 activeText,
                 inactiveText,
                 toolbox,
+                collectionManager.snapshot(),
                 new SongSelectRenderer.BrowserView(browser.sort(), browser.group(), browser.visibleSets().size()),
                 new SongSelectRenderer.ScoreView(scores.rows(), scores.first(), scores.selected(), scoreHover.snapshot()),
                 controls,
@@ -345,11 +354,15 @@ public final class SongSelectScreen extends ScreenAdapter {
         var source = game.library().all();
         boolean libraryChanged = !importing && source != librarySource;
         boolean activityChanged = !importing && activity.refresh();
-        if (libraryChanged || activityChanged) {
+        collectionManager.refresh();
+        var collections=game.collections().all();
+        boolean collectionsChanged=!importing && collections!=collectionSource;
+        if (libraryChanged || activityChanged || collectionsChanged) {
             cancelInput();
             if(libraryChanged) browser.library(source);
             librarySource = source;
             browser.activity(activity.facts(),game.wallClock());
+            if(collectionsChanged) { collectionSource=collections; browser.collections(collectionSource); }
             syncBrowser(true);
         }
         wheelInput.dispatch();
@@ -378,14 +391,15 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (buttons.physicalPressed()) input.pressPosition(Gdx.input.getX(), Gdx.input.getY());
         boolean scoreGesture = scoreScroll.update(scoreBounds(layout), scores, py,
                 Gdx.input.isButtonPressed(Input.Buttons.LEFT),
-                !toolbox.open() && !controls.open() && !importing && !outgoing.pending());
+                !modalOpen() && !controls.open() && !importing && !outgoing.pending());
         boolean rowPressAllowed = true;
         if (!scoreGesture && Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
             carousel.pointerPressed();
             rowPressAllowed = false;
             var oldSort = browser.sort(); var oldGroup = browser.group();
             var previousMenu = controls.menu();
-            if (toolbox.open()) SongSelectToolboxOverlay.click(toolbox,layout,px,py);
+            if (collectionManager.open()) collectionManager.click(layout,px,py);
+            else if (toolbox.open()) SongSelectToolboxOverlay.click(toolbox,layout,px,py);
             else if (controls.click(px, py, layout.width(), layout.height(), browser,
                     tab -> showToast(tab.label + " is unavailable.",UiTheme.MUTED))) {
                 sound(controls.menu() != null && controls.menu() != previousMenu ? SongSelectAudio.Cue.EXPAND : SongSelectAudio.Cue.CONFIRM);
@@ -418,7 +432,7 @@ public final class SongSelectScreen extends ScreenAdapter {
             }
         }
 
-        boolean blocked = scoreGesture || toolbox.open() || controls.open() || importing || outgoing.pending() || !rowPressAllowed;
+        boolean blocked = scoreGesture || modalOpen() || controls.open() || importing || outgoing.pending() || !rowPressAllowed;
         if (blocked) input.cancelPointer();
         else if (buttons.pressed()) {
             var row = hitRow(px, py);
@@ -452,7 +466,7 @@ public final class SongSelectScreen extends ScreenAdapter {
         if (audio != null) {
             String target = null;
             var cue = SongSelectAudio.Cue.HOVER_CONTROL;
-            if (!scoreGesture && !toolbox.open() && !importing && !outgoing.pending()) {
+            if (!scoreGesture && !modalOpen() && !importing && !outgoing.pending()) {
                 var action = SongSelectAction.bottom(px, py, bottomLayout);
                 if (action != null) {
                     target = "control:" + action;
@@ -470,11 +484,11 @@ public final class SongSelectScreen extends ScreenAdapter {
             audio.hover(target, cue);
         }
         backgroundFade = Math.min(1, backgroundFade + Math.max(0, delta) / .22f);
-        viewState.hover.advance(delta, toolbox.open() || importing || outgoing.pending() ? null
+        viewState.hover.advance(delta, modalOpen() || importing || outgoing.pending() ? null
                 : SongSelectAction.bottom(px,py,bottomLayout));
         var rankingBounds = scoreBounds(layout);
         scoreHover.advance(delta, scores.rows(), scores.first(), rankingBounds.capacity(),
-                scoreGesture || toolbox.open() || controls.open() || importing || outgoing.pending() ? -1 : rankingBounds.slot(px, py));
+                scoreGesture || modalOpen() || controls.open() || importing || outgoing.pending() ? -1 : rankingBounds.slot(px, py));
         return true;
     }
 
@@ -590,14 +604,16 @@ public final class SongSelectScreen extends ScreenAdapter {
     private List<SongSelectRow> layoutRows(UiLayout layout, float delta, boolean advance) {
         updateContent(layout);
         float px = layout.pointerX(Gdx.input.getX()), py = layout.pointerY(Gdx.input.getY());
-        SongSelectRow hit = scoreScroll.captured() || toolbox.open() || controls.open() || importing || outgoing.pending() ? null : hitRow(px, py);
+        SongSelectRow hit = scoreScroll.captured() || modalOpen() || controls.open() || importing || outgoing.pending() ? null : hitRow(px, py);
         carousel.pointerTracking(px / SongSelectMetrics.carouselScale(layout.height()),
-                Gdx.input.isButtonPressed(Input.Buttons.LEFT), !scoreScroll.captured() && !toolbox.open() && !importing && !outgoing.pending());
+                Gdx.input.isButtonPressed(Input.Buttons.LEFT), !scoreScroll.captured() && !modalOpen() && !importing && !outgoing.pending());
         carousel.focus(browser.focusKey());
         carousel.selectionTrackingTarget(browser.selectionTrackingKey());
         carousel.emphasize(browser.selectedKey());
         if (advance) carousel.advance(delta, hit == null ? null : hit.key(), input != null && input.rightScrolling());
         List<SongSelectRow> result = new ArrayList<>();
+        String selectedKey=browser.selectedKey();
+        var selectedModelRow=browser.row(selectedKey);
         var background = skin == null ? null : skin.get(Image.MENU_BUTTON_BACKGROUND);
         for (int i = carousel.activeStart(); i < carousel.activeEnd(); i++) {
             SongSelectCarousel.Row entry = carousel.allRows().get(i);
@@ -605,10 +621,13 @@ public final class SongSelectScreen extends ScreenAdapter {
             float y = carousel.renderY(entry, top);
             // Resident buffer rows may have artwork extending beyond their body into the viewport.
             int setIndex = entry.entry.setIndex(), diffIndex = entry.entry.difficultyIndex();
-            boolean selected = setIndex == selectedSetIndex && diffIndex == selectedDifficultyIndex;
+            boolean selected = entry.entry.key().equals(selectedKey);
+            var modelRow=browser.row(entry.entry.key());
+            boolean sibling=setIndex==selectedSetIndex && !selected && (browser.group()!=SongBrowserModel.Group.COLLECTIONS
+                    || selectedModelRow!=null && modelRow.parent==selectedModelRow.parent);
             var target = carousel.targetPosition(entry.logicalIndex, layout.width(), top);
             float x = carousel.renderX(entry, layout.width()), height = carousel.rowHeight(), width = rowWidth(layout);
-            result.add(new SongSelectRow(setIndex, diffIndex, groupLabels.get(entry.entry.key()), selected, setIndex == selectedSetIndex && !selected,
+            result.add(new SongSelectRow(setIndex, diffIndex, groupLabels.get(entry.entry.key()), selected, sibling,
                     x, y, width, height, entry.hoverAmount, selected ? 1 : entry.revealAmount * entry.revealAmount, entry.logicalIndex, target[0], target[1], entry.entry.key(),
                     browser.row(entry.entry.key()).group() && browser.row(entry.entry.key()).expanded, entry.focusAmount,
                     background == null ? null : SongSelectArtwork.row(x, y, width, height, background)));
@@ -637,7 +656,8 @@ public final class SongSelectScreen extends ScreenAdapter {
                     } else {
                         int i = indices.get(row.set.id());
                         int j = row.state == SongBrowserModel.RowState.COLLAPSED ? -1 : row.set.difficulties().indexOf(row.difficulty);
-                        entries.add(new SongSelectCarousel.Entry(row.key, i, j, row.set.id(), expanded, row.visible()));
+                        String family=browser.group()==SongBrowserModel.Group.COLLECTIONS ? row.parent.key+":"+row.set.id() : row.set.id();
+                        entries.add(new SongSelectCarousel.Entry(row.key, i, j, family, expanded, row.visible()));
                     }
                 }
                 groupLabels = Map.copyOf(labels);
@@ -856,7 +876,10 @@ public final class SongSelectScreen extends ScreenAdapter {
             return;
         }
         if (row.difficultyIndex() >= 0) {
-            if (row.setIndex() == selectedSetIndex && row.difficultyIndex() == selectedDifficultyIndex) {
+            if(browser.group()==SongBrowserModel.Group.COLLECTIONS && !row.key().equals(browser.selectedKey())) {
+                browser.selectDifficultyRow(row.key()); syncBrowser(true);
+            }
+            else if (row.setIndex() == selectedSetIndex && row.difficultyIndex() == selectedDifficultyIndex) {
                 if (!context) playSelected();
             }
             else { selectSet(row.setIndex()); selectDifficulty(row.difficultyIndex()); }
@@ -945,15 +968,19 @@ public final class SongSelectScreen extends ScreenAdapter {
             backgroundFade = 0;
         }
     }
+    private boolean modalOpen() { return toolbox.open() || collectionManager.open(); }
     private void perform(SongSelectAction action) {
-        if (toolbox.open() || importing || outgoing.pending()) return;
+        if (modalOpen() || importing || outgoing.pending()) return;
         switch (action) {
             case MODE, MODS -> {
                 sound(SongSelectAudio.Cue.CONFIRM);
                 controls.close(); searchActive = false;
                 toolbox.open(action == SongSelectAction.MODE ? SongSelectToolboxState.Overlay.MODE : SongSelectToolboxState.Overlay.MODS);
             }
-            case OPTIONS -> showToast("Beatmap Options unavailable in this version.",UiTheme.MUTED);
+            case OPTIONS -> {
+                controls.close(); searchActive=false; scoreScroll.cancel(); input.cancelPointer();
+                collectionManager.options(selectedSet(),selectedDifficulty()); sound(SongSelectAudio.Cue.CONFIRM);
+            }
             case BACK -> goBack();
             case IMPORT -> requestImport();
             case RANDOM -> randomize();

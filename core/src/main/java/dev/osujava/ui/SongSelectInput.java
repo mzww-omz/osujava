@@ -23,6 +23,10 @@ class SongSelectInput extends InputAdapter {
         boolean scroll(float amount);
         default boolean repeatEnabled() { return true; }
         default void cursor(int x, int y, int button, boolean down) { }
+        default boolean modalOpen() { return false; }
+        default void modalKey(int key) { }
+        default void modalTyped(char character) { }
+        default void modalScroll(float amount) { }
     }
     private final SongSelectToolboxState toolbox;
     private final SongBrowserControls controls;
@@ -46,6 +50,11 @@ class SongSelectInput extends InputAdapter {
     private boolean key(int key, boolean initial) {
         pendingHighSurrogate = 0;
         if (initial && AppShortcuts.handleQuit(key)) return true;
+        if(target.modalOpen()) {
+            if(initial || key==Input.Keys.BACKSPACE || key==Input.Keys.UP || key==Input.Keys.DOWN) target.modalKey(key);
+            if(!target.modalOpen() && key==Input.Keys.NUM_6) suppressedTyped='6';
+            return true;
+        }
         if (toolbox.open()) {
             if (!initial) return true;
             if (key == Input.Keys.ESCAPE || key == Input.Keys.NUM_2
@@ -120,6 +129,7 @@ class SongSelectInput extends InputAdapter {
                 || Gdx.input.isKeyPressed(Input.Keys.ALT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.ALT_RIGHT)
                 || Gdx.input.isKeyPressed(Input.Keys.SYM)) { pendingHighSurrogate = 0; return true; }
         if (Character.isISOControl(character)) { pendingHighSurrogate = 0; return false; }
+        if(target.modalOpen()) { target.modalTyped(character); pendingHighSurrogate=0; return true; }
         if (Character.isHighSurrogate(character)) { pendingHighSurrogate = character; return true; }
         String appended;
         if (Character.isLowSurrogate(character)) {
@@ -135,7 +145,7 @@ class SongSelectInput extends InputAdapter {
     }
     @Override public boolean keyUp(int key) {
         repeat.release(key); suppressedTextKeys.remove(key);
-        if (key == Input.Keys.I || key == Input.Keys.SPACE || key == Input.Keys.NUM_2) suppressedTyped = 0;
+        if (key == Input.Keys.I || key == Input.Keys.SPACE || key == Input.Keys.NUM_2 || key == Input.Keys.NUM_6) suppressedTyped = 0;
         return false;
     }
     @Override public boolean touchDown(int x, int y, int pointer, int button) {
@@ -152,6 +162,7 @@ class SongSelectInput extends InputAdapter {
         return false;
     }
     @Override public boolean scrolled(float amountX, float amountY) {
+        if(target.modalOpen()) { if(Float.isFinite(amountY) && amountY!=0) target.modalScroll(amountY); return true; }
         if (toolbox.open()) return true;
         return Float.isFinite(amountY) && amountY != 0 && target.scroll(amountY);
     }

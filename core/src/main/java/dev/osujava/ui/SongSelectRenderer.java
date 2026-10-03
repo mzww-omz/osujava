@@ -46,6 +46,7 @@ final class SongSelectRenderer {
         Color activeText,
         Color inactiveText,
         SongSelectToolboxState toolbox,
+        SongSelectCollections.Snapshot collections,
         BrowserView browser,
         ScoreView scores,
         SongBrowserControls controls,
@@ -130,14 +131,14 @@ final class SongSelectRenderer {
             view.endText();
         } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
         view.beginShapes();
-        boolean backHover = !frame.toolbox.open() && frame.bottomLayout.backInteraction.contains(px,py);
+        boolean backHover = !(frame.toolbox.open() || frame.collections.open()) && frame.bottomLayout.backInteraction.contains(px,py);
         boolean backPressed = backHover && frame.pointerPressed;
         if (!has(Image.BACK)) chromeBox(frame.bottomLayout.back,actionTint.set(BACK_PINK).lerp(SELECTED,backPressed ? .22f : backHover ? .10f : 0));
         renderedSelectionProcedural.clear();
         for (var action : Selection.values()) if (!has(action.normal)) {
             renderedSelectionProcedural.add(action);
             var slot = frame.bottomLayout.control(action).slot();
-            boolean hover = !frame.toolbox.open() && frame.bottomLayout.control(action).interaction().contains(px,py);
+            boolean hover = !(frame.toolbox.open() || frame.collections.open()) && frame.bottomLayout.control(action).interaction().contains(px,py);
             chromeBox(slot,!selectionEnabled(action) ? LEFT : hover ? SIBLING_HOVER : OTHER);
         }
         frame.controls.drawShapes(view,layout.width(),layout.height(),frame.skin);
@@ -178,8 +179,8 @@ final class SongSelectRenderer {
             view.endText();
         } finally { Gdx.gl.glDisable(GL20.GL_SCISSOR_TEST); }
         if (frame.selectedDifficulty != null) {
-            playCookie.draw(view, (float) SongSelectDecorations.beat(frame.previewSeconds, frame.selectedDifficulty), !frame.toolbox.open() && playCookie.hit(px, py),
-                    !frame.toolbox.open() && frame.pointerPressed);
+            playCookie.draw(view, (float) SongSelectDecorations.beat(frame.previewSeconds, frame.selectedDifficulty), !(frame.toolbox.open() || frame.collections.open()) && playCookie.hit(px, py),
+                    !(frame.toolbox.open() || frame.collections.open()) && frame.pointerPressed);
         }
         view.beginText();
         frame.controls.drawLabels(view,batch,layout.width(),layout.height(),frame.browser,frame.skin,px,py);
@@ -198,7 +199,7 @@ final class SongSelectRenderer {
                     slot.x()+7,labelY,slot.width()-14,.65f,selectionEnabled(action) ? UiTheme.TEXT : UiTheme.MUTED);
         }
         var importBounds = frame.bottomLayout.importAction;
-        boolean importHover = !frame.toolbox.open() && importBounds.contains(px,py) && !frame.importing;
+        boolean importHover = !(frame.toolbox.open() || frame.collections.open()) && importBounds.contains(px,py) && !frame.importing;
         view.textSmooth("I  Import",importBounds.x()+4,importBounds.y()+importBounds.height()*.55f,
                 importBounds.width()-8,.65f,importHover ? actionTint.set(UiTheme.TEXT).mul(frame.pointerPressed ? .8f : 1) : UiTheme.MUTED);
         var status = frame.bottomLayout.status;
@@ -213,6 +214,7 @@ final class SongSelectRenderer {
         view.endText();
         frame.controls.drawMenu(view, layout.width(), layout.height(), frame.browser,px,py);
         SongSelectToolboxOverlay.draw(view,batch,layout,frame.toolbox,frame.skin);
+        SongSelectCollectionsOverlay.draw(view,layout,frame.collections,px,py);
         view.cover(frame.entranceOpacity);
         view.cover(frame.outgoingOpacity);
     }
@@ -281,7 +283,7 @@ final class SongSelectRenderer {
     }
 
     private boolean selectionEnabled(Selection action) {
-        return !frame.importing && !frame.outgoingPending && action != Selection.OPTIONS
+        return !frame.importing && !frame.outgoingPending
                 && (action != Selection.RANDOM || frame.browser.visibleCount() != 0);
     }
 
@@ -307,7 +309,7 @@ final class SongSelectRenderer {
             view.box(empty.x(), empty.y(), empty.width(), empty.height(), 0, LEFT);
             view.endShapes();
             view.beginText();
-            view.textCenteredVertically(frame.sets.isEmpty() ? "Import a beatmap to begin" : "No matching beatmaps",
+            view.textCenteredVertically(frame.browser.group()==SongBrowserModel.Group.COLLECTIONS ? "No matching collection maps · F3 to manage" : frame.sets.isEmpty() ? "Import a beatmap to begin" : "No matching beatmaps",
                     empty.x() + 14, empty.y() + empty.height() / 2, Math.max(0, empty.width() - 28),
                     UiTheme.BODY, UiTheme.TEXT, false);
             view.endText();
