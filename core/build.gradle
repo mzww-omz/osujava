@@ -47,3 +47,16 @@ tasks.register('localDifficultyPerformanceProbe', JavaExec) {
         if (project.hasProperty(name)) systemProperty "osujava.${name}", project.property(name)
     }
 }
+
+// Opt-in CPU measurement of the real Song Select update path with hashed source ratings.
+tasks.register('songSelectDifficultyPerformanceProbe', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'dev.osujava.ui.SongSelectDifficultyPerformanceProbe'
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(21) }
+    jvmArgs '-Xms512m', '-Xmx512m'
+    for (def option : ['Count', 'TimeoutSeconds', 'Samples']) {
+        def name = "difficultyUiProbe${option}"
+        if (project.hasProperty(name)) systemProperty "osujava.${name}", project.property(name)
+    }
+}
