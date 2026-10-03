@@ -10,7 +10,7 @@ import java.util.concurrent.CancellationException;
  * See docs/songselect-backend-difficulty-20261003.md for numerical scope and provenance. */
 public final class StandardDifficultyCalculator {
     public static final String ALGORITHM_VERSION = "osu-java-nm-20220902-3";
-    public static final String PREPROCESS_VERSION = "legacy-curves-f32-v8-3";
+    public static final String PREPROCESS_VERSION = "legacy-curves-f32-v8-4";
     public static final int MAX_OBJECTS = 20_000;
     private static final int MAX_STACK_COMPARISONS = 2_000_000;
     private static final long MAX_SPAN_MS = 6 * 60 * 60 * 1000L;

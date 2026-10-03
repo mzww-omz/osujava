@@ -185,9 +185,8 @@ final class SliderPreprocessing {
                 budget.spend();var p=timing.get(point++);
                 if(p.uninherited()) beat=p.beatLength();
                 double raw=p.beatLength()<0?100/-p.beatLength():1;
-                // Until rounding-boundary oracle cases exist, accept only already representable SVs.
+                // Pinned Slider velocity uses nearest 0.01 after clamping, with ties to even.
                 sv=Math.clamp(raw,.1,10);
-                if(Math.abs(sv-Math.rint(sv/.01)*.01)>1e-10) throw new Unsupported("Slider velocity precision boundary is not verified");
                 sv=Math.rint(sv/.01)*.01;
             }
             if(object.type()==HitObject.Type.SLIDER) result[i]=new Slider(object,beat,sv,chart,budget);

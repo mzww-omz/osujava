@@ -73,6 +73,28 @@ class LocalDifficultyServiceTest {
             assertEquals(failed,service.result(bad));assertEquals(DifficultyResult.Status.SUCCESS,service.result(repaired).status());
         }
     }
+    @Test void verifiedVelocityRoundingInvalidatesPreviousUnsupportedCacheAndWarmsSuccessfully() throws Exception {
+        var parser=new BeatmapFileParser();
+        BeatmapDifficulty chart;
+        try(var in=getClass().getResourceAsStream("/difficulty/reference-20220902/timing-sv-rounding.osu")) {
+            assertNotNull(in);
+            chart=parser.parse(new String(in.readAllBytes(),java.nio.charset.StandardCharsets.UTF_8),"timing-sv-rounding.osu").difficulty();
+        }
+        var old=new DifficultyKey(BeatmapContentKey.of(chart),List.of(),StandardDifficultyCalculator.ALGORITHM_VERSION,"legacy-curves-f32-v8-3");
+        var cache=new DifficultyCache(directory);
+        cache.save(old,DifficultyResult.unsupported("Slider velocity precision boundary is not verified"));
+        byte[] previous=Files.readAllBytes(cache.path(old));
+        DifficultyResult calculated;
+        try(var service=new LocalDifficultyService(directory)) {
+            service.library(sets(chart));finished(service,1);calculated=service.result(chart);
+            assertEquals(DifficultyResult.Status.SUCCESS,calculated.status());assertTrue(calculated.rating().isPresent());
+        }
+        assertArrayEquals(previous,Files.readAllBytes(cache.path(old)));
+        try(var service=new LocalDifficultyService(directory,d->{fail("Verified warm rating must not recalculate");return VALUE;},
+                StandardDifficultyCalculator.ALGORITHM_VERSION,StandardDifficultyCalculator.PREPROCESS_VERSION)) {
+            service.library(sets(chart));finished(service,1);assertEquals(calculated,service.result(chart));
+        }
+    }
     @Test void frameMethodsDoNoCalculationAndContentDuplicatesShareOneResultAndCache() throws Exception {
         var first=chart(100);var copy=first.withAssets(null,null,Path.of("moved.osu"));
         var calls=new AtomicInteger();var thread=new AtomicReference<Thread>();Thread ui=Thread.currentThread();
